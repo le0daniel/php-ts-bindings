@@ -1,0 +1,24 @@
+{
+    "name": "le0daniel/php-ts-bindings",
+    "description": "Library to create type bindings between PHP8 and TS, supporting parsing, serialization and emitting of  TS types for PHP objects/input strongly typed",
+    "type": "library",
+    "require-dev": {
+        "pestphp/pest": "4.x-dev"
+    },
+    "autoload": {
+        "psr-4": {
+            "Le0daniel\\PhpTsBindings\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Leo Studer"
+        }
+    ],
+    "minimum-stability": "dev",
+    "config": {
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    }
+}
