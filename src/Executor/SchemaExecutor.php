@@ -14,76 +14,93 @@ final class SchemaExecutor
 {
     public function parse(NodeInterface $node, mixed $input): mixed
     {
-        if ($node instanceof LeafType) {
-            return $node->parseValue($input, null);
-        }
+        return match (true) {
+            $node instanceof LeafType => $node->parseValue($input, null),
+            $node instanceof UnionType => $this->parseUnion($node, $input),
+            $node instanceof StructType => $this->parseStruct($node, $input),
+            $node instanceof TupleType => $this->parseTuple($node, $input),
+            default => Value::INVALID,
+        };
+    }
 
-        // ToDo: Unions are not really efficient.
-        if ($node instanceof UnionType) {
-            foreach ($node->types as $type) {
-                $result = $this->parse($type, $input);
-                if ($result !== Value::INVALID) {
-                    return $result;
-                }
+    private function parseUnion(UnionType $node, mixed $input): mixed
+    {
+        if ($node->isDiscriminated()) {
+            $discriminatedType = $node->getDiscriminatedType($this->extractKeyedInputValue($node->discriminator, $input));
+            if ($discriminatedType) {
+                return $this->parse($discriminatedType, $input);
             }
             return Value::INVALID;
         }
 
-        if ($node instanceof StructType) {
-            if (!is_array($input) || array_is_list($input)) {
-                return Value::INVALID;
+        foreach ($node->types as $type) {
+            $result = $this->parse($type, $input);
+            if ($result !== Value::INVALID) {
+                return $result;
             }
-
-            $struct = [];
-            foreach ($node->properties as $name => $propertyType) {
-                $propertyValue = $this->extractKeyedInputValue($name, $input);
-                if ($propertyValue === Value::UNDEFINED && $propertyType instanceof OptionalType) {
-                    continue;
-                }
-
-                $result = $propertyType instanceof OptionalType
-                    ? $this->parse($propertyType->node, $propertyValue)
-                    : $this->parse($propertyType, $propertyValue);
-
-                if ($result === Value::INVALID) {
-                    return Value::INVALID;
-                }
-                $struct[$name] = $result;
-            }
-            return $node->phpType->coerceFromArray($struct);
         }
-
-        if ($node instanceof TupleType) {
-            if (!is_array($input) || !array_is_list($input)) {
-                return Value::INVALID;
-            }
-
-            $expectedCount = count($node->types);
-            if (count($input) !== $expectedCount) {
-                return Value::INVALID;
-            }
-
-            $tupleValues = [];
-            foreach ($node->types as $index => $type) {
-                $result = $this->parse($type, $input[$index]);
-                if ($result === Value::INVALID) {
-                    return Value::INVALID;
-                }
-                $tupleValues[] = $result;
-            }
-            return $tupleValues;
-        }
-
         return Value::INVALID;
+    }
+
+    private function parseStruct(StructType $node, mixed $input): array|object
+    {
+        if (!is_array($input) || array_is_list($input)) {
+            return Value::INVALID;
+        }
+
+        $struct = [];
+        foreach ($node->properties as $name => $propertyType) {
+            $isOptional = $propertyType instanceof OptionalType;
+            $propertyValue = $this->extractKeyedInputValue($name, $input);
+
+            if ($propertyValue === Value::UNDEFINED) {
+                if ($isOptional) {
+                    continue;
+                } else {
+                    return Value::INVALID;
+                }
+            }
+
+            $result = $this->parse(
+                $propertyType instanceof OptionalType
+                    ? $propertyType->node
+                    : $propertyType,
+                $propertyValue
+            );
+
+            if ($result === Value::INVALID) {
+                return Value::INVALID;
+            }
+            $struct[$name] = $result;
+        }
+
+        return $node->phpType->coerceFromArray($struct);
+    }
+
+    private function parseTuple(TupleType $node, mixed $input): Value|array
+    {
+        if (!is_array($input) || !array_is_list($input)) {
+            return Value::INVALID;
+        }
+
+        $expectedCount = count($node->types);
+        if (count($input) !== $expectedCount) {
+            return Value::INVALID;
+        }
+
+        $tupleValues = [];
+        foreach ($node->types as $index => $type) {
+            $result = $this->parse($type, $input[$index]);
+            if ($result === Value::INVALID) {
+                return Value::INVALID;
+            }
+            $tupleValues[] = $result;
+        }
+        return $tupleValues;
     }
 
     private function extractKeyedInputValue(string $key, array $input): mixed
     {
         return array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED;
-    }
-
-    public function serialize(NodeInterface $node, mixed $input): mixed
-    {
-
     }
 }

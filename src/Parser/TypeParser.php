@@ -227,7 +227,38 @@ final readonly class TypeParser
         }
 
         // Produces a union or a type
-        return count($types) > 1 ? new UnionType($types) : $types[0];
+        return count($types) > 1 ? $this->checkForDiscriminatedUnion($types) : $types[0];
+    }
+
+    private function checkForDiscriminatedUnion(array $types): UnionType
+    {
+        // ToDo: Support other types too, like complex types.
+        if (!array_all($types, fn(NodeInterface $type) => $type instanceof StructType)) {
+            return new UnionType($types);
+        }
+
+        $possibleDescriminatedFields = [];
+
+        // ToDo: Not efficient.
+        /** @var StructType $type */
+        foreach ($types as $type) {
+            foreach ($type->properties as $name => $property) {
+                if (!$property instanceof LiteralType) {
+                    continue;
+                }
+                $possibleDescriminatedFields[$name][] = $property->value;
+            }
+        }
+
+        foreach ($possibleDescriminatedFields as $name => $values) {
+            if (count(array_unique($values)) !== count($types)) {
+                continue;
+            }
+
+            return new UnionType($types, $name, $values);
+        }
+
+        return new UnionType($types);
     }
 
     private function consumeArrayType(Tokens $tokens): NodeInterface
@@ -252,10 +283,7 @@ final readonly class TypeParser
 
         // No generics
         if (!$tokens->currentTokenIs(TokenType::LT)) {
-            return new UnionType([
-                new ListType(new BuiltInType('mixed')),
-                new RecordType(new BuiltInType('mixed')),
-            ]);
+            return new ListType(new BuiltInType('mixed'));
         }
 
         $generics = $this->consumeGenerics($tokens, min: 1, max: $maxGenerics);

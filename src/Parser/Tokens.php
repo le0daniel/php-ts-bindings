@@ -28,6 +28,11 @@ final class Tokens implements Iterator
         return $this->tokens[($this->currentIndex + $offset)] ?? null;
     }
 
+    public function at(int $offset): ?Token
+    {
+        return $this->tokens[$offset] ?? null;
+    }
+
     public function currentTokenIs(TokenType $type, ?string $value = null): bool
     {
         if ($this->current()->type !== $type) {
