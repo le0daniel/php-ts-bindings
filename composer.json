@@ -10,6 +10,11 @@
             "Le0daniel\\PhpTsBindings\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "Leo Studer"
