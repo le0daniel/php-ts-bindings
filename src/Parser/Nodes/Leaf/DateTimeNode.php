@@ -53,7 +53,10 @@ final readonly class DateTimeNode implements NodeInterface, LeafType
         }
     }
 
-    public function serializeValue(mixed $value, $context): string
+    /**
+     * @return string|Value::INVALID
+     */
+    public function serializeValue(mixed $value, $context): string|Value
     {
         if (!$value instanceof DateTimeInterface) {
             return Value::INVALID;
