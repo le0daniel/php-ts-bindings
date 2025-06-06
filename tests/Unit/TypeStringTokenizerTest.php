@@ -38,8 +38,7 @@ test("Identifies Class Const correctly", function () {
 
 test("Test tokenizer with complex string", function () {
     $tokenizer = new TypeStringTokenizer();
-
-    $tokens = $tokenizer->tokenize("string|0|Value::INVALID|array{0: string, 1: string}");
+    $tokens = $tokenizer->tokenize("string|0|Value::INVALID_INVALID|array{0: string, 1: string}|object{name: 'leo'}");
 
     foreach ($tokens as $index => $token) {
         match ($index) {
@@ -47,7 +46,7 @@ test("Test tokenizer with complex string", function () {
             1 => expect($token->is(TokenType::PIPE))->toBeTrue(),
             2 => expect($token->is(TokenType::INT, '0'))->toBeTrue(),
             3 => expect($token->is(TokenType::PIPE))->toBeTrue(),
-            4 => expect($token->is(TokenType::CLASS_CONST, 'Value::INVALID'))->toBeTrue(),
+            4 => expect($token->is(TokenType::CLASS_CONST, 'Value::INVALID_INVALID'))->toBeTrue(),
             5 => expect($token->is(TokenType::PIPE))->toBeTrue(),
             6 => expect($token->is(TokenType::IDENTIFIER, 'array'))->toBeTrue(),
             7 => expect($token->is(TokenType::LBRACE))->toBeTrue(),
@@ -59,7 +58,14 @@ test("Test tokenizer with complex string", function () {
             13 => expect($token->is(TokenType::COLON))->toBeTrue(),
             14 => expect($token->is(TokenType::IDENTIFIER, 'string'))->toBeTrue(),
             15 => expect($token->is(TokenType::RBRACE))->toBeTrue(),
-            16 => expect($token->is(TokenType::EOF))->toBeTrue(),
+            16 => expect($token->is(TokenType::PIPE))->toBeTrue(),
+            17 => expect($token->is(TokenType::IDENTIFIER, 'object'))->toBeTrue(),
+            18 => expect($token->is(TokenType::LBRACE))->toBeTrue(),
+            19 => expect($token->is(TokenType::IDENTIFIER, 'name'))->toBeTrue(),
+            20 => expect($token->is(TokenType::COLON))->toBeTrue(),
+            21 => expect($token->is(TokenType::STRING, 'leo'))->toBeTrue(),
+            22 => expect($token->is(TokenType::RBRACE))->toBeTrue(),
+            default => expect($token->is(TokenType::EOF))->toBeTrue(),
         };
     }
 });
