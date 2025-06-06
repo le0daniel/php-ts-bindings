@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\Literal;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralType;
@@ -104,7 +105,7 @@ final readonly class TypeParser
         if ($token->isAnyTypeOf(TokenType::BOOL, TokenType::STRING, TokenType::FLOAT, TokenType::INT)) {
             $tokens->advance();
             return $this->consumeTypeModifiers($tokens, new LiteralType(
-                $token->type->value,
+                Literal::identifyPrimitiveTypeValue($token->value),
                 $token->coercedValue(),
             ));
         }
@@ -120,7 +121,7 @@ final readonly class TypeParser
                 $tokens->advance();
 
                 return $this->consumeTypeModifiers($tokens, new LiteralType(
-                    $isEnum ? 'enum_case': LiteralType::identifyPrimitiveTypeValue($const),
+                    $isEnum ? Literal::ENUM_CASE : Literal::identifyPrimitiveTypeValue($const),
                     $const
                 ));
             } catch (Throwable) {
