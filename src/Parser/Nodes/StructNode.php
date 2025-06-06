@@ -10,41 +10,30 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 final readonly class StructNode implements NodeInterface
 {
     /**
-     * @param array<string, NodeInterface> $properties
+     * @param list<PropertyNode> $properties
      */
     public function __construct(
         public StructPhpType $phpType,
         public array         $properties,
     )
     {
-        if (empty($this->properties) || array_is_list($this->properties)) {
+        if (empty($this->properties)) {
             throw new InvalidArgumentException("Cannot create object type with no properties or properties that are not keyed by strings (e.g. ['foo' => 'bar'] is fine, but ['foo'] is not");
         }
     }
 
     public function __toString(): string
     {
-        $props = [];
-        foreach ($this->properties as $key => $type) {
-            $props[] = "{$key}:{$type}";
-        }
-
-        return "{$this->phpType->value}{" . implode(', ', $props) . '}';
+        $properties = array_map(fn(PropertyNode $property) => (string) $property, $this->properties);
+        $imploded = implode(', ', $properties);
+        return "{$this->phpType->value}{{$imploded}}";
     }
 
     public function exportPhpCode(): string
     {
-        $flattenProperties = [];
-        foreach ($this->properties as $name => $property) {
-            $name = PHPExport::export($name);
-            $property = PHPExport::export($property);
-            $flattenProperties[] = "{$name} => {$property}";
-        }
-
-        $exportedProperties = implode(', ', $flattenProperties);
+        $exportedProperties = PHPExport::exportArray($this->properties);
         $className = PHPExport::absolute(self::class);
         $phpType = PHPExport::exportEnumCase($this->phpType);
-
-        return "new {$className}({$phpType}, [{$exportedProperties}])";
+        return "new {$className}({$phpType}, {$exportedProperties})";
     }
 }

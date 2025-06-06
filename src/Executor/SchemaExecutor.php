@@ -5,7 +5,7 @@ namespace Le0daniel\PhpTsBindings\Executor;
 use Le0daniel\PhpTsBindings\Contracts\LeafType;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
-use Le0daniel\PhpTsBindings\Parser\Nodes\OptionalType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
@@ -14,6 +14,14 @@ final class SchemaExecutor
 {
     public function parse(NodeInterface $node, mixed $input): mixed
     {
+        if ($node instanceof ConstraintNode) {
+            $constrainedValue = $this->parse($node->node, $input);
+            if ($constrainedValue === Value::INVALID || !$node->areConstraintsFulfilled($constrainedValue)) {
+                return Value::INVALID;
+            }
+            return $constrainedValue;
+        }
+
         return match (true) {
             $node instanceof LeafType => $node->parseValue($input, null),
             $node instanceof UnionNode => $this->parseUnion($node, $input),
@@ -49,12 +57,11 @@ final class SchemaExecutor
         }
 
         $struct = [];
-        foreach ($node->properties as $name => $propertyType) {
-            $isOptional = $propertyType instanceof OptionalType;
-            $propertyValue = $this->extractKeyedInputValue($name, $input);
+        foreach ($node->properties as $propertyNode) {
+            $propertyValue = $this->extractKeyedInputValue($propertyNode->name, $input);
 
             if ($propertyValue === Value::UNDEFINED) {
-                if ($isOptional) {
+                if ($propertyNode->isOptional) {
                     continue;
                 } else {
                     return Value::INVALID;
@@ -62,16 +69,15 @@ final class SchemaExecutor
             }
 
             $result = $this->parse(
-                $propertyType instanceof OptionalType
-                    ? $propertyType->node
-                    : $propertyType,
+                Value::toNull($propertyValue),
                 $propertyValue
             );
 
             if ($result === Value::INVALID) {
                 return Value::INVALID;
             }
-            $struct[$name] = $result;
+
+            $struct[$propertyNode->name] = $result;
         }
 
         return $node->phpType->coerceFromArray($struct);

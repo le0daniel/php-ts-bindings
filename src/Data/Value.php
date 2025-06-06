@@ -11,4 +11,9 @@ enum Value
     {
         return null;
     }
+
+    public static function toNull(mixed $value): mixed
+    {
+        return $value instanceof Value ? null : $value;
+    }
 }

@@ -4,13 +4,15 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\OptionalType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -18,9 +20,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\Parsers\CustomClassParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
-use Le0daniel\PhpTsBindings\Utils\Strings;
+use Le0daniel\PhpTsBindings\Validators\LengthValidator;
 use ReflectionClass;
-use RuntimeException;
 use Throwable;
 
 final readonly class TypeParser
@@ -134,24 +135,63 @@ final readonly class TypeParser
             $this->produceSyntaxError("Expected type identifier", $tokens);
         }
 
-        // Produces an array|list type.
-        if ($token->value === 'array' || $token->value === 'list') {
-            // Returns the next token after the array.
-            return $this->consumeArrayType($tokens);
+        // ToDo: Need to handle case Modifiers corrects
+        // ToDo: Implement: non-empty-string|non-falsy-string|truthy-string
+        // ToDo: Implement typeAliases support: https://phpstan.org/writing-php-code/phpdoc-types
+        switch ($token->value) {
+            case 'scalar':
+                return new UnionNode([
+                    new BuiltInNode(BuiltInType::INT),
+                    new BuiltInNode(BuiltInType::FLOAT),
+                    new BuiltInNode(BuiltInType::BOOL),
+                    new BuiltInNode(BuiltInType::STRING),
+                ]);
+            case 'positive-int':
+                $tokens->advance();
+                return new ConstraintNode(
+                    new BuiltInNode(BuiltInType::INT),
+                    [new LengthValidator(min: 1, including: true)]
+                );
+            case 'negative-int':
+                $tokens->advance();
+                return new ConstraintNode(
+                    new BuiltInNode(BuiltInType::INT),
+                    [new LengthValidator(max: -1, including: true)]
+                );
+            case "non-negative-int":
+                $tokens->advance();
+                return new ConstraintNode(
+                    new BuiltInNode(BuiltInType::INT),
+                    [new LengthValidator(min: 0, including: true)]
+                );
+            case 'non-positive-int':
+                $tokens->advance();
+                return new ConstraintNode(
+                    new BuiltInNode(BuiltInType::INT),
+                    [new LengthValidator(max: 0, including: true)]
+                );
+            case 'numeric':
+                $tokens->advance();
+                return new UnionNode([
+                    new BuiltInNode(BuiltInType::INT),
+                    new BuiltInNode(BuiltInType::FLOAT),
+                ]);
+            case 'array':
+            case 'non-empty-array':
+            case 'list':
+            case 'non-empty-list':
+                return $this->consumeArrayType($tokens);
+            case 'object':
+                return $this->consumeStruct($tokens);
+            default:
+                $tokens->advance();
+                return $this->consumeTypeModifiers(
+                    $tokens,
+                    BuiltInType::is($token->value)
+                        ? new BuiltInNode(BuiltInType::from($token->value))
+                        : $this->parseCustomType($token),
+                );
         }
-
-        // Produces an object.
-        if ($token->value === 'object') {
-            return $this->consumeStruct($tokens);
-        }
-
-        $tokens->advance();
-        return $this->consumeTypeModifiers(
-            $tokens,
-            BuiltInType::is($token->value)
-                ? new BuiltInNode(BuiltInType::from($token->value))
-                : $this->parseCustomType($token),
-        );
     }
 
     private function consumeStruct(Tokens $tokens): NodeInterface
@@ -170,6 +210,7 @@ final readonly class TypeParser
         $tokens->advance();
         $properties = [];
 
+        // ToDo: Add Tuple support from PHPStan: array{int, int}
         while ($tokens->canAdvance()) {
             if (!$tokens->current()->is(TokenType::IDENTIFIER)) {
                 $this->produceSyntaxError("Expected identifier", $tokens);
@@ -185,8 +226,7 @@ final readonly class TypeParser
             $tokens->advance();
 
             $type = $this->consumeTypeOrUnion($tokens, TokenType::COMMA, TokenType::RBRACE);
-            $properties[$name] = $isOptional ? new OptionalType($type) : $type;
-
+            $properties[] = new PropertyNode($name, $type, $isOptional);
             if ($tokens->current()->is(TokenType::RBRACE)) {
                 break;
             }
@@ -249,6 +289,7 @@ final readonly class TypeParser
                 continue;
             }
 
+            // ToDo: Expand Returned unions.
             $types[] = $this->consumeType($tokens);
             $openUnion = false;
         } while ($tokens->canAdvance());
@@ -263,30 +304,45 @@ final readonly class TypeParser
 
     private function checkForDiscriminatedUnion(array $types): UnionNode
     {
-        // ToDo: Support other types too, like complex types.
-        if (!array_all($types, fn(NodeInterface $type) => $type instanceof StructNode)) {
+        if (count($types) < 2 || !array_all($types, fn(NodeInterface $type) => $type instanceof StructNode)) {
             return new UnionNode($types);
         }
 
-        $possibleDiscriminatedFields = [];
+        /** @var StructNode $firstType */
+        $firstType = $types[0];
+        $candidateFields = [];
 
-        // ToDo: Not efficient.
-        /** @var StructNode $type */
-        foreach ($types as $type) {
-            foreach ($type->properties as $name => $property) {
-                if (!$property instanceof LiteralNode) {
-                    continue;
-                }
-                $possibleDiscriminatedFields[$name][] = $property->value;
+        // Step 1: Find candidate fields from the first type
+        foreach ($firstType->properties as $name => $property) {
+            if ($property instanceof LiteralNode) {
+                $candidateFields[$name] = [$property->value];
             }
         }
 
-        foreach ($possibleDiscriminatedFields as $name => $values) {
-            if (count(array_unique($values)) !== count($types)) {
-                continue;
+        // Step 2: Iterate through candidates and verify with other types
+        foreach ($candidateFields as $fieldName => &$values) {
+            $isDiscriminator = true;
+            // Start from the second type
+            for ($i = 1; $i < count($types); $i++) {
+                /** @var StructNode $otherType */
+                $otherType = $types[$i];
+                $otherProperty = $otherType->properties[$fieldName] ?? null;
+
+                // Check for presence, type, and uniqueness
+                if (
+                    !$otherProperty instanceof LiteralNode ||
+                    in_array($otherProperty->value, $values, true)
+                ) {
+                    $isDiscriminator = false;
+                    break; // This is not the discriminator field
+                }
+                $values[] = $otherProperty->value;
             }
 
-            return new UnionNode($types, $name, $values);
+            if ($isDiscriminator) {
+                // We found it!
+                return new UnionNode($types, $fieldName, $values);
+            }
         }
 
         return new UnionNode($types);
@@ -294,6 +350,7 @@ final readonly class TypeParser
 
     private function consumeArrayType(Tokens $tokens): NodeInterface
     {
+        // ToDo: Handle non-empty-array | non-empty-list;
         if (!$tokens->current()->is(TokenType::IDENTIFIER) || !in_array($tokens->current()->value, ['array', 'list'], true)) {
             $this->produceSyntaxError("Expected Array Type Identifier: array or list", $tokens);
         }
@@ -414,9 +471,12 @@ final readonly class TypeParser
 
     private function produceSyntaxError(string $message, ?Tokens $tokens = null, ?Throwable $exception = null): never
     {
-        throw new RuntimeException(implode(PHP_EOL, array_filter([
-            "Syntax Error: {$message}",
-            $tokens?->current()->highlightArea($tokens->input),
-        ])));
+        throw new InvalidSyntaxException(
+            implode(PHP_EOL, array_filter([
+                "Syntax Error: {$message}",
+                $tokens?->current()->highlightArea($tokens->input),
+            ])),
+            previous: $exception,
+        );
     }
 }

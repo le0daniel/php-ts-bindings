@@ -19,6 +19,20 @@ final class PHPExport
         return "{$className}::{$name}";
     }
 
+    public static function exportArray(array $array): string
+    {
+        if (empty($array)) {
+            return '[]';
+        }
+
+        if (!array_is_list($array)) {
+            throw new \InvalidArgumentException('Array must be a list');
+        }
+
+        $imploded = implode(',', array_map(self::export(...), $array));
+        return "[{$imploded}]";
+    }
+
     public static function export(mixed $value): string
     {
         if ($value instanceof ExportableToPhpCode) {
