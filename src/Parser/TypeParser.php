@@ -410,7 +410,7 @@ final readonly class TypeParser
         return $generics;
     }
 
-    private function produceSyntaxError(string $message, ?Tokens $tokens): never
+    private function produceSyntaxError(string $message, ?Tokens $tokens = null, ?Throwable $exception = null): never
     {
         throw new RuntimeException(implode(PHP_EOL, array_filter([
             "Syntax Error: {$message}",

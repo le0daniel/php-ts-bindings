@@ -7,12 +7,13 @@ use Le0daniel\PhpTsBindings\Contracts\LeafType;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use UnitEnum;
 
 final readonly class LiteralType implements NodeInterface, LeafType
 {
     /**
      * @param 'bool'|'string'|'int'|'float'|'null'|'enum_case' $type
-     * @param mixed $value
+     * @param bool|int|float|null|UnitEnum $value
      */
     public function __construct(
         public string $type,
@@ -49,6 +50,12 @@ final readonly class LiteralType implements NodeInterface, LeafType
     {
         $className = PHPExport::absolute(self::class);
         $type = var_export($this->type, true);
+
+        if ($this->type === 'enum_case') {
+            $enumClassName = PHPExport::absolute($this->value::class);
+            return "new {$className}({$type}, {$enumClassName}::{$this->value->name})";
+        }
+
         $value = var_export($this->value, true);
         return "new {$className}({$type}, {$value})";
     }

@@ -137,6 +137,7 @@ final class TypeStringTokenizer
             return new Tokens($typeString, $tokens);
         }
 
+        // Apply namespace buffer
         $namespaceMap = Namespaces::buildNamespaceAliasMap($namespaces);
         return new Tokens($typeString, array_map(
             static fn(Token $token): Token => $token->setNamespace($namespaceMap),
