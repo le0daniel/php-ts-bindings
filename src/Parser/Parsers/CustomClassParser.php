@@ -2,9 +2,13 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Parsers;
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
-use Le0daniel\PhpTsBindings\Parser\Nodes\DefinedObjectNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Token;
 use Le0daniel\PhpTsBindings\Parser\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -18,7 +22,7 @@ final class CustomClassParser implements Parser
 
     public function canParse(Token $token): bool
     {
-        if (!$token->is(TokenType::IDENTIFIER) ) {
+        if (!$token->is(TokenType::IDENTIFIER)) {
             return false;
         }
 
@@ -28,27 +32,31 @@ final class CustomClassParser implements Parser
         }
 
         $reflection = new ReflectionClass($typeName);
-        return $reflection->isUserDefined() && !$reflection->isAbstract();
+        return $reflection->isUserDefined() && $reflection->isInstantiable();
     }
 
     /**
      * @param ReflectionProperty[]|ReflectionParameter[] $properties
-     * @return array<string, NodeInterface>
+     * @return list<PropertyNode>
      */
-    private function createProperties(array $properties, TypeParser $parser): array
+    private function createProperties(array $properties, TypeParser $parser, PropertyType $propertyType): array
     {
-        $parsed = [];
+        return array_map(
+            static function(ReflectionProperty|ReflectionParameter $property) use ($parser, $propertyType) {
+                $type = $property->getType();
+                if (!$type) {
+                    throw new RuntimeException("Property '{$property->name}' of {$property->class} does not have any type defined");
+                }
 
-        foreach ($properties as $property) {
-            $type = $property->getType();
-            if (!$type) {
-                throw new RuntimeException("Property '{$property->name}' of {$property->class} does not have any type defined");
-            }
-
-            $parsed[$property->name] = $parser->parse((string) $type);
-        }
-
-        return $parsed;
+                return new PropertyNode(
+                    $property->name,
+                    $parser->parse((string) $type),
+                    false,
+                    $propertyType
+                );
+            },
+            $properties
+        );
     }
 
     /**
@@ -70,7 +78,7 @@ final class CustomClassParser implements Parser
         return array_values($publicSettableProperties);
     }
 
-    public function parse(Token $token, TypeParser $parser): DefinedObjectNode
+    public function parse(Token $token, TypeParser $parser): CustomCastingNode
     {
         $className = $token->fullyQualifiedValue;
         $reflectionClass = new ReflectionClass($className);
@@ -80,8 +88,24 @@ final class CustomClassParser implements Parser
             throw new RuntimeException("Only support classes with a constructor");
         }
 
-        $inputProperties = $this->createProperties($this->findInputProperties($reflectionClass), $parser);
-        $outputProperties = $this->createProperties($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC), $parser);
-        return new DefinedObjectNode($className, $inputProperties, $outputProperties);
+        $inputProperties = $this->createProperties(
+            $this->findInputProperties($reflectionClass),
+            $parser,
+            PropertyType::INPUT
+        );
+        $outputProperties = $this->createProperties(
+            $reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
+            $parser,
+            PropertyType::OUTPUT
+        );
+
+        return new CustomCastingNode(
+            new StructNode(StructPhpType::ARRAY, [
+                ...$inputProperties,
+                ...$outputProperties,
+            ]),
+            $className,
+            ObjectCastStrategy::CONSTRUCTOR,
+        );
     }
 }

@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\LeafType;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
@@ -20,6 +21,14 @@ final class SchemaExecutor
                 return Value::INVALID;
             }
             return $constrainedValue;
+        }
+
+        if ($node instanceof CustomCastingNode) {
+            $arrayValue = $this->parse($node->node, $input);
+            if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
+                return Value::INVALID;
+            }
+            return $node->cast($arrayValue);
         }
 
         return match (true) {
@@ -58,6 +67,10 @@ final class SchemaExecutor
 
         $struct = [];
         foreach ($node->properties as $propertyNode) {
+            if (!$propertyNode->propertyType->isInput()) {
+                continue;
+            }
+
             $propertyValue = $this->extractKeyedInputValue($propertyNode->name, $input);
 
             if ($propertyValue === Value::UNDEFINED) {
@@ -69,8 +82,8 @@ final class SchemaExecutor
             }
 
             $result = $this->parse(
+                $propertyNode->type,
                 Value::toNull($propertyValue),
-                $propertyValue
             );
 
             if ($result === Value::INVALID) {
