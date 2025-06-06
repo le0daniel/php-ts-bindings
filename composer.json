@@ -30,7 +30,7 @@
     },
     "scripts": {
         "test": "pest",
-        "phpstan": "phpstan analyse src --level=4",
+        "phpstan": "phpstan analyse src --level=5",
         "check:all": ["@test", "@phpstan"]
     }
 }
