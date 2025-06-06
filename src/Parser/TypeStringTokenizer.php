@@ -25,6 +25,23 @@ final class TypeStringTokenizer
         while ($currentOffset < $length) {
             $char = $typeString[$currentOffset];
 
+            if ($blockType === TokenType::CLASS_CONST) {
+                if (preg_match('/^[a-zA-Z0-9_]+$/', $char) === 1) {
+                    $buffer .= $char;
+                    $currentOffset++;
+                    continue;
+                }
+
+                $tokens[] = new Token(
+                    TokenType::CLASS_CONST,
+                    $buffer,
+                    $currentOffset - strlen($buffer),
+                    $currentOffset,
+                );
+                $buffer = '';
+                $blockType = null;
+            }
+
             // We are not in a token itself
             if ($blockType) {
                 $currentOffset++;
@@ -46,6 +63,14 @@ final class TypeStringTokenizer
             }
 
             $identifiedToken = $this->identifyBreakingTokenType($char, $typeString[$currentOffset + 1] ?? null);
+            // Handle tokenization of "Value::CONST"
+            if ($identifiedToken === TokenType::DOUBLE_COLON && ctype_alnum($typeString[$currentOffset + 2]) && $buffer !== '') {
+                $blockType = TokenType::CLASS_CONST;
+                $buffer .= "::";
+                $currentOffset += 2;
+                continue;
+            }
+
             if ($identifiedToken === null) {
                 $buffer .= $char;
                 $currentOffset++;
@@ -86,7 +111,7 @@ final class TypeStringTokenizer
             $currentOffset += $tokenLength;
         }
 
-        if ($blockType) {
+        if ($blockType === TokenType::SINGLE_QUOTE || $blockType === TokenType::DOUBLE_QUOTE) {
             throw new RuntimeException("Unclosed block type: {$blockType->value}");
         }
 
@@ -160,6 +185,10 @@ final class TypeStringTokenizer
 
         if ($characters === 'true' || $characters === 'false') {
             return TokenType::BOOL;
+        }
+
+        if (preg_match('/^[a-zA-Z0-9\\\_]+::[a-zA-Z0-9]+$/', $characters) === 1) {
+            return TokenType::CLASS_CONST;
         }
 
         return TokenType::IDENTIFIER;

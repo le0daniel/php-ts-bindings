@@ -77,6 +77,11 @@ final class SchemaExecutor
         return $node->phpType->coerceFromArray($struct);
     }
 
+    /**
+     * @param TupleType $node
+     * @param mixed $input
+     * @return (Value::INVALID)|list<mixed>
+     */
     private function parseTuple(TupleType $node, mixed $input): Value|array
     {
         if (!is_array($input) || !array_is_list($input)) {

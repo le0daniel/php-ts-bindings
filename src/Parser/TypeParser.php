@@ -14,7 +14,9 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\StructType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionType;
 use Le0daniel\PhpTsBindings\Parser\Parsers\CustomClassParser;
+use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
+use Le0daniel\PhpTsBindings\Utils\Strings;
 use RuntimeException;
 
 final readonly class TypeParser
@@ -55,6 +57,7 @@ final readonly class TypeParser
         return [
             ...$prepend,
             new EnumCasesParser(),
+            new DateTimeParser(),
             new CustomClassParser(),
             ...$append,
         ];
@@ -237,7 +240,7 @@ final readonly class TypeParser
             return new UnionType($types);
         }
 
-        $possibleDescriminatedFields = [];
+        $possibleDiscriminatedFields = [];
 
         // ToDo: Not efficient.
         /** @var StructType $type */
@@ -246,11 +249,11 @@ final readonly class TypeParser
                 if (!$property instanceof LiteralType) {
                     continue;
                 }
-                $possibleDescriminatedFields[$name][] = $property->value;
+                $possibleDiscriminatedFields[$name][] = $property->value;
             }
         }
 
-        foreach ($possibleDescriminatedFields as $name => $values) {
+        foreach ($possibleDiscriminatedFields as $name => $values) {
             if (count(array_unique($values)) !== count($types)) {
                 continue;
             }
@@ -323,7 +326,7 @@ final readonly class TypeParser
                 continue;
             }
 
-            if (!$tokens->currentTokenIs(TokenType::INT, (string) count($types))) {
+            if (!$tokens->currentTokenIs(TokenType::INT, (string)count($types))) {
                 $this->produceSyntaxError("Expected int with value " . count($types), $tokens);
             }
             $tokens->advance();

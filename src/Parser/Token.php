@@ -4,13 +4,13 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Stringable;
 
-final readonly class Token implements Stringable
+final class Token implements Stringable
 {
     public function __construct(
-        public TokenType $type,
-        public string    $value,
-        public int       $start,
-        public int       $end,
+        public readonly TokenType $type,
+        public readonly string    $value,
+        public readonly int       $start,
+        public readonly int       $end,
     )
     {
     }
