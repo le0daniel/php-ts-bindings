@@ -7,7 +7,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
-final readonly class StructType implements NodeInterface
+final readonly class StructNode implements NodeInterface
 {
     /**
      * @param array<string, NodeInterface> $properties

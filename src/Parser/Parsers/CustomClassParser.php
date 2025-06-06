@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\Parser\Parsers;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
-use Le0daniel\PhpTsBindings\Parser\Nodes\UserDefinedObject;
+use Le0daniel\PhpTsBindings\Parser\Nodes\DefinedObjectNode;
 use Le0daniel\PhpTsBindings\Parser\Token;
 use Le0daniel\PhpTsBindings\Parser\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -69,7 +69,7 @@ final class CustomClassParser implements Parser
         return array_values($publicSettableProperties);
     }
 
-    public function parse(Token $token, TypeParser $parser): UserDefinedObject
+    public function parse(Token $token, TypeParser $parser): DefinedObjectNode
     {
         $className = $token->fullyQualifiedValue;
         $reflectionClass = new ReflectionClass($className);
@@ -81,6 +81,6 @@ final class CustomClassParser implements Parser
 
         $inputProperties = $this->createProperties($this->findInputProperties($reflectionClass), $parser);
         $outputProperties = $this->createProperties($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC), $parser);
-        return new UserDefinedObject($className, $inputProperties, $outputProperties);
+        return new DefinedObjectNode($className, $inputProperties, $outputProperties);
     }
 }

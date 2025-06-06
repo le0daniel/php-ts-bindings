@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 
-final readonly class DateTimeType implements NodeInterface, LeafType
+final readonly class DateTimeNode implements NodeInterface, LeafType
 {
     /**
      * @param class-string<DateTimeInterface> $dateTimeClass

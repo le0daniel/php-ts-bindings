@@ -6,18 +6,18 @@ use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\LeafType;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\Literal;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use UnitEnum;
 
-final readonly class LiteralType implements NodeInterface, LeafType
+final readonly class LiteralNode implements NodeInterface, LeafType
 {
     /**
      * @param bool|int|float|null|UnitEnum $value
      */
     public function __construct(
-        public Literal $type,
-        public mixed  $value,
+        public LiteralType $type,
+        public mixed       $value,
     )
     {}
 
@@ -35,7 +35,7 @@ final readonly class LiteralType implements NodeInterface, LeafType
         $className = PHPExport::absolute(self::class);
         $type = PHPExport::exportEnumCase($this->type);
 
-        if ($this->type === Literal::ENUM_CASE) {
+        if ($this->type === LiteralType::ENUM_CASE) {
             $enumCase = PHPExport::exportEnumCase($this->value);
             return "new {$className}({$type}, {$enumCase})";
         }
@@ -46,7 +46,7 @@ final readonly class LiteralType implements NodeInterface, LeafType
 
     public function parseValue(mixed $value, $context): mixed
     {
-        if ($this->type !== Literal::ENUM_CASE) {
+        if ($this->type !== LiteralType::ENUM_CASE) {
             return $value === $this->value ? $this->value : Value::INVALID;
         }
 
@@ -56,7 +56,7 @@ final readonly class LiteralType implements NodeInterface, LeafType
 
     public function serializeValue(mixed $value, $context): mixed
     {
-        if ($this->type !== Literal::ENUM_CASE) {
+        if ($this->type !== LiteralType::ENUM_CASE) {
             return $value === $this->value ? $this->value->name : Value::INVALID;
         }
 

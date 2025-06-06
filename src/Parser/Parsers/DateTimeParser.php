@@ -5,7 +5,7 @@ namespace Le0daniel\PhpTsBindings\Parser\Parsers;
 use DateTimeInterface;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\Token;
 use Le0daniel\PhpTsBindings\Parser\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -24,6 +24,6 @@ final class DateTimeParser implements Parser
 
     public function parse(Token $token, TypeParser $parser): NodeInterface
     {
-        return new DateTimeType($token->fullyQualifiedValue);
+        return new DateTimeNode($token->fullyQualifiedValue);
     }
 }

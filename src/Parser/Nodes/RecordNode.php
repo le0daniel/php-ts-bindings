@@ -4,26 +4,24 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
-use SensitiveParameter;
 
-final readonly class ListType implements NodeInterface
+final readonly class RecordNode implements NodeInterface
 {
     public function __construct(
-        #[SensitiveParameter]
-        public NodeInterface $type
+        public NodeInterface $type,
     )
     {
     }
 
     public function __toString(): string
     {
-        return "list<{$this->type}>";
+        return "array<string,{$this->type}>";
     }
 
     public function exportPhpCode(): string
     {
-        $className = PHPExport::absolute(self::class);
-        $type = $this->type->exportPhpCode();
-        return "new {$className}({$type})";
+        $classname = PHPExport::absolute(self::class);
+        $exportedType = PHPExport::export($this->type);
+        return "new {$classname}({$exportedType})";
     }
 }

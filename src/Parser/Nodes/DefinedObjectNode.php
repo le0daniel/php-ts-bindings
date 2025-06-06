@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 /**
  * @template T
  */
-final readonly class UserDefinedObject implements NodeInterface
+final readonly class DefinedObjectNode implements NodeInterface
 {
     /**
      * @param class-string<T> $className

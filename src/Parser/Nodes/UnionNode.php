@@ -6,7 +6,7 @@ use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
-final class UnionType implements NodeInterface
+final readonly class UnionNode implements NodeInterface
 {
     /**
      * @param array $types
@@ -14,9 +14,9 @@ final class UnionType implements NodeInterface
      * @param list<string|bool|int>|null $discriminatorMap
      */
     public function __construct(
-        public readonly array $types,
-        public readonly ?string $discriminator = null,
-        public readonly ?array $discriminatorMap = null,
+        public array   $types,
+        public ?string $discriminator = null,
+        public ?array  $discriminatorMap = null,
     )
     {
         if (count($this->types) < 2) {

@@ -7,7 +7,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
-final readonly class TupleType implements NodeInterface
+final readonly class TupleNode implements NodeInterface
 {
     /**
      * @param list<NodeInterface> $types

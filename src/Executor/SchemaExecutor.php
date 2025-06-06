@@ -6,9 +6,9 @@ use Le0daniel\PhpTsBindings\Contracts\LeafType;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Parser\Nodes\OptionalType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\StructType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\TupleType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\UnionType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 
 final class SchemaExecutor
 {
@@ -16,14 +16,14 @@ final class SchemaExecutor
     {
         return match (true) {
             $node instanceof LeafType => $node->parseValue($input, null),
-            $node instanceof UnionType => $this->parseUnion($node, $input),
-            $node instanceof StructType => $this->parseStruct($node, $input),
-            $node instanceof TupleType => $this->parseTuple($node, $input),
+            $node instanceof UnionNode => $this->parseUnion($node, $input),
+            $node instanceof StructNode => $this->parseStruct($node, $input),
+            $node instanceof TupleNode => $this->parseTuple($node, $input),
             default => Value::INVALID,
         };
     }
 
-    private function parseUnion(UnionType $node, mixed $input): mixed
+    private function parseUnion(UnionNode $node, mixed $input): mixed
     {
         if ($node->isDiscriminated()) {
             $discriminatedType = $node->getDiscriminatedType($this->extractKeyedInputValue($node->discriminator, $input));
@@ -42,7 +42,7 @@ final class SchemaExecutor
         return Value::INVALID;
     }
 
-    private function parseStruct(StructType $node, mixed $input): array|object
+    private function parseStruct(StructNode $node, mixed $input): array|object
     {
         if (!is_array($input) || array_is_list($input)) {
             return Value::INVALID;
@@ -78,11 +78,11 @@ final class SchemaExecutor
     }
 
     /**
-     * @param TupleType $node
+     * @param TupleNode $node
      * @param mixed $input
      * @return (Value::INVALID)|list<mixed>
      */
-    private function parseTuple(TupleType $node, mixed $input): Value|array
+    private function parseTuple(TupleNode $node, mixed $input): Value|array
     {
         if (!is_array($input) || !array_is_list($input)) {
             return Value::INVALID;

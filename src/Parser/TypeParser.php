@@ -4,16 +4,17 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\Literal;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\ListType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\OptionalType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\RecordType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\StructType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\TupleType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\UnionType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\Parsers\CustomClassParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
@@ -92,7 +93,7 @@ final readonly class TypeParser
     {
         while ($tokens->current()?->is(TokenType::CLOSED_BRACKETS)) {
             $tokens->advance();
-            $type = new ListType($type);
+            $type = new ListNode($type);
         }
         return $type;
     }
@@ -104,8 +105,8 @@ final readonly class TypeParser
         // Handles literals in schema
         if ($token->isAnyTypeOf(TokenType::BOOL, TokenType::STRING, TokenType::FLOAT, TokenType::INT)) {
             $tokens->advance();
-            return $this->consumeTypeModifiers($tokens, new LiteralType(
-                Literal::identifyPrimitiveTypeValue($token->value),
+            return $this->consumeTypeModifiers($tokens, new LiteralNode(
+                LiteralType::identifyPrimitiveTypeValue($token->value),
                 $token->coercedValue(),
             ));
         }
@@ -120,8 +121,8 @@ final readonly class TypeParser
                 $isEnum = $const instanceof \UnitEnum;
                 $tokens->advance();
 
-                return $this->consumeTypeModifiers($tokens, new LiteralType(
-                    $isEnum ? Literal::ENUM_CASE : Literal::identifyPrimitiveTypeValue($const),
+                return $this->consumeTypeModifiers($tokens, new LiteralNode(
+                    $isEnum ? LiteralType::ENUM_CASE : LiteralType::identifyPrimitiveTypeValue($const),
                     $const
                 ));
             } catch (Throwable) {
@@ -148,7 +149,7 @@ final readonly class TypeParser
         return $this->consumeTypeModifiers(
             $tokens,
             BuiltInType::is($token->value)
-                ? new BuiltInType($token->value)
+                ? new BuiltInNode(BuiltInType::from($token->value))
                 : $this->parseCustomType($token),
         );
     }
@@ -163,7 +164,7 @@ final readonly class TypeParser
 
         $tokens->advance();
         if (!$tokens->current()->is(TokenType::LBRACE)) {
-            return new RecordType(new BuiltInType("mixed"));
+            return new RecordNode(new BuiltInNode(BuiltInType::MIXED));
         }
 
         $tokens->advance();
@@ -202,7 +203,7 @@ final readonly class TypeParser
 
         // We move out of the object
         $tokens->advance();
-        return new StructType($structType, $properties);
+        return new StructNode($structType, $properties);
     }
 
     private function consumeOptionalObjectKey(Tokens $tokens): bool
@@ -224,7 +225,7 @@ final readonly class TypeParser
         if ($tokens->currentTokenIs(TokenType::QUESTION_MARK)) {
             $nullableByQuestionMark = true;
             $tokens->advance();
-            $types[] = new BuiltInType('null');
+            $types[] = new BuiltInNode(BuiltInType::NULL);
         }
 
         do {
@@ -260,20 +261,20 @@ final readonly class TypeParser
         return count($types) > 1 ? $this->checkForDiscriminatedUnion($types) : $types[0];
     }
 
-    private function checkForDiscriminatedUnion(array $types): UnionType
+    private function checkForDiscriminatedUnion(array $types): UnionNode
     {
         // ToDo: Support other types too, like complex types.
-        if (!array_all($types, fn(NodeInterface $type) => $type instanceof StructType)) {
-            return new UnionType($types);
+        if (!array_all($types, fn(NodeInterface $type) => $type instanceof StructNode)) {
+            return new UnionNode($types);
         }
 
         $possibleDiscriminatedFields = [];
 
         // ToDo: Not efficient.
-        /** @var StructType $type */
+        /** @var StructNode $type */
         foreach ($types as $type) {
             foreach ($type->properties as $name => $property) {
-                if (!$property instanceof LiteralType) {
+                if (!$property instanceof LiteralNode) {
                     continue;
                 }
                 $possibleDiscriminatedFields[$name][] = $property->value;
@@ -285,10 +286,10 @@ final readonly class TypeParser
                 continue;
             }
 
-            return new UnionType($types, $name, $values);
+            return new UnionNode($types, $name, $values);
         }
 
-        return new UnionType($types);
+        return new UnionNode($types);
     }
 
     private function consumeArrayType(Tokens $tokens): NodeInterface
@@ -313,24 +314,24 @@ final readonly class TypeParser
 
         // No generics
         if (!$tokens->currentTokenIs(TokenType::LT)) {
-            return new ListType(new BuiltInType('mixed'));
+            return new ListNode(new BuiltInNode(BuiltInType::MIXED));
         }
 
         $generics = $this->consumeGenerics($tokens, min: 1, max: $maxGenerics);
 
         if (count($generics) === 1) {
-            return new ListType($generics[0]);
+            return new ListNode($generics[0]);
         }
 
         $keyType = $generics[0];
-        if (!$keyType instanceof BuiltInType || $keyType->type !== 'string') {
+        if (!$keyType instanceof BuiltInNode || $keyType->type !== 'string') {
             $this->produceSyntaxError("Array key type must be 'string'. Got: {$keyType}", $tokens);
         }
 
-        return new RecordType($generics[1]);
+        return new RecordNode($generics[1]);
     }
 
-    private function consumeTuple(Tokens $tokens): TupleType
+    private function consumeTuple(Tokens $tokens): TupleNode
     {
         if (!$tokens->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
             $this->produceSyntaxError("Expected array", $tokens);
@@ -366,7 +367,7 @@ final readonly class TypeParser
         }
 
         $tokens->advance();
-        return new TupleType($types);
+        return new TupleNode($types);
     }
 
     private function consumeGenerics(Tokens $tokens, ?int $min = null, ?int $max = null): array

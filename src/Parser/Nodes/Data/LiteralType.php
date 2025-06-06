@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Data;
 
-enum Literal: string
+enum LiteralType: string
 {
     case ENUM_CASE = 'enum-case';
     case STRING = 'string';
@@ -11,14 +11,14 @@ enum Literal: string
     case BOOL = 'bool';
     case NULL = 'null';
 
-    public static function identifyPrimitiveTypeValue(mixed $value): Literal
+    public static function identifyPrimitiveTypeValue(mixed $value): LiteralType
     {
         $nativeGetType = gettype($value);
         return match ($nativeGetType) {
-            'double' => Literal::FLOAT,
-            'integer' => Literal::INT,
-            'boolean' => Literal::BOOL,
-            'NULL' => Literal::NULL,
+            'double' => LiteralType::FLOAT,
+            'integer' => LiteralType::INT,
+            'boolean' => LiteralType::BOOL,
+            'NULL' => LiteralType::NULL,
             default => throw new \InvalidArgumentException("Unsupported type: {$nativeGetType}"),
         };
     }
