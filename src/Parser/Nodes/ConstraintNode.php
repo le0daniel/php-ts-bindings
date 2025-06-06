@@ -19,13 +19,9 @@ final readonly class ConstraintNode implements NodeInterface
     {
     }
 
-    /**
-     * @param mixed $value
-     * @return bool
-     */
-    public function areConstraintsFulfilled(mixed $value): bool
+    public function areConstraintsFulfilled(mixed $value, $context): bool
     {
-        return true;
+        return array_all($this->constraints, fn($constraint) => $constraint->validate($value, $context));
     }
 
     public function __toString(): string

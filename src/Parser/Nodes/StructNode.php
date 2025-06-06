@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 final readonly class StructNode implements NodeInterface
 {
     /**
-     * @param list<PropertyNode> $properties
+     * @param non-empty-list<PropertyNode> $properties
      */
     public function __construct(
         public StructPhpType $phpType,
@@ -20,6 +20,11 @@ final readonly class StructNode implements NodeInterface
         if (empty($this->properties)) {
             throw new InvalidArgumentException("Cannot create object type with no properties or properties that are not keyed by strings (e.g. ['foo' => 'bar'] is fine, but ['foo'] is not");
         }
+    }
+
+    public function getProperty(string $name): ?PropertyNode
+    {
+        return array_find($this->properties, fn(PropertyNode $property) => $property->name === $name);
     }
 
     public function __toString(): string

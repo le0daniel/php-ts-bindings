@@ -34,14 +34,15 @@ final readonly class EnumNode implements NodeInterface, LeafType
 
     public function parseValue(mixed $value, $context): UnitEnum|Value
     {
+        /** ToDo: Error handling */
         if (!is_string($value)) {
             return Value::INVALID;
         }
 
         try {
+            /** @throws Throwable */
             return $this->enumClassName::{$value};
         } catch (Throwable $exception) {
-            var_dump($exception);
             return Value::INVALID;
         }
     }

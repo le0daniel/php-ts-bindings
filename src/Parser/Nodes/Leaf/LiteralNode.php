@@ -24,8 +24,8 @@ final readonly class LiteralNode implements NodeInterface, LeafType
     public function __toString(): string
     {
         return match ($this->type) {
-            'bool' => $this->value ? 'literal<true>' : 'literal<false>',
-            'string' => "literal<'{$this->value}'>",
+            LiteralType::BOOL => $this->value ? 'literal<true>' : 'literal<false>',
+            LiteralType::STRING => "literal<'{$this->value}'>",
             default => "literal<{$this->value}>",
         };
     }

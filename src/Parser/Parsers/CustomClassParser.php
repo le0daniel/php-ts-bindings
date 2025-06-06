@@ -40,11 +40,12 @@ final class CustomClassParser implements Parser
         $parsed = [];
 
         foreach ($properties as $property) {
-            if (!$property->hasType()) {
+            $type = $property->getType();
+            if (!$type) {
                 throw new RuntimeException("Property '{$property->name}' of {$property->class} does not have any type defined");
             }
 
-            $parsed[$property->name] = $parser->parse($property->getType()->getName());
+            $parsed[$property->name] = $parser->parse((string) $type);
         }
 
         return $parsed;

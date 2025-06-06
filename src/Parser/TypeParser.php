@@ -92,7 +92,7 @@ final readonly class TypeParser
 
     private function consumeTypeModifiers(Tokens $tokens, NodeInterface $type): NodeInterface
     {
-        while ($tokens->current()?->is(TokenType::CLOSED_BRACKETS)) {
+        while ($tokens->current()->is(TokenType::CLOSED_BRACKETS)) {
             $tokens->advance();
             $type = new ListNode($type);
         }
@@ -302,6 +302,10 @@ final readonly class TypeParser
         return count($types) > 1 ? $this->checkForDiscriminatedUnion($types) : $types[0];
     }
 
+    /**
+     * @param non-empty-list<NodeInterface> $types
+     * @return UnionNode
+     */
     private function checkForDiscriminatedUnion(array $types): UnionNode
     {
         if (count($types) < 2 || !array_all($types, fn(NodeInterface $type) => $type instanceof StructNode)) {
@@ -313,30 +317,32 @@ final readonly class TypeParser
         $candidateFields = [];
 
         // Step 1: Find candidate fields from the first type
-        foreach ($firstType->properties as $name => $property) {
-            if ($property instanceof LiteralNode) {
-                $candidateFields[$name] = [$property->value];
+        foreach ($firstType->properties as $property) {
+            if ($property->type instanceof LiteralNode) {
+                $candidateFields[$property->name] = $property->type->value;
             }
         }
 
         // Step 2: Iterate through candidates and verify with other types
-        foreach ($candidateFields as $fieldName => &$values) {
+        foreach ($candidateFields as $fieldName => $value) {
             $isDiscriminator = true;
+            $values = [$value];
+
             // Start from the second type
             for ($i = 1; $i < count($types); $i++) {
                 /** @var StructNode $otherType */
                 $otherType = $types[$i];
-                $otherProperty = $otherType->properties[$fieldName] ?? null;
+                $otherProperty = $otherType->getProperty($fieldName);
 
                 // Check for presence, type, and uniqueness
                 if (
-                    !$otherProperty instanceof LiteralNode ||
-                    in_array($otherProperty->value, $values, true)
+                    !$otherProperty?->type instanceof LiteralNode ||
+                    in_array($otherProperty->type->value, $values, true)
                 ) {
                     $isDiscriminator = false;
                     break; // This is not the discriminator field
                 }
-                $values[] = $otherProperty->value;
+                $values[] = $otherProperty->type->value;
             }
 
             if ($isDiscriminator) {
@@ -381,7 +387,7 @@ final readonly class TypeParser
         }
 
         $keyType = $generics[0];
-        if (!$keyType instanceof BuiltInNode || $keyType->type !== 'string') {
+        if (!$keyType instanceof BuiltInNode || $keyType->type !== BuiltInType::STRING) {
             $this->produceSyntaxError("Array key type must be 'string'. Got: {$keyType}", $tokens);
         }
 

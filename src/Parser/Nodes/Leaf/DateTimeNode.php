@@ -45,6 +45,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafType
         }
 
         try {
+            // @phpstan-ignore-next-line
             return $this->dateTimeClass::createFromInterface(
                 DateTimeImmutable::createFromFormat($this->format, $value)
             );

@@ -10,13 +10,10 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 final readonly class TupleNode implements NodeInterface
 {
     /**
-     * @param list<NodeInterface> $types
+     * @param non-empty-list<NodeInterface> $types
      */
     public function __construct(public array $types)
     {
-        if (empty($this->types) || !array_is_list($this->types)) {
-            throw new InvalidArgumentException("Expected non empty list of types.");
-        }
     }
 
     public function __toString(): string
