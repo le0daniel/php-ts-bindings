@@ -9,7 +9,6 @@ use SensitiveParameter;
 final readonly class ListNode implements NodeInterface
 {
     public function __construct(
-        #[SensitiveParameter]
         public NodeInterface $type
     )
     {
