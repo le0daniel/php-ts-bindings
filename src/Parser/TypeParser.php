@@ -63,9 +63,14 @@ final readonly class TypeParser
         ];
     }
 
-    public function parse(string $typeString): NodeInterface
+    /**
+     * @param string $typeString
+     * @param array<int|string, class-string> $namespaces
+     * @return NodeInterface
+     */
+    public function parse(string $typeString, array $namespaces = []): NodeInterface
     {
-        $tokens = $this->tokenizer->tokenize($typeString);
+        $tokens = $this->tokenizer->tokenize($typeString, $namespaces);
         return $this->consumeTypeOrUnion($tokens);
     }
 

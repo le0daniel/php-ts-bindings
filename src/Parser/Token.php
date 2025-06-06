@@ -4,15 +4,53 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Stringable;
 
-final class Token implements Stringable
+final readonly class Token implements Stringable
 {
+    public string $fullyQualifiedValue;
+
     public function __construct(
-        public readonly TokenType $type,
-        public readonly string    $value,
-        public readonly int       $start,
-        public readonly int       $end,
+        public TokenType $type,
+        public string    $value,
+        public int       $start,
+        public int       $end,
+        string|null      $fullyQualifiedValue = null,
     )
     {
+        $this->fullyQualifiedValue = $fullyQualifiedValue ?? $this->value;
+    }
+
+    /**
+     * @param array $namespaces
+     * @return Token
+     */
+    public function setNamespace(array $namespaces): self
+    {
+        var_dump($namespaces);
+        if ($this->type === TokenType::IDENTIFIER) {
+            return new self(
+                $this->type,
+                $this->value,
+                $this->start,
+                $this->end,
+                $namespaces[$this->value] ?? null,
+            );
+        }
+
+        if ($this->type === TokenType::CLASS_CONST) {
+            [$className, $constName] = explode('::', $this->value);
+
+            return new self(
+                $this->type,
+                $this->value,
+                $this->start,
+                $this->end,
+                isset($namespaces[$className])
+                    ? "{$namespaces[$className]}::{$constName}"
+                    : null,
+            );
+        }
+
+        return $this;
     }
 
     public function isAnyTypeOf(TokenType ...$types): bool

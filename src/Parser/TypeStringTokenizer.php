@@ -2,15 +2,17 @@
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
+use Le0daniel\PhpTsBindings\Utils\Namespaces;
 use RuntimeException;
 
 final class TypeStringTokenizer
 {
     /**
      * @param string $typeString
+     * @param array<int|string, class-string> $namespaces
      * @return Tokens
      */
-    public function tokenize(string $typeString): Tokens
+    public function tokenize(string $typeString, array $namespaces = []): Tokens
     {
         $currentOffset = 0;
         $length = strlen($typeString);
@@ -131,7 +133,15 @@ final class TypeStringTokenizer
             $currentOffset,
         );
 
-        return new Tokens($typeString, $tokens);
+        if (empty($namespaces)) {
+            return new Tokens($typeString, $tokens);
+        }
+
+        $namespaceMap = Namespaces::buildNamespaceAliasMap($namespaces);
+        return new Tokens($typeString, array_map(
+            static fn(Token $token): Token => $token->setNamespace($namespaceMap),
+            $tokens,
+        ));
     }
 
     private function isEndingQuote(TokenType $endingType, string $character): bool

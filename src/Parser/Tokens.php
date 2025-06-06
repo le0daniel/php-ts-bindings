@@ -10,8 +10,6 @@ final class Tokens implements Iterator
     private int $currentIndex = 0;
     private int $count;
 
-    private(set) array|null $namespaces;
-
     public function __construct(
         public readonly string $input,
         private readonly array $tokens
@@ -20,20 +18,8 @@ final class Tokens implements Iterator
         $this->count = count($this->tokens);
     }
 
-    /**
-     * Set the namespaces for the identifier tokens.
-     *
-     * @param array $namespaces
-     * @return void
-     */
-    public function setNamespaces(array $namespaces): void
-    {
-
-    }
-
     private function getTokenAtIndex(int $index): ?Token
     {
-        // ToDo, add namespaces here.
         return $this->tokens[$index] ?? null;
     }
 

@@ -22,7 +22,7 @@ final class CustomClassParser implements Parser
             return false;
         }
 
-        $typeName = $token->value;
+        $typeName = $token->fullyQualifiedValue;
         if (!class_exists($typeName)) {
             return false;
         }
@@ -51,7 +51,7 @@ final class CustomClassParser implements Parser
     }
 
     /**
-     * @param ReflectionClass $reflection
+     * @param ReflectionClass $reflectionClass
      * @return array<ReflectionParameter|ReflectionProperty>
      */
     private function findInputProperties(ReflectionClass $reflectionClass): array
@@ -71,7 +71,7 @@ final class CustomClassParser implements Parser
 
     public function parse(Token $token, TypeParser $parser): UserDefinedObject
     {
-        $className = $token->value;
+        $className = $token->fullyQualifiedValue;
         $reflectionClass = new ReflectionClass($className);
         $hasConstructor = $reflectionClass->getConstructor() !== null;
 
