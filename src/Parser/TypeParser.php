@@ -17,7 +17,9 @@ use Le0daniel\PhpTsBindings\Parser\Parsers\CustomClassParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
 use Le0daniel\PhpTsBindings\Utils\Strings;
+use ReflectionClass;
 use RuntimeException;
+use Throwable;
 
 final readonly class TypeParser
 {
@@ -105,6 +107,25 @@ final readonly class TypeParser
                 $token->type->value,
                 $token->coercedValue(),
             ));
+        }
+
+        // We handle class const literals
+        if ($token->is(TokenType::CLASS_CONST)) {
+            [$className, $constOrEnumCase] = explode('::', $token->fullyQualifiedValue);
+
+            try {
+                $reflection = new ReflectionClass($className);
+                $const = $reflection->getConstant($constOrEnumCase);
+                $isEnum = $const instanceof \UnitEnum;
+                $tokens->advance();
+
+                return $this->consumeTypeModifiers($tokens, new LiteralType(
+                    $isEnum ? 'enum_case': LiteralType::identifyPrimitiveTypeValue($const),
+                    $const
+                ));
+            } catch (Throwable) {
+                $this->produceSyntaxError("Could not identify class const or enum", $tokens);
+            }
         }
 
         if (!$token->is(TokenType::IDENTIFIER)) {

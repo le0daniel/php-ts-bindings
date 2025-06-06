@@ -35,3 +35,31 @@ test("Identifies Class Const correctly", function () {
     expect($tokens->at(4)->value)->toBe("Value::INVALID");
     expect($tokens)->toHaveCount(17);
 });
+
+test("Test tokenizer with complex string", function () {
+    $tokenizer = new TypeStringTokenizer();
+
+    $tokens = $tokenizer->tokenize("string|0|Value::INVALID|array{0: string, 1: string}");
+
+    foreach ($tokens as $index => $token) {
+        match ($index) {
+            0 => expect($token->is(TokenType::IDENTIFIER, 'string'))->toBeTrue(),
+            1 => expect($token->is(TokenType::PIPE))->toBeTrue(),
+            2 => expect($token->is(TokenType::INT, '0'))->toBeTrue(),
+            3 => expect($token->is(TokenType::PIPE))->toBeTrue(),
+            4 => expect($token->is(TokenType::CLASS_CONST, 'Value::INVALID'))->toBeTrue(),
+            5 => expect($token->is(TokenType::PIPE))->toBeTrue(),
+            6 => expect($token->is(TokenType::IDENTIFIER, 'array'))->toBeTrue(),
+            7 => expect($token->is(TokenType::LBRACE))->toBeTrue(),
+            8 => expect($token->is(TokenType::INT, '0'))->toBeTrue(),
+            9 => expect($token->is(TokenType::COLON))->toBeTrue(),
+            10 => expect($token->is(TokenType::IDENTIFIER, 'string'))->toBeTrue(),
+            11 => expect($token->is(TokenType::COMMA))->toBeTrue(),
+            12 => expect($token->is(TokenType::INT, '1'))->toBeTrue(),
+            13 => expect($token->is(TokenType::COLON))->toBeTrue(),
+            14 => expect($token->is(TokenType::IDENTIFIER, 'string'))->toBeTrue(),
+            15 => expect($token->is(TokenType::RBRACE))->toBeTrue(),
+            16 => expect($token->is(TokenType::EOF))->toBeTrue(),
+        };
+    }
+});

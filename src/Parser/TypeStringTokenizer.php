@@ -197,7 +197,7 @@ final class TypeStringTokenizer
             return TokenType::BOOL;
         }
 
-        if (preg_match('/^[a-zA-Z0-9\\\_]+::[a-zA-Z0-9]+$/', $characters) === 1) {
+        if (preg_match('/^[a-zA-Z0-9\\\_]+::[a-zA-Z0-9_]+$/', $characters) === 1) {
             return TokenType::CLASS_CONST;
         }
 

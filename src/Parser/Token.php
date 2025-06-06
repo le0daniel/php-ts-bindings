@@ -25,7 +25,6 @@ final readonly class Token implements Stringable
      */
     public function setNamespace(array $namespaces): self
     {
-        var_dump($namespaces);
         if ($this->type === TokenType::IDENTIFIER) {
             return new self(
                 $this->type,
@@ -58,9 +57,13 @@ final readonly class Token implements Stringable
         return in_array($this->type, $types, true);
     }
 
-    public function is(TokenType $type): bool
+    public function is(TokenType $type, ?string $value = null): bool
     {
-        return $this->type === $type;
+        if ($this->type !== $type) {
+            return false;
+        }
+
+        return is_null($value) || $this->value === $value;
     }
 
     public function length(): int
