@@ -22,6 +22,27 @@ final readonly class StructNode implements NodeInterface
         }
     }
 
+    /**
+     * @return PropertyNode[]
+     */
+    public function sortedProperties(): array
+    {
+        $properties = $this->properties;
+
+        usort($properties, function (PropertyNode $a, PropertyNode $b): int {
+            // First compare by name
+            $nameComparison = strcmp($a->name, $b->name);
+            if ($nameComparison !== 0) {
+                return $nameComparison;
+            }
+
+            // If names are equal, compare by PropertyType
+            return $a->propertyType->name <=> $b->propertyType->name;
+        });
+
+        return $properties;
+    }
+
     public function getProperty(string $name): ?PropertyNode
     {
         return array_find($this->properties, fn(PropertyNode $property) => $property->name === $name);

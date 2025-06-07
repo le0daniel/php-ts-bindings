@@ -4,13 +4,13 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
 use DateTimeImmutable;
 use DateTimeInterface;
-use Le0daniel\PhpTsBindings\Contracts\LeafType;
+use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 
-final readonly class DateTimeNode implements NodeInterface, LeafType
+final readonly class DateTimeNode implements NodeInterface, LeafNode
 {
     /**
      * @param class-string<DateTimeInterface> $dateTimeClass

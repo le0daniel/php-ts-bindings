@@ -2,14 +2,14 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use Le0daniel\PhpTsBindings\Contracts\LeafType;
+use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 
-readonly class BuiltInNode implements NodeInterface, LeafType
+readonly class BuiltInNode implements NodeInterface, LeafNode
 {
 
     public function __construct(public BuiltInType $type)

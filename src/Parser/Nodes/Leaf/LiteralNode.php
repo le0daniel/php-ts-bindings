@@ -3,14 +3,14 @@
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
 use InvalidArgumentException;
-use Le0daniel\PhpTsBindings\Contracts\LeafType;
+use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use UnitEnum;
 
-final readonly class LiteralNode implements NodeInterface, LeafType
+final readonly class LiteralNode implements NodeInterface, LeafNode
 {
     /**
      * @param bool|int|float|null|UnitEnum $value

@@ -3,17 +3,20 @@
 namespace Le0daniel\PhpTsBindings\Executor\Registry;
 
 use Closure;
-use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
+use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 
+/**
+ * @template T of NodeInterface
+ */
 final class SchemaRegistry
 {
     /**
-     * @var array<string, StructNode>
+     * @var array<string, T>
      */
-    private array $structs = [];
+    private array $instantiatedNodes = [];
 
     /**
-     * @param array<string, Closure(): StructNode> $registeredSchemas
+     * @param array<string, Closure(SchemaRegistry): T> $registeredSchemas
      */
     public function __construct(
         private readonly array $registeredSchemas,
@@ -21,8 +24,8 @@ final class SchemaRegistry
     {
     }
 
-    public function get(string $key): StructNode
+    public function get(string $key): NodeInterface
     {
-        return $this->structs[$key] ??= ($this->registeredSchemas[$key])();
+        return $this->instantiatedNodes[$key] ??= ($this->registeredSchemas[$key])($this);
     }
 }

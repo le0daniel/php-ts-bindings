@@ -2,11 +2,12 @@
 
 namespace Le0daniel\PhpTsBindings\Executor;
 
-use Le0daniel\PhpTsBindings\Contracts\LeafType;
+use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
@@ -32,12 +33,34 @@ final class SchemaExecutor
         }
 
         return match (true) {
-            $node instanceof LeafType => $node->parseValue($input, null),
+            $node instanceof LeafNode => $node->parseValue($input, null),
             $node instanceof UnionNode => $this->parseUnion($node, $input),
             $node instanceof StructNode => $this->parseStruct($node, $input),
             $node instanceof TupleNode => $this->parseTuple($node, $input),
+            $node instanceof ListNode => $this->parseList($node, $input),
             default => Value::INVALID,
         };
+    }
+
+    private function parseList(ListNode $node, mixed $input): array|Value
+    {
+        if (!is_array($input) || !array_is_list($input)) {
+            return Value::INVALID;
+        }
+
+        if (empty($input)) {
+            return [];
+        }
+
+        $list = [];
+        foreach ($input as $item) {
+            $result = $this->parse($node->type, $item);
+            if ($result === Value::INVALID) {
+                return Value::INVALID;
+            }
+            $list[] = $result;
+        }
+        return $list;
     }
 
     private function parseUnion(UnionNode $node, mixed $input): mixed

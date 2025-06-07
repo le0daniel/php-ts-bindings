@@ -2,14 +2,14 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use Le0daniel\PhpTsBindings\Contracts\LeafType;
+use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 use UnitEnum;
 
-final readonly class EnumNode implements NodeInterface, LeafType
+final readonly class EnumNode implements NodeInterface, LeafNode
 {
     /**
      * @param class-string<UnitEnum> $enumClassName
