@@ -2,6 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
+use Le0daniel\PhpTsBindings\Parser\Definition\Token;
+use Le0daniel\PhpTsBindings\Parser\Definition\Tokens;
+use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Utils\Namespaces;
 use RuntimeException;
 

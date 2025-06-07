@@ -3,14 +3,14 @@
 namespace Le0daniel\PhpTsBindings\Parser\Parsers;
 
 use Le0daniel\PhpTsBindings\Contracts\Parser;
+use Le0daniel\PhpTsBindings\Parser\Definition\Token;
+use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
-use Le0daniel\PhpTsBindings\Parser\Token;
-use Le0daniel\PhpTsBindings\Parser\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use ReflectionClass;
 use ReflectionParameter;

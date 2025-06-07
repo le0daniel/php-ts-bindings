@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
-use Le0daniel\PhpTsBindings\Parser\Token;
+use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 interface Parser

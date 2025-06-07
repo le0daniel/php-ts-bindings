@@ -2,7 +2,7 @@
 
 namespace Tests\Unit;
 
-use Le0daniel\PhpTsBindings\Parser\TokenType;
+use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 
 test('tokenize', function () {
