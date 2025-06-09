@@ -29,8 +29,52 @@ test('test simple union', function () {
 test('test scalar', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
 
-    expect($node = $parser->parse("scalar"))
-        ->toBeInstanceOf(UnionNode::class);
+    /** @var UnionNode $node */
+    $node = $parser->parse("scalar");
+    expect($node)->toBeInstanceOf(UnionNode::class);
+
+    /**
+     * @var int $index
+     * @var BuiltInNode $type
+     */
+    foreach ($node->types as $index => $type) {
+        match ($index) {
+            0 => expect($type->type)->toEqual(BuiltInType::INT),
+            1 => expect($type->type)->toEqual(BuiltInType::FLOAT),
+            2 => expect($type->type)->toEqual(BuiltInType::BOOL),
+            3 => expect($type->type)->toEqual(BuiltInType::STRING),
+        };
+    }
+
+    compareToOptimizedAst($node);
+});
+
+test('float', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var BuiltInNode $node */
+    $node = $parser->parse("float");
+
+    expect($node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->type)->toEqual(BuiltInType::FLOAT);
+
+    compareToOptimizedAst($node);
+});
+
+test('numeric', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var UnionNode $node */
+    $node = $parser->parse("numeric");
+
+    /**
+     * @var int $index
+     * @var BuiltInNode $type
+     */
+    foreach ($node->types as $index => $type) {
+        match ($index) {
+            0 => expect($type->type)->toEqual(BuiltInType::INT),
+            1 => expect($type->type)->toEqual(BuiltInType::FLOAT),
+        };
+    }
 
     compareToOptimizedAst($node);
 });

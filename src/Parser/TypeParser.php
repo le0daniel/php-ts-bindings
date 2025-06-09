@@ -156,6 +156,21 @@ final readonly class TypeParser
         // ToDo: Implement: non-empty-string|non-falsy-string|truthy-string
         // ToDo: Implement typeAliases support: https://phpstan.org/writing-php-code/phpdoc-types
         switch ($token->value) {
+            case 'int':
+                $tokens->advance();
+                $generics = $this->consumeGenerics($tokens, max: 2);
+                // ToDo: Properly handle generics validation here.
+                return empty($generics) ? new BuiltInNode(BuiltInType::INT) : new ConstraintNode(
+                    new BuiltInNode(BuiltInType::INT),
+                    [new LengthValidator(min: $generics[0]->value, max: $generics[1]->value)]
+                );
+            case 'string':
+            case 'bool':
+            case 'null':
+            case 'float':
+            case 'mixed':
+                $tokens->advance();
+                return new BuiltInNode(BuiltInType::from($token->value));
             case 'scalar':
                 $tokens->advance();
                 return new UnionNode([
@@ -203,9 +218,7 @@ final readonly class TypeParser
                 return $this->consumeStruct($tokens);
             default:
                 $tokens->advance();
-                return BuiltInType::is($token->value)
-                    ? new BuiltInNode(BuiltInType::from($token->value))
-                    : $this->parseCustomType($token);
+                return $this->parseCustomType($token);
         }
     }
 
@@ -501,6 +514,7 @@ final readonly class TypeParser
 
     /**
      * @throws InvalidSyntaxException
+     * @return list<NodeInterface>
      */
     private function consumeGenerics(Tokens $tokens, ?int $min = null, ?int $max = null): array
     {
