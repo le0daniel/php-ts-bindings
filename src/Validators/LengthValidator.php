@@ -6,6 +6,7 @@ use Attribute;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
@@ -30,25 +31,47 @@ final readonly class LengthValidator implements Constraint, ExportableToPhpCode
 
     public function validate(mixed $value, ExecutionContext $context): bool
     {
-        $value = match (gettype($value)) {
+        $valueToValidate = match (gettype($value)) {
             'array' => count($value),
             'string' => strlen($value),
             'integer' => $value,
             default => null,
         };
 
-        if (is_null($value)) {
-            // Add Error
+        if (is_null($valueToValidate)) {
+            $context->addIssue(new Issue(
+                'validation.invalid_type',
+                [
+                    'message' => "Wrong type for length validation. Expected string, array or integer, got: " . gettype($value),
+                    'value' => $value,
+                ],
+            ));
             return false;
         }
 
-        if (!$this->validateMin($value)) {
-            // Add Error
+        if (!$this->validateMin($valueToValidate)) {
+            $context->addIssue(new Issue(
+                'validation.invalid_min',
+                [
+                    'message' => "Expected value to be at least {$this->min} characters long, got: {$valueToValidate}.",
+                    'including' => $this->including,
+                    'type' => gettype($value),
+                    'value' => $value,
+                ],
+            ));
             return false;
         }
 
-        if (!$this->validateMax($value)) {
-            // Add Error
+        if (!$this->validateMax($valueToValidate)) {
+            $context->addIssue(new Issue(
+                'validation.invalid_max',
+                [
+                    'message' => "Expected value to be at most {$this->max} characters long, got: {$valueToValidate}.",
+                    'including' => $this->including,
+                    'type' => gettype($value),
+                    'value' => $value,
+                ],
+            ));
             return false;
         }
 

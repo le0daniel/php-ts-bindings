@@ -2,7 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+
 interface ExecutionContext
 {
-
+    public function addIssue(Issue $issue): void;
 }

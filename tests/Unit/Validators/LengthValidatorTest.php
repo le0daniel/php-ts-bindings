@@ -75,3 +75,43 @@ it('exports PHP code correctly', function () {
     $expected = 'new \\' . LengthValidator::class . '(5, 10, false)';
     expect($validator->exportPhpCode())->toBe($expected);
 });
+
+it('adds correct validation issues to context', function () {
+    $validator = new LengthValidator(min: 2, max: 4);
+    $context = new Context();
+
+    // Test invalid type
+    $validator->validate(null, $context);
+    expect($context->issues[Context::ROOT_PATH])->toHaveCount(1)
+        ->and($context->issues[Context::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_type')
+        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
+        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo['message'])->toContain('Wrong type for length validation');
+
+    // Reset context
+    $context = new Context();
+
+    // Test min validation
+    $validator->validate('a', $context);
+    expect($context->issues[Context::ROOT_PATH])->toHaveCount(1)
+        ->and($context->issues[Context::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_min')
+        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
+        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo['message'])->toContain('Expected value to be at least 2 characters long');
+
+    // Reset context
+    $context = new Context();
+
+    // Test max validation
+    $validator->validate('abcde', $context);
+    expect($context->issues[Context::ROOT_PATH])->toHaveCount(1)
+        ->and($context->issues[Context::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_max')
+        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
+        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo['message'])->toContain('Expected value to be at most 4 characters long');
+
+    // Reset context
+    $context = new Context();
+
+    // Test valid input (should not add any issues)
+    $validator->validate('abc', $context);
+    expect($context->issues)->toBeEmpty();
+});
+
