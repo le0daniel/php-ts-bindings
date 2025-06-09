@@ -75,8 +75,9 @@ final class ASTOptimizer
     }
 
     /**
-     * @param NodeInterface $node
-     * @return NodeInterface|LazyReferencedNode
+     * @template T of NodeInterface
+     * @param T $node
+     * @return T|LazyReferencedNode
      */
     private function dedupeNode(NodeInterface $node): NodeInterface
     {

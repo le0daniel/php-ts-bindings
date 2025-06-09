@@ -27,6 +27,7 @@ use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
 use Le0daniel\PhpTsBindings\Validators\LengthValidator;
 use ReflectionClass;
 use Throwable;
+use UnitEnum;
 
 final readonly class TypeParser
 {
@@ -75,8 +76,8 @@ final readonly class TypeParser
     /**
      * @param string $typeString
      * @param AvailableNamespaces $namespaces
-     * @throws Throwable
      * @return NodeInterface
+     * @throws Throwable
      */
     public function parse(string $typeString, AvailableNamespaces $namespaces = new AvailableNamespaces()): NodeInterface
     {
@@ -111,6 +112,11 @@ final readonly class TypeParser
         return $type;
     }
 
+    /**
+     * @param Tokens $tokens
+     * @return NodeInterface
+     * @throws InvalidSyntaxException
+     */
     private function consumeType(Tokens $tokens): NodeInterface
     {
         $token = $tokens->current();
@@ -118,10 +124,10 @@ final readonly class TypeParser
         // Handles literals in schema
         if ($token->isAnyTypeOf(TokenType::BOOL, TokenType::STRING, TokenType::FLOAT, TokenType::INT)) {
             $tokens->advance();
-            return $this->consumeTypeModifiers($tokens, new LiteralNode(
+            return new LiteralNode(
                 LiteralType::identifyPrimitiveTypeValue($token->value),
                 $token->coercedValue(),
-            ));
+            );
         }
 
         // We handle class const literals
@@ -131,15 +137,15 @@ final readonly class TypeParser
             try {
                 $reflection = new ReflectionClass($className);
                 $const = $reflection->getConstant($constOrEnumCase);
-                $isEnum = $const instanceof \UnitEnum;
+                $isEnum = $const instanceof UnitEnum;
                 $tokens->advance();
 
-                return $this->consumeTypeModifiers($tokens, new LiteralNode(
+                return new LiteralNode(
                     $isEnum ? LiteralType::ENUM_CASE : LiteralType::identifyPrimitiveTypeValue($const),
                     $const
-                ));
-            } catch (Throwable) {
-                $this->produceSyntaxError("Could not identify class const or enum", $tokens);
+                );
+            } catch (Throwable $exception) {
+                $this->produceSyntaxError("Could not identify class const or enum", $tokens, $exception);
             }
         }
 
@@ -147,7 +153,6 @@ final readonly class TypeParser
             $this->produceSyntaxError("Expected type identifier", $tokens);
         }
 
-        // ToDo: Need to handle case Modifiers corrects
         // ToDo: Implement: non-empty-string|non-falsy-string|truthy-string
         // ToDo: Implement typeAliases support: https://phpstan.org/writing-php-code/phpdoc-types
         switch ($token->value) {
@@ -197,15 +202,15 @@ final readonly class TypeParser
                 return $this->consumeStruct($tokens);
             default:
                 $tokens->advance();
-                return $this->consumeTypeModifiers(
-                    $tokens,
-                    BuiltInType::is($token->value)
-                        ? new BuiltInNode(BuiltInType::from($token->value))
-                        : $this->parseCustomType($token),
-                );
+                return BuiltInType::is($token->value)
+                    ? new BuiltInNode(BuiltInType::from($token->value))
+                    : $this->parseCustomType($token);
         }
     }
 
+    /**
+     * @throws InvalidSyntaxException
+     */
     private function consumeStruct(Tokens $tokens): NodeInterface
     {
         if (!$tokens->currentTokenIs(TokenType::IDENTIFIER) || !$tokens->currentValueIn('object', 'array')) {
@@ -267,6 +272,9 @@ final readonly class TypeParser
         return false;
     }
 
+    /**
+     * @throws InvalidSyntaxException
+     */
     private function consumeTypeOrUnion(Tokens $tokens, TokenType ...$stopAt): NodeInterface
     {
         $openUnion = true;
@@ -301,8 +309,7 @@ final readonly class TypeParser
                 continue;
             }
 
-            // ToDo: Expand Returned unions.
-            $types[] = $this->consumeType($tokens);
+            $types[] = $this->consumeTypeModifiers($tokens, $this->consumeType($tokens));
             $openUnion = false;
         } while ($tokens->canAdvance());
 
@@ -366,6 +373,9 @@ final readonly class TypeParser
         return new UnionNode($types);
     }
 
+    /**
+     * @throws InvalidSyntaxException
+     */
     private function consumeArrayType(Tokens $tokens): NodeInterface
     {
         // ToDo: Handle non-empty-array | non-empty-list;
@@ -375,7 +385,14 @@ final readonly class TypeParser
 
         // Handle array structures.
         if ($tokens->current()->value === 'array' && $tokens->nextTokenIs(TokenType::LBRACE)) {
-            if ($tokens->peek(2)?->type === TokenType::INT) {
+
+            // Handles: array{0: string, 1: int} => tuple
+            if ($tokens->peek(2)?->type === TokenType::INT && $tokens->peek(3)?->isAnyTypeOf(TokenType::COLON, TokenType::RBRACE)) {
+                return $this->consumeIntegerDeterminedTuple($tokens);
+            }
+
+            // Handles: array{string,int} => tuple
+            if ($tokens->peek(3)?->isAnyTypeOf(TokenType::COMMA, TokenType::RBRACE)) {
                 return $this->consumeTuple($tokens);
             }
 
@@ -406,7 +423,43 @@ final readonly class TypeParser
         return new RecordNode($generics[1]);
     }
 
+    /**
+     * @throws InvalidSyntaxException
+     */
     private function consumeTuple(Tokens $tokens): TupleNode
+    {
+        if (!$tokens->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
+            $this->produceSyntaxError("Expected array", $tokens);
+        }
+        $tokens->advance();
+
+        if (!$tokens->currentTokenIs(TokenType::LBRACE)) {
+            $this->produceSyntaxError("Expected {", $tokens);
+        }
+        $tokens->advance();
+
+        $types = [];
+        while ($tokens->canAdvance()) {
+            $types[] = $this->consumeTypeOrUnion($tokens, TokenType::COMMA, TokenType::RBRACE);
+
+            if ($tokens->currentTokenIs(TokenType::RBRACE)) {
+                break;
+            }
+
+            if (!$tokens->currentTokenIs(TokenType::COMMA)) {
+                $this->produceSyntaxError("Expected comma for union: array{string, int}", $tokens);
+            }
+            $tokens->advance();
+        }
+
+        $tokens->advance();
+        return new TupleNode($types);
+    }
+
+    /**
+     * @throws InvalidSyntaxException
+     */
+    private function consumeIntegerDeterminedTuple(Tokens $tokens): TupleNode
     {
         if (!$tokens->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
             $this->produceSyntaxError("Expected array", $tokens);
@@ -445,6 +498,9 @@ final readonly class TypeParser
         return new TupleNode($types);
     }
 
+    /**
+     * @throws InvalidSyntaxException
+     */
     private function consumeGenerics(Tokens $tokens, ?int $min = null, ?int $max = null): array
     {
         $isGenericBlock = $tokens->currentTokenIs(TokenType::LT);
