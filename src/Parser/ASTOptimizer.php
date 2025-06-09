@@ -7,7 +7,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Registry\SchemaRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\LazyStructNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\LazyReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
@@ -27,30 +27,34 @@ final class ASTOptimizer
      */
     public function writeToFile(string $fileName, array $nodes): void
     {
+        if (array_any(array_keys($nodes), fn(string $key) => str_starts_with($key, '#'))) {
+            throw new RuntimeException('The keys of the nodes MUST not start with a # character');
+        }
+
         $this->dedupedNodes = [];
 
         $optimizedNodes = array_map($this->dedupeNode(...), $nodes);
 
         $registryClass = PHPExport::absolute(SchemaRegistry::class);
-        $dedupedAsString = implode(',', Arrays::mapWithKeys(
-            $this->dedupedNodes,
-            fn(string $key, NodeInterface $node) => "'{$key}' => static fn({$registryClass} \$registry) => {$node->exportPhpCode()}",
-        ));
-        $nodeInterfaceClass = PHPExport::absolute(NodeInterface::class);
-        $structClass = PHPExport::absolute(StructNode::class);
 
-        $optimizedNodesFactories = implode(',', Arrays::mapWithKeys(
+        $dedupedAsString = Arrays::mapWithKeys(
+            $this->dedupedNodes,
+            fn(string $key, NodeInterface $node) => PHPExport::export($key) . " => static fn({$registryClass} \$registry) => {$node->exportPhpCode()}",
+        );
+
+        $optimizedNodesFactories = Arrays::mapWithKeys(
             $optimizedNodes,
-            fn(string $key, NodeInterface $ast) => PHPExport::export($key) . " => static fn() => {$ast->exportPhpCode()}"
-        ));
+            fn(string $key, NodeInterface $ast) => PHPExport::export($key) . " => static fn({$registryClass} \$registry) => {$ast->exportPhpCode()}"
+        );
+
+        $factories = implode(',', [
+            ... $dedupedAsString,
+            ... $optimizedNodesFactories,
+        ]);
 
         $content = [
             '<?php declare(strict_types=1);',
-            "/** @var {$registryClass}<{$structClass}> \$registry */",
-            "\$registry = new {$registryClass}([{$dedupedAsString}]);",
-            '',
-            "/** @return array<string, callable(): {$nodeInterfaceClass}> */",
-            "return [{$optimizedNodesFactories}];",
+            "return new {$registryClass}([{$factories}]);",
         ];
 
         if (file_put_contents($fileName, implode("\n", $content)) === false) {
@@ -61,19 +65,31 @@ final class ASTOptimizer
     /**
      * @template T of NodeInterface
      * @param T $node
-     * @return T|LazyStructNode
+     * @return T|LazyReferencedNode
      */
     private function dedupeNode(NodeInterface $node): NodeInterface
     {
-        if ($node instanceof LazyStructNode) {
+        if ($node instanceof LazyReferencedNode) {
             return $node;
         }
 
         if ($node instanceof LeafNode) {
-            $identifier = '__Leaf_' . sha1((string)$node);
+            $identifier = '#leaf_' . sha1((string)$node);
             $this->dedupedNodes[$identifier] = $node;
+            return new LazyReferencedNode($identifier, (string) $node);
+        }
 
-            return new LazyStructNode($identifier, (string)$node);
+        if ($node instanceof PropertyNode) {
+            $optimizedNode = new PropertyNode(
+                $node->name,
+                $this->dedupeNode($node->type),
+                $node->isOptional,
+                $node->propertyType
+            );
+
+            $identifier = '#prop_' . sha1((string)$optimizedNode);
+            $this->dedupedNodes[$identifier] = $optimizedNode;
+            return new LazyReferencedNode($identifier, (string) $node);
         }
 
         // Deep optimization
@@ -82,9 +98,9 @@ final class ASTOptimizer
                 $node->phpType,
                 array_map($this->dedupeNode(...), $node->sortedProperties()),
             );
-            $identifier = '__Struct_' . sha1((string)$deepOptimizedNode);
+            $identifier = '#struct_' . sha1((string)$deepOptimizedNode);
             $this->dedupedNodes[$identifier] = $deepOptimizedNode;
-            return new LazyStructNode($identifier, (string)$node);
+            return new LazyReferencedNode($identifier, (string) $node);
         }
 
         return match ($node::class) {
@@ -120,5 +136,4 @@ final class ASTOptimizer
             default => throw new RuntimeException('Unknown node type: ' . $node::class),
         };
     }
-
 }

@@ -478,6 +478,9 @@ final readonly class TypeParser
         return $generics;
     }
 
+    /**
+     * @throws InvalidSyntaxException
+     */
     private function produceSyntaxError(string $message, ?Tokens $tokens = null, ?Throwable $exception = null): never
     {
         throw new InvalidSyntaxException(

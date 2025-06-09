@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 final readonly class StructNode implements NodeInterface
 {
     /**
-     * @param non-empty-list<PropertyNode> $properties
+     * @param non-empty-list<PropertyNode|LazyReferencedNode> $properties
      */
     public function __construct(
         public StructPhpType $phpType,
@@ -48,7 +48,7 @@ final readonly class StructNode implements NodeInterface
 
     public function __toString(): string
     {
-        $properties = array_map(fn(PropertyNode $property) => (string) $property, $this->properties);
+        $properties = array_map(fn(PropertyNode|LazyReferencedNode $property) => (string) $property, $this->properties);
         $imploded = implode(', ', $properties);
         return "{$this->phpType->value}{{$imploded}}";
     }

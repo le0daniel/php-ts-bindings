@@ -5,18 +5,15 @@ namespace Le0daniel\PhpTsBindings\Executor\Registry;
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 
-/**
- * @template T of NodeInterface
- */
 final class SchemaRegistry
 {
     /**
-     * @var array<string, T>
+     * @var array<string, NodeInterface>
      */
     private array $instantiatedNodes = [];
 
     /**
-     * @param array<string, Closure(SchemaRegistry): T> $registeredSchemas
+     * @param array<string, Closure(SchemaRegistry): NodeInterface> $registeredSchemas
      */
     public function __construct(
         private readonly array $registeredSchemas,

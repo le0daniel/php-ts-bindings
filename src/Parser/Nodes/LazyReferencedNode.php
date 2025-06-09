@@ -2,16 +2,16 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
-use Exception;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 
 /**
  * @internal
  */
-final readonly class LazyStructNode implements NodeInterface
+final readonly class LazyReferencedNode implements NodeInterface
 {
     public function __construct(
         public string $structName,
+        private string $originalTypeString,
     )
     {
     }
@@ -21,11 +21,8 @@ final readonly class LazyStructNode implements NodeInterface
         return "\$registry->get('{$this->structName}')";
     }
 
-    /**
-     * @throws Exception
-     */
-    public function __toString(): never
+    public function __toString(): string
     {
-        throw new Exception('Not supported');
+        return $this->originalTypeString;
     }
 }
