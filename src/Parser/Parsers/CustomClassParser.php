@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser\Parsers;
 
 use Le0daniel\PhpTsBindings\Contracts\Parser;
+use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
@@ -14,17 +15,20 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\FileReflector;
 use Le0daniel\PhpTsBindings\Utils\Namespaces;
+use Le0daniel\PhpTsBindings\Utils\Reflections;
 use ReflectionClass;
+use ReflectionException;
 use ReflectionParameter;
 use ReflectionProperty;
 use RuntimeException;
+use Throwable;
 
 final class CustomClassParser implements Parser
 {
 
     public function canParse(Token $token): bool
     {
-        if (!$token->is(TokenType::IDENTIFIER)) {
+        if (!$token->is(TokenType::IDENTIFIER) || !$token->fullyQualifiedValue) {
             return false;
         }
 
@@ -40,19 +44,17 @@ final class CustomClassParser implements Parser
     /**
      * @param ReflectionProperty[]|ReflectionParameter[] $properties
      * @return list<PropertyNode>
+     * @throws Throwable
      */
-    private function createProperties(array $properties, TypeParser $parser, PropertyType $propertyType): array
+    private function createProperties(array $properties, TypeParser $parser, PropertyType $propertyType, AvailableNamespaces $namespaces): array
     {
         return array_map(
-            static function(ReflectionProperty|ReflectionParameter $property) use ($parser, $propertyType) {
-                $type = $property->getType();
-                if (!$type) {
-                    throw new RuntimeException("Property '{$property->name}' of {$property->class} does not have any type defined");
-                }
+            static function(ReflectionProperty|ReflectionParameter $property) use ($parser, $propertyType, $namespaces) {
+                $type = Reflections::getDocBlockExtendedType($property);
 
                 return new PropertyNode(
                     $property->name,
-                    $parser->parse((string) $type),
+                    $parser->parse($type, $namespaces),
                     false,
                     $propertyType
                 );
@@ -80,12 +82,18 @@ final class CustomClassParser implements Parser
         return array_values($publicSettableProperties);
     }
 
+    /**
+     * @throws ReflectionException
+     */
     public function parse(Token $token, TypeParser $parser): CustomCastingNode
     {
         $className = $token->fullyQualifiedValue;
         $reflectionClass = new ReflectionClass($className);
-        $fileReflection = new FileReflector($reflectionClass->getFileName());
-        $namespaceMap = Namespaces::buildNamespaceAliasMap($fileReflection->getUsedNamespaces());
+
+        /**
+         * Get all the namespaces that are used by this class file.
+         */
+        $namespaces = AvailableNamespaces::fromReflectionClass($reflectionClass);
 
         $hasConstructor = $reflectionClass->getConstructor() !== null;
         if (!$hasConstructor) {
@@ -95,12 +103,14 @@ final class CustomClassParser implements Parser
         $inputProperties = $this->createProperties(
             $this->findInputProperties($reflectionClass),
             $parser,
-            PropertyType::INPUT
+            PropertyType::INPUT,
+            $namespaces,
         );
         $outputProperties = $this->createProperties(
             $reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
             $parser,
-            PropertyType::OUTPUT
+            PropertyType::OUTPUT,
+            $namespaces,
         );
 
         return new CustomCastingNode(

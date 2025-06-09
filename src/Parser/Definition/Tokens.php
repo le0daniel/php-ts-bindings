@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
+use Closure;
 use Iterator;
 use RuntimeException;
 
@@ -88,5 +89,13 @@ final class Tokens implements Iterator
     public function rewind(): void
     {
         $this->currentIndex = 0;
+    }
+
+    public function map(Closure $closure): Tokens
+    {
+        return new self(
+            $this->input,
+            array_map($closure, $this->tokens)
+        );
     }
 }

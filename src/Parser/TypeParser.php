@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
+use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Definition\Tokens;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
@@ -73,15 +74,23 @@ final readonly class TypeParser
 
     /**
      * @param string $typeString
-     * @param array<int|string, class-string> $namespaces
+     * @param AvailableNamespaces $namespaces
+     * @throws Throwable
      * @return NodeInterface
      */
-    public function parse(string $typeString, array $namespaces = []): NodeInterface
+    public function parse(string $typeString, AvailableNamespaces $namespaces = new AvailableNamespaces()): NodeInterface
     {
-        $tokens = $this->tokenizer->tokenize($typeString, $namespaces);
+        $tokens = $this
+            ->tokenizer
+            ->tokenize($typeString)
+            ->map(fn(Token $token) => $token->applyNamespaces($namespaces));
+
         return $this->consumeTypeOrUnion($tokens);
     }
 
+    /**
+     * @throws InvalidSyntaxException
+     */
     private function parseCustomType(Token $token): NodeInterface
     {
         foreach ($this->parsers as $parser) {

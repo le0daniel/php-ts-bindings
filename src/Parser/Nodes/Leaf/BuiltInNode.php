@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
+use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -36,7 +37,7 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
         ]);
     }
 
-    public function parseValue(mixed $value, $context): mixed
+    public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
         return match ($this->type) {
             BuiltInType::STRING => is_string($value) ? $value : Value::INVALID,
@@ -48,7 +49,7 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
         };
     }
 
-    public function serializeValue(mixed $value, $context): mixed
+    public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         try {
             return match ($this->type) {

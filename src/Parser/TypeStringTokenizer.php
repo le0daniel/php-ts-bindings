@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
+use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Definition\Tokens;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
@@ -12,10 +13,9 @@ final class TypeStringTokenizer
 {
     /**
      * @param string $typeString
-     * @param array<int|string, class-string> $namespaces
      * @return Tokens
      */
-    public function tokenize(string $typeString, array $namespaces = []): Tokens
+    public function tokenize(string $typeString): Tokens
     {
         $currentOffset = 0;
         $length = strlen($typeString);
@@ -136,16 +136,7 @@ final class TypeStringTokenizer
             $currentOffset,
         );
 
-        if (empty($namespaces)) {
-            return new Tokens($typeString, $tokens);
-        }
-
-        // Apply namespace buffer
-        $namespaceMap = Namespaces::buildNamespaceAliasMap($namespaces);
-        return new Tokens($typeString, array_map(
-            static fn(Token $token): Token => $token->setNamespace($namespaceMap),
-            $tokens,
-        ));
+        return new Tokens($typeString, $tokens);
     }
 
     private function isEndingQuote(TokenType $endingType, string $character): bool

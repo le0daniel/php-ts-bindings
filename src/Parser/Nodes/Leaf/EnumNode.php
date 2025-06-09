@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
+use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -32,7 +33,7 @@ final readonly class EnumNode implements NodeInterface, LeafNode
         return "new {$className}({$enumClass}::class)";
     }
 
-    public function parseValue(mixed $value, $context): UnitEnum|Value
+    public function parseValue(mixed $value, ExecutionContext $context): UnitEnum|Value
     {
         /** ToDo: Error handling */
         if (!is_string($value)) {
@@ -47,7 +48,7 @@ final readonly class EnumNode implements NodeInterface, LeafNode
         }
     }
 
-    public function serializeValue(mixed $value, $context): mixed
+    public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         if (!is_a($value, $this->enumClassName)) {
             return Value::INVALID;

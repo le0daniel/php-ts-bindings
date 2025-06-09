@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
 use DateTimeImmutable;
 use DateTimeInterface;
+use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -38,7 +39,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
         return "new {$className}({$dateTimeClass}::class{$format})";
     }
 
-    public function parseValue(mixed $value, $context): DateTimeInterface|Value
+    public function parseValue(mixed $value, ExecutionContext $context): DateTimeInterface|Value
     {
         if (!is_string($value)) {
             return Value::INVALID;
@@ -57,7 +58,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
     /**
      * @return string|Value::INVALID
      */
-    public function serializeValue(mixed $value, $context): string|Value
+    public function serializeValue(mixed $value, ExecutionContext $context): string|Value
     {
         if (!$value instanceof DateTimeInterface) {
             return Value::INVALID;

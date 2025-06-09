@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
 use InvalidArgumentException;
+use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -44,7 +45,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode
         return "new {$className}({$type}, {$value})";
     }
 
-    public function parseValue(mixed $value, $context): mixed
+    public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->type !== LiteralType::ENUM_CASE) {
             return $value === $this->value ? $this->value : Value::INVALID;
@@ -54,7 +55,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode
         return $value === $name ? $this->value : Value::INVALID;
     }
 
-    public function serializeValue(mixed $value, $context): mixed
+    public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->type !== LiteralType::ENUM_CASE) {
             return $value === $this->value ? $this->value->name : Value::INVALID;

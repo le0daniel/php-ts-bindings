@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Executor;
 
+use ArrayAccess;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -184,8 +185,20 @@ final class SchemaExecutor
         return $tupleValues;
     }
 
-    private function extractKeyedInputValue(string $key, array $input): mixed
+    private function extractKeyedInputValue(string $key, array|object $input): mixed
     {
-        return array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED;
+        if (is_array($input)) {
+            return array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED;
+        }
+
+        if ($input instanceof ArrayAccess) {
+            return $input->offsetExists($key)
+                ? $input[$key]
+                : Value::UNDEFINED;
+        }
+
+        return property_exists($input, $key)
+            ? $input->{$key}
+            : Value::UNDEFINED;
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
+use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
 use Stringable;
 
 final readonly class Token implements Stringable
@@ -19,11 +20,7 @@ final readonly class Token implements Stringable
         $this->fullyQualifiedValue = $fullyQualifiedValue ?? $this->value;
     }
 
-    /**
-     * @param array $namespaces
-     * @return Token
-     */
-    public function setNamespace(array $namespaces): self
+    public function applyNamespaces(AvailableNamespaces $namespaces): self
     {
         if ($this->type === TokenType::IDENTIFIER) {
             return new self(
@@ -31,7 +28,7 @@ final readonly class Token implements Stringable
                 $this->value,
                 $this->start,
                 $this->end,
-                $namespaces[$this->value] ?? null,
+                $namespaces->applyTo($this->value),
             );
         }
 
@@ -43,9 +40,7 @@ final readonly class Token implements Stringable
                 $this->value,
                 $this->start,
                 $this->end,
-                isset($namespaces[$className])
-                    ? "{$namespaces[$className]}::{$constName}"
-                    : null,
+                $namespaces->applyTo($className) . '::' . $constName,
             );
         }
 
