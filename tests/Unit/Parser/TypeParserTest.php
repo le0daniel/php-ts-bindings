@@ -60,6 +60,32 @@ test('float', function () {
     compareToOptimizedAst($node);
 });
 
+test('int', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var BuiltInNode $node */
+    $node = $parser->parse("int");
+
+    expect($node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->type)->toEqual(BuiltInType::INT);
+
+    compareToOptimizedAst($node);
+});
+
+test('Generic Int', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var ConstraintNode $node */
+    $node = $parser->parse("int<0, 100>");
+
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0]->min)->toBe(0)
+        ->and($node->constraints[0]->max)->toBe(100)
+        ->and($node->constraints[0]->including)->toBe(true)
+        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
+        ->and($node->node->type)->toEqual(BuiltInType::INT);
+
+    compareToOptimizedAst($node);
+});
+
 test('numeric', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
     /** @var UnionNode $node */
