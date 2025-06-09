@@ -25,7 +25,17 @@ final class ASTOptimizer
     /**
      * @param array<string, NodeInterface> $nodes
      */
-    public function writeToFile(string $fileName, array $nodes): void
+    public function optimizeAndWriteToFile(string $fileName, array $nodes): void
+    {
+        if (file_put_contents($fileName, $this->generateOptimizedCode($nodes)) === false) {
+            throw new RuntimeException("Could not write to file: {$fileName}");
+        }
+    }
+
+    /**
+     * @param array<string, NodeInterface> $nodes
+     */
+    public function generateOptimizedCode(array $nodes): string
     {
         if (array_any(array_keys($nodes), fn(string $key) => str_starts_with($key, '#'))) {
             throw new RuntimeException('The keys of the nodes MUST not start with a # character');
@@ -57,9 +67,7 @@ final class ASTOptimizer
             "return new {$registryClass}([{$factories}]);",
         ];
 
-        if (file_put_contents($fileName, implode("\n", $content)) === false) {
-            throw new RuntimeException("Could not write to file: {$fileName}");
-        }
+        return implode("\n", $content);
     }
 
     /**
@@ -115,12 +123,6 @@ final class ASTOptimizer
             ),
             ListNode::class => new ListNode(
                 $this->dedupeNode($node->type),
-            ),
-            PropertyNode::class => new PropertyNode(
-                $node->name,
-                $this->dedupeNode($node->type),
-                $node->isOptional,
-                $node->propertyType,
             ),
             RecordNode::class => new RecordNode(
                 $this->dedupeNode($node->type),

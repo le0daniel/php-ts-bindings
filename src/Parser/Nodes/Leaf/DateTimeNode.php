@@ -64,4 +64,14 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
         }
         return $value->format($this->format);
     }
+
+    public function inputDefinition(): string
+    {
+        return "string";
+    }
+
+    public function outputDefinition(): string
+    {
+        return "string";
+    }
 }

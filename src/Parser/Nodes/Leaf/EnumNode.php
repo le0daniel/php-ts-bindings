@@ -55,4 +55,14 @@ final readonly class EnumNode implements NodeInterface, LeafNode
 
         return $value->name;
     }
+
+    public function inputDefinition(): string
+    {
+        return "string";
+    }
+
+    public function outputDefinition(): string
+    {
+        return "string";
+    }
 }

@@ -4,19 +4,27 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
-final readonly class UnionNode implements NodeInterface
+final class UnionNode implements NodeInterface
 {
+    public bool $acceptsNull {
+        get {
+            return array_any($this->types, fn(NodeInterface $type) => $type instanceof BuiltInNode && $type->type === BuiltInType::NULL);
+        }
+    }
+
     /**
      * @param array $types
      * @param string|null $discriminator
      * @param list<string|bool|int>|null $discriminatorMap
      */
     public function __construct(
-        public array   $types,
-        public ?string $discriminator = null,
-        public ?array  $discriminatorMap = null,
+        public readonly array   $types,
+        public readonly ?string $discriminator = null,
+        public readonly ?array  $discriminatorMap = null,
     )
     {
         if (count($this->types) < 2) {

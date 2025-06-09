@@ -13,6 +13,8 @@ interface LeafNode
      * @return mixed
      */
     public function parseValue(mixed $value, $context): mixed;
-
     public function serializeValue(mixed $value, $context): mixed;
+
+    public function inputDefinition(): string;
+    public function outputDefinition(): string;
 }

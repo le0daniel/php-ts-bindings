@@ -30,8 +30,6 @@ final class Reflections
         }
 
         $declaringFnDoc = $parameter->getDeclaringFunction()->getDocComment();
-        var_dump($declaringFnDoc);
-
         if (!$declaringFnDoc) {
             return (string)$parameter->getType();
         }

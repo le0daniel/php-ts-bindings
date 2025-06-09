@@ -63,4 +63,20 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
             return Value::INVALID;
         }
     }
+
+    public function inputDefinition(): string
+    {
+        return match ($this->type) {
+            BuiltInType::STRING => 'string',
+            BuiltInType::INT, BuiltInType::FLOAT => 'number',
+            BuiltInType::BOOL => 'boolean',
+            BuiltInType::NULL => 'null',
+            BuiltInType::MIXED => 'unknown',
+        };
+    }
+
+    public function outputDefinition(): string
+    {
+        return $this->inputDefinition();
+    }
 }

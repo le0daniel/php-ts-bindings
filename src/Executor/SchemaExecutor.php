@@ -5,6 +5,11 @@ namespace Le0daniel\PhpTsBindings\Executor;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
+use Le0daniel\PhpTsBindings\Executor\Data\Context;
+use Le0daniel\PhpTsBindings\Executor\Data\Failure;
+use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
+use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
+use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
@@ -14,10 +19,27 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 
 final class SchemaExecutor
 {
-    public function parse(NodeInterface $node, mixed $input): mixed
+    public function parse(NodeInterface $node, mixed $input, ParsingOptions $options = new ParsingOptions()): Success|Failure
+    {
+        $context = new Context();
+        $result = $this->executeParse($node, $input, $context);
+
+        if ($result === Value::INVALID) {
+            return new Failure();
+        }
+
+        return new Success($result);
+    }
+
+    public function serialize(NodeInterface $node, mixed $input, SerializationOptions $options = new SerializationOptions()): Success|Failure
+    {
+        return new Failure();
+    }
+
+    private function executeParse(NodeInterface $node, mixed $input, Context $context): mixed
     {
         if ($node instanceof ConstraintNode) {
-            $constrainedValue = $this->parse($node->node, $input);
+            $constrainedValue = $this->executeParse($node->node, $input, $context);
             if ($constrainedValue === Value::INVALID || !$node->areConstraintsFulfilled($constrainedValue, null)) {
                 return Value::INVALID;
             }
@@ -25,7 +47,7 @@ final class SchemaExecutor
         }
 
         if ($node instanceof CustomCastingNode) {
-            $arrayValue = $this->parse($node->node, $input);
+            $arrayValue = $this->executeParse($node->node, $input, $context);
             if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
                 return Value::INVALID;
             }
@@ -33,16 +55,16 @@ final class SchemaExecutor
         }
 
         return match (true) {
-            $node instanceof LeafNode => $node->parseValue($input, null),
-            $node instanceof UnionNode => $this->parseUnion($node, $input),
-            $node instanceof StructNode => $this->parseStruct($node, $input),
-            $node instanceof TupleNode => $this->parseTuple($node, $input),
-            $node instanceof ListNode => $this->parseList($node, $input),
+            $node instanceof LeafNode => $node->parseValue($input, $context),
+            $node instanceof UnionNode => $this->parseUnion($node, $input, $context),
+            $node instanceof StructNode => $this->parseStruct($node, $input, $context),
+            $node instanceof TupleNode => $this->parseTuple($node, $input, $context),
+            $node instanceof ListNode => $this->parseList($node, $input, $context),
             default => Value::INVALID,
         };
     }
 
-    private function parseList(ListNode $node, mixed $input): array|Value
+    private function parseList(ListNode $node, mixed $input, Context $context): array|Value
     {
         if (!is_array($input) || !array_is_list($input)) {
             return Value::INVALID;
@@ -53,28 +75,39 @@ final class SchemaExecutor
         }
 
         $list = [];
+        $index = 0;
+
         foreach ($input as $item) {
-            $result = $this->parse($node->type, $item);
+            $context->enterPath($index);
+            $result = $this->executeParse($node->type, $item, $context);
             if ($result === Value::INVALID) {
                 return Value::INVALID;
             }
             $list[] = $result;
+
+            $context->leavePath();
+            $index++;
         }
         return $list;
     }
 
-    private function parseUnion(UnionNode $node, mixed $input): mixed
+    private function parseUnion(UnionNode $node, mixed $input, Context $context): mixed
     {
+        if ($input === null && $node->acceptsNull) {
+            return null;
+        }
+
         if ($node->isDiscriminated()) {
             $discriminatedType = $node->getDiscriminatedType($this->extractKeyedInputValue($node->discriminator, $input));
             if ($discriminatedType) {
-                return $this->parse($discriminatedType, $input);
+                return $this->executeParse($discriminatedType, $input, $context);
             }
             return Value::INVALID;
         }
 
+        // ToDo Handle probing context.
         foreach ($node->types as $type) {
-            $result = $this->parse($type, $input);
+            $result = $this->executeParse($type, $input, $context);
             if ($result !== Value::INVALID) {
                 return $result;
             }
@@ -82,7 +115,7 @@ final class SchemaExecutor
         return Value::INVALID;
     }
 
-    private function parseStruct(StructNode $node, mixed $input): array|object
+    private function parseStruct(StructNode $node, mixed $input, Context $context): array|object
     {
         if (!is_array($input) || array_is_list($input)) {
             return Value::INVALID;
@@ -94,6 +127,7 @@ final class SchemaExecutor
                 continue;
             }
 
+            $context->enterPath($propertyNode->name);
             $propertyValue = $this->extractKeyedInputValue($propertyNode->name, $input);
 
             if ($propertyValue === Value::UNDEFINED) {
@@ -104,10 +138,12 @@ final class SchemaExecutor
                 }
             }
 
-            $result = $this->parse(
+            $result = $this->executeParse(
                 $propertyNode->type,
                 Value::toNull($propertyValue),
+                $context,
             );
+            $context->leavePath();
 
             if ($result === Value::INVALID) {
                 return Value::INVALID;
@@ -124,7 +160,7 @@ final class SchemaExecutor
      * @param mixed $input
      * @return (Value::INVALID)|list<mixed>
      */
-    private function parseTuple(TupleNode $node, mixed $input): Value|array
+    private function parseTuple(TupleNode $node, mixed $input, Context $context): Value|array
     {
         if (!is_array($input) || !array_is_list($input)) {
             return Value::INVALID;
@@ -137,11 +173,13 @@ final class SchemaExecutor
 
         $tupleValues = [];
         foreach ($node->types as $index => $type) {
-            $result = $this->parse($type, $input[$index]);
+            $context->enterPath($index);
+            $result = $this->executeParse($type, $input[$index], $context);
             if ($result === Value::INVALID) {
                 return Value::INVALID;
             }
             $tupleValues[] = $result;
+            $context->leavePath();
         }
         return $tupleValues;
     }
