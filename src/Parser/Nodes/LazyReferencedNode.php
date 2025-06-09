@@ -10,15 +10,16 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 final readonly class LazyReferencedNode implements NodeInterface
 {
     public function __construct(
-        public string $structName,
+        public string  $referenceNode,
         private string $originalTypeString,
+        private string $registryVariableName,
     )
     {
     }
 
     public function exportPhpCode(): string
     {
-        return "\$registry->get('{$this->structName}')";
+        return "\${$this->registryVariableName}->get('{$this->referenceNode}')";
     }
 
     public function __toString(): string

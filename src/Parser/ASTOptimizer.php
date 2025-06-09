@@ -22,6 +22,12 @@ final class ASTOptimizer
 {
     private array $dedupedNodes = [];
 
+    public function __construct(
+        private readonly string $registryVariableName = 'registry',
+    )
+    {
+    }
+
     /**
      * @param array<string, NodeInterface> $nodes
      */
@@ -42,19 +48,17 @@ final class ASTOptimizer
         }
 
         $this->dedupedNodes = [];
-
         $optimizedNodes = array_map($this->dedupeNode(...), $nodes);
-
         $registryClass = PHPExport::absolute(SchemaRegistry::class);
 
         $dedupedAsString = Arrays::mapWithKeys(
             $this->dedupedNodes,
-            fn(string $key, NodeInterface $node) => PHPExport::export($key) . " => static fn({$registryClass} \$registry) => {$node->exportPhpCode()}",
+            fn(string $key, NodeInterface $node) => PHPExport::export($key) . " => static fn({$registryClass} \${$this->registryVariableName}) => {$node->exportPhpCode()}",
         );
 
         $optimizedNodesFactories = Arrays::mapWithKeys(
             $optimizedNodes,
-            fn(string $key, NodeInterface $ast) => PHPExport::export($key) . " => static fn({$registryClass} \$registry) => {$ast->exportPhpCode()}"
+            fn(string $key, NodeInterface $ast) => PHPExport::export($key) . " => static fn({$registryClass} \${$this->registryVariableName}) => {$ast->exportPhpCode()}"
         );
 
         $factories = implode(',', [
@@ -71,9 +75,8 @@ final class ASTOptimizer
     }
 
     /**
-     * @template T of NodeInterface
-     * @param T $node
-     * @return T|LazyReferencedNode
+     * @param NodeInterface $node
+     * @return NodeInterface|LazyReferencedNode
      */
     private function dedupeNode(NodeInterface $node): NodeInterface
     {
@@ -84,7 +87,7 @@ final class ASTOptimizer
         if ($node instanceof LeafNode) {
             $identifier = '#leaf_' . sha1((string)$node);
             $this->dedupedNodes[$identifier] = $node;
-            return new LazyReferencedNode($identifier, (string) $node);
+            return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
         if ($node instanceof PropertyNode) {
@@ -97,7 +100,7 @@ final class ASTOptimizer
 
             $identifier = '#prop_' . sha1((string)$optimizedNode);
             $this->dedupedNodes[$identifier] = $optimizedNode;
-            return new LazyReferencedNode($identifier, (string) $node);
+            return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
         // Deep optimization
@@ -108,9 +111,11 @@ final class ASTOptimizer
             );
             $identifier = '#struct_' . sha1((string)$deepOptimizedNode);
             $this->dedupedNodes[$identifier] = $deepOptimizedNode;
-            return new LazyReferencedNode($identifier, (string) $node);
+            return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
+        // ToDo: Further optimization for example on union nodes with only Primitive Types or
+        //       more intelligent node determination for better runtime performance.
         return match ($node::class) {
             ConstraintNode::class => new ConstraintNode(
                 $this->dedupeNode($node->node),
