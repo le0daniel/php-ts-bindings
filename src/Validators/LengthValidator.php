@@ -3,6 +3,8 @@
 namespace Le0daniel\PhpTsBindings\Validators;
 
 use Attribute;
+use Le0daniel\PhpTsBindings\Contracts\Constraint;
+use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
@@ -26,7 +28,7 @@ final readonly class LengthValidator implements Constraint, ExportableToPhpCode
         return "new {$className}({$min}, {$max}, {$including})";
     }
 
-    public function validate(mixed $value, $context): bool
+    public function validate(mixed $value, ExecutionContext $context): bool
     {
         $value = match (gettype($value)) {
             'array' => count($value),

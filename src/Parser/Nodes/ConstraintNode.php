@@ -2,9 +2,10 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
+use Le0daniel\PhpTsBindings\Contracts\Constraint;
+use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
-use Le0daniel\PhpTsBindings\Validators\Constraint;
 
 final readonly class ConstraintNode implements NodeInterface
 {
@@ -19,9 +20,9 @@ final readonly class ConstraintNode implements NodeInterface
     {
     }
 
-    public function areConstraintsFulfilled(mixed $value, $context): bool
+    public function areConstraintsFulfilled(mixed $value, ExecutionContext $context): bool
     {
-        return array_all($this->constraints, fn($constraint) => $constraint->validate($value, $context));
+        return array_all($this->constraints, fn(Constraint $constraint) => $constraint->validate($value, $context));
     }
 
     public function __toString(): string

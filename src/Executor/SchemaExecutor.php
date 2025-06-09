@@ -41,7 +41,7 @@ final class SchemaExecutor
     {
         if ($node instanceof ConstraintNode) {
             $constrainedValue = $this->executeParse($node->node, $input, $context);
-            if ($constrainedValue === Value::INVALID || !$node->areConstraintsFulfilled($constrainedValue, null)) {
+            if ($constrainedValue === Value::INVALID || !$node->areConstraintsFulfilled($constrainedValue, $context)) {
                 return Value::INVALID;
             }
             return $constrainedValue;
