@@ -8,6 +8,15 @@ enum PropertyType
     case OUTPUT;
     case BOTH;
 
+    public function asString(): string
+    {
+        return match ($this) {
+            self::INPUT => '(input-only)',
+            self::OUTPUT => '(output-only)',
+            self::BOTH => '',
+        };
+    }
+
     public function isInput(): bool
     {
         return match ($this) {

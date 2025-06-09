@@ -29,14 +29,12 @@ final readonly class StructNode implements NodeInterface
     {
         $properties = $this->properties;
 
+        // Sort by name, then by type
         usort($properties, function (PropertyNode $a, PropertyNode $b): int {
-            // First compare by name
             $nameComparison = strcmp($a->name, $b->name);
             if ($nameComparison !== 0) {
                 return $nameComparison;
             }
-
-            // If names are equal, compare by PropertyType
             return $a->propertyType->name <=> $b->propertyType->name;
         });
 

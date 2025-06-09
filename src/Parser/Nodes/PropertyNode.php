@@ -18,7 +18,7 @@ final readonly class PropertyNode implements NodeInterface
     public function __toString(): string
     {
         $optional = $this->isOptional ? '?' : '';
-        return "{$this->name}{$optional}: {$this->type}";
+        return "{$this->name}{$optional}: {$this->type}{$this->propertyType->asString()}";
     }
 
     public function changeType(PropertyType $type): self

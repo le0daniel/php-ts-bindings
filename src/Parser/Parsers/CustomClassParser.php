@@ -12,6 +12,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Reflection\FileReflector;
+use Le0daniel\PhpTsBindings\Utils\Namespaces;
 use ReflectionClass;
 use ReflectionParameter;
 use ReflectionProperty;
@@ -82,8 +84,10 @@ final class CustomClassParser implements Parser
     {
         $className = $token->fullyQualifiedValue;
         $reflectionClass = new ReflectionClass($className);
-        $hasConstructor = $reflectionClass->getConstructor() !== null;
+        $fileReflection = new FileReflector($reflectionClass->getFileName());
+        $namespaceMap = Namespaces::buildNamespaceAliasMap($fileReflection->getUsedNamespaces());
 
+        $hasConstructor = $reflectionClass->getConstructor() !== null;
         if (!$hasConstructor) {
             throw new RuntimeException("Only support classes with a constructor");
         }
