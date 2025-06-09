@@ -11,6 +11,9 @@
 |
 */
 
+use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+
 pest()->extend(Tests\TestCase::class)->in('Feature');
 
 /*
@@ -38,6 +41,18 @@ expect()->extend('toBeOne', function () {
 | global functions to help you to reduce the number of lines of code in your test files.
 |
 */
+
+function compareToOptimizedAst(NodeInterface $node) {
+    $optimizer = new ASTOptimizer();
+    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
+
+    /** @var \Le0daniel\PhpTsBindings\Executor\Registry\SchemaRegistry $registry */
+    $registry = eval("return {$optimizedCode};");
+
+    expect(
+        (string) $registry->get('node')
+    )->toEqual((string) $node);
+}
 
 function something()
 {

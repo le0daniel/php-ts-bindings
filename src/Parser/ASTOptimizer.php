@@ -33,7 +33,10 @@ final class ASTOptimizer
      */
     public function optimizeAndWriteToFile(string $fileName, array $nodes): void
     {
-        if (file_put_contents($fileName, $this->generateOptimizedCode($nodes)) === false) {
+        if (file_put_contents($fileName, <<<PHP
+<?php declare(strict_types=1);
+return {$this->generateOptimizedCode($nodes)};
+PHP) === false) {
             throw new RuntimeException("Could not write to file: {$fileName}");
         }
     }
@@ -66,12 +69,7 @@ final class ASTOptimizer
             ... $optimizedNodesFactories,
         ]);
 
-        $content = [
-            '<?php declare(strict_types=1);',
-            "return new {$registryClass}([{$factories}]);",
-        ];
-
-        return implode("\n", $content);
+        return "new {$registryClass}([{$factories}])";
     }
 
     /**

@@ -19,6 +19,7 @@ enum LiteralType: string
             'integer' => LiteralType::INT,
             'boolean' => LiteralType::BOOL,
             'NULL' => LiteralType::NULL,
+            'string' => LiteralType::STRING,
             default => throw new \InvalidArgumentException("Unsupported type: {$nativeGetType}"),
         };
     }

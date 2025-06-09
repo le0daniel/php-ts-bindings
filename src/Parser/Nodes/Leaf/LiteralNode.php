@@ -27,6 +27,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode
         return match ($this->type) {
             LiteralType::BOOL => $this->value ? 'literal<true>' : 'literal<false>',
             LiteralType::STRING => "literal<'{$this->value}'>",
+            LiteralType::ENUM_CASE => "enum-value<{$this->value->name}>",
             default => "literal<{$this->value}>",
         };
     }

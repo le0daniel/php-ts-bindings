@@ -157,6 +157,7 @@ final readonly class TypeParser
         // ToDo: Implement typeAliases support: https://phpstan.org/writing-php-code/phpdoc-types
         switch ($token->value) {
             case 'scalar':
+                $tokens->advance();
                 return new UnionNode([
                     new BuiltInNode(BuiltInType::INT),
                     new BuiltInNode(BuiltInType::FLOAT),
