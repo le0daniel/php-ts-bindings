@@ -12,6 +12,8 @@
 */
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Executor\Data\Failure;
+use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 
 pest()->extend(Tests\TestCase::class)->in('Feature');
@@ -29,6 +31,14 @@ pest()->extend(Tests\TestCase::class)->in('Feature');
 
 expect()->extend('toBeOne', function () {
     return $this->toBe(1);
+});
+
+expect()->extend('toBeSuccess', function () {
+    return $this->toBeInstanceOf(Success::class);
+});
+
+expect()->extend('toBeFailure', function () {
+    return $this->toBeInstanceOf(Failure::class);
 });
 
 /*

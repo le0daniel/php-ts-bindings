@@ -8,12 +8,14 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
@@ -62,11 +64,44 @@ final class SchemaExecutor
         return match (true) {
             $node instanceof LeafNode => $node->serializeValue($output, $context),
             $node instanceof UnionNode => $this->serializeUnion($node, $output, $context),
+            $node instanceof RecordNode => $this->serializeRecord($node, $output, $context),
             $node instanceof StructNode => $this->serializeStruct($node, $output, $context),
             $node instanceof TupleNode => $this->serializeTuple($node, $output, $context),
             $node instanceof ListNode => $this->serializeList($node, $output, $context),
             default => Value::INVALID,
         };
+    }
+
+    private function serializeRecord(RecordNode $node, mixed $output, Context $context): object
+    {
+        if (!is_iterable($output)) {
+            return Value::INVALID;
+        }
+
+        $values = [];
+
+        foreach ($output as $key => $item) {
+            if (!is_string($key)) {
+                $context->addIssue(new Issue(
+                    'validation.invalid_key_type',
+                    [
+                        'message' => 'Record keys must be strings, got: ' . gettype($key),
+                        'keyValue' => $key,
+                    ]
+                ));
+                return Value::INVALID;
+            }
+
+            $context->enterPath($key);
+            $result = $this->executeSerialize($node->type, $item, $context);
+            $context->leavePath();
+
+            if ($result === Value::INVALID) {
+                return Value::INVALID;
+            }
+            $values[$key] = $result;
+        }
+        return (object) $values;
     }
 
     private function serializeList(ListNode $node, mixed $output, Context $context): array|Value
@@ -184,12 +219,44 @@ final class SchemaExecutor
 
         return match (true) {
             $node instanceof LeafNode => $node->parseValue($input, $context),
+            $node instanceof RecordNode => $this->parseRecord($node, $input, $context),
             $node instanceof UnionNode => $this->parseUnion($node, $input, $context),
             $node instanceof StructNode => $this->parseStruct($node, $input, $context),
             $node instanceof TupleNode => $this->parseTuple($node, $input, $context),
             $node instanceof ListNode => $this->parseList($node, $input, $context),
             default => Value::INVALID,
         };
+    }
+
+    private function parseRecord(RecordNode $node, mixed $input, Context $context): array|Value
+    {
+        if (!is_array($input)) {
+            return Value::INVALID;
+        }
+
+        $record = [];
+        foreach ($input as $key => $item) {
+            if (!is_string($key)) {
+                $context->addIssue(new Issue(
+                    'validation.invalid_key_type',
+                    [
+                        'message' => 'Record keys must be strings, got: ' . gettype($key),
+                        'keyValue' => $key,
+                    ]
+                ));
+                return Value::INVALID;
+            }
+            $context->enterPath($key);
+            $result = $this->executeParse($node->type, $item, $context);
+            $context->leavePath();
+
+            if ($result === Value::INVALID) {
+                return Value::INVALID;
+            }
+
+            $record[$key] = $result;
+        }
+        return $record;
     }
 
     private function parseList(ListNode $node, mixed $input, Context $context): array|Value
