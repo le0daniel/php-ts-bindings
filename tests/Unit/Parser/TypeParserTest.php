@@ -227,6 +227,35 @@ test('List struct', function () {
     compareToOptimizedAst($node);
 });
 
+test('List by modifier', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var ListNode $node */
+    $node = $parser->parse("string[]");
+    expect($node)->toBeInstanceOf(ListNode::class);
+
+    expect($node->type)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->type->type)->toEqual(BuiltInType::STRING);
+
+    compareToOptimizedAst($node);
+});
+
+test('Grouped Modifier', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var ListNode $node */
+    $node = $parser->parse("(string|int)[]");
+    expect($node)->toBeInstanceOf(ListNode::class);
+
+    expect($node->type)->toBeInstanceOf(UnionNode::class);
+
+    expect($node->type->types[0])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->type->types[0]->type)->toBe(BuiltInType::STRING);
+
+    expect($node->type->types[1])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->type->types[1]->type)->toBe(BuiltInType::INT);
+
+    compareToOptimizedAst($node);
+});
+
 test('Record struct', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
     /** @var RecordNode $node */

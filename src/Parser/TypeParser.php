@@ -323,6 +323,18 @@ final readonly class TypeParser
                 continue;
             }
 
+            if ($token->is(TokenType::LPAREN)) {
+                $tokens->advance();
+                $grouped = $this->consumeTypeOrUnion($tokens, TokenType::RPAREN);
+                if (!$tokens->current()->is(TokenType::RPAREN)) {
+                    $this->produceSyntaxError("Expected closing parenthesis", $tokens);
+                }
+                $tokens->advance();
+                $types[] = $this->consumeTypeModifiers($tokens, $grouped);
+                $openUnion = false;
+                continue;
+            }
+
             $types[] = $this->consumeTypeModifiers($tokens, $this->consumeType($tokens));
             $openUnion = false;
         } while ($tokens->canAdvance());

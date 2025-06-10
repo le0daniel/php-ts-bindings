@@ -26,7 +26,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
 
     public function __toString(): string
     {
-        return PhpExport::absolute($this->dateTimeClass);
+        return $this->dateTimeClass . "<{$this->format}>";
     }
 
     public function exportPhpCode(): string

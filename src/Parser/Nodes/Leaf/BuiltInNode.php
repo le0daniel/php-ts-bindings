@@ -17,11 +17,6 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
     {
     }
 
-    public static function is(string $type): bool
-    {
-        return in_array($type, ['string', 'int', 'bool', 'null', 'float', 'mixed'], true);
-    }
-
     public function __toString(): string
     {
         return $this->type->value;

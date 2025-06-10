@@ -36,6 +36,25 @@ test("Identifies Class Const correctly", function () {
     expect($tokens)->toHaveCount(17);
 });
 
+test("Identifies groups correctly", function () {
+    $tokenizer = new TypeStringTokenizer();
+
+    $tokens = $tokenizer->tokenize("(string|int)|string");
+
+    foreach ($tokens as $index => $token) {
+        match ($index) {
+            0 => expect($token->is(TokenType::LPAREN))->toBeTrue(),
+            1 => expect($token->is(TokenType::IDENTIFIER, 'string'))->toBeTrue(),
+            2 => expect($token->is(TokenType::PIPE))->toBeTrue(),
+            3 => expect($token->is(TokenType::IDENTIFIER, 'int'))->toBeTrue(),
+            4 => expect($token->is(TokenType::RPAREN))->toBeTrue(),
+            5 => expect($token->is(TokenType::PIPE))->toBeTrue(),
+            6 => expect($token->is(TokenType::IDENTIFIER, 'string'))->toBeTrue(),
+            default => expect($token->is(TokenType::EOF))->toBeTrue(),
+        };
+    }
+});
+
 test("positive and negative numbers", function () {
     $tokenizer = new TypeStringTokenizer();
     $tokens = $tokenizer->tokenize("0|1|-1|0.1|-0.3");

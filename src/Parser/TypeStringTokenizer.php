@@ -2,11 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
-use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Definition\Tokens;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
-use Le0daniel\PhpTsBindings\Utils\Namespaces;
 use RuntimeException;
 
 final class TypeStringTokenizer
@@ -162,6 +160,8 @@ final class TypeStringTokenizer
             TokenType::COMMA->value => TokenType::COMMA,
             TokenType::LBRACE->value => TokenType::LBRACE,
             TokenType::RBRACE->value => TokenType::RBRACE,
+            TokenType::LPAREN->value => TokenType::LPAREN,
+            TokenType::RPAREN->value => TokenType::RPAREN,
             TokenType::SINGLE_QUOTE->value => TokenType::SINGLE_QUOTE,
             TokenType::DOUBLE_QUOTE->value => TokenType::DOUBLE_QUOTE,
             TokenType::LBRACKET->value => TokenType::LBRACKET,

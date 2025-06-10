@@ -10,6 +10,8 @@ enum TokenType: string
     case COMMA = ",";
     case LBRACE = "{";
     case RBRACE = "}";
+    case LPAREN = "(";
+    case RPAREN = ")";
     case SINGLE_QUOTE = "'";
     case DOUBLE_QUOTE = '"';
     case LBRACKET = "[";

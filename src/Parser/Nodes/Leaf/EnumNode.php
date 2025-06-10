@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 use UnitEnum;
@@ -37,15 +38,31 @@ final readonly class EnumNode implements NodeInterface, LeafNode
     {
         /** ToDo: Error handling */
         if (!is_string($value)) {
+            $context->addIssue(new Issue(
+                'validation.invalid_type',
+                [
+                    "message" => "Expected string name of enum {$this->enumClassName}, got: " . gettype($value),
+                    "value" => $value,
+                ]
+            ));
             return Value::INVALID;
         }
 
-        try {
-            /** @throws Throwable */
-            return $this->enumClassName::{$value};
-        } catch (Throwable $exception) {
-            return Value::INVALID;
+        $cases = $this->enumClassName::cases();
+        foreach ($cases as $case) {
+            if ($case->name === $value) {
+                return $case;
+            }
         }
+
+        $context->addIssue(new Issue(
+            'validation.invalid_type',
+            [
+                "message" => "Expected string name of enum {$this->enumClassName}, got: '{$value}'",
+                "value" => $value,
+            ]
+        ));
+        return Value::INVALID;
     }
 
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
