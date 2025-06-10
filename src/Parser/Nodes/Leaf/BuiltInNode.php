@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Stringable;
 use Throwable;
 
 readonly class BuiltInNode implements NodeInterface, LeafNode
@@ -48,11 +49,21 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
     {
         try {
             return match ($this->type) {
-                BuiltInType::STRING => (string) $value,
-                BuiltInType::INT => (int) $value,
-                BuiltInType::BOOL => (bool) $value,
-                BuiltInType::NULL => null,
-                BuiltInType::FLOAT => (float) $value,
+                BuiltInType::STRING => is_string($value) || $value instanceof Stringable
+                    ? (string) $value
+                    : Value::INVALID,
+                BuiltInType::INT => is_int($value)
+                    ? $value
+                    : Value::INVALID,
+                BuiltInType::BOOL => is_bool($value)
+                    ? $value
+                    : Value::INVALID,
+                BuiltInType::NULL => is_null($value)
+                    ? null
+                    : Value::INVALID,
+                BuiltInType::FLOAT => is_numeric($value)
+                    ? (float) $value
+                    : Value::INVALID,
                 BuiltInType::MIXED => $value,
             };
         } catch (Throwable) {

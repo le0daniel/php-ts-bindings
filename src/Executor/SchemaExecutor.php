@@ -32,9 +32,136 @@ final class SchemaExecutor
         return new Success($result);
     }
 
-    public function serialize(NodeInterface $node, mixed $input, SerializationOptions $options = new SerializationOptions()): Success|Failure
+    public function serialize(NodeInterface $node, mixed $output, SerializationOptions $options = new SerializationOptions()): Success|Failure
     {
-        return new Failure();
+        $context = new Context();
+        $result = $this->executeSerialize($node, $output, $context);
+
+        if ($result === Value::INVALID) {
+            return new Failure();
+        }
+
+        return new Success($result);
+    }
+
+    private function executeSerialize(NodeInterface $node, mixed $output, Context $context): mixed
+    {
+        // Constraints are ignored when serializing.
+        if ($node instanceof ConstraintNode) {
+            return $this->executeSerialize($node->node, $output, $context);
+        }
+
+        if ($node instanceof CustomCastingNode) {
+            $arrayValue = $this->executeSerialize($node->node, $output, $context);
+            if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
+                return Value::INVALID;
+            }
+            return $node->cast($arrayValue);
+        }
+
+        return match (true) {
+            $node instanceof LeafNode => $node->serializeValue($output, $context),
+            $node instanceof UnionNode => $this->serializeUnion($node, $output, $context),
+            $node instanceof StructNode => $this->serializeStruct($node, $output, $context),
+            $node instanceof TupleNode => $this->serializeTuple($node, $output, $context),
+            $node instanceof ListNode => $this->serializeList($node, $output, $context),
+            default => Value::INVALID,
+        };
+    }
+
+    private function serializeList(ListNode $node, mixed $output, Context $context): array|Value
+    {
+        if (!is_iterable($output)) {
+            return Value::INVALID;
+        }
+
+        $values = [];
+        $index = 0;
+
+        foreach ($output as $item) {
+            $context->enterPath($index);
+            $result = $this->executeSerialize($node->type, $item, $context);
+            if ($result === Value::INVALID) {
+                return Value::INVALID;
+            }
+            $values[] = $result;
+            $index++;
+        }
+        return $values;
+    }
+
+    private function serializeTuple(TupleNode $node, mixed $output, Context $context): array|Value
+    {
+        $tupleValues = [];
+        foreach ($node->types as $index => $type) {
+            $context->enterPath($index);
+            $result = $this->executeSerialize($type, $output[$index], $context);
+            if ($result === Value::INVALID) {
+                return Value::INVALID;
+            }
+            $tupleValues[] = $result;
+            $context->leavePath();
+        }
+        return $tupleValues;
+    }
+
+    private function serializeStruct(StructNode $node, mixed $output, Context $context): object
+    {
+        $struct = [];
+        foreach ($node->properties as $propertyNode) {
+            if (!$propertyNode->propertyType->isOutput()) {
+                continue;
+            }
+
+            $context->enterPath($propertyNode->name);
+            $propertyValue = $this->extractKeyedValue($propertyNode->name, $output);
+
+            if ($propertyValue === Value::UNDEFINED) {
+                if ($propertyNode->isOptional) {
+                    continue;
+                } else {
+                    return Value::INVALID;
+                }
+            }
+
+            $result = $this->executeSerialize(
+                $propertyNode->type,
+                Value::toNull($propertyValue),
+                $context,
+            );
+            $context->leavePath();
+
+            if ($result === Value::INVALID) {
+                return Value::INVALID;
+            }
+    
+            $struct[$propertyNode->name] = $result;
+        }
+    
+        return (object) $struct;
+    }
+    
+    private function serializeUnion(UnionNode $node, mixed $output, Context $context): mixed
+    {
+        if ($output === null && $node->acceptsNull) {
+            return null;
+        }
+
+        if ($node->isDiscriminated()) {
+            $discriminatedType = $node->getDiscriminatedType($this->extractKeyedValue($node->discriminator, $output));
+            if ($discriminatedType) {
+                return $this->executeSerialize($discriminatedType, $output, $context);
+            }
+            return Value::INVALID;
+        }
+
+        foreach ($node->types as $type) {
+            $result = $this->executeSerialize($type, $output, $context);
+            if ($result !== Value::INVALID) {
+                return $result; 
+            }
+        }
+        return Value::INVALID;
     }
 
     private function executeParse(NodeInterface $node, mixed $input, Context $context): mixed
@@ -99,7 +226,7 @@ final class SchemaExecutor
         }
 
         if ($node->isDiscriminated()) {
-            $discriminatedType = $node->getDiscriminatedType($this->extractKeyedInputValue($node->discriminator, $input));
+            $discriminatedType = $node->getDiscriminatedType($this->extractKeyedValue($node->discriminator, $input));
             if ($discriminatedType) {
                 return $this->executeParse($discriminatedType, $input, $context);
             }
@@ -129,7 +256,7 @@ final class SchemaExecutor
             }
 
             $context->enterPath($propertyNode->name);
-            $propertyValue = $this->extractKeyedInputValue($propertyNode->name, $input);
+            $propertyValue = $this->extractKeyedValue($propertyNode->name, $input);
 
             if ($propertyValue === Value::UNDEFINED) {
                 if ($propertyNode->isOptional) {
@@ -185,7 +312,7 @@ final class SchemaExecutor
         return $tupleValues;
     }
 
-    private function extractKeyedInputValue(string $key, array|object $input): mixed
+    private function extractKeyedValue(string $key, array|object $input): mixed
     {
         if (is_array($input)) {
             return array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED;
