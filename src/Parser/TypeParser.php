@@ -159,11 +159,17 @@ final readonly class TypeParser
             case 'int':
                 $tokens->advance();
                 $generics = $this->consumeGenerics($tokens, max: 2);
+
+                if (empty($generics)) {
+                    return new BuiltInNode(BuiltInType::INT);
+                }
+
+                if (count($generics) !== 2) {
+                    $this->produceSyntaxError("Expected 2 generics for int: int<min, max>", $tokens);
+                }
+
                 // ToDo: Properly handle generics validation here.
-                return empty($generics) ? new BuiltInNode(BuiltInType::INT) : new ConstraintNode(
-                    new BuiltInNode(BuiltInType::INT),
-                    [new LengthValidator(min: $generics[0]->value, max: $generics[1]->value)]
-                );
+                $this->produceSyntaxError("Generics on int type not yet implemented.", $tokens);
             case 'string':
             case 'bool':
             case 'null':
@@ -304,7 +310,7 @@ final readonly class TypeParser
         do {
             $token = $tokens->current();
 
-            // If we reach an ending token, we stop.
+            // If we reach an ending token, we stop without consuming it.
             if ($token->isAnyTypeOf(TokenType::EOF, ...$stopAt)) {
                 break;
             }
@@ -313,6 +319,9 @@ final readonly class TypeParser
                 if ($openUnion) {
                     $this->produceSyntaxError("Expected Type Identifier, got Pipe", $tokens);
                 }
+
+                // Case where we have ?int|string. This is unsupported in PHP. We though support it through ().
+                // So (?int)|string is supported but equivalent to null|int|string.
                 if ($nullableByQuestionMark) {
                     $this->produceSyntaxError("Cannot use ?type as nullable and pipe at the same time", $tokens);
                 }
@@ -368,7 +377,9 @@ final readonly class TypeParser
         return $flattened;
     }
 
+    // ToDo: Move this to the ast optimizer. The local version is not optimized at all.
     /**
+     *
      * @param non-empty-list<NodeInterface> $types
      * @return UnionNode
      */
