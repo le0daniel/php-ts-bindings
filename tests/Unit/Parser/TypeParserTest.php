@@ -49,6 +49,46 @@ test('test scalar', function () {
     compareToOptimizedAst($node);
 });
 
+test('test questionmark nullability support', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var UnionNode $node */
+    $node = $parser->parse("?float");
+
+    expect($node)->toBeInstanceOf(UnionNode::class);
+
+    expect($node->types[0])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->types[0]->type)->toBe(BuiltInType::NULL);
+
+    expect($node->types[1])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->types[1]->type)->toBe(BuiltInType::FLOAT);
+
+    compareToOptimizedAst($node);
+});
+
+test('test failure on question mark union', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    expect(fn() => $parser->parse("?float|null"))
+        ->toThrow("Cannot use ?type as nullable and pipe at the same time");
+});
+
+test('test group support of question mark nullability and flattened result', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var UnionNode $node */
+    $node = $parser->parse("(?float)|string");
+
+    expect($node)->toBeInstanceOf(UnionNode::class);
+
+    expect($node->types[0])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->types[0]->type)->toBe(BuiltInType::NULL);
+    expect($node->types[1])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->types[1]->type)->toBe(BuiltInType::FLOAT);
+    expect($node->types[2])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->types[2]->type)->toBe(BuiltInType::STRING);
+
+    compareToOptimizedAst($node);
+});
+
 test('float', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
     /** @var BuiltInNode $node */

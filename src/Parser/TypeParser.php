@@ -293,7 +293,6 @@ final readonly class TypeParser
     {
         $openUnion = true;
         $nullableByQuestionMark = false;
-
         $types = [];
 
         if ($tokens->currentTokenIs(TokenType::QUESTION_MARK)) {
@@ -343,8 +342,30 @@ final readonly class TypeParser
             $this->produceSyntaxError("Expected type Identifier", $tokens);
         }
 
-        // Produces a union or a type
-        return count($types) > 1 ? $this->checkForDiscriminatedUnion($types) : $types[0];
+        return count($types) > 1
+            ? $this->checkForDiscriminatedUnion(
+                $this->flattenNestedUnionTypes($types)
+            )
+            : $types[0];
+    }
+
+    /**
+     * @param list<NodeInterface> $types
+     * @return list<NodeInterface>
+     */
+    private function flattenNestedUnionTypes(array $types): array
+    {
+        $flattened = [];
+
+        foreach ($types as $type) {
+            if ($type instanceof UnionNode) {
+                array_push($flattened, ... $type->types);
+                continue;
+            }
+            $flattened[] = $type;
+        }
+
+        return $flattened;
     }
 
     /**
