@@ -19,6 +19,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use stdClass;
 
 final class SchemaExecutor
 {
@@ -54,11 +55,26 @@ final class SchemaExecutor
         }
 
         if ($node instanceof CustomCastingNode) {
-            $arrayValue = $this->executeSerialize($node->node, $output, $context);
-            if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
+            $object = $this->executeSerialize($node->node, $output, $context);
+
+            if ($object === Value::INVALID) {
                 return Value::INVALID;
             }
-            return $node->cast($arrayValue);
+
+            if (!$object instanceof stdClass) {
+                $objectClass = get_class($object);
+                $context->addIssue(new Issue(
+                    'validation.invalid_cast',
+                    [
+                        "message" => "Failed to serialize object($objectClass) to standard class.",
+                        "value" => $output,
+                        "serializedValue" => $object,
+                    ]
+                ));
+                return Value::INVALID;
+            }
+
+            return $object;
         }
 
         return match (true) {
@@ -312,7 +328,7 @@ final class SchemaExecutor
 
     private function parseStruct(StructNode $node, mixed $input, Context $context): array|object
     {
-        if (!is_array($input) || array_is_list($input)) {
+        if (is_array($input) && array_is_list($input)) {
             return Value::INVALID;
         }
 

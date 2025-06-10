@@ -3,6 +3,7 @@
 namespace Tests\Unit\Executor;
 
 use Closure;
+use DateTimeImmutable;
 use JsonException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -13,6 +14,7 @@ use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 use Stringable;
+use Tests\Unit\Executor\Mocks\UserSchema;
 
 /**
  * @template T
@@ -33,9 +35,9 @@ function executeNodeOnOptimizedToo(NodeInterface $node, Closure $executor): mixe
     expect($normalResult::class)->toEqual($optimizedResult::class);
 
     if ($normalResult instanceof Success) {
-        $serializedResult = json_encode($normalResult->value, flags: JSON_THROW_ON_ERROR);
-        $serializedOptimizedResult = json_encode($optimizedResult->value, flags: JSON_THROW_ON_ERROR);
-        expect($serializedResult)->toEqual($serializedOptimizedResult);
+        $serializedResult = serialize($normalResult->value);
+        $serializedOptimizedResult = serialize($optimizedResult->value);
+        expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
     }
 
     return $normalResult;
@@ -77,6 +79,12 @@ test('parse success', function (string $type, mixed $value, mixed $expected) {
     expect($result->value)->toBe($expected);
 })->with([
     ['string', 'my value', 'my value'],
+    ['string[]|null', ['my value'], ['my value']],
+    ['string[]|null', null, null],
+
+    ['\DateTime|null', null, null],
+    ['\DateTimeImmutable|null', '2025-09-10T12:09:01+00:00', DateTimeImmutable::createFromFormat('Y-m-d H:i:s', '2025-09-10 12:09:01'), ],
+
     ['string|null', 'my value', 'my value'],
     ['?string', 'my value', 'my value'],
     ['null|int|string', 'my value', 'my value'],
@@ -90,6 +98,9 @@ test('parse success', function (string $type, mixed $value, mixed $expected) {
     ['object{id?: string, name: string}|null', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
     ['object{id?: string, name: string}|null', null, null],
     ['array<string, int>', ['my value' => 1], ['my value' => 1]],
+
+    [UserSchema::class, (object) ['username' => 'my name', 'age' => 1, "email" => "leo@me.test"], new UserSchema(1, 'leo@me.test', 'my name')],
+    [UserSchema::class, ['username' => 'my name', 'age' => 1, "email" => "leo@me.test"], new UserSchema(1, 'leo@me.test', 'my name')],
 ]);
 
 test('serialize success', function (string $type, mixed $value, mixed $expected) {
@@ -105,6 +116,13 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
     expect($result->value)->toBe($expected);
 })->with([
     ['string', 'my value', 'my value'],
+    ['string[]|null', ['my value'], ['my value']],
+    ['string[]|null', null, null],
+
+    ['\DateTime|null', null, null],
+    ['\DateTime|null', DateTimeImmutable::createFromFormat('Y-m-d H:i:s', '2025-09-10 12:09:01'), '2025-09-10T12:09:01+00:00'],
+
+    // Accept stringable values for output serialization
     ['string', new class () implements Stringable {
         public function __toString(): string {
             return 'my value';
@@ -124,6 +142,8 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
     ['object{id?: string, name: string}|null', null, null],
     ['array<string>', ['my value', 'my other value'], ['my value', 'my other value']],
     ['array<string, int>', ['my value' => 1], (object) ['my value' => 1]],
+
+    [UserSchema::class, new UserSchema(1, 'leo@me.test', 'my name'), (object) ['username' => 'my name', 'age' => 1]],
 ]);
 
 
