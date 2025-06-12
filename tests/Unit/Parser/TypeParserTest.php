@@ -15,6 +15,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 use Tests\Mocks\ResultEnum;
+use Tests\Unit\Parser\Data\Stubs\Address;
+use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 
 
 test('test simple union', function () {
@@ -159,6 +161,26 @@ test('positive-int', function () {
     expect($node->node->type)->toEqual(BuiltInType::INT);
 
     compareToOptimizedAst($node);
+});
+
+test('Local type resolution', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var ConstraintNode $node */
+    $node = $parser->parse("AddressInput", ParsingContext::fromClassString(Address::class));
+    compareToOptimizedAst($node);
+
+    expect($node)->toBeInstanceOf(StructNode::class);
+    expect((string) $node)->toBe('array{city: string, street: string, zip: string}');
+});
+
+test('Local imported resolution', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var ConstraintNode $node */
+    $node = $parser->parse("AddressInputData", ParsingContext::fromClassString(MyUserClass::class));
+    compareToOptimizedAst($node);
+
+    expect($node)->toBeInstanceOf(StructNode::class);
+    expect((string) $node)->toBe('array{city: string, street: string, zip: string}');
 });
 
 test('non-negative-int', function () {

@@ -176,6 +176,7 @@ final readonly class TypeParser
         if ($tokens->context->isImportedType($token->value)) {
             $tokens->advance();
 
+            // ToDo: Cache this step as it could be expensive.
             $importDefinition = $tokens->context->getImportedTypeInfo($token->value);
             return $this->parse(
                 $importDefinition['typeName'],
