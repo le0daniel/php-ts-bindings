@@ -13,8 +13,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Reflection\FileReflector;
-use Le0daniel\PhpTsBindings\Utils\Namespaces;
 use Le0daniel\PhpTsBindings\Utils\Reflections;
 use ReflectionClass;
 use ReflectionException;
@@ -83,7 +81,7 @@ final class CustomClassParser implements Parser
     }
 
     /**
-     * @throws ReflectionException
+     * @throws ReflectionException|Throwable
      */
     public function parse(Token $token, TypeParser $parser): CustomCastingNode
     {
