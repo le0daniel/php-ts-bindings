@@ -13,17 +13,13 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 final class DateTimeParser implements Parser
 {
 
-    public function canParse(Token $token): bool
+    public function canParse(string $fullyQualifiedClassName, Token $token): bool
     {
-        if (!$token->is(TokenType::IDENTIFIER)) {
-            return false;
-        }
-
-        return is_a($token->value, DateTimeInterface::class, true);
+        return is_a($fullyQualifiedClassName, DateTimeInterface::class, true);
     }
 
-    public function parse(Token $token, TypeParser $parser): NodeInterface
+    public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): NodeInterface
     {
-        return new DateTimeNode($token->value);
+        return new DateTimeNode($fullyQualifiedClassName);
     }
 }

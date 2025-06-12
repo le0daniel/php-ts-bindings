@@ -7,6 +7,6 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 interface Parser
 {
-    public function canParse(Token $token): bool;
-    public function parse(Token $token, TypeParser $parser): NodeInterface;
+    public function canParse(string $fullyQualifiedClassName, Token $token): bool;
+    public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): NodeInterface;
 }

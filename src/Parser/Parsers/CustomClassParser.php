@@ -3,7 +3,6 @@
 namespace Le0daniel\PhpTsBindings\Parser\Parsers;
 
 use Le0daniel\PhpTsBindings\Contracts\Parser;
-use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
@@ -24,18 +23,13 @@ use Throwable;
 final class CustomClassParser implements Parser
 {
 
-    public function canParse(Token $token): bool
+    public function canParse(string $fullyQualifiedClassName, Token $token): bool
     {
-        if (!$token->is(TokenType::IDENTIFIER) || !$token->value) {
+        if (!class_exists($fullyQualifiedClassName)) {
             return false;
         }
 
-        $typeName = $token->value;
-        if (!class_exists($typeName)) {
-            return false;
-        }
-
-        $reflection = new ReflectionClass($typeName);
+        $reflection = new ReflectionClass($fullyQualifiedClassName);
         return $reflection->isUserDefined() && $reflection->isInstantiable();
     }
 
@@ -83,10 +77,9 @@ final class CustomClassParser implements Parser
     /**
      * @throws ReflectionException|Throwable
      */
-    public function parse(Token $token, TypeParser $parser): CustomCastingNode
+    public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): CustomCastingNode
     {
-        $className = $token->value;
-        $reflectionClass = new ReflectionClass($className);
+        $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
 
         $hasConstructor = $reflectionClass->getConstructor() !== null;
         if (!$hasConstructor) {
@@ -109,7 +102,7 @@ final class CustomClassParser implements Parser
                 ...$inputProperties,
                 ...$outputProperties,
             ]),
-            $className,
+            $fullyQualifiedClassName,
             ObjectCastStrategy::CONSTRUCTOR,
         );
     }

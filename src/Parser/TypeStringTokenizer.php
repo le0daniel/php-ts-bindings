@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
+use Le0daniel\PhpTsBindings\Parser\Definition\Position;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParsedTokens;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
@@ -38,8 +39,8 @@ final class TypeStringTokenizer
                 $tokens[] = new Token(
                     TokenType::CLASS_CONST,
                     $buffer,
-                    $currentOffset - strlen($buffer),
-                    $currentOffset,
+                    new Position(0, $currentOffset - strlen($buffer)),
+                    new Position(0, $currentOffset),
                 );
                 $buffer = '';
                 $blockType = null;
@@ -57,8 +58,8 @@ final class TypeStringTokenizer
                 $tokens[] = new Token(
                     TokenType::STRING,
                     $buffer,
-                    $currentOffset - strlen($buffer) - 2,
-                    $currentOffset,
+                    new Position(0, $currentOffset - strlen($buffer) - 2),
+                    new Position(0, $currentOffset),
                 );
                 $buffer = '';
                 $blockType = null;
@@ -85,8 +86,8 @@ final class TypeStringTokenizer
                 $tokens[] = new Token(
                     $this->determineBufferedTokenType($buffer),
                     $buffer,
-                    $currentOffset - strlen($buffer),
-                    $currentOffset,
+                    new Position(0, $currentOffset - strlen($buffer)),
+                    new Position(0, $currentOffset),
                 );
                 $buffer = '';
             }
@@ -107,8 +108,8 @@ final class TypeStringTokenizer
             $tokens[] = new Token(
                 $identifiedToken,
                 $identifiedToken->value,
-                $currentOffset,
-                $currentOffset + $tokenLength,
+                new Position(0, $currentOffset),
+                new Position(0, $currentOffset + $tokenLength),
             );
 
             $currentOffset += $tokenLength;
@@ -122,16 +123,16 @@ final class TypeStringTokenizer
             $tokens[] = new Token(
                 $this->determineBufferedTokenType($buffer),
                 $buffer,
-                $currentOffset - strlen($buffer),
-                $currentOffset,
+                new Position(0, $currentOffset - strlen($buffer)),
+                new Position(0, $currentOffset),
             );
         }
 
         $tokens[] = new Token(
             TokenType::EOF,
             '',
-            $currentOffset,
-            $currentOffset,
+            new Position(0, $currentOffset),
+            new Position(0, $currentOffset),
         );
 
         return $tokens;

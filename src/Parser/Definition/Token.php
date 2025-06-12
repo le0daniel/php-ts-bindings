@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
-use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
 use Stringable;
 
 final readonly class Token implements Stringable
@@ -10,8 +9,8 @@ final readonly class Token implements Stringable
     public function __construct(
         public TokenType $type,
         public string    $value,
-        public int       $start,
-        public int       $end,
+        public Position  $start,
+        public Position  $end,
     )
     {
     }
@@ -30,27 +29,11 @@ final readonly class Token implements Stringable
         return is_null($value) || $this->value === $value;
     }
 
-    public function length(): int
-    {
-        return $this->end - $this->start;
-    }
-
-    public function highlightArea(string $inputString): string
-    {
-        return implode(PHP_EOL, [
-            "Type: {$this->type->name} ({$this->__toString()})",
-            $inputString,
-            str_pad("", $this->start, ' ') . (
-                $this->length() > 0 ? str_pad("", $this->length(), '^') : '|'
-            )
-        ]);
-    }
-
     public function coercedValue(): int|bool|float|string
     {
         return match ($this->type) {
-            TokenType::INT => (int) $this->value,
-            TokenType::FLOAT => (float) $this->value,
+            TokenType::INT => (int)$this->value,
+            TokenType::FLOAT => (float)$this->value,
             TokenType::BOOL => $this->value === 'true',
             default => $this->value,
         };

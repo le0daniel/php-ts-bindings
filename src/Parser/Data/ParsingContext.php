@@ -91,8 +91,6 @@ final readonly class ParsingContext
         $namespace = $reflector->getNamespace();
         $useNamespaceMap = Utils\Namespaces::buildNamespaceAliasMap($reflector->getUsedNamespaces());
 
-        var_dump($reflector->getUsedNamespaces());
-
         return new self(
             $namespace,
             $useNamespaceMap,

@@ -10,16 +10,13 @@ use UnitEnum;
 
 final class EnumCasesParser implements Parser
 {
-
-    public function canParse(Token $token): bool
+    public function canParse(string $fullyQualifiedClassName, Token $token): bool
     {
-        return enum_exists($token->value);
+        return enum_exists($fullyQualifiedClassName);
     }
 
-    public function parse(Token $token, TypeParser $parser): EnumNode
+    public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): EnumNode
     {
-        /** @var class-string<UnitEnum> $className */
-        $className = $token->value;
-        return new EnumNode($className);
+        return new EnumNode($fullyQualifiedClassName);
     }
 }

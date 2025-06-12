@@ -4,7 +4,6 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
-use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParsedTokens;
@@ -91,11 +90,19 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function parseCustomType(Token $token): NodeInterface
+    private function consumeCustomType(ParsedTokens $tokens): NodeInterface
     {
+        $token = $tokens->current();
+        $fqcn = $tokens->context->toFullyQualifiedClassName($token->value);
+        $tokens->advance();
+
         foreach ($this->parsers as $parser) {
-            if ($parser->canParse($token)) {
-                return $parser->parse($token, $this);
+            if ($parser->canParse($fqcn, $token)) {
+                return $parser->parse(
+                    $fqcn,
+                    $token,
+                    $this
+                );
             }
         }
 
@@ -223,8 +230,7 @@ final readonly class TypeParser
             case 'object':
                 return $this->consumeStruct($tokens);
             default:
-                $tokens->advance();
-                return $this->parseCustomType();
+                return $this->consumeCustomType($tokens);
         }
     }
 
@@ -610,7 +616,7 @@ final readonly class TypeParser
         throw new InvalidSyntaxException(
             implode(PHP_EOL, array_filter([
                 "Syntax Error: {$message}",
-                $tokens?->current()->highlightArea($tokens->input),
+                $tokens?->highlightCurrentToken(),
             ])),
             previous: $exception,
         );

@@ -92,4 +92,18 @@ final class ParsedTokens implements Iterator
     {
         $this->currentIndex = 0;
     }
+
+    public function highlightCurrentToken(): string
+    {
+        $token = $this->current();
+        $length = $token->end->offset - $token->start->offset;
+
+        return implode(PHP_EOL, [
+            "Type: {$token->type->name} ({$token->__toString()})",
+            $this->input,
+            str_pad("", $token->start->offset, ' ') . (
+            $length > 0 ? str_pad("", $length, '^') : '|'
+            )
+        ]);
+    }
 }
