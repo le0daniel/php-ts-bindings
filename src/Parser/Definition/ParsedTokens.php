@@ -4,16 +4,18 @@ namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
 use Closure;
 use Iterator;
+use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use RuntimeException;
 
-final class Tokens implements Iterator
+final class ParsedTokens implements Iterator
 {
     private int $currentIndex = 0;
     private int $count;
 
     public function __construct(
         public readonly string $input,
-        private readonly array $tokens
+        private readonly array $tokens,
+        public readonly ParsingContext $context,
     )
     {
         $this->count = count($this->tokens);
@@ -89,13 +91,5 @@ final class Tokens implements Iterator
     public function rewind(): void
     {
         $this->currentIndex = 0;
-    }
-
-    public function map(Closure $closure): Tokens
-    {
-        return new self(
-            $this->input,
-            array_map($closure, $this->tokens)
-        );
     }
 }

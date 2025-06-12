@@ -3,7 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
-use Le0daniel\PhpTsBindings\Parser\Definition\Tokens;
+use Le0daniel\PhpTsBindings\Parser\Definition\ParsedTokens;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use RuntimeException;
 
@@ -11,9 +11,9 @@ final class TypeStringTokenizer
 {
     /**
      * @param string $typeString
-     * @return Tokens
+     * @return list<Token>
      */
-    public function tokenize(string $typeString): Tokens
+    public function tokenize(string $typeString): array
     {
         $currentOffset = 0;
         $length = strlen($typeString);
@@ -134,7 +134,7 @@ final class TypeStringTokenizer
             $currentOffset,
         );
 
-        return new Tokens($typeString, $tokens);
+        return $tokens;
     }
 
     private function isEndingQuote(TokenType $endingType, string $character): bool

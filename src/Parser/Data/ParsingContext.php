@@ -35,6 +35,11 @@ final readonly class ParsingContext
     {
     }
 
+    public function toFullyQualifiedClassName(string $className): string
+    {
+        return Utils\Namespaces::toFullyQualifiedClassName($className, $this->namespace, $this->usedNamespaceMap);
+    }
+
     public function isLocalType(string $typeName): bool
     {
         return array_key_exists($typeName, $this->localTypes);

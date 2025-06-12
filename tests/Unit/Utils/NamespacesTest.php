@@ -8,7 +8,8 @@ test('to fully qualified class name', function () {
 
     expect(Namespaces::toFullyQualifiedClassName('Bar', 'Foo', []))->toBe("Foo\\Bar");
     expect(Namespaces::toFullyQualifiedClassName('\\Bar', 'Foo', []))->toBe("Bar");
-    expect(Namespaces::toFullyQualifiedClassName('MyClass', 'Foo', ['MyClass' => 'App\\Utils']))->toBe("App\\Utils\\MyClass");
+    expect(Namespaces::toFullyQualifiedClassName('MyClass', 'Foo', ['MyClass' => 'App\\Utils\\MyClass']))->toBe("App\\Utils\\MyClass");
+    expect(Namespaces::toFullyQualifiedClassName('MyClass\\Other', 'Foo', ['MyClass' => 'App\\Utils']))->toBe("App\\Utils\\MyClass\\Other");
 });
 
 test('build namespace alias map', function () {

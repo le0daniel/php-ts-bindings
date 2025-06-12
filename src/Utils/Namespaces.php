@@ -47,7 +47,10 @@ final class Namespaces
 
         $lookupKey = explode('\\', $className)[0];
         if (array_key_exists($lookupKey, $namespacesMap)) {
-            return $namespacesMap[$lookupKey] . '\\' . $className;
+            $classNameOrNameSpace = $namespacesMap[$lookupKey];
+            return str_contains($className, '\\')
+                ? $classNameOrNameSpace . '\\' . $className
+                : $classNameOrNameSpace;
         }
 
         if ($namespace !== null) {

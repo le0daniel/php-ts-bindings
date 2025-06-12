@@ -3,6 +3,7 @@
 namespace Tests\Unit\Parser;
 
 use Le0daniel\PhpTsBindings\Data\AvailableNamespaces;
+use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
@@ -332,17 +333,24 @@ test('Test simple literals', function () {
     compareToOptimizedAst($node);
 });
 
-test('Test EnumCase literal', function () {
+test('Test EnumCase and class const literal', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
     /** @var UnionNode $node */
-    $node = $parser->parse("ResultEnumBase::SUCCESS|ResultEnumBase::FAILURE");
+    $node = $parser->parse(
+        "ResultEnumBase::SUCCESS|ResultEnumBase::FAILURE|ResultEnum::OTHER",
+        new ParsingContext('SomeName\\Space', [
+            'ResultEnumBase' => ResultEnum::class,
+            'ResultEnum' => ResultEnum::class,
+        ]),
+    );
     expect($node)->toBeInstanceOf(UnionNode::class);
 
     foreach ($node->types as $index => $type) {
         match ($index) {
             0 => expect($type->value)->toBe(ResultEnum::SUCCESS),
             1 => expect($type->value)->toBe(ResultEnum::FAILURE),
-            default => null,
+            2 => expect($type->value)->toBe('other'),
+            default => throw new \RuntimeException("Should not be reached"),
         };
     }
 

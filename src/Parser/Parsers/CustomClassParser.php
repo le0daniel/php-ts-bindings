@@ -26,11 +26,11 @@ final class CustomClassParser implements Parser
 
     public function canParse(Token $token): bool
     {
-        if (!$token->is(TokenType::IDENTIFIER) || !$token->fullyQualifiedValue) {
+        if (!$token->is(TokenType::IDENTIFIER) || !$token->value) {
             return false;
         }
 
-        $typeName = $token->fullyQualifiedValue;
+        $typeName = $token->value;
         if (!class_exists($typeName)) {
             return false;
         }
@@ -85,7 +85,7 @@ final class CustomClassParser implements Parser
      */
     public function parse(Token $token, TypeParser $parser): CustomCastingNode
     {
-        $className = $token->fullyQualifiedValue;
+        $className = $token->value;
         $reflectionClass = new ReflectionClass($className);
 
         $hasConstructor = $reflectionClass->getConstructor() !== null;

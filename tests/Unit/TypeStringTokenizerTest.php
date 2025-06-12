@@ -2,23 +2,35 @@
 
 namespace Tests\Unit;
 
+use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
+use Le0daniel\PhpTsBindings\Parser\Definition\ParsedTokens;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 
+function tokenize(string $string): ParsedTokens
+{
+    return new ParsedTokens(
+        $string,
+        (new TypeStringTokenizer())->tokenize($string),
+        new ParsingContext
+    );
+}
+
+
 test('tokenize', function () {
-    $tokenizer = new TypeStringTokenizer();
-    expect($tokenizer->tokenize("string|int"))->toHaveCount(4)
-        ->and($tokenizer->tokenize("string | int"))->toHaveCount(4)
-        ->and($tokenizer->tokenize("string | int[]"))->toHaveCount(5)
-        ->and($tokenizer->tokenize("string|int[]"))->toHaveCount(5)
-        ->and($tokenizer->tokenize("string|int[]|object{name: 5}"))->toHaveCount(12)
-        ->and($tokenizer->tokenize("string::class"))->toHaveCount(2);
+    
+    expect(tokenize("string|int"))->toHaveCount(4)
+        ->and(tokenize("string | int"))->toHaveCount(4)
+        ->and(tokenize("string | int[]"))->toHaveCount(5)
+        ->and(tokenize("string|int[]"))->toHaveCount(5)
+        ->and(tokenize("string|int[]|object{name: 5}"))->toHaveCount(12)
+        ->and(tokenize("string::class"))->toHaveCount(2);
 });
 
 test("0 Values caught correctly", function () {
-    $tokenizer = new TypeStringTokenizer();
+    
 
-    $tokens = $tokenizer->tokenize("string|0|array{0: string, 1: string}");
+    $tokens = tokenize("string|0|array{0: string, 1: string}");
 
     expect($tokens->at(2)->is(TokenType::INT))->toBeTrue();
     expect($tokens->at(2)->value)->toBe("0");
@@ -27,9 +39,9 @@ test("0 Values caught correctly", function () {
 });
 
 test("Identifies Class Const correctly", function () {
-    $tokenizer = new TypeStringTokenizer();
+    
 
-    $tokens = $tokenizer->tokenize("string|0|Value::INVALID|array{0: string, 1: string}");
+    $tokens = tokenize("string|0|Value::INVALID|array{0: string, 1: string}");
 
     expect($tokens->at(4)->is(TokenType::CLASS_CONST))->toBeTrue();
     expect($tokens->at(4)->value)->toBe("Value::INVALID");
@@ -37,9 +49,9 @@ test("Identifies Class Const correctly", function () {
 });
 
 test("Identifies groups correctly", function () {
-    $tokenizer = new TypeStringTokenizer();
+    
 
-    $tokens = $tokenizer->tokenize("(string|int)|string");
+    $tokens = tokenize("(string|int)|string");
 
     foreach ($tokens as $index => $token) {
         match ($index) {
@@ -56,8 +68,8 @@ test("Identifies groups correctly", function () {
 });
 
 test("positive and negative numbers", function () {
-    $tokenizer = new TypeStringTokenizer();
-    $tokens = $tokenizer->tokenize("0|1|-1|0.1|-0.3");
+    
+    $tokens = tokenize("0|1|-1|0.1|-0.3");
     foreach ($tokens as $index => $token) {
         match ($index) {
             0 => expect($token->is(TokenType::INT, '0'))->toBeTrue(),
@@ -75,8 +87,8 @@ test("positive and negative numbers", function () {
 });
 
 test("Test tokenizer with complex string", function () {
-    $tokenizer = new TypeStringTokenizer();
-    $tokens = $tokenizer->tokenize("string|0|Value::INVALID_INVALID|array{0: string, 1: string}|object{name: 'leo'}");
+    
+    $tokens = tokenize("string|0|Value::INVALID_INVALID|array{0: string, 1: string}|object{name: 'leo'}");
 
     foreach ($tokens as $index => $token) {
         match ($index) {

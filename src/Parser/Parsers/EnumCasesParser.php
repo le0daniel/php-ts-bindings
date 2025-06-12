@@ -13,13 +13,13 @@ final class EnumCasesParser implements Parser
 
     public function canParse(Token $token): bool
     {
-        return enum_exists($token->fullyQualifiedValue);
+        return enum_exists($token->value);
     }
 
     public function parse(Token $token, TypeParser $parser): EnumNode
     {
         /** @var class-string<UnitEnum> $className */
-        $className = $token->fullyQualifiedValue;
+        $className = $token->value;
         return new EnumNode($className);
     }
 }

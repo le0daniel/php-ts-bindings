@@ -26,14 +26,14 @@ final readonly class PhpStanGlobalsParser implements Parser
 
     public function canParse(Token $token): bool
     {
-        return array_key_exists($token->fullyQualifiedValue, $this->typeDeclarations);
+        return array_key_exists($token->value, $this->typeDeclarations);
     }
 
     public function parse(Token $token, TypeParser $parser): NodeInterface
     {
-        $node = $this->typeDeclarations[$token->fullyQualifiedValue];
+        $node = $this->typeDeclarations[$token->value];
         if (!$node) {
-            throw new RuntimeException("Could not find node for {$token->fullyQualifiedValue}");
+            throw new RuntimeException("Could not find node for {$token->value}");
         }
 
         if (is_string($node)) {

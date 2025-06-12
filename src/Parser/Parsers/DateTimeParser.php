@@ -19,11 +19,11 @@ final class DateTimeParser implements Parser
             return false;
         }
 
-        return is_a($token->fullyQualifiedValue, DateTimeInterface::class, true);
+        return is_a($token->value, DateTimeInterface::class, true);
     }
 
     public function parse(Token $token, TypeParser $parser): NodeInterface
     {
-        return new DateTimeNode($token->fullyQualifiedValue);
+        return new DateTimeNode($token->value);
     }
 }

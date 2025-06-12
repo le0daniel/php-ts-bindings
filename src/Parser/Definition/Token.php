@@ -7,44 +7,13 @@ use Stringable;
 
 final readonly class Token implements Stringable
 {
-    public string $fullyQualifiedValue;
-
     public function __construct(
         public TokenType $type,
         public string    $value,
         public int       $start,
         public int       $end,
-        string|null      $fullyQualifiedValue = null,
     )
     {
-        $this->fullyQualifiedValue = $fullyQualifiedValue ?? $this->value;
-    }
-
-    public function applyNamespaces(AvailableNamespaces $namespaces): self
-    {
-        if ($this->type === TokenType::IDENTIFIER) {
-            return new self(
-                $this->type,
-                $this->value,
-                $this->start,
-                $this->end,
-                $namespaces->applyTo($this->value),
-            );
-        }
-
-        if ($this->type === TokenType::CLASS_CONST) {
-            [$className, $constName] = explode('::', $this->value);
-
-            return new self(
-                $this->type,
-                $this->value,
-                $this->start,
-                $this->end,
-                $namespaces->applyTo($className) . '::' . $constName,
-            );
-        }
-
-        return $this;
     }
 
     public function isAnyTypeOf(TokenType ...$types): bool
