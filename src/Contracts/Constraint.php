@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
-interface Constraint
+interface Constraint extends ExportableToPhpCode
 {
     public function validate(mixed $value, ExecutionContext $context): bool;
 }

@@ -24,6 +24,7 @@ use Le0daniel\PhpTsBindings\Parser\Parsers\CustomClassParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
 use Le0daniel\PhpTsBindings\Validators\LengthValidator;
+use Le0daniel\PhpTsBindings\Validators\NonEmptyString;
 use ReflectionClass;
 use Throwable;
 use UnitEnum;
@@ -183,7 +184,7 @@ final readonly class TypeParser
             );
         }
 
-        // ToDo: Implement: non-empty-string|non-falsy-string|truthy-string
+        // ToDo: Implement: non-falsy-string|truthy-string
         // ToDo: Implement typeAliases support: https://phpstan.org/writing-php-code/phpdoc-types
         switch ($token->value) {
             case 'int':
@@ -207,6 +208,12 @@ final readonly class TypeParser
             case 'mixed':
                 $tokens->advance();
                 return new BuiltInNode(BuiltInType::from($token->value));
+            case 'non-empty-string':
+                $tokens->advance();
+                return new ConstraintNode(
+                    new BuiltInNode(BuiltInType::STRING),
+                    [new NonEmptyString()],
+                );
             case 'scalar':
                 $tokens->advance();
                 return new UnionNode([

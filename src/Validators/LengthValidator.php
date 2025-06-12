@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
-final readonly class LengthValidator implements Constraint, ExportableToPhpCode
+final readonly class LengthValidator implements Constraint
 {
     public function __construct(
         public int|null $min = null,
