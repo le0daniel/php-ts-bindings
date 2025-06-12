@@ -21,7 +21,7 @@ final class DateTimeParser implements Parser
             return true;
         }
 
-        return is_a($token->value, DateTimeInterface::class, true);
+        return class_exists($token->value, false) && is_a($token->value, DateTimeInterface::class, true);
     }
 
     public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): NodeInterface

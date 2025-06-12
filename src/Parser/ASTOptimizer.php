@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\LazyReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -79,6 +80,10 @@ PHP) === false) {
      */
     private function dedupeNode(NodeInterface $node): NodeInterface
     {
+        if ($node instanceof NamedNode) {
+            return $this->dedupeNode($node->node);
+        }
+
         if ($node instanceof LazyReferencedNode) {
             return $node;
         }

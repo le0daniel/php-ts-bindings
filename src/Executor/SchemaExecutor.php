@@ -15,6 +15,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -78,6 +79,7 @@ final class SchemaExecutor
         }
 
         return match (true) {
+            $node instanceof NamedNode => $this->executeSerialize($node->node, $output, $context),
             $node instanceof LeafNode => $node->serializeValue($output, $context),
             $node instanceof UnionNode => $this->serializeUnion($node, $output, $context),
             $node instanceof RecordNode => $this->serializeRecord($node, $output, $context),
@@ -234,6 +236,7 @@ final class SchemaExecutor
         }
 
         return match (true) {
+            $node instanceof NamedNode => $this->executeParse($node->node, $input, $context),
             $node instanceof LeafNode => $node->parseValue($input, $context),
             $node instanceof RecordNode => $this->parseRecord($node, $input, $context),
             $node instanceof UnionNode => $this->parseUnion($node, $input, $context),

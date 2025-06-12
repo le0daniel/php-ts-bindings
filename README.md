@@ -15,12 +15,7 @@ Get the type definition either for the PHP type system or in combination with th
 phpstan is supported quite well, including locally defined types or imported types.
 
 ```php
-use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
-use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
-use Le0daniel\PhpTsBindings\Definition\TypescriptDefinition;
-use Le0daniel\PhpTsBindings\Definition\Mode;
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Le0daniel\PhpTsBindings\Definition\Data\Mode;use Le0daniel\PhpTsBindings\Definition\TypescriptDefinition;use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;use Le0daniel\PhpTsBindings\Parser\TypeParser;use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 
 $typeString = TypeReflector::reflectParameter(
   new ReflectionParameter()
