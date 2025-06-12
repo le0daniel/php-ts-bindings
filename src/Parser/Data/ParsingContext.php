@@ -13,8 +13,12 @@ use RuntimeException;
  */
 final readonly class ParsingContext
 {
-    private const string LOCAL_TYPE_REGEX = "/@phpstan-type\s+(?<typeName>[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)\s+(?<typeDefinition>.+)/";
-    private const string IMPORTED_TYPE_REGEX = '/@phpstan-import-type\s+(?<typeName>\S+)\s+from\s+(?<fromClass>\S+)(\s+as\s+(?<alias>\S+))?/';
+    private const array REGEX_PARTS = [
+        '{cn}' => '[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*',
+        '{fqcn}' => '\\\\?[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*(\\\\[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)*',
+    ];
+    private const string LOCAL_TYPE_REGEX = "/@phpstan-type\s+(?<typeName>{cn})\s+(?<typeDefinition>.+)/";
+    private const string IMPORTED_TYPE_REGEX = '/@phpstan-import-type\s+(?<typeName>{cn})\s+from\s+(?<fromClass>{fqcn})(\s+as\s+(?<alias>{cn}))?/';
 
     /**
      * @param string|null $namespace
@@ -34,6 +38,16 @@ final readonly class ParsingContext
     public function isLocalType(string $typeName): bool
     {
         return array_key_exists($typeName, $this->localTypes);
+    }
+
+    private static function compileRegex(string $regex): string
+    {
+        return str_replace(array_keys(self::REGEX_PARTS), array_values(self::REGEX_PARTS), $regex);
+    }
+
+    public static function regex(): string
+    {
+        return self::compileRegex(self::IMPORTED_TYPE_REGEX);
     }
 
     /**
@@ -113,10 +127,9 @@ final readonly class ParsingContext
         }
 
         $importedTypes = [];
-        foreach (explode(PHP_EOL, $docBlock) as $line)
-        {
+        foreach (explode(PHP_EOL, $docBlock) as $line) {
             $matches = [];
-            if (preg_match(self::IMPORTED_TYPE_REGEX, $line, $matches) !== 1) {
+            if (preg_match(self::compileRegex(self::IMPORTED_TYPE_REGEX), $line, $matches) !== 1) {
                 continue;
             }
 
@@ -141,7 +154,7 @@ final readonly class ParsingContext
         $lines = explode(PHP_EOL, $docBlock);
         foreach ($lines as $line) {
             $matches = [];
-            if (preg_match(self::LOCAL_TYPE_REGEX, $line, $matches) === 1) {
+            if (preg_match(self::compileRegex(self::LOCAL_TYPE_REGEX), $line, $matches) === 1) {
                 $localTypes[$matches['typeName']] = trim($matches['typeDefinition']);
             }
         }

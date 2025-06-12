@@ -44,15 +44,15 @@ final class CustomClassParser implements Parser
      * @return list<PropertyNode>
      * @throws Throwable
      */
-    private function createProperties(array $properties, TypeParser $parser, PropertyType $propertyType, AvailableNamespaces $namespaces): array
+    private function createProperties(array $properties, TypeParser $parser, PropertyType $propertyType): array
     {
         return array_map(
-            static function(ReflectionProperty|ReflectionParameter $property) use ($parser, $propertyType, $namespaces) {
+            static function(ReflectionProperty|ReflectionParameter $property) use ($parser, $propertyType) {
                 $type = Reflections::getDocBlockExtendedType($property);
 
                 return new PropertyNode(
                     $property->name,
-                    $parser->parse($type, $namespaces),
+                    $parser->parse($type),
                     false,
                     $propertyType
                 );
@@ -88,11 +88,6 @@ final class CustomClassParser implements Parser
         $className = $token->fullyQualifiedValue;
         $reflectionClass = new ReflectionClass($className);
 
-        /**
-         * Get all the namespaces that are used by this class file.
-         */
-        $namespaces = AvailableNamespaces::fromReflectionClass($reflectionClass);
-
         $hasConstructor = $reflectionClass->getConstructor() !== null;
         if (!$hasConstructor) {
             throw new RuntimeException("Only support classes with a constructor");
@@ -102,13 +97,11 @@ final class CustomClassParser implements Parser
             $this->findInputProperties($reflectionClass),
             $parser,
             PropertyType::INPUT,
-            $namespaces,
         );
         $outputProperties = $this->createProperties(
             $reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
             $parser,
             PropertyType::OUTPUT,
-            $namespaces,
         );
 
         return new CustomCastingNode(

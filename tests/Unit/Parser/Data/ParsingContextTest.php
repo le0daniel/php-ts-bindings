@@ -11,9 +11,9 @@ test('from class reflection', function () {
     $context = ParsingContext::fromClassReflection(new ReflectionClass(MyUserClass::class));
     $fromFileContext = ParsingContext::fromFilePath(__DIR__ . '/Stubs/MyUserClass.php');
 
-    expect(serialize($context))->toBe(serialize($fromFileContext));
-
-    expect($context->namespace)
+    expect(serialize($context))
+        ->toBe(serialize($fromFileContext))
+        ->and($context->namespace)
         ->toBe('Tests\\Unit\\Parser\\Data\\Stubs')
         ->and($context->usedNamespaceMap)
         ->toBe([

@@ -335,12 +335,7 @@ test('Test simple literals', function () {
 test('Test EnumCase literal', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
     /** @var UnionNode $node */
-    $node = $parser->parse("ResultEnumBase::SUCCESS|ResultEnumBase::FAILURE", new AvailableNamespaces(
-        null,
-        [
-            'ResultEnumBase' => 'Tests\Mocks\ResultEnum'
-        ]
-    ));
+    $node = $parser->parse("ResultEnumBase::SUCCESS|ResultEnumBase::FAILURE");
     expect($node)->toBeInstanceOf(UnionNode::class);
 
     foreach ($node->types as $index => $type) {
