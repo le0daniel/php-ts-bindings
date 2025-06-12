@@ -74,6 +74,9 @@ final readonly class TypeParser
     }
 
     /**
+     * Parsing context is used to correctly Identify types that have been defined on the class level with
+     * `phpstan-type` or `phpstan-import-type` on the class or file level.
+     *
      * @throws InvalidSyntaxException
      */
     public function parse(string $typeString, ParsingContext $context = new ParsingContext()): NodeInterface
@@ -158,6 +161,26 @@ final readonly class TypeParser
 
         if (!$token->is(TokenType::IDENTIFIER)) {
             $this->produceSyntaxError("Expected type identifier", $tokens);
+        }
+
+        // Support local type parsing
+        if ($tokens->context->isLocalType($token->value)) {
+            $tokens->advance();
+            return $this->parse(
+                $tokens->context->getLocalTypeDefinition($token->value),
+                $tokens->context,
+            );
+        }
+
+        // Support imported type parsing
+        if ($tokens->context->isImportedType($token->value)) {
+            $tokens->advance();
+
+            $importDefinition = $tokens->context->getImportedTypeInfo($token->value);
+            return $this->parse(
+                $importDefinition['typeName'],
+                ParsingContext::fromClassString($importDefinition['className']),
+            );
         }
 
         // ToDo: Implement: non-empty-string|non-falsy-string|truthy-string

@@ -85,6 +85,11 @@ final readonly class ParsingContext
         return $this->importedTypes[$typeName];
     }
 
+    public static function fromClassString(string $classString): self
+    {
+        return self::fromClassReflection(new ReflectionClass($classString));
+    }
+
     public static function fromClassReflection(ReflectionClass $class): self
     {
         $reflector = new FileReflector($class->getFileName());
