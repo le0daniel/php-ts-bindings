@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Parser\Definition\Position;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
-use Le0daniel\PhpTsBindings\Parser\Definition\ParsedTokens;
+use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use RuntimeException;
 

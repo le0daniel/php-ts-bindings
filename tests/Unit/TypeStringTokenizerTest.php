@@ -3,13 +3,13 @@
 namespace Tests\Unit;
 
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
-use Le0daniel\PhpTsBindings\Parser\Definition\ParsedTokens;
+use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 
-function tokenize(string $string): ParsedTokens
+function tokenize(string $string): ParserState
 {
-    return new ParsedTokens(
+    return new ParserState(
         $string,
         (new TypeStringTokenizer())->tokenize($string),
         new ParsingContext

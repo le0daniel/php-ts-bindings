@@ -5,7 +5,7 @@ namespace Le0daniel\PhpTsBindings\Parser;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
-use Le0daniel\PhpTsBindings\Parser\Definition\ParsedTokens;
+use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
@@ -80,7 +80,7 @@ final readonly class TypeParser
      */
     public function parse(string $typeString, ParsingContext $context = new ParsingContext()): NodeInterface
     {
-        $tokens = new ParsedTokens(
+        $tokens = new ParserState(
             $typeString,
             $this->tokenizer->tokenize($typeString),
             $context,
@@ -92,7 +92,7 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function consumeCustomType(ParsedTokens $tokens): NodeInterface
+    private function consumeCustomType(ParserState $tokens): NodeInterface
     {
         $token = $tokens->current();
         $fqcn = $tokens->context->toFullyQualifiedClassName($token->value);
@@ -111,7 +111,7 @@ final readonly class TypeParser
         $this->produceSyntaxError("Could not parse custom type: {$token->value}", null);
     }
 
-    private function consumeTypeModifiers(ParsedTokens $tokens, NodeInterface $type): NodeInterface
+    private function consumeTypeModifiers(ParserState $tokens, NodeInterface $type): NodeInterface
     {
         while ($tokens->current()->is(TokenType::CLOSED_BRACKETS)) {
             $tokens->advance();
@@ -121,11 +121,11 @@ final readonly class TypeParser
     }
 
     /**
-     * @param ParsedTokens $tokens
+     * @param ParserState $tokens
      * @return NodeInterface
      * @throws InvalidSyntaxException
      */
-    private function consumeType(ParsedTokens $tokens): NodeInterface
+    private function consumeType(ParserState $tokens): NodeInterface
     {
         $token = $tokens->current();
 
@@ -260,7 +260,7 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function consumeStruct(ParsedTokens $tokens): NodeInterface
+    private function consumeStruct(ParserState $tokens): NodeInterface
     {
         if (!$tokens->currentTokenIs(TokenType::IDENTIFIER) || !$tokens->currentValueIn('object', 'array')) {
             $this->produceSyntaxError("Expected object", $tokens);
@@ -312,7 +312,7 @@ final readonly class TypeParser
         return new StructNode($structType, $properties);
     }
 
-    private function consumeOptionalObjectKey(ParsedTokens $tokens): bool
+    private function consumeOptionalObjectKey(ParserState $tokens): bool
     {
         if ($tokens->current()->is(TokenType::QUESTION_MARK)) {
             $tokens->advance();
@@ -324,7 +324,7 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function consumeTypeOrUnion(ParsedTokens $tokens, TokenType ...$stopAt): NodeInterface
+    private function consumeTypeOrUnion(ParserState $tokens, TokenType ...$stopAt): NodeInterface
     {
         $openUnion = true;
         $nullableByQuestionMark = false;
@@ -463,7 +463,7 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function consumeArrayType(ParsedTokens $tokens): NodeInterface
+    private function consumeArrayType(ParserState $tokens): NodeInterface
     {
         // ToDo: Handle non-empty-array | non-empty-list;
         if (!$tokens->current()->is(TokenType::IDENTIFIER) || !in_array($tokens->current()->value, ['array', 'list'], true)) {
@@ -513,7 +513,7 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function consumeTuple(ParsedTokens $tokens): TupleNode
+    private function consumeTuple(ParserState $tokens): TupleNode
     {
         if (!$tokens->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
             $this->produceSyntaxError("Expected array", $tokens);
@@ -546,7 +546,7 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function consumeIntegerDeterminedTuple(ParsedTokens $tokens): TupleNode
+    private function consumeIntegerDeterminedTuple(ParserState $tokens): TupleNode
     {
         if (!$tokens->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
             $this->produceSyntaxError("Expected array", $tokens);
@@ -589,7 +589,7 @@ final readonly class TypeParser
      * @throws InvalidSyntaxException
      * @return list<NodeInterface>
      */
-    private function consumeGenerics(ParsedTokens $tokens, ?int $min = null, ?int $max = null): array
+    private function consumeGenerics(ParserState $tokens, ?int $min = null, ?int $max = null): array
     {
         $isGenericBlock = $tokens->currentTokenIs(TokenType::LT);
         $generics = [];
@@ -634,7 +634,7 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function produceSyntaxError(string $message, ?ParsedTokens $tokens = null, ?Throwable $exception = null): never
+    private function produceSyntaxError(string $message, ?ParserState $tokens = null, ?Throwable $exception = null): never
     {
         throw new InvalidSyntaxException(
             implode(PHP_EOL, array_filter([

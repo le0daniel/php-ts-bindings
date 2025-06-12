@@ -7,7 +7,7 @@ use Iterator;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use RuntimeException;
 
-final class ParsedTokens implements Iterator
+final class ParserState implements Iterator
 {
     private int $currentIndex = 0;
     private int $count;
