@@ -15,11 +15,21 @@ final class DateTimeParser implements Parser
 
     public function canParse(string $fullyQualifiedClassName, Token $token): bool
     {
-        return is_a($fullyQualifiedClassName, DateTimeInterface::class, true);
+        // Built in classes are harder to catch as the fully qualified class name might
+        // be prefixed with the current namespace.
+        if (is_a($fullyQualifiedClassName, DateTimeInterface::class, true)) {
+            return true;
+        }
+
+        return is_a($token->value, DateTimeInterface::class, true);
     }
 
     public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): NodeInterface
     {
-        return new DateTimeNode($fullyQualifiedClassName);
+        $className = is_a($fullyQualifiedClassName, DateTimeInterface::class, true)
+            ? $fullyQualifiedClassName
+            : $token->value;
+
+        return new DateTimeNode($className);
     }
 }

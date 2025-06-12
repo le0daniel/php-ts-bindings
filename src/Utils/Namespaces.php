@@ -59,7 +59,7 @@ final class Namespaces
             return $className;
         }
 
-        if ($namespace !== null) {
+        if ($namespace !== null && !str_starts_with($className, $namespace)) {
             return $namespace . '\\' . $className;
         }
 

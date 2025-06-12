@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -351,6 +352,22 @@ test('Test simple literals', function () {
         };
     }
 
+    compareToOptimizedAst($node);
+});
+
+test('Test date time literals', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var UnionNode $node */
+    $node = $parser->parse(\DateTime::class);
+    expect($node)->toBeInstanceOf(DateTimeNode::class);
+    compareToOptimizedAst($node);
+});
+
+test('Test date time with a namespace', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var UnionNode $node */
+    $node = $parser->parse(\DateTime::class, new ParsingContext('SomeName\\Space'));
+    expect($node)->toBeInstanceOf(DateTimeNode::class);
     compareToOptimizedAst($node);
 });
 

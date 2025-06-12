@@ -12,6 +12,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Utils\Reflections;
 use ReflectionClass;
 use ReflectionException;
@@ -42,7 +43,7 @@ final class CustomClassParser implements Parser
     {
         return array_map(
             static function(ReflectionProperty|ReflectionParameter $property) use ($parser, $propertyType) {
-                $type = Reflections::getDocBlockExtendedType($property);
+                $type = TypeReflector::reflectPropertyOrParameter($property);
 
                 return new PropertyNode(
                     $property->name,
