@@ -5,7 +5,6 @@ namespace Le0daniel\PhpTsBindings\Parser;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
-use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParsedTokens;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
@@ -50,7 +49,7 @@ final readonly class TypeParser
      * @param list<Parser>|null $parsers
      */
     public function __construct(
-        private TypeStringTokenizer $tokenizer,
+        private TypeStringTokenizer $tokenizer = new TypeStringTokenizer(),
         array|null                  $parsers = null,
     )
     {
@@ -130,7 +129,7 @@ final readonly class TypeParser
     {
         $token = $tokens->current();
 
-        // Handles literals in schema
+        // Handles primitive literals in schema
         if ($token->isAnyTypeOf(TokenType::BOOL, TokenType::STRING, TokenType::FLOAT, TokenType::INT)) {
             $tokens->advance();
             return new LiteralNode(
@@ -163,7 +162,7 @@ final readonly class TypeParser
             $this->produceSyntaxError("Expected type identifier", $tokens);
         }
 
-        // Support local type parsing
+        // Recursive support for locally defined types using @phpstan-type.
         if ($tokens->context->isLocalType($token->value)) {
             $tokens->advance();
             return $this->parse(
@@ -172,7 +171,7 @@ final readonly class TypeParser
             );
         }
 
-        // Support imported type parsing
+        // Recursive support for imported types using @phpstan-import-type.
         if ($tokens->context->isImportedType($token->value)) {
             $tokens->advance();
 

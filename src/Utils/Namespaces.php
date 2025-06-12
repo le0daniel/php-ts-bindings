@@ -53,6 +53,12 @@ final class Namespaces
                 : $classNameOrNameSpace;
         }
 
+        // If reflection->getType()->getName() is used, it already returns a fully qualified class name.
+        // In case we did not find an import match, we check if the classname is imported anywhere already. If this is the case, we return it.
+        if (array_any($namespacesMap, fn(string $usedClass) => str_starts_with($className, $usedClass))) {
+            return $className;
+        }
+
         if ($namespace !== null) {
             return $namespace . '\\' . $className;
         }

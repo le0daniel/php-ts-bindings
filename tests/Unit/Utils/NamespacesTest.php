@@ -6,10 +6,11 @@ use Le0daniel\PhpTsBindings\Utils\Namespaces;
 
 test('to fully qualified class name', function () {
 
-    expect(Namespaces::toFullyQualifiedClassName('Bar', 'Foo', []))->toBe("Foo\\Bar");
-    expect(Namespaces::toFullyQualifiedClassName('\\Bar', 'Foo', []))->toBe("Bar");
-    expect(Namespaces::toFullyQualifiedClassName('MyClass', 'Foo', ['MyClass' => 'App\\Utils\\MyClass']))->toBe("App\\Utils\\MyClass");
-    expect(Namespaces::toFullyQualifiedClassName('MyClass\\Other', 'Foo', ['MyClass' => 'App\\Utils']))->toBe("App\\Utils\\MyClass\\Other");
+    expect(Namespaces::toFullyQualifiedClassName('Bar', 'Foo', []))->toBe("Foo\\Bar")
+        ->and(Namespaces::toFullyQualifiedClassName('\\Bar', 'Foo', []))->toBe("Bar")
+        ->and(Namespaces::toFullyQualifiedClassName('MyClass', 'Foo', ['MyClass' => 'App\\Utils\\MyClass']))->toBe("App\\Utils\\MyClass")
+        ->and(Namespaces::toFullyQualifiedClassName('MyClass\\Other', 'Foo', ['MyClass' => 'App\\Utils']))->toBe("App\\Utils\\MyClass\\Other")
+        ->and(Namespaces::toFullyQualifiedClassName('MyClass\\Other', 'Foo', ['Other' => 'MyClass\\Other']))->toBe("MyClass\\Other");
 });
 
 test('build namespace alias map', function () {
