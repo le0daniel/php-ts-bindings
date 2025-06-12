@@ -24,11 +24,11 @@ final class UserClassMock
      */
     public function toString(): string
     {
-
+        throw new \Exception();
     }
 
     public function toArray(): array
     {
-
+        throw new \Exception();
     }
 }
