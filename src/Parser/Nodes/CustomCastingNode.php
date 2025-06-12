@@ -4,6 +4,8 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
+use Le0daniel\PhpTsBindings\Executor\Data\Context;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
@@ -31,11 +33,28 @@ final readonly class CustomCastingNode implements NodeInterface
         return "new {$className}({$this->node->exportPhpCode()}, {$fullyQualifiedCastingClass}, {$strategy})";
     }
 
-    public function cast(array $value): object
+    public function cast(array $value, Context $context): object
     {
         try {
-            return new ($this->fullyQualifiedCastingClass)(...$value);
-        } catch (Throwable) {
+            if ($this->strategy === ObjectCastStrategy::CONSTRUCTOR) {
+                return new ($this->fullyQualifiedCastingClass)(...$value);
+            }
+
+            $instance = new $this->fullyQualifiedCastingClass;
+            foreach ($value as $key => $propertyValue) {
+                $instance->{$key} = $propertyValue;
+            }
+            return $instance;
+        } catch (Throwable $exception) {
+            $context->addIssue(new Issue(
+                'Internal error',
+                [
+                    'message' => "Failed to cast value to {$this->fullyQualifiedCastingClass}: {$exception->getMessage()}",
+                    'value' => $value,
+                ],
+                $exception,
+            ));
+
             return Value::INVALID;
         }
     }

@@ -30,7 +30,7 @@ final class SchemaExecutor
         $result = $this->executeParse($node, $input, $context);
 
         if ($result === Value::INVALID) {
-            return new Failure();
+            return new Failure($context->issues);
         }
 
         return new Success($result);
@@ -42,7 +42,7 @@ final class SchemaExecutor
         $result = $this->executeSerialize($node, $output, $context);
 
         if ($result === Value::INVALID) {
-            return new Failure();
+            return new Failure($context->issues);
         }
 
         return new Success($result);
@@ -169,10 +169,17 @@ final class SchemaExecutor
             $context->enterPath($propertyNode->name);
             $propertyValue = $this->extractKeyedValue($propertyNode->name, $output);
 
+            if ($propertyValue === Value::INVALID) {
+                $context->leavePath();
+                return Value::INVALID;
+            }
+
             if ($propertyValue === Value::UNDEFINED) {
                 if ($propertyNode->isOptional) {
+                    $context->leavePath();
                     continue;
                 } else {
+                    $context->leavePath();
                     return Value::INVALID;
                 }
             }
@@ -201,7 +208,12 @@ final class SchemaExecutor
         }
 
         if ($node->isDiscriminated()) {
-            $discriminatedType = $node->getDiscriminatedType($this->extractKeyedValue($node->discriminator, $output));
+            $valueToCheck = $this->extractKeyedValue($node->discriminator, $output);
+            if (Value::INVALID === $valueToCheck) {
+                return Value::INVALID;
+            }
+
+            $discriminatedType = $node->getDiscriminatedType($valueToCheck);
             if ($discriminatedType) {
                 return $this->executeSerialize($discriminatedType, $output, $context);
             }
@@ -232,7 +244,7 @@ final class SchemaExecutor
             if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
                 return Value::INVALID;
             }
-            return $node->cast($arrayValue);
+            return $node->cast($arrayValue, $context);
         }
 
         return match (true) {
@@ -312,7 +324,12 @@ final class SchemaExecutor
         }
 
         if ($node->isDiscriminated()) {
-            $discriminatedType = $node->getDiscriminatedType($this->extractKeyedValue($node->discriminator, $input));
+            $valueToCheck = $this->extractKeyedValue($node->discriminator, $input);
+            if (Value::INVALID === $valueToCheck) {
+                return Value::INVALID;
+            }
+
+            $discriminatedType = $node->getDiscriminatedType($valueToCheck);
             if ($discriminatedType) {
                 return $this->executeParse($discriminatedType, $input, $context);
             }
@@ -344,10 +361,17 @@ final class SchemaExecutor
             $context->enterPath($propertyNode->name);
             $propertyValue = $this->extractKeyedValue($propertyNode->name, $input);
 
+            if ($propertyValue === Value::INVALID) {
+                $context->leavePath();
+                return Value::INVALID;
+            }
+
             if ($propertyValue === Value::UNDEFINED) {
                 if ($propertyNode->isOptional) {
+                    $context->leavePath();
                     continue;
                 } else {
+                    $context->leavePath();
                     return Value::INVALID;
                 }
             }
@@ -398,20 +422,13 @@ final class SchemaExecutor
         return $tupleValues;
     }
 
-    private function extractKeyedValue(string $key, array|object $input): mixed
+    private function extractKeyedValue(string $key, mixed $input): mixed
     {
-        if (is_array($input)) {
-            return array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED;
-        }
-
-        if ($input instanceof ArrayAccess) {
-            return $input->offsetExists($key)
-                ? $input[$key]
-                : Value::UNDEFINED;
-        }
-
-        return property_exists($input, $key)
-            ? $input->{$key}
-            : Value::UNDEFINED;
+        return match (true) {
+            is_array($input) => array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED,
+            $input instanceof ArrayAccess => $input->offsetExists($key) ? $input[$key] : Value::UNDEFINED,
+            is_object($input) => property_exists($input, $key) ? $input->{$key} : Value::UNDEFINED,
+            default => Value::INVALID,
+        };
     }
 }

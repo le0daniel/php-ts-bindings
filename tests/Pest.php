@@ -34,7 +34,13 @@ expect()->extend('toBeOne', function () {
 });
 
 expect()->extend('toBeSuccess', function () {
-    return $this->toBeInstanceOf(Success::class);
+    /** @var Failure $value */
+    $value = $this->value;
+
+    return $this->toBeInstanceOf(Success::class, implode('', [
+        "Failed asserting that result is success with: ",
+        $value instanceof Failure ? $value->serializeIssuesToString() : 'null'
+    ]));
 });
 
 expect()->extend('toBeFailure', function () {

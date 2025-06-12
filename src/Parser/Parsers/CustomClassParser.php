@@ -3,8 +3,9 @@
 namespace Le0daniel\PhpTsBindings\Parser\Parsers;
 
 use Le0daniel\PhpTsBindings\Contracts\Parser;
+use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
-use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
@@ -13,10 +14,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
-use Le0daniel\PhpTsBindings\Utils\Reflections;
 use ReflectionClass;
 use ReflectionException;
-use ReflectionParameter;
 use ReflectionProperty;
 use RuntimeException;
 use Throwable;
@@ -35,44 +34,44 @@ final class CustomClassParser implements Parser
     }
 
     /**
-     * @param ReflectionProperty[]|ReflectionParameter[] $properties
-     * @return list<PropertyNode>
-     * @throws Throwable
+     * @throws InvalidSyntaxException
      */
-    private function createProperties(array $properties, TypeParser $parser, PropertyType $propertyType): array
+    private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser): CustomCastingNode
     {
-        return array_map(
-            static function(ReflectionProperty|ReflectionParameter $property) use ($parser, $propertyType) {
-                $type = TypeReflector::reflectPropertyOrParameter($property);
+        $context = ParsingContext::fromClassReflection($reflectionClass);
 
-                return new PropertyNode(
-                    $property->name,
-                    $parser->parse($type),
-                    false,
-                    $propertyType
-                );
-            },
-            $properties
-        );
-    }
+        /** @var array<PropertyNode> $structProperties */
+        $structProperties = [];
 
-    /**
-     * @param ReflectionClass $reflectionClass
-     * @return array<ReflectionParameter|ReflectionProperty>
-     */
-    private function findInputProperties(ReflectionClass $reflectionClass): array
-    {
-        $hasConstructor = $reflectionClass->getConstructor() !== null;
-        if ($hasConstructor) {
-            return $reflectionClass->getConstructor()->getParameters();
+        foreach ($reflectionClass->getConstructor()->getParameters() as $parameter) {
+            $structProperties[] = new PropertyNode(
+                $parameter->name,
+                $parser->parse(TypeReflector::reflectParameter($parameter), $context),
+                false,
+                PropertyType::INPUT,
+            );
         }
 
-        $publicSettableProperties = array_filter(
-            $reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
-            fn(ReflectionProperty $property) => !$property->isStatic() && !$property->hasHooks(),
-        );
+        foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->isPromoted()) {
+                $index = array_find_key($structProperties, fn(PropertyNode $propertyNode) => $propertyNode->name === $property->getName());
+                $structProperties[$index] = $structProperties[$index]->changePropertyType(PropertyType::BOTH);
+                continue;
+            }
 
-        return array_values($publicSettableProperties);
+            $structProperties[] = new PropertyNode(
+                $property->name,
+                $parser->parse(TypeReflector::reflectProperty($property), $context),
+                false,
+                PropertyType::INPUT,
+            );
+        }
+
+        return new CustomCastingNode(
+            new StructNode(StructPhpType::ARRAY, $structProperties),
+            $reflectionClass->getName(),
+            ObjectCastStrategy::CONSTRUCTOR,
+        );
     }
 
     /**
@@ -83,28 +82,29 @@ final class CustomClassParser implements Parser
         $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
 
         $hasConstructor = $reflectionClass->getConstructor() !== null;
-        if (!$hasConstructor) {
-            throw new RuntimeException("Only support classes with a constructor");
+        if ($hasConstructor) {
+            return $this->parseConstructorStrategy($reflectionClass, $parser);
         }
 
-        $inputProperties = $this->createProperties(
-            $this->findInputProperties($reflectionClass),
-            $parser,
-            PropertyType::INPUT,
-        );
-        $outputProperties = $this->createProperties(
-            $reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
-            $parser,
-            PropertyType::OUTPUT,
-        );
+        $context = ParsingContext::fromClassReflection($reflectionClass);
+        $properties = [];
+        foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->isReadOnly() || $property->hasHooks()) {
+                throw new RuntimeException("Property {$property->name} is not writable");
+            }
+
+            $properties[] = new PropertyNode(
+                $property->getName(),
+                $parser->parse(TypeReflector::reflectProperty($property), $context),
+                false,
+                PropertyType::BOTH,
+            );
+        }
 
         return new CustomCastingNode(
-            new StructNode(StructPhpType::ARRAY, [
-                ...$inputProperties,
-                ...$outputProperties,
-            ]),
-            $fullyQualifiedClassName,
-            ObjectCastStrategy::CONSTRUCTOR,
+            new StructNode(StructPhpType::ARRAY, $properties),
+            $reflectionClass->getName(),
+            ObjectCastStrategy::ASSIGN_PROPERTIES,
         );
     }
 }

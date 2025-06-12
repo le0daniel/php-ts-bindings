@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
+use Closure;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Registry\SchemaRegistry;
@@ -43,7 +44,7 @@ PHP) === false) {
     }
 
     /**
-     * @param array<string, NodeInterface> $nodes
+     * @param array<string, NodeInterface|Closure(): NodeInterface> $nodes
      */
     public function generateOptimizedCode(array $nodes): string
     {
@@ -52,7 +53,12 @@ PHP) === false) {
         }
 
         $this->dedupedNodes = [];
-        $optimizedNodes = array_map($this->dedupeNode(...), $nodes);
+
+        $optimizedNodes = array_map(
+            fn(Closure|NodeInterface $node) => $this->dedupeNode($node instanceof Closure ? $node() : $node),
+            $nodes
+        );
+
         $registryClass = PHPExport::absolute(SchemaRegistry::class);
 
         $dedupedAsString = Arrays::mapWithKeys(
@@ -90,7 +96,7 @@ PHP) === false) {
 
         if ($node instanceof LeafNode) {
             $identifier = '#leaf_' . sha1((string)$node);
-            $this->dedupedNodes[$identifier] = $node;
+            $this->dedupedNodes[$identifier] ??= $node;
             return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
@@ -103,7 +109,7 @@ PHP) === false) {
             );
 
             $identifier = '#prop_' . sha1((string)$optimizedNode);
-            $this->dedupedNodes[$identifier] = $optimizedNode;
+            $this->dedupedNodes[$identifier] ??= $optimizedNode;
             return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
@@ -114,7 +120,7 @@ PHP) === false) {
                 array_map($this->dedupeNode(...), $node->sortedProperties()),
             );
             $identifier = '#struct_' . sha1((string)$deepOptimizedNode);
-            $this->dedupedNodes[$identifier] = $deepOptimizedNode;
+            $this->dedupedNodes[$identifier] ??= $deepOptimizedNode;
             return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
