@@ -13,6 +13,14 @@ final class Failure
     {
     }
 
+    /**
+     * @return list<Issue>
+     */
+    public function flatIssues(): array
+    {
+        return array_merge(...array_values($this->issues));
+    }
+
     public function serializeIssuesToString(): string
     {
         $messages = [];

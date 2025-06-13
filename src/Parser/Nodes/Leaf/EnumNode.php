@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 use UnitEnum;
@@ -39,7 +40,7 @@ final readonly class EnumNode implements NodeInterface, LeafNode
         /** ToDo: Error handling */
         if (!is_string($value)) {
             $context->addIssue(new Issue(
-                'validation.invalid_type',
+                IssueMessage::INVALID_TYPE,
                 [
                     "message" => "Expected string name of enum {$this->enumClassName}, got: " . gettype($value),
                     "value" => $value,
@@ -56,7 +57,7 @@ final readonly class EnumNode implements NodeInterface, LeafNode
         }
 
         $context->addIssue(new Issue(
-            'validation.invalid_type',
+            \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
             [
                 "message" => "Expected string name of enum {$this->enumClassName}, got: '{$value}'",
                 "value" => $value,

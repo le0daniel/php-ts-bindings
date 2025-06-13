@@ -16,6 +16,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -179,6 +180,12 @@ final class SchemaExecutor
                     $context->leavePath();
                     continue;
                 } else {
+                    $context->addIssue(new Issue(
+                        'validation.missing_property',
+                        [
+                            'message' => "Missing property: {$propertyNode->name}",
+                        ]
+                    ));
                     $context->leavePath();
                     return Value::INVALID;
                 }
@@ -209,7 +216,15 @@ final class SchemaExecutor
 
         if ($node->isDiscriminated()) {
             $valueToCheck = $this->extractKeyedValue($node->discriminator, $output);
-            if (Value::INVALID === $valueToCheck) {
+            if ($valueToCheck instanceof Value) {
+                $context->addIssue(new Issue(
+                    \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
+                    [
+                        'message' => 'Invalid type for union discriminated type.',
+                        'value' => $output,
+                        'discriminator' => $node->discriminator,
+                    ]
+                ));
                 return Value::INVALID;
             }
 
@@ -325,7 +340,15 @@ final class SchemaExecutor
 
         if ($node->isDiscriminated()) {
             $valueToCheck = $this->extractKeyedValue($node->discriminator, $input);
-            if (Value::INVALID === $valueToCheck) {
+            if ($valueToCheck instanceof Value) {
+                $context->addIssue(new Issue(
+                    \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
+                    [
+                        'message' => 'Invalid type for union discriminated type.',
+                        'value' => $input,
+                        'discriminator' => $node->discriminator,
+                    ]
+                ));
                 return Value::INVALID;
             }
 
@@ -343,12 +366,26 @@ final class SchemaExecutor
                 return $result;
             }
         }
+
+        $context->addIssue(new Issue(
+            'validation.invalid_union',
+            [
+                'message' => 'No valid union type found.',
+            ]
+        ));
         return Value::INVALID;
     }
 
     private function parseStruct(StructNode $node, mixed $input, Context $context): array|object
     {
         if (is_array($input) && array_is_list($input)) {
+            $context->addIssue(new Issue(
+                'validation.invalid_struct',
+                [
+                    'message' => 'Structs must be of type object, and not empty.',
+                    'value' => $input,
+                ]
+            ));
             return Value::INVALID;
         }
 
@@ -362,6 +399,12 @@ final class SchemaExecutor
             $propertyValue = $this->extractKeyedValue($propertyNode->name, $input);
 
             if ($propertyValue === Value::INVALID) {
+                $context->addIssue(new Issue(
+                    'validation.invalid_property',
+                    [
+                        'message' => "Invalid property: {$propertyNode->name}",
+                    ]
+                ));
                 $context->leavePath();
                 return Value::INVALID;
             }
@@ -372,6 +415,12 @@ final class SchemaExecutor
                     continue;
                 } else {
                     $context->leavePath();
+                    $context->addIssue(new Issue(
+                        'validation.missing_property',
+                        [
+                            'message' => "Missing property: {$propertyNode->name}",
+                        ]
+                    ));
                     return Value::INVALID;
                 }
             }

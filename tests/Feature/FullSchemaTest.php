@@ -36,18 +36,24 @@ test('Test Create User input schema', function () {
     expect($schema([
         'username' => 'my username',
         'age' => 123,
-        'email' => 'my email',
+        'email' => 'my@mail.test',
     ]))->toBeSuccess();
+
+    expect($schema([
+        'username' => 'my username',
+        'age' => 123,
+        'email' => 'my mail',
+    ]))->toBeFailureAt('email', 'validation.invalid_email');
 
     $createUser = $schema([
         'username' => 'my username',
         'age' => 123,
-        'email' => 'my email',
+        'email' => 'my@mail.test',
     ])->value;
     expect($createUser)->toBeInstanceOf(CreateUserInput::class);
     expect($createUser->username)->toBe('my username');
     expect($createUser->age)->toBe(123);
-    expect($createUser->email)->toBe('my email');
+    expect($createUser->email)->toBe('my@mail.test');
 });
 
 test("Create user input schema", function () {
@@ -59,7 +65,7 @@ test("Create user input schema", function () {
     expect($execute([
         'name' => 'my name',
         'options' => []
-    ]))->toBeFailure();
+    ]))->toBeFailure('validation.invalid_type');
 
     expect($execute([
         'name' => 'my name',

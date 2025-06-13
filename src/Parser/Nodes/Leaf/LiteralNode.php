@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use UnitEnum;
@@ -49,7 +50,17 @@ final readonly class LiteralNode implements NodeInterface, LeafNode
     public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->type !== LiteralType::ENUM_CASE) {
-            return $value === $this->value ? $this->value : Value::INVALID;
+            if ($value !== $this->value) {
+                $context->addIssue(new Issue(
+                    'Invalid literal value',
+                    [
+                        'message' => "Expected literal value: {$this->value}, got: {$value}",
+                    ]
+                ));
+                return Value::INVALID;
+            }
+
+            return $this->value;
         }
 
         $name = $this->value->name;

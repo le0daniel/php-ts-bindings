@@ -40,7 +40,7 @@ final readonly class LengthValidator implements Constraint
 
         if (is_null($valueToValidate)) {
             $context->addIssue(new Issue(
-                'validation.invalid_type',
+                \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
                 [
                     'message' => "Wrong type for length validation. Expected string, array or integer, got: " . gettype($value),
                     'value' => $value,

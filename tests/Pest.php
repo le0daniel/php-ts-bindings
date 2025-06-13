@@ -13,6 +13,7 @@
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 
@@ -43,8 +44,45 @@ expect()->extend('toBeSuccess', function () {
     ]));
 });
 
-expect()->extend('toBeFailure', function () {
-    return $this->toBeInstanceOf(Failure::class);
+expect()->extend('toBeFailure', function (?string $message = null) {
+    /** @var Failure $value */
+    $value = $this->value;
+
+    return $this->toBeInstanceOf(Failure::class)
+        ->when(!is_null($message), function () use ($value, $message) {
+            if (array_any($value->flatIssues(), fn($issue) => $issue->messageOrLocalizationKey === $message)) {
+                expect(true)->toBeTrue();
+                return;
+            }
+
+            $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $value->flatIssues());
+
+            expect(false)->toBeTrue(
+                "Failed asserting that result is failure with message: {$message}. Got: " . implode(', ', $messages)
+            );
+        });
+});
+
+expect()->extend('toBeFailureAt', function (string $path, ?string $message = null) {
+    /** @var Failure $value */
+    $value = $this->value;
+
+    return $this->toBeFailure()
+        ->when(is_string($message), function () use ($value, $message, $path) {
+            $issues = $value->issues[$path] ?? [];
+            if (array_any($issues, fn($issue) => $issue->messageOrLocalizationKey === $message)) {
+                expect(true)->toBeTrue();
+                return;
+            }
+
+            $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues);
+
+            expect(false)->toBeTrue(
+                "Failed asserting that result is failure with message: {$message}. Got: " . implode(', ', $messages)
+            );
+        })
+        ->and(count($value->issues[$path] ?? []) >= 1)
+        ->toBeTrue();
 });
 
 /*

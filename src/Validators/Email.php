@@ -6,32 +6,34 @@ use Attribute;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
-final class NonEmptyString implements Constraint
+final class Email implements Constraint
 {
     public function validate(mixed $value, ExecutionContext $context): bool
     {
         if (!is_string($value)) {
             $context->addIssue(new Issue(
-                \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
+                IssueMessage::INVALID_TYPE,
                 [
                     "message" => "Expected string, got: " . gettype($value),
+                ],
+            ));
+            return false;
+        }
+
+        if (filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
+            $context->addIssue(new Issue(
+                'validation.invalid_email',
+                [
+                    "message" => "Expected valid email address, got: '{$value}'",
                 ]
             ));
             return false;
         }
 
-        if (empty($value)) {
-            $context->addIssue(new Issue(
-                'validation.not_empty_string',
-                [
-                    "message" => "Expected non-empty string, got: '{$value}'",
-                ]
-            ));
-            return false;
-        }
         return true;
     }
 

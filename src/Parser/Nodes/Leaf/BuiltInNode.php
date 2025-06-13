@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Stringable;
@@ -35,7 +36,7 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
 
     public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
-        return match ($this->type) {
+        $result = match ($this->type) {
             BuiltInType::STRING => is_string($value) ? $value : Value::INVALID,
             BuiltInType::INT => is_int($value) ? $value : Value::INVALID,
             BuiltInType::BOOL => is_bool($value) ? $value : Value::INVALID,
@@ -43,6 +44,18 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
             BuiltInType::FLOAT => is_float($value) || is_int($value) ? $value : Value::INVALID,
             BuiltInType::MIXED => $value,
         };
+
+        if ($result === Value::INVALID) {
+            $context->addIssue(new Issue(
+                'Invalid value',
+                [
+                    'message' => "Expected value of type {$this->type->value}, got: " . gettype($value),
+                ]
+            ));
+            return Value::INVALID;
+        }
+
+        return $result;
     }
 
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
