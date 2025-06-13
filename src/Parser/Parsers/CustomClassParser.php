@@ -2,10 +2,13 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Parsers;
 
+use Le0daniel\PhpTsBindings\Contracts\Constraint;
+use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\Token;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
@@ -14,6 +17,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
+use Le0daniel\PhpTsBindings\Utils\Arrays;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionProperty;
@@ -33,6 +37,24 @@ final class CustomClassParser implements Parser
         return $reflection->isUserDefined() && $reflection->isInstantiable();
     }
 
+    private function applyConstraints(ReflectionProperty|\ReflectionParameter $reflection, NodeInterface $node): NodeInterface
+    {
+        $constraints = Arrays::filterNullValues(
+            array_map(
+                static function (\ReflectionAttribute $attribute): null|Constraint {
+                    $instance = $attribute->newInstance();
+                    return $instance instanceof Constraint ? $instance : null;
+                },
+                $reflection->getAttributes()
+            )
+        );
+
+        return empty($constraints) ? $node : new ConstraintNode(
+            $node,
+            $constraints,
+        );
+    }
+
     /**
      * @throws InvalidSyntaxException
      */
@@ -46,7 +68,7 @@ final class CustomClassParser implements Parser
         foreach ($reflectionClass->getConstructor()->getParameters() as $parameter) {
             $structProperties[] = new PropertyNode(
                 $parameter->name,
-                $parser->parse(TypeReflector::reflectParameter($parameter), $context),
+                $this->applyConstraints($parameter, $parser->parse(TypeReflector::reflectParameter($parameter), $context)),
                 false,
                 PropertyType::INPUT,
             );
@@ -61,7 +83,7 @@ final class CustomClassParser implements Parser
 
             $structProperties[] = new PropertyNode(
                 $property->name,
-                $parser->parse(TypeReflector::reflectProperty($property), $context),
+                $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
                 false,
                 PropertyType::INPUT,
             );
@@ -95,7 +117,7 @@ final class CustomClassParser implements Parser
 
             $properties[] = new PropertyNode(
                 $property->getName(),
-                $parser->parse(TypeReflector::reflectProperty($property), $context),
+                $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
                 false,
                 PropertyType::BOTH,
             );

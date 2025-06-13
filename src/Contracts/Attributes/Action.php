@@ -12,6 +12,7 @@ final readonly class Action
         public ?string              $name = null,
         public ?string              $description = null,
         public string|UnitEnum|null $namespace = null,
+        public int                  $inputParameterIndex = 0,
     )
     {
     }

@@ -2,11 +2,13 @@
 
 namespace Le0daniel\PhpTsBindings\Validators;
 
+use Attribute;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
+#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
 final class NonEmptyString implements Constraint
 {
     public function validate(mixed $value, ExecutionContext $context): bool

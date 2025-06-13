@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
-#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
+#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER | Attribute::IS_REPEATABLE)]
 final readonly class LengthValidator implements Constraint
 {
     public function __construct(

@@ -10,7 +10,7 @@ use ReflectionMethod;
 use RuntimeException;
 
 /**
- * @phpstan-type Definition array{className: class-string, methodName: string, description?: string}
+ * @phpstan-type Definition array{fqn: string, className: class-string, methodName: string, description?: string}
  */
 final class QueryAndMutationsCollector implements Discoverer
 {
@@ -69,6 +69,7 @@ final class QueryAndMutationsCollector implements Discoverer
         return [
             $fqn,
             [
+                'fqn' => $fqn,
                 'className' => $class->getName(),
                 'methodName' => $method->name,
                 'description' => $attribute->description,

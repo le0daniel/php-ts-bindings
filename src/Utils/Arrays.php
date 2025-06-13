@@ -14,4 +14,18 @@ final class Arrays
         }
         return $mapped;
     }
+
+    /**
+     * @template T of array
+     * @param T $array
+     * @return T
+     */
+    public static function filterNullValues(array $array): array
+    {
+        $result = array_filter($array, fn($value) => $value !== null);
+        if (array_is_list($array)) {
+            return array_values($result);
+        }
+        return $result;
+    }
 }
