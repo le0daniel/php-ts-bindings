@@ -9,10 +9,9 @@ use UnitEnum;
 final readonly class Query
 {
     public function __construct(
-        public ?string              $name = null,
-        public ?string              $description = null,
         public string|UnitEnum|null $namespace = null,
-        public int                  $inputParameterIndex = 0,
+        public ?string              $description = null,
+        public ?string              $name = null,
     )
     {
     }
