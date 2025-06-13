@@ -17,7 +17,7 @@ final readonly class ParsingContext
         '{cn}' => '[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*',
         '{fqcn}' => '\\\\?[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*(\\\\[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)*',
     ];
-    private const string LOCAL_TYPE_REGEX = "/@phpstan-type\s+(?<typeName>{cn})\s+(?<typeDefinition>.+)/";
+    private const string LOCAL_TYPE_REGEX = "/@phpstan-type\s+(?<typeName>[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)\s+(?<typeDefinition>[^@]+)/m";
     private const string IMPORTED_TYPE_REGEX = '/@phpstan-import-type\s+(?<typeName>{cn})\s+from\s+(?<fromClass>{fqcn})(\s+as\s+(?<alias>{cn}))?/';
 
     /**
@@ -158,14 +158,23 @@ final readonly class ParsingContext
             return [];
         }
 
-        $localTypes = [];
-        $lines = explode(PHP_EOL, $docBlock);
-        foreach ($lines as $line) {
-            $matches = [];
-            if (preg_match(self::compileRegex(self::LOCAL_TYPE_REGEX), $line, $matches) === 1) {
-                $localTypes[$matches['typeName']] = trim($matches['typeDefinition']);
-            }
+        $matches = [];
+        $result = preg_match_all(
+            self::compileRegex(self::LOCAL_TYPE_REGEX),
+            Utils\PhpDoc::normalize($docBlock),
+            $matches,
+            PREG_SET_ORDER
+        );
+
+        if (!$result) {
+            return [];
         }
+
+        $localTypes = [];
+        foreach ($matches as $match) {
+            $localTypes[$match['typeName']] = trim(str_replace(PHP_EOL, ' ', $match['typeDefinition']));
+        }
+
         return $localTypes;
     }
 }

@@ -11,14 +11,6 @@ use RuntimeException;
 
 final readonly class TypeReflector
 {
-    public static function reflectPropertyOrParameter(ReflectionProperty|ReflectionParameter $propertyOrParameter): string
-    {
-        return match (true) {
-            $propertyOrParameter instanceof ReflectionProperty => self::reflectProperty($propertyOrParameter),
-            $propertyOrParameter instanceof ReflectionParameter => self::reflectParameter($propertyOrParameter),
-        };
-    }
-
     public static function reflectProperty(ReflectionProperty $property): string
     {
         if (!$property->getType()) {
