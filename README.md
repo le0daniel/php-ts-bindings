@@ -63,9 +63,9 @@ $optimizer->optimizeAndWriteToFile(
 To use the optimized ASTs, you can simply require the file in your project and use the optimized ASTs.
 
 ```php
-use Le0daniel\PhpTsBindings\Executor\Registry\SchemaRegistry;
+use Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry;
 
-/** @var SchemaRegistry $registry */
+/** @var CachedRegistry $registry */
 $registry = require 'asts.php';
 
 $ast = $registry->get('MyClass@methodname@input');

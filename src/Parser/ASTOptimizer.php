@@ -5,7 +5,7 @@ namespace Le0daniel\PhpTsBindings\Parser;
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Executor\Registry\SchemaRegistry;
+use Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\LazyReferencedNode;
@@ -59,7 +59,7 @@ PHP) === false) {
             $nodes
         );
 
-        $registryClass = PHPExport::absolute(SchemaRegistry::class);
+        $registryClass = PHPExport::absolute(CachedRegistry::class);
 
         $dedupedAsString = Arrays::mapWithKeys(
             $this->dedupedNodes,

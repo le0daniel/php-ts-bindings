@@ -62,7 +62,7 @@ function compareToOptimizedAst(NodeInterface $node) {
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Executor\Registry\SchemaRegistry $registry */
+    /** @var \Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     expect(
