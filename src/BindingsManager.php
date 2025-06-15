@@ -8,8 +8,8 @@ final class BindingsManager
 {
 
     public function __construct(
-        private readonly TypeParser $parser,
-        private ?SchemaRegistry $registry,
+        // private readonly TypeParser $parser,
+        // private ?SchemaRegistry $registry,
     )
     {
     }
