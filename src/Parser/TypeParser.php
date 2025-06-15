@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
+use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
@@ -52,6 +53,7 @@ final readonly class TypeParser
     public function __construct(
         private TypeStringTokenizer $tokenizer = new TypeStringTokenizer(),
         array|null                  $parsers = null,
+        private GlobalTypeAliases    $globalTypeAliases = new GlobalTypeAliases(),
     )
     {
         $this->parsers = $parsers ?? self::getDefaultParsers();
@@ -163,6 +165,11 @@ final readonly class TypeParser
             $this->produceSyntaxError("Expected type identifier", $tokens);
         }
 
+        if ($this->globalTypeAliases->isGlobalAlias($token->value)) {
+            $tokens->advance();
+            return $this->globalTypeAliases->getGlobalAlias($token->value);
+        }
+
         // Recursive support for locally defined types using @phpstan-type.
         if ($tokens->context->isLocalType($token->value)) {
             $tokens->advance();
@@ -176,7 +183,6 @@ final readonly class TypeParser
         if ($tokens->context->isImportedType($token->value)) {
             $tokens->advance();
 
-            // ToDo: Cache this step as it could be expensive.
             $importDefinition = $tokens->context->getImportedTypeInfo($token->value);
             return $this->parse(
                 $importDefinition['typeName'],
@@ -184,23 +190,10 @@ final readonly class TypeParser
             );
         }
 
-        // ToDo: Implement: non-falsy-string|truthy-string
-        // ToDo: Implement typeAliases support: https://phpstan.org/writing-php-code/phpdoc-types
+        // ToDo: Implement: truthy-string
         switch ($token->value) {
             case 'int':
-                $tokens->advance();
-                $generics = $this->consumeGenerics($tokens, max: 2);
-
-                if (empty($generics)) {
-                    return new BuiltInNode(BuiltInType::INT);
-                }
-
-                if (count($generics) !== 2) {
-                    $this->produceSyntaxError("Expected 2 generics for int: int<min, max>", $tokens);
-                }
-
-                // ToDo: Properly handle generics validation here.
-                $this->produceSyntaxError("Generics on int type not yet implemented.", $tokens);
+                return $this->consumeInt($tokens);
             case 'string':
             case 'bool':
             case 'null':
@@ -208,6 +201,11 @@ final readonly class TypeParser
             case 'mixed':
                 $tokens->advance();
                 return new BuiltInNode(BuiltInType::from($token->value));
+            case 'non-falsy-string':
+                return new ConstraintNode(
+                    new BuiltInNode(BuiltInType::STRING),
+                    [new NonEmptyString()],
+                );
             case 'non-empty-string':
                 $tokens->advance();
                 return new ConstraintNode(
@@ -262,6 +260,50 @@ final readonly class TypeParser
             default:
                 return $this->consumeCustomType($tokens);
         }
+    }
+
+    private function consumeInt(ParserState $tokens): NodeInterface
+    {
+        if (!$tokens->current()->is(TokenType::IDENTIFIER, 'int')) {
+            $this->produceSyntaxError("Expected int", $tokens);
+        }
+
+        $tokens->advance();
+
+        if (!$tokens->currentTokenIs(TokenType::LT)) {
+            return new BuiltInNode(BuiltInType::INT);
+        }
+
+        $tokens->advance();
+        $min = match (true) {
+            $tokens->currentTokenIs(TokenType::INT) => (int) $tokens->current()->value,
+            $tokens->currentTokenIs(TokenType::IDENTIFIER, 'min') => PHP_INT_MIN,
+            default => $this->produceSyntaxError('Expected int or min', $tokens),
+        };
+
+        $tokens->advance();
+        if (!$tokens->currentTokenIs(TokenType::COMMA)) {
+            $this->produceSyntaxError("Expected comma", $tokens);
+        }
+        $tokens->advance();
+
+        $max = match (true) {
+            $tokens->currentTokenIs(TokenType::INT) => (int) $tokens->current()->value,
+            $tokens->currentTokenIs(TokenType::IDENTIFIER, 'max') => PHP_INT_MAX,
+            default => $this->produceSyntaxError('Expected int or max', $tokens),
+        };
+
+        $tokens->advance();
+        if (!$tokens->current()->is(TokenType::GT)) {
+            $this->produceSyntaxError("Expected >", $tokens);
+        }
+
+        $tokens->advance();
+
+        return new ConstraintNode(
+            new BuiltInNode(BuiltInType::INT),
+            [new LengthValidator(min: $min, max: $max, including: true)]
+        );
     }
 
     /**
@@ -414,6 +456,7 @@ final readonly class TypeParser
     }
 
     // ToDo: Move this to the ast optimizer. The local version is not optimized at all.
+
     /**
      *
      * @param non-empty-list<NodeInterface> $types
@@ -593,8 +636,8 @@ final readonly class TypeParser
     }
 
     /**
-     * @throws InvalidSyntaxException
      * @return list<NodeInterface>
+     * @throws InvalidSyntaxException
      */
     private function consumeGenerics(ParserState $tokens, ?int $min = null, ?int $max = null): array
     {

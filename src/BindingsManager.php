@@ -2,13 +2,14 @@
 
 namespace Le0daniel\PhpTsBindings;
 
-use Le0daniel\PhpTsBindings\Contracts\SchemaRegistry;
+use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
-final readonly class BindingsManager
+final class BindingsManager
 {
 
     public function __construct(
-        // private ?SchemaRegistry $registry,
+        private readonly TypeParser $parser,
+        private ?SchemaRegistry $registry,
     )
     {
     }
@@ -16,8 +17,12 @@ final readonly class BindingsManager
     /**
      * @return void
      */
-    public function execute()
+    public function execute(mixed $input, mixed $context)
     {
-
+        // Discover if needed
+        // Parse input with executor
+        // Execute on method
+        // Serialize on success
+        // Return serialized output
     }
 }

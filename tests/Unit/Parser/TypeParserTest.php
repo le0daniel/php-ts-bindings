@@ -117,20 +117,61 @@ test('int', function () {
 test('Generic Int', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
 
-    expect(fn() => $parser->parse("int<0, 100>"))
-        ->toThrow("not yet implemented");
+    $node = $parser->parse("int<0, 100>");
 
-    /** @var ConstraintNode $node */
-    //$node = $parser->parse("int<0, 100>");
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0]->min)->toBe(0)
+        ->and($node->constraints[0]->max)->toBe(100)
+        ->and($node->constraints[0]->including)->toBe(true)
+        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
+        ->and($node->node->type)->toEqual(BuiltInType::INT);
 
-    //expect($node)->toBeInstanceOf(ConstraintNode::class)
-    //    ->and($node->constraints[0]->min)->toBe(0)
-    //    ->and($node->constraints[0]->max)->toBe(100)
-    //    ->and($node->constraints[0]->including)->toBe(true)
-    //    ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
-    //    ->and($node->node->type)->toEqual(BuiltInType::INT);
+    compareToOptimizedAst($node);
+});
 
-    //compareToOptimizedAst($node);
+test('Generic Int Min', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    $node = $parser->parse("int<min, 100>");
+
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0]->min)->toBe(PHP_INT_MIN)
+        ->and($node->constraints[0]->max)->toBe(100)
+        ->and($node->constraints[0]->including)->toBe(true)
+        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
+        ->and($node->node->type)->toEqual(BuiltInType::INT);
+
+    compareToOptimizedAst($node);
+});
+
+test('Generic Int Max', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    $node = $parser->parse("int<-1, max>");
+
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0]->min)->toBe(-1)
+        ->and($node->constraints[0]->max)->toBe(PHP_INT_MAX)
+        ->and($node->constraints[0]->including)->toBe(true)
+        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
+        ->and($node->node->type)->toEqual(BuiltInType::INT);
+
+    compareToOptimizedAst($node);
+});
+
+test('Generic Int Negative Values', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    $node = $parser->parse("int<-100, -3>");
+
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0]->min)->toBe(-100)
+        ->and($node->constraints[0]->max)->toBe(-3)
+        ->and($node->constraints[0]->including)->toBe(true)
+        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
+        ->and($node->node->type)->toEqual(BuiltInType::INT);
+
+    compareToOptimizedAst($node);
 });
 
 test('numeric', function () {

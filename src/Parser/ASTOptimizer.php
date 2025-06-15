@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser;
 
 use Closure;
+use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry;
@@ -128,10 +129,7 @@ PHP) === false) {
         // ToDo: Further optimization for example on union nodes with only Primitive Types or
         //       more intelligent node determination for better runtime performance.
         return match ($node::class) {
-            ConstraintNode::class => new ConstraintNode(
-                $this->dedupeNode($node->node),
-                $node->constraints,
-            ),
+            ConstraintNode::class => $this->dedupeConstraintNode($node),
             CustomCastingNode::class => new CustomCastingNode(
                 $this->dedupeNode($node->node),
                 $node->fullyQualifiedCastingClass,
@@ -153,5 +151,20 @@ PHP) === false) {
             ),
             default => throw new RuntimeException('Unknown node type: ' . $node::class),
         };
+    }
+
+    private function dedupeConstraintNode(ConstraintNode $node): ConstraintNode
+    {
+        /** @var list<Constraint> $constraints */
+        $constraints = [];
+        while ($node instanceof ConstraintNode) {
+            array_push($constraints, ...$node->constraints);
+            $node = $node->node;
+        }
+
+        return new ConstraintNode(
+            $this->dedupeNode($node),
+            $constraints,
+        );
     }
 }

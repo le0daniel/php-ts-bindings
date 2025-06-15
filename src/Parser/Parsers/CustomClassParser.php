@@ -18,6 +18,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionProperty;
@@ -41,7 +42,7 @@ final class CustomClassParser implements Parser
     {
         $constraints = Arrays::filterNullValues(
             array_map(
-                static function (\ReflectionAttribute $attribute): null|Constraint {
+                static function (ReflectionAttribute $attribute): null|Constraint {
                     $instance = $attribute->newInstance();
                     return $instance instanceof Constraint ? $instance : null;
                 },
