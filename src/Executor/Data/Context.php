@@ -43,4 +43,12 @@ final class Context implements ExecutionContext
     {
         $this->issues[$this->pathAsString()][] = $issue;
     }
+
+    /**
+     * @return Issue[]
+     */
+    public function getIssuesAt(string $path): array
+    {
+        return $this->issues[$path] ?? [];
+    }
 }

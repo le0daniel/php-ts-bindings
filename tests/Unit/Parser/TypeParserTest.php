@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Parser;
 
+use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
@@ -15,6 +16,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
+use Le0daniel\PhpTsBindings\Validators\Email;
 use Tests\Mocks\ResultEnum;
 use Tests\Unit\Parser\Data\Stubs\Address;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
@@ -189,6 +191,26 @@ test('numeric', function () {
             1 => expect($type->type)->toEqual(BuiltInType::FLOAT),
         };
     }
+
+    compareToOptimizedAst($node);
+});
+
+test('Global aliases', function () {
+    $parser = new TypeParser(
+        new TypeStringTokenizer(),
+        globalTypeAliases: new GlobalTypeAliases([
+            'Email' => fn() => new ConstraintNode(
+                new BuiltInNode(BuiltInType::STRING),
+                [new Email()],
+            ),
+        ]),
+    );
+    /** @var ConstraintNode $node */
+    $node = $parser->parse("Email");
+
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0])->toBeInstanceOf(Email::class)
+        ->and(count($node->constraints))->toBe(1);
 
     compareToOptimizedAst($node);
 });

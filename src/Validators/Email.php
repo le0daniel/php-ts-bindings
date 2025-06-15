@@ -26,7 +26,7 @@ final class Email implements Constraint
 
         if (filter_var($value, FILTER_VALIDATE_EMAIL) === false) {
             $context->addIssue(new Issue(
-                'validation.invalid_email',
+                IssueMessage::INVALID_EMAIL,
                 [
                     "message" => "Expected valid email address, got: '{$value}'",
                 ]
