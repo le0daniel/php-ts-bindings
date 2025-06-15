@@ -33,6 +33,11 @@ final readonly class CustomCastingNode implements NodeInterface
         return "new {$className}({$this->node->exportPhpCode()}, {$fullyQualifiedCastingClass}, {$strategy})";
     }
 
+    /**
+     * @param array<string, mixed> $value
+     * @param Context $context
+     * @return object|Value
+     */
     public function cast(array $value, Context $context): object
     {
         try {

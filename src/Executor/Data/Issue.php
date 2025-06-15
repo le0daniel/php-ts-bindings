@@ -10,6 +10,11 @@ final readonly class Issue
 {
     public string $messageOrLocalizationKey;
 
+    /**
+     * @param string|UnitEnum $messageOrLocalizationKey
+     * @param array<string, mixed> $debugInfo
+     * @param Throwable|null $exception
+     */
     public function __construct(
         string|UnitEnum   $messageOrLocalizationKey,
         public array      $debugInfo = [],

@@ -22,6 +22,7 @@ use RuntimeException;
 
 final class ASTOptimizer
 {
+    /** @var array<string, NodeInterface>  */
     private array $dedupedNodes = [];
 
     public function __construct(

@@ -7,11 +7,19 @@ use Iterator;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use RuntimeException;
 
+/**
+ * @implements Iterator<int, Token>
+ */
 final class ParserState implements Iterator
 {
     private int $currentIndex = 0;
     private int $count;
 
+    /**
+     * @param string $input
+     * @param list<Token> $tokens
+     * @param ParsingContext $context
+     */
     public function __construct(
         public readonly string $input,
         private readonly array $tokens,

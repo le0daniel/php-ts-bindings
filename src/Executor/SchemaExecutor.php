@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
@@ -123,6 +124,12 @@ final class SchemaExecutor
         return (object) $values;
     }
 
+    /**
+     * @param ListNode $node
+     * @param mixed $output
+     * @param Context $context
+     * @return list<mixed>|Value
+     */
     private function serializeList(ListNode $node, mixed $output, Context $context): array|Value
     {
         if (!is_iterable($output)) {
@@ -144,6 +151,12 @@ final class SchemaExecutor
         return $values;
     }
 
+    /**
+     * @param TupleNode $node
+     * @param mixed $output
+     * @param Context $context
+     * @return list<mixed>|Value
+     */
     private function serializeTuple(TupleNode $node, mixed $output, Context $context): array|Value
     {
         $tupleValues = [];
@@ -218,7 +231,7 @@ final class SchemaExecutor
             $valueToCheck = $this->extractKeyedValue($node->discriminator, $output);
             if ($valueToCheck instanceof Value) {
                 $context->addIssue(new Issue(
-                    \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
+                    IssueMessage::INVALID_TYPE,
                     [
                         'message' => 'Invalid type for union discriminated type.',
                         'value' => $output,
@@ -274,6 +287,12 @@ final class SchemaExecutor
         };
     }
 
+    /**
+     * @param RecordNode $node
+     * @param mixed $input
+     * @param Context $context
+     * @return array<string, mixed>|Value
+     */
     private function parseRecord(RecordNode $node, mixed $input, Context $context): array|Value
     {
         if (!is_array($input)) {
@@ -305,6 +324,12 @@ final class SchemaExecutor
         return $record;
     }
 
+    /**
+     * @param ListNode $node
+     * @param mixed $input
+     * @param Context $context
+     * @return list<mixed>|Value
+     */
     private function parseList(ListNode $node, mixed $input, Context $context): array|Value
     {
         if (!is_array($input) || !array_is_list($input)) {
@@ -342,7 +367,7 @@ final class SchemaExecutor
             $valueToCheck = $this->extractKeyedValue($node->discriminator, $input);
             if ($valueToCheck instanceof Value) {
                 $context->addIssue(new Issue(
-                    \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
+                    IssueMessage::INVALID_TYPE,
                     [
                         'message' => 'Invalid type for union discriminated type.',
                         'value' => $input,
@@ -376,6 +401,12 @@ final class SchemaExecutor
         return Value::INVALID;
     }
 
+    /**
+     * @param StructNode $node
+     * @param mixed $input
+     * @param Context $context
+     * @return array<string, mixed>|object
+     */
     private function parseStruct(StructNode $node, mixed $input, Context $context): array|object
     {
         if (is_array($input) && array_is_list($input)) {

@@ -31,7 +31,7 @@
     },
     "scripts": {
         "test": "pest",
-        "phpstan": "phpstan --memory-limit=1G analyse src --level=5",
+        "phpstan": "phpstan --memory-limit=1G analyse",
         "check:all": ["@test", "@phpstan"]
     }
 }

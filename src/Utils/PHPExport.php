@@ -19,6 +19,10 @@ final class PHPExport
         return "{$className}::{$name}";
     }
 
+    /**
+     * @param array<int|string, mixed> $array
+     * @return string
+     */
     public static function exportArray(array $array): string
     {
         if (empty($array)) {

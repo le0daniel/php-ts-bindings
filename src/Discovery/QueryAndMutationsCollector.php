@@ -18,8 +18,11 @@ final class QueryAndMutationsCollector implements Discoverer
 
     /** @var array<string, Definition> */
     private array $queries = [];
+
+    /** @var array<string, Definition> */
     private array $actions = [];
 
+    /** @param ReflectionClass<object> $class */
     public function discover(ReflectionClass $class): void
     {
         foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
@@ -56,7 +59,7 @@ final class QueryAndMutationsCollector implements Discoverer
 
     /**
      * @param Query|Action $attribute
-     * @param ReflectionClass $class
+     * @param ReflectionClass<object> $class
      * @param ReflectionMethod $method
      * @return array{string, Definition}
      */

@@ -13,6 +13,9 @@ final readonly class BindingsManager
     {
     }
 
+    /**
+     * @return void
+     */
     public function execute()
     {
 

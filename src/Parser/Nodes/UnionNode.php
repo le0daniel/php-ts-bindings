@@ -17,7 +17,7 @@ final class UnionNode implements NodeInterface
     }
 
     /**
-     * @param array $types
+     * @param list<NodeInterface> $types
      * @param string|null $discriminator
      * @param list<string|bool|int>|null $discriminatorMap
      */

@@ -3,16 +3,26 @@
 namespace Le0daniel\PhpTsBindings\Reflection;
 
 use InvalidArgumentException;
+use ReflectionClass;
+use ReflectionException;
+use RuntimeException;
 
 final class FileReflector
 {
     /** @var list<string|array{int, string, int}>|null */
     private ?array $tokens = null;
 
+    /**
+     * @var array<int|class-string, string|class-string>|null
+     */
     private ?array $usedNamespaces = null;
     private ?string $namespace = null;
     private bool $namespaceParsed = false;
-    private ?\ReflectionClass $declaredClass = null;
+
+    /**
+     * @var ReflectionClass<object>|null
+     */
+    private ?ReflectionClass $declaredClass = null;
 
     /**
      * @param string $filePath
@@ -99,11 +109,11 @@ final class FileReflector
      * Lazily finds the first declared class, interface, trait, or enum in the file
      * and returns a ReflectionClass instance for it.
      *
-     * @return \ReflectionClass|never
-     * @throws \RuntimeException If no class-like structure is found or if the class cannot be loaded.
-     * @throws \ReflectionException If the class is loaded but cannot be reflected.
+     * @return ReflectionClass<object>|never
+     * @throws RuntimeException If no class-like structure is found or if the class cannot be loaded.
+     * @throws ReflectionException If the class is loaded but cannot be reflected.
      */
-    public function getDeclaredClass(): \ReflectionClass
+    public function getDeclaredClass(): ReflectionClass
     {
         if ($this->declaredClass !== null) {
             return $this->declaredClass;
@@ -115,7 +125,7 @@ final class FileReflector
         $className = $this->findClassNameInTokens();
 
         if ($className === null) {
-            throw new \RuntimeException(
+            throw new RuntimeException(
                 "No class, interface, trait, or enum found in file: {$this->filePath}"
             );
         }
@@ -129,10 +139,10 @@ final class FileReflector
         }
 
         if (!class_exists($fullyQualifiedClassName, false) && !interface_exists($fullyQualifiedClassName, false) && !trait_exists($fullyQualifiedClassName, false)) {
-            throw new \RuntimeException("Failed to load class {$fullyQualifiedClassName} from file {$this->filePath}");
+            throw new RuntimeException("Failed to load class {$fullyQualifiedClassName} from file {$this->filePath}");
         }
 
-        return $this->declaredClass = new \ReflectionClass($fullyQualifiedClassName);
+        return $this->declaredClass = new ReflectionClass($fullyQualifiedClassName);
     }
 
     private function ensureTokensAreParsed(): void
@@ -140,7 +150,7 @@ final class FileReflector
         if ($this->tokens === null) {
             $content = file_get_contents($this->filePath);
             if ($content === false) {
-                throw new \RuntimeException(
+                throw new RuntimeException(
                     "Could not read file content: {$this->filePath}"
                 );
             }

@@ -6,5 +6,9 @@ use ReflectionClass;
 
 interface Discoverer
 {
+    /**
+     * @param ReflectionClass<object> $class
+     * @return void
+     */
     public function discover(ReflectionClass $class): void;
 }

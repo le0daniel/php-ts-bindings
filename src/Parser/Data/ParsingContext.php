@@ -90,6 +90,7 @@ final readonly class ParsingContext
         return self::fromClassReflection(new ReflectionClass($classString));
     }
 
+    /** @param ReflectionClass<object> $class */
     public static function fromClassReflection(ReflectionClass $class): self
     {
         $reflector = new FileReflector($class->getFileName());
@@ -152,6 +153,7 @@ final readonly class ParsingContext
         return $importedTypes;
     }
 
+    /** @return array<string,string> */
     private static function findLocallyDefinedTypes(null|false|string $docBlock): array
     {
         if (empty($docBlock)) {

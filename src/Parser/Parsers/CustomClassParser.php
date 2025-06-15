@@ -56,6 +56,7 @@ final class CustomClassParser implements Parser
     }
 
     /**
+     * @param ReflectionClass<object> $reflectionClass
      * @throws InvalidSyntaxException
      */
     private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser): CustomCastingNode
