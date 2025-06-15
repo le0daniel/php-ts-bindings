@@ -26,6 +26,7 @@ use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
 use Le0daniel\PhpTsBindings\Validators\LengthValidator;
 use Le0daniel\PhpTsBindings\Validators\NonEmptyString;
+use Le0daniel\PhpTsBindings\Validators\NonFalsyStringValidator;
 use ReflectionClass;
 use Throwable;
 use UnitEnum;
@@ -190,9 +191,9 @@ final readonly class TypeParser
             );
         }
 
-        // ToDo: Implement: truthy-string
         switch ($token->value) {
             case 'int':
+                // Supports: int, int<min, max>
                 return $this->consumeInt($tokens);
             case 'string':
             case 'bool':
@@ -201,10 +202,11 @@ final readonly class TypeParser
             case 'mixed':
                 $tokens->advance();
                 return new BuiltInNode(BuiltInType::from($token->value));
+            case 'truthy-string':
             case 'non-falsy-string':
                 return new ConstraintNode(
                     new BuiltInNode(BuiltInType::STRING),
-                    [new NonEmptyString()],
+                    [new NonFalsyStringValidator()],
                 );
             case 'non-empty-string':
                 $tokens->advance();
