@@ -20,9 +20,8 @@ enum TokenType: string
     case CLASS_CONST = "name::CONST";
     case COLON = ":";
     case DOUBLE_COLON = '::';
-
     case CLOSED_BRACKETS = '[]';
-
+    case AND = '&';
     case INT = "int";
     case FLOAT = "float";
     case BOOL = "bool";

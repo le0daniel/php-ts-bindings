@@ -15,6 +15,15 @@ final class Namespaces
      *   ]
      *  ```
      *
+     * Will Return
+     * ```
+     *  [
+     *      'Models' => 'App\Models',
+     *      'User' => 'App\Models\User',
+     *      'UserContract' => 'App\Contracts\User',
+     *  ]
+     * ```
+     *
      * @param array<int, class-string>|array<class-string, string> $namespaces
      * @return array<string, class-string>
      */

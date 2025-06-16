@@ -36,7 +36,7 @@ final readonly class CustomCastingNode implements NodeInterface
     /**
      * @param array<string, mixed> $value
      * @param Context $context
-     * @return object|Value
+     * @return object|Value::INVALID
      */
     public function cast(array $value, Context $context): object
     {

@@ -91,7 +91,7 @@ final readonly class TypeParser
             $context,
         );
 
-        return $this->consumeTypeOrUnion($tokens);
+        return $this->consume($tokens);
     }
 
     /**
@@ -345,7 +345,7 @@ final readonly class TypeParser
             }
             $tokens->advance();
 
-            $type = $this->consumeTypeOrUnion($tokens, TokenType::COMMA, TokenType::RBRACE);
+            $type = $this->consume($tokens, TokenType::COMMA, TokenType::RBRACE);
             $properties[] = new PropertyNode($name, $type, $isOptional);
             if ($tokens->current()->is(TokenType::RBRACE)) {
                 break;
@@ -378,9 +378,9 @@ final readonly class TypeParser
     /**
      * @throws InvalidSyntaxException
      */
-    private function consumeTypeOrUnion(ParserState $tokens, TokenType ...$stopAt): NodeInterface
+    private function consume(ParserState $tokens, TokenType ...$stopAt): NodeInterface
     {
-        $openUnion = true;
+        $expectsType = true;
         $nullableByQuestionMark = false;
         $types = [];
 
@@ -399,7 +399,7 @@ final readonly class TypeParser
             }
 
             if ($token->is(TokenType::PIPE)) {
-                if ($openUnion) {
+                if ($expectsType) {
                     $this->produceSyntaxError("Expected Type Identifier, got Pipe", $tokens);
                 }
 
@@ -409,28 +409,28 @@ final readonly class TypeParser
                     $this->produceSyntaxError("Cannot use ?type as nullable and pipe at the same time", $tokens);
                 }
 
-                $openUnion = true;
+                $expectsType = true;
                 $tokens->advance();
                 continue;
             }
 
             if ($token->is(TokenType::LPAREN)) {
                 $tokens->advance();
-                $grouped = $this->consumeTypeOrUnion($tokens, TokenType::RPAREN);
+                $grouped = $this->consume($tokens, TokenType::RPAREN);
                 if (!$tokens->current()->is(TokenType::RPAREN)) {
                     $this->produceSyntaxError("Expected closing parenthesis", $tokens);
                 }
                 $tokens->advance();
                 $types[] = $this->consumeTypeModifiers($tokens, $grouped);
-                $openUnion = false;
+                $expectsType = false;
                 continue;
             }
 
             $types[] = $this->consumeTypeModifiers($tokens, $this->consumeType($tokens));
-            $openUnion = false;
+            $expectsType = false;
         } while ($tokens->canAdvance());
 
-        if ($openUnion) {
+        if ($expectsType) {
             $this->produceSyntaxError("Expected type Identifier", $tokens);
         }
 
@@ -460,10 +460,8 @@ final readonly class TypeParser
         return $flattened;
     }
 
-    // ToDo: Move this to the ast optimizer. The local version is not optimized at all.
 
     /**
-     *
      * @param non-empty-list<NodeInterface> $types
      * @return UnionNode
      */
@@ -582,7 +580,7 @@ final readonly class TypeParser
 
         $types = [];
         while ($tokens->canAdvance()) {
-            $types[] = $this->consumeTypeOrUnion($tokens, TokenType::COMMA, TokenType::RBRACE);
+            $types[] = $this->consume($tokens, TokenType::COMMA, TokenType::RBRACE);
 
             if ($tokens->currentTokenIs(TokenType::RBRACE)) {
                 break;
@@ -633,7 +631,7 @@ final readonly class TypeParser
                 $this->produceSyntaxError("Expected colon", $tokens);
             }
             $tokens->advance();
-            $types[] = $this->consumeTypeOrUnion($tokens, TokenType::COMMA, TokenType::RBRACE);
+            $types[] = $this->consume($tokens, TokenType::COMMA, TokenType::RBRACE);
         }
 
         $tokens->advance();
@@ -662,7 +660,7 @@ final readonly class TypeParser
                 break;
             }
             $tokens->advance();
-            $generics[] = $this->consumeTypeOrUnion($tokens, TokenType::COMMA, TokenType::GT);
+            $generics[] = $this->consume($tokens, TokenType::COMMA, TokenType::GT);
         }
 
         if (!$tokens->currentTokenIs(TokenType::GT)) {

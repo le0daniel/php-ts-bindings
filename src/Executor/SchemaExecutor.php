@@ -57,6 +57,7 @@ final class SchemaExecutor
             return $this->executeSerialize($node->node, $output, $context);
         }
 
+        // ToDo: Implement custom casting node correctly.
         if ($node instanceof CustomCastingNode) {
             $object = $this->executeSerialize($node->node, $output, $context);
 
