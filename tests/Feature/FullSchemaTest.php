@@ -7,9 +7,9 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Tests\Feature\Mocks\CreateObjectInput;
 use Tests\Feature\Mocks\CreateUserInput;
 
-function prepare(string $type): Closure
+function prepare(string $type, string $mode = 'parse'): Closure
 {
-    return static function (mixed $value) use ($type) {
+    return static function (mixed $value) use ($type, $mode) {
         $optimizer = new ASTOptimizer();
 
         $ast = new TypeParser()->parse($type);
@@ -18,8 +18,9 @@ function prepare(string $type): Closure
         /** @var CachedRegistry $registry */
         $registry = eval("return {$registryCode};");
         $executor = new SchemaExecutor();
-        $astResult = $executor->parse($ast, $value);
-        $registryResult = $executor->parse($registry->get('node'), $value);
+
+        $astResult = $executor->{$mode}($ast, $value);
+        $registryResult = $executor->{$mode}($registry->get('node'), $value);
 
         expect($astResult)->toBeInstanceOf($registryResult::class)
             ->and(serialize($astResult))->toEqual(serialize($registryResult));
@@ -102,3 +103,28 @@ test("Create user input schema", function () {
     expect($result->value->options['radius'])->toBe(10);
 });
 
+test('serialization with null boundires', function () {
+    $executor = prepare('list<(array{name: string}|null)>', 'serialize');
+
+    $validResult = $executor([
+        ['name' => 'leo'],
+        null
+    ]);
+    expect($validResult)->toBeSuccess();
+    expect($validResult->value)->toEqual([
+        (object) ['name' => 'leo'],
+        null
+    ]);
+
+    $invalidResult = $executor([
+        ['name' => null],
+        null
+    ]);
+    expect($invalidResult)->toBeSuccess();
+    expect($invalidResult->value)->toEqual([
+        null,
+        null
+    ]);
+
+    expect($executor("string"))->toBeFailure();
+});

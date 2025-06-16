@@ -50,11 +50,12 @@ final readonly class TypeParser
      *
      * @param TypeStringTokenizer $tokenizer
      * @param list<Parser>|null $parsers
+     * @param GlobalTypeAliases $globalTypeAliases
      */
     public function __construct(
         private TypeStringTokenizer $tokenizer = new TypeStringTokenizer(),
         array|null                  $parsers = null,
-        private GlobalTypeAliases    $globalTypeAliases = new GlobalTypeAliases(),
+        private GlobalTypeAliases   $globalTypeAliases = new GlobalTypeAliases(),
     )
     {
         $this->parsers = $parsers ?? self::getDefaultParsers();
@@ -112,7 +113,7 @@ final readonly class TypeParser
             }
         }
 
-        $this->produceSyntaxError("Could not parse custom type: {$token->value}", null);
+        $this->produceSyntaxError("Could not parse custom type: {$token->value}");
     }
 
     private function consumeTypeModifiers(ParserState $tokens, NodeInterface $type): NodeInterface
@@ -264,6 +265,9 @@ final readonly class TypeParser
         }
     }
 
+    /**
+     * @throws InvalidSyntaxException
+     */
     private function consumeInt(ParserState $tokens): NodeInterface
     {
         if (!$tokens->current()->is(TokenType::IDENTIFIER, 'int')) {
@@ -278,7 +282,7 @@ final readonly class TypeParser
 
         $tokens->advance();
         $min = match (true) {
-            $tokens->currentTokenIs(TokenType::INT) => (int) $tokens->current()->value,
+            $tokens->currentTokenIs(TokenType::INT) => (int)$tokens->current()->value,
             $tokens->currentTokenIs(TokenType::IDENTIFIER, 'min') => PHP_INT_MIN,
             default => $this->produceSyntaxError('Expected int or min', $tokens),
         };
@@ -290,7 +294,7 @@ final readonly class TypeParser
         $tokens->advance();
 
         $max = match (true) {
-            $tokens->currentTokenIs(TokenType::INT) => (int) $tokens->current()->value,
+            $tokens->currentTokenIs(TokenType::INT) => (int)$tokens->current()->value,
             $tokens->currentTokenIs(TokenType::IDENTIFIER, 'max') => PHP_INT_MAX,
             default => $this->produceSyntaxError('Expected int or max', $tokens),
         };
@@ -327,7 +331,6 @@ final readonly class TypeParser
         $tokens->advance();
         $properties = [];
 
-        // ToDo: Add Tuple support from PHPStan: array{int, int}
         while ($tokens->canAdvance()) {
             if (!$tokens->current()->is(TokenType::IDENTIFIER)) {
                 $this->produceSyntaxError("Expected identifier", $tokens);

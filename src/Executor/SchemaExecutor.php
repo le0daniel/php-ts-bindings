@@ -80,7 +80,7 @@ final class SchemaExecutor
             return $object;
         }
 
-        return match (true) {
+        $serializedValue = match (true) {
             $node instanceof NamedNode => $this->executeSerialize($node->node, $output, $context),
             $node instanceof LeafNode => $node->serializeValue($output, $context),
             $node instanceof UnionNode => $this->serializeUnion($node, $output, $context),
@@ -90,6 +90,13 @@ final class SchemaExecutor
             $node instanceof ListNode => $this->serializeList($node, $output, $context),
             default => Value::INVALID,
         };
+
+        // Allow for catching errors at null boundaries during serialization.
+        if ($serializedValue === Value::INVALID && $node instanceof UnionNode && $node->acceptsNull) {
+            return null;
+        }
+
+        return $serializedValue;
     }
 
     private function serializeRecord(RecordNode $node, mixed $output, Context $context): object
