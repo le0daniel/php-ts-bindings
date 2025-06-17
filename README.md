@@ -15,7 +15,12 @@ Get the type definition either for the PHP type system or in combination with th
 phpstan is supported quite well, including locally defined types or imported types.
 
 ```php
-use Le0daniel\PhpTsBindings\Definition\Data\Mode;use Le0daniel\PhpTsBindings\Definition\TypescriptDefinition;use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;use Le0daniel\PhpTsBindings\Parser\TypeParser;use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
+use Le0daniel\PhpTsBindings\Definition\Data\Mode;
+use Le0daniel\PhpTsBindings\Definition\TypescriptDefinition;
+use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
+use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 
 $typeString = TypeReflector::reflectParameter(
   new ReflectionParameter()
@@ -40,6 +45,11 @@ $executor = new SchemaExecutor()
 $parsed = $executor->parse($node, ['key' => 'value']);
 $serialized = $executor->serialize($node, "my string");
 ```
+
+## Validating AST
+
+By default, the parsed AST is not validated. This means, the AST itself can be invalid. For example Intersection types intersecting wrong types.
+You can validate the ast using the `AstValidator::validate($node)` method. This will walk through the AST and validate each node. 
 
 ## Running in Production
 
