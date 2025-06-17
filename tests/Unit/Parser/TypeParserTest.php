@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
@@ -290,11 +291,11 @@ test('object struct', function () {
     expect($node)->toBeInstanceOf(StructNode::class);
 
     expect($node->phpType)->toEqual(StructPhpType::OBJECT);
-    expect($node->getProperty('a')->type)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->getProperty('a')->type->type)->toEqual(BuiltInType::STRING);
+    expect($node->getProperty('a')->node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->getProperty('a')->node->type)->toEqual(BuiltInType::STRING);
 
-    expect($node->getProperty('b')->type)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->getProperty('b')->type->type)->toEqual(BuiltInType::INT);
+    expect($node->getProperty('b')->node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->getProperty('b')->node->type)->toEqual(BuiltInType::INT);
 
     compareToOptimizedAst($node);
 });
@@ -306,11 +307,11 @@ test('array struct', function () {
     expect($node)->toBeInstanceOf(StructNode::class);
 
     expect($node->phpType)->toEqual(StructPhpType::ARRAY);
-    expect($node->getProperty('a')->type)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->getProperty('a')->type->type)->toEqual(BuiltInType::STRING);
+    expect($node->getProperty('a')->node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->getProperty('a')->node->type)->toEqual(BuiltInType::STRING);
 
-    expect($node->getProperty('b')->type)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->getProperty('b')->type->type)->toEqual(BuiltInType::INT);
+    expect($node->getProperty('b')->node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->getProperty('b')->node->type)->toEqual(BuiltInType::INT);
 
     compareToOptimizedAst($node);
 });
@@ -351,8 +352,8 @@ test('List struct', function () {
     $node = $parser->parse("array<string>");
     expect($node)->toBeInstanceOf(ListNode::class);
 
-    expect($node->type)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->type->type)->toEqual(BuiltInType::STRING);
+    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->node->type)->toEqual(BuiltInType::STRING);
 
     compareToOptimizedAst($node);
 });
@@ -363,8 +364,8 @@ test('List by modifier', function () {
     $node = $parser->parse("string[]");
     expect($node)->toBeInstanceOf(ListNode::class);
 
-    expect($node->type)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->type->type)->toEqual(BuiltInType::STRING);
+    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->node->type)->toEqual(BuiltInType::STRING);
 
     compareToOptimizedAst($node);
 });
@@ -375,13 +376,13 @@ test('Grouped Modifier', function () {
     $node = $parser->parse("(string|int)[]");
     expect($node)->toBeInstanceOf(ListNode::class);
 
-    expect($node->type)->toBeInstanceOf(UnionNode::class);
+    expect($node->node)->toBeInstanceOf(UnionNode::class);
 
-    expect($node->type->types[0])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->type->types[0]->type)->toBe(BuiltInType::STRING);
+    expect($node->node->types[0])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->node->types[0]->type)->toBe(BuiltInType::STRING);
 
-    expect($node->type->types[1])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->type->types[1]->type)->toBe(BuiltInType::INT);
+    expect($node->node->types[1])->toBeInstanceOf(BuiltInNode::class);
+    expect($node->node->types[1]->type)->toBe(BuiltInType::INT);
 
     compareToOptimizedAst($node);
 });
@@ -392,8 +393,8 @@ test('Record struct', function () {
     $node = $parser->parse("array<string, int>");
     expect($node)->toBeInstanceOf(RecordNode::class);
 
-    expect($node->type)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->type->type)->toEqual(BuiltInType::INT);
+    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
+    expect($node->node->type)->toEqual(BuiltInType::INT);
 
     compareToOptimizedAst($node);
 });
@@ -458,3 +459,20 @@ test('Test EnumCase and class const literal', function () {
     compareToOptimizedAst($node);
 });
 
+test('Simple intersection', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var IntersectionNode $node */
+    $node = $parser->parse('array{id:string}&array{reason:string}');
+    expect($node)->toBeInstanceOf(IntersectionNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+});
+
+test('Complex intersection', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var IntersectionNode $node */
+    $node = $parser->parse('(array{id:string}|array{token:string})&array{reason:string}');
+    expect($node)->toBeInstanceOf(IntersectionNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+});

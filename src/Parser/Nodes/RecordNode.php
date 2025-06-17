@@ -8,20 +8,20 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 final readonly class RecordNode implements NodeInterface
 {
     public function __construct(
-        public NodeInterface $type,
+        public NodeInterface $node,
     )
     {
     }
 
     public function __toString(): string
     {
-        return "array<string,{$this->type}>";
+        return "array<string,{$this->node}>";
     }
 
     public function exportPhpCode(): string
     {
         $classname = PHPExport::absolute(self::class);
-        $exportedType = PHPExport::export($this->type);
+        $exportedType = PHPExport::export($this->node);
         return "new {$classname}({$exportedType})";
     }
 }

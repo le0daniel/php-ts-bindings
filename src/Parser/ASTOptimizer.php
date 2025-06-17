@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\LazyReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
@@ -105,7 +106,7 @@ PHP) === false) {
         if ($node instanceof PropertyNode) {
             $optimizedNode = new PropertyNode(
                 $node->name,
-                $this->dedupeNode($node->type),
+                $this->dedupeNode($node->node),
                 $node->isOptional,
                 $node->propertyType
             );
@@ -136,10 +137,10 @@ PHP) === false) {
                 $node->strategy,
             ),
             ListNode::class => new ListNode(
-                $this->dedupeNode($node->type),
+                $this->dedupeNode($node->node),
             ),
             RecordNode::class => new RecordNode(
-                $this->dedupeNode($node->type),
+                $this->dedupeNode($node->node),
             ),
             TupleNode::class => new TupleNode(
                 array_map($this->dedupeNode(...), $node->types),
@@ -148,6 +149,9 @@ PHP) === false) {
                 array_map($this->dedupeNode(...), $node->types),
                 $node->discriminator,
                 $node->discriminatorMap,
+            ),
+            IntersectionNode::class => new IntersectionNode(
+                array_map($this->dedupeNode(...), $node->types),
             ),
             default => throw new RuntimeException('Unknown node type: ' . $node::class),
         };

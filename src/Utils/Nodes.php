@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 
 final class Nodes
 {
@@ -27,14 +28,20 @@ final class Nodes
         /** @var StructPhpType|null $expectedStructNodeType */
         $expectedStructNodeType = null;
 
-        foreach ($nodes as $complexNode) {
-            $node = self::getDeclaringNode($complexNode);
-            if (!$node instanceof StructNode) {
+        $stack = $nodes;
+        while ($node = array_pop($stack)) {
+            if ($node instanceof UnionNode) {
+                array_push($stack, ... $node->types);
+                continue;
+            }
+
+            $declaredNode = self::getDeclaringNode($node);
+            if (!$declaredNode instanceof StructNode) {
                 return false;
             }
 
-            $expectedStructNodeType ??= $node->phpType;
-            if ($node->phpType !== $expectedStructNodeType) {
+            $expectedStructNodeType ??= $declaredNode->phpType;
+            if ($declaredNode->phpType !== $expectedStructNodeType) {
                 return false;
             }
         }

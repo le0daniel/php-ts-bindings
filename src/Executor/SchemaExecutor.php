@@ -15,13 +15,14 @@ use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use RuntimeException;
 use stdClass;
 
 final class SchemaExecutor
@@ -89,6 +90,7 @@ final class SchemaExecutor
             $node instanceof StructNode => $this->serializeStruct($node, $output, $context),
             $node instanceof TupleNode => $this->serializeTuple($node, $output, $context),
             $node instanceof ListNode => $this->serializeList($node, $output, $context),
+            $node instanceof IntersectionNode => $this->serializeIntersection($node, $output, $context),
             default => Value::INVALID,
         };
 
@@ -100,7 +102,7 @@ final class SchemaExecutor
         return $serializedValue;
     }
 
-    private function serializeRecord(RecordNode $node, mixed $output, Context $context): object
+    private function serializeRecord(RecordNode $node, mixed $output, Context $context): stdClass|Value
     {
         if (!is_iterable($output)) {
             return Value::INVALID;
@@ -121,7 +123,7 @@ final class SchemaExecutor
             }
 
             $context->enterPath($key);
-            $result = $this->executeSerialize($node->type, $item, $context);
+            $result = $this->executeSerialize($node->node, $item, $context);
             $context->leavePath();
 
             if ($result === Value::INVALID) {
@@ -149,7 +151,7 @@ final class SchemaExecutor
 
         foreach ($output as $item) {
             $context->enterPath($index);
-            $result = $this->executeSerialize($node->type, $item, $context);
+            $result = $this->executeSerialize($node->node, $item, $context);
             if ($result === Value::INVALID) {
                 return Value::INVALID;
             }
@@ -180,7 +182,27 @@ final class SchemaExecutor
         return $tupleValues;
     }
 
-    private function serializeStruct(StructNode $node, mixed $output, Context $context): object
+    private function serializeIntersection(IntersectionNode $node, mixed $output, Context $context): stdClass|Value
+    {
+        /** @var array<string, mixed> $intersectionValues */
+        $intersectionValues = [];
+
+        /** @var 'array'|'object'|null $mode */
+        $mode = null;
+
+        foreach ($node->types as $type) {
+            $value = $this->executeParse($type, $output, $context);
+            if ($value === Value::INVALID) {
+                return Value::INVALID;
+            }
+
+            $intersectionValues[] = (array) $value;
+        }
+
+        return (object) array_merge(...$intersectionValues);
+    }
+
+    private function serializeStruct(StructNode $node, mixed $output, Context $context): stdClass|Value
     {
         $struct = [];
         foreach ($node->properties as $propertyNode) {
@@ -213,7 +235,7 @@ final class SchemaExecutor
             }
 
             $result = $this->executeSerialize(
-                $propertyNode->type,
+                $propertyNode->node,
                 Value::toNull($propertyValue),
                 $context,
             );
@@ -228,7 +250,10 @@ final class SchemaExecutor
     
         return (object) $struct;
     }
-    
+
+    /**
+     * @param UnionNode<NodeInterface> $node
+     */
     private function serializeUnion(UnionNode $node, mixed $output, Context $context): mixed
     {
         if ($output === null && $node->acceptsNull) {
@@ -291,7 +316,54 @@ final class SchemaExecutor
             $node instanceof StructNode => $this->parseStruct($node, $input, $context),
             $node instanceof TupleNode => $this->parseTuple($node, $input, $context),
             $node instanceof ListNode => $this->parseList($node, $input, $context),
+            $node instanceof IntersectionNode => $this->parseIntersection($node, $input, $context),
             default => Value::INVALID,
+        };
+    }
+
+    /**
+     * @param IntersectionNode $node
+     * @param mixed $input
+     * @param Context $context
+     * @return array<string, mixed>|stdClass|Value
+     */
+    private function parseIntersection(IntersectionNode $node, mixed $input, Context $context): array|stdClass|Value
+    {
+        /** @var array<string, mixed> $intersectionValues */
+        $intersectionValues = [];
+
+        /** @var 'array'|'object'|null $mode */
+        $mode = null;
+
+        foreach ($node->types as $type) {
+            $value = $this->executeParse($type, $input, $context);
+            if ($value === Value::INVALID) {
+                return Value::INVALID;
+            }
+
+            $mode ??= is_array($value) ? 'array' : 'object';
+            if (
+                ($mode === 'object' && !$value instanceof stdClass) ||
+                ($mode === 'array' && !is_array($value))
+            ) {
+                $context->addIssue(new Issue(
+                    IssueMessage::INVALID_TYPE,
+                    [
+                        'message' => "intersection expects value to be of same struct type: object or array<string, mixed>",
+                        'expected' => $mode,
+                        'got' => $value,
+                    ],
+                ));
+                return Value::INVALID;
+            }
+
+            $intersectionValues[] = (array) $value;
+        }
+
+        return match ($mode) {
+            'array' => array_merge(...$intersectionValues),
+            'object' => (object) array_merge(...$intersectionValues),
+            default => throw new RuntimeException("Invalid mode $mode"),
         };
     }
 
@@ -320,7 +392,7 @@ final class SchemaExecutor
                 return Value::INVALID;
             }
             $context->enterPath($key);
-            $result = $this->executeParse($node->type, $item, $context);
+            $result = $this->executeParse($node->node, $item, $context);
             $context->leavePath();
 
             if ($result === Value::INVALID) {
@@ -353,7 +425,7 @@ final class SchemaExecutor
 
         foreach ($input as $item) {
             $context->enterPath($index);
-            $result = $this->executeParse($node->type, $item, $context);
+            $result = $this->executeParse($node->node, $item, $context);
             if ($result === Value::INVALID) {
                 return Value::INVALID;
             }
@@ -365,6 +437,9 @@ final class SchemaExecutor
         return $list;
     }
 
+    /**
+     * @param UnionNode<NodeInterface> $node
+     */
     private function parseUnion(UnionNode $node, mixed $input, Context $context): mixed
     {
         if ($input === null && $node->acceptsNull) {
@@ -465,7 +540,7 @@ final class SchemaExecutor
             }
 
             $result = $this->executeParse(
-                $propertyNode->type,
+                $propertyNode->node,
                 Value::toNull($propertyValue),
                 $context,
             );

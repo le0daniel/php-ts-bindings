@@ -4,10 +4,11 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
-final readonly class TupleNode implements NodeInterface
+final readonly class TupleNode implements NodeInterface, ValidatableNode
 {
     /**
      * @param non-empty-list<NodeInterface> $types
@@ -29,5 +30,12 @@ final readonly class TupleNode implements NodeInterface
         $types = array_map(fn(NodeInterface $type) => $type->exportPhpCode(), $this->types);
         $imploded = implode(', ', $types);
         return "new {$className}([{$imploded}])";
+    }
+
+    public function validate(): void
+    {
+        if (empty($this->types)) {
+            throw new InvalidArgumentException("TupleNode must have at least one type");
+        }
     }
 }

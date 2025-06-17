@@ -4,10 +4,11 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
-final readonly class StructNode implements NodeInterface
+final readonly class StructNode implements NodeInterface, ValidatableNode
 {
     /**
      * @param non-empty-list<PropertyNode|LazyReferencedNode> $properties
@@ -16,6 +17,10 @@ final readonly class StructNode implements NodeInterface
         public StructPhpType $phpType,
         public array         $properties,
     )
+    {
+    }
+
+    public function validate(): void
     {
         if (empty($this->properties)) {
             throw new InvalidArgumentException("Cannot create object type with no properties or properties that are not keyed by strings (e.g. ['foo' => 'bar'] is fine, but ['foo'] is not");

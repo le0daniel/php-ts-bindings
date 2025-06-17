@@ -32,7 +32,7 @@ final class TypescriptDefinition
             );
 
             $properties = array_map(
-                fn(PropertyNode $property) => "{$property->name}:{$this->toDefinition($property->type, $mode)};",
+                fn(PropertyNode $property) => "{$property->name}:{$this->toDefinition($property->node, $mode)};",
                 $filteredProperties,
             );
 
@@ -41,8 +41,8 @@ final class TypescriptDefinition
 
         return match ($node::class) {
             UnionNode::class => implode('|', array_map(fn(NodeInterface $node) => $this->toDefinition($node, $mode), $node->types)),
-            ListNode::class => "Array<{$this->toDefinition($node->type, $mode)}>",
-            RecordNode::class => "Record<string,{$this->toDefinition($node->type, $mode)}>",
+            ListNode::class => "Array<{$this->toDefinition($node->node, $mode)}>",
+            RecordNode::class => "Record<string,{$this->toDefinition($node->node, $mode)}>",
             TupleNode::class => '[' . implode(',', array_map(fn(NodeInterface $node) => $this->toDefinition($node, $mode), $node->types)) . ']',
             ConstraintNode::class, CustomCastingNode::class => $this->toDefinition($node->node, $mode),
             default => throw new RuntimeException("Not implemented: " . $node::class),

@@ -9,20 +9,20 @@ use SensitiveParameter;
 final readonly class ListNode implements NodeInterface
 {
     public function __construct(
-        public NodeInterface $type
+        public NodeInterface $node
     )
     {
     }
 
     public function __toString(): string
     {
-        return "list<{$this->type}>";
+        return "list<{$this->node}>";
     }
 
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);
-        $type = $this->type->exportPhpCode();
+        $type = $this->node->exportPhpCode();
         return "new {$className}({$type})";
     }
 }

@@ -155,6 +155,7 @@ final class TypeStringTokenizer
         }
 
         $singleMatch = match ($character) {
+            TokenType::AND->value => TokenType::AND,
             TokenType::PIPE->value => TokenType::PIPE,
             TokenType::LT->value => TokenType::LT,
             TokenType::GT->value => TokenType::GT,

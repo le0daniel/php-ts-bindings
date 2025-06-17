@@ -16,6 +16,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\AstValidator;
 
 pest()->extend(Tests\TestCase::class)->in('Feature');
 
@@ -106,6 +107,20 @@ function compareToOptimizedAst(NodeInterface $node) {
     expect(
         (string) $registry->get('node')
     )->toEqual((string) $node);
+}
+
+function validateAst(NodeInterface $node): void
+{
+    $optimizer = new ASTOptimizer();
+    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
+
+    /** @var \Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry $registry */
+    $registry = eval("return {$optimizedCode};");
+    $optimizedAst = $registry->get('node');
+
+    AstValidator::validate($node);
+    AstValidator::validate($optimizedAst);
+    expect(true)->toBeTrue();
 }
 
 function something()

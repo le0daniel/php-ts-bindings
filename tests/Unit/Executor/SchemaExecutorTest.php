@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 use Stringable;
@@ -33,6 +34,8 @@ function executeNodeOnOptimizedToo(NodeInterface $node, Closure $executor): mixe
     $optimizedResult = $executor($optimizedAst);
 
     expect($normalResult::class)->toEqual($optimizedResult::class);
+    AstValidator::validate($node);
+    AstValidator::validate($optimizedAst);
 
     if ($normalResult instanceof Success) {
         $serializedResult = serialize($normalResult->value);
@@ -101,6 +104,27 @@ test('parse success', function (string $type, mixed $value, mixed $expected) {
 
     [UserSchema::class, (object) ['username' => 'my name', 'age' => 1, "email" => "leo@me.test"], new UserSchema(1, 'leo@me.test', 'my name')],
     [UserSchema::class, ['username' => 'my name', 'age' => 1, "email" => "leo@me.test"], new UserSchema(1, 'leo@me.test', 'my name')],
+
+    [
+        '(array{id:positive-int}|array{token:string})&array{reason:string}',
+        ['id' => 1, "reason" => "my value"],
+        ['id' => 1, "reason" => "my value"],
+    ],
+    [
+        '(array{id:positive-int}|array{token:string})&array{reason:string}',
+        ['token' => "secret", "reason" => "my value"],
+        ['token' => "secret", "reason" => "my value"],
+    ],
+    [
+        '(object{id:positive-int}|object{token:string})&object{reason:string}',
+        ['id' => 1, "reason" => "my value"],
+        (object) ['id' => 1, "reason" => "my value"],
+    ],
+    [
+        '(object{id:positive-int}|object{token:string})&object{reason:string}',
+        ['token' => "secret", "reason" => "my value"],
+        (object) ['token' => "secret", "reason" => "my value"],
+    ]
 ]);
 
 test('serialize success', function (string $type, mixed $value, mixed $expected) {
@@ -144,6 +168,27 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
     ['array<string, int>', ['my value' => 1], (object) ['my value' => 1]],
 
     [UserSchema::class, new UserSchema(1, 'leo@me.test', 'my name'), (object) ['username' => 'my name', 'age' => 1]],
+
+    [
+        '(array{id:positive-int}|array{token:string})&array{reason:string}',
+        ['id' => 1, "reason" => "my value"],
+        (object) ['id' => 1, "reason" => "my value"],
+    ],
+    [
+        '(array{id:positive-int}|array{token:string})&array{reason:string}',
+        ['token' => "secret", "reason" => "my value"],
+        (object) ['token' => "secret", "reason" => "my value"],
+    ],
+    [
+        '(object{id:positive-int}|object{token:string})&object{reason:string}',
+        ['id' => 1, "reason" => "my value"],
+        (object) ['id' => 1, "reason" => "my value"],
+    ],
+    [
+        '(object{id:positive-int} | object{token:string}) & object{reason:string}',
+        ['token' => "secret", "reason" => "my value"],
+        (object) ['token' => "secret", "reason" => "my value"],
+    ]
 ]);
 
 

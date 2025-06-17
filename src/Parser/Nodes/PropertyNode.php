@@ -10,31 +10,31 @@ final readonly class PropertyNode implements NodeInterface
 {
     public function __construct(
         public string        $name,
-        public NodeInterface $type,
+        public NodeInterface $node,
         public bool          $isOptional,
         public PropertyType  $propertyType = PropertyType::BOTH,
     ) {}
 
     public function changePropertyType(PropertyType $propertyType): self
     {
-        return new self($this->name, $this->type, $this->isOptional, $propertyType);
+        return new self($this->name, $this->node, $this->isOptional, $propertyType);
     }
 
     public function __toString(): string
     {
         $optional = $this->isOptional ? '?' : '';
-        return "{$this->name}{$optional}: {$this->type}{$this->propertyType->asString()}";
+        return "{$this->name}{$optional}: {$this->node}{$this->propertyType->asString()}";
     }
 
     public function changeType(PropertyType $type): self
     {
-        return new self($this->name, $this->type, $this->isOptional, $type);
+        return new self($this->name, $this->node, $this->isOptional, $type);
     }
 
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);
-        $type = $this->type->exportPhpCode();
+        $type = $this->node->exportPhpCode();
         $isOptional = PHPExport::export($this->isOptional);
         $name = PHPExport::export($this->name);
         $propertyType = $this->propertyType === PropertyType::BOTH

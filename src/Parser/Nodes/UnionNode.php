@@ -8,6 +8,9 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
+/**
+ * @template T of NodeInterface
+ */
 final class UnionNode implements NodeInterface
 {
     public bool $acceptsNull {
@@ -17,7 +20,7 @@ final class UnionNode implements NodeInterface
     }
 
     /**
-     * @param list<NodeInterface> $types
+     * @param list<T> $types
      * @param string|null $discriminator
      * @param list<string|bool|int>|null $discriminatorMap
      */
@@ -26,6 +29,11 @@ final class UnionNode implements NodeInterface
         public readonly ?string $discriminator = null,
         public readonly ?array  $discriminatorMap = null,
     )
+    {
+
+    }
+
+    public function validate(): void
     {
         if (count($this->types) < 2) {
             throw new InvalidArgumentException('Cannot create union type with less than 2 types');

@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
@@ -384,10 +385,14 @@ final readonly class TypeParser
         $nullableByQuestionMark = false;
         $types = [];
 
+        /** @var null|'union'|'intersection' $mode */
+        $mode = null;
+
         if ($tokens->currentTokenIs(TokenType::QUESTION_MARK)) {
             $nullableByQuestionMark = true;
             $tokens->advance();
             $types[] = new BuiltInNode(BuiltInType::NULL);
+            $mode = 'union';
         }
 
         do {
@@ -399,14 +404,34 @@ final readonly class TypeParser
             }
 
             if ($token->is(TokenType::PIPE)) {
+                $mode ??= 'union';
                 if ($expectsType) {
                     $this->produceSyntaxError("Expected Type Identifier, got Pipe", $tokens);
+                }
+
+                if ($mode !== 'union') {
+                    $this->produceSyntaxError("Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C");
                 }
 
                 // Case where we have ?int|string. This is unsupported in PHP. We though support it through ().
                 // So (?int)|string is supported but equivalent to null|int|string.
                 if ($nullableByQuestionMark) {
                     $this->produceSyntaxError("Cannot use ?type as nullable and pipe at the same time", $tokens);
+                }
+
+                $expectsType = true;
+                $tokens->advance();
+                continue;
+            }
+
+            if ($token->is(TokenType::AND)) {
+                $mode ??= 'intersection';
+                if ($expectsType) {
+                    $this->produceSyntaxError("Expected Type Identifier, got &", $tokens);
+                }
+
+                if ($mode !== 'intersection') {
+                    $this->produceSyntaxError("Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C");
                 }
 
                 $expectsType = true;
@@ -432,6 +457,14 @@ final readonly class TypeParser
 
         if ($expectsType) {
             $this->produceSyntaxError("Expected type Identifier", $tokens);
+        }
+
+        if ($mode === 'intersection') {
+            if (count($types) < 2) {
+                $this->produceSyntaxError("Intersections need at least 2 types.", $tokens);
+            }
+
+            return new IntersectionNode($types);
         }
 
         return count($types) > 1
@@ -463,7 +496,7 @@ final readonly class TypeParser
 
     /**
      * @param non-empty-list<NodeInterface> $types
-     * @return UnionNode
+     * @return UnionNode<NodeInterface>
      */
     private function checkForDiscriminatedUnion(array $types): UnionNode
     {
@@ -477,8 +510,8 @@ final readonly class TypeParser
 
         // Step 1: Find candidate fields from the first type
         foreach ($firstType->properties as $property) {
-            if ($property->type instanceof LiteralNode) {
-                $candidateFields[$property->name] = $property->type->value;
+            if ($property->node instanceof LiteralNode) {
+                $candidateFields[$property->name] = $property->node->value;
             }
         }
 
@@ -495,13 +528,13 @@ final readonly class TypeParser
 
                 // Check for presence, type, and uniqueness
                 if (
-                    !$otherProperty?->type instanceof LiteralNode ||
-                    in_array($otherProperty->type->value, $values, true)
+                    !$otherProperty?->node instanceof LiteralNode ||
+                    in_array($otherProperty->node->value, $values, true)
                 ) {
                     $isDiscriminator = false;
                     break; // This is not the discriminator field
                 }
-                $values[] = $otherProperty->type->value;
+                $values[] = $otherProperty->node->value;
             }
 
             if ($isDiscriminator) {
