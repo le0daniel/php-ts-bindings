@@ -3,6 +3,20 @@
 Create simple and enforced PHP contracts with Typescript. Write strict php code and bridge the gap to your FE typescript
 code seamlessly. Similar to React Server actions, but with your existing PHP code base.
 
+## Motivation
+
+Writing modern and statically analysable PHP is great. It provides type safety with tools like PHPStan, catching a whole
+class of errors before you even deploy your application. This is great. The big issue arises at the boundry between a
+modern client using typescript, where you loose type safety at the api level between PHP and TS.
+
+Other fullstack frameworks like NextJS introduced server actions, that create full stack type safety. The dev experience
+is great, allowing you to seamlessly interact with the backend and enjoy type safety throughout your stack.
+
+This library aims to provide you a similar experience for your whole stack, by leveraging modern PHP and PHPStan type
+annotations, providing a clear contract between your frontend and backend. It doesn't require you to add specific code,
+rather expects you to strictly type your PHP input and output types – thats it. From that, it will generate you strict
+contracts and easy to use server actions and queries. As simple as that. 
+
 ## Installation
 
 ```
@@ -48,8 +62,10 @@ $serialized = $executor->serialize($node, "my string");
 
 ## Validating AST
 
-By default, the parsed AST is not validated. This means, the AST itself can be invalid. For example Intersection types intersecting wrong types.
-You can validate the ast using the `AstValidator::validate($node)` method. This will walk through the AST and validate each node. 
+By default, the parsed AST is not validated. This means, the AST itself can be invalid. For example Intersection types
+intersecting wrong types.
+You can validate the ast using the `AstValidator::validate($node)` method. This will walk through the AST and validate
+each node.
 
 ## Running in Production
 

@@ -3,14 +3,16 @@
 namespace Le0daniel\PhpTsBindings\Discovery;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Action;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Input;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 use Le0daniel\PhpTsBindings\Contracts\Discoverer;
 use ReflectionClass;
 use ReflectionMethod;
+use ReflectionParameter;
 use RuntimeException;
 
 /**
- * @phpstan-type Definition array{fqn: string, className: class-string, methodName: string, description?: string}
+ * @phpstan-type Definition array{fqn: string, className: class-string, methodName: string, description?: string, inputParameterName?: string}
  */
 final class QueryAndMutationsCollector implements Discoverer
 {
@@ -48,7 +50,7 @@ final class QueryAndMutationsCollector implements Discoverer
                     $instance = $attribute->newInstance();
                     [$fqn, $definition] = $this->toDefinition($instance, $class, $method);
                     if (array_key_exists($fqn, $this->actions)) {
-                        throw new RuntimeException("Name collision for query: {$fqn} defined in {$definition['className']} -> {$definition['methodName']}.");
+                        throw new RuntimeException("Name collision for action: {$fqn} defined in {$definition['className']} -> {$definition['methodName']}.");
                     }
                     $this->actions[$fqn] = $definition;
                     break;
@@ -69,6 +71,12 @@ final class QueryAndMutationsCollector implements Discoverer
         $name = $attribute->name ?? $method->name;
         $fqn = "{$namespace}.{$name}";
 
+        /** @var ReflectionParameter|null $inputParameter */
+        $inputParameter = array_find($method->getParameters(), function (ReflectionParameter $parameter): bool {
+            $attributes = $parameter->getAttributes(Input::class);
+            return !empty($attributes);
+        });
+
         return [
             $fqn,
             [
@@ -76,6 +84,7 @@ final class QueryAndMutationsCollector implements Discoverer
                 'className' => $class->getName(),
                 'methodName' => $method->name,
                 'description' => $attribute->description,
+                'inputParameterName' => $inputParameter?->name,
             ]
         ];
     }
