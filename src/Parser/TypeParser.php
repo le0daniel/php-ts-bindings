@@ -9,9 +9,11 @@ use Le0daniel\PhpTsBindings\Parser\Consumers\BuiltInLeafConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\ClassConstConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\IntConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\ArrayConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedParsers;
 use Le0daniel\PhpTsBindings\Parser\Consumers\LiteralConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\StructConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\TypeConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedObjectConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
@@ -24,17 +26,11 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
-use Le0daniel\PhpTsBindings\Parser\Parsers\CustomClassParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
 
 final readonly class TypeParser
 {
-    /**
-     * @var list<Parser>
-     */
-    private array $parsers;
-
     /**
      * @var list<TypeConsumer>
      */
@@ -57,11 +53,9 @@ final readonly class TypeParser
     public function __construct(
         private TypeStringTokenizer $tokenizer = new TypeStringTokenizer(),
         array|null                  $parsers = null,
-        GlobalTypeAliases   $globalTypeAliases = new GlobalTypeAliases(),
+        GlobalTypeAliases           $globalTypeAliases = new GlobalTypeAliases(),
     )
     {
-        $this->parsers = $parsers ?? self::getDefaultParsers();
-
         $this->consumers = [
             new LiteralConsumer(),
             new ClassConstConsumer(),
@@ -70,6 +64,8 @@ final readonly class TypeParser
             new BuiltInLeafConsumer(),
             new StructConsumer(),
             new ArrayConsumer(),
+            new UserDefinedParsers($parsers ?? self::getDefaultParsers()),
+            new UserDefinedObjectConsumer(),
         ];
     }
 
@@ -84,7 +80,6 @@ final readonly class TypeParser
             ...$prepend,
             new EnumCasesParser(),
             new DateTimeParser(),
-            new CustomClassParser(),
             ...$append,
         ];
     }
@@ -129,26 +124,7 @@ final readonly class TypeParser
             }
         }
 
-        $token = $state->current();
-
-        if (!$token->is(TokenType::IDENTIFIER)) {
-            $state->produceSyntaxError("Expected type identifier");
-        }
-
-        $fqcn = $state->context->toFullyQualifiedClassName($token->value);
-        $state->advance();
-
-        foreach ($this->parsers as $parser) {
-            if ($parser->canParse($fqcn, $token)) {
-                return $parser->parse(
-                    $fqcn,
-                    $token,
-                    $this
-                );
-            }
-        }
-
-        $state->produceSyntaxError("Could not parse custom type: {$token->value}");
+        $state->produceSyntaxError("No parser found.");
     }
 
     /**
@@ -157,15 +133,13 @@ final readonly class TypeParser
      */
     public function consume(ParserState $state, TokenType ...$stopAt): NodeInterface
     {
-        $expectsType = true;
-        $nullableByQuestionMark = false;
         $types = [];
+        $expectsType = true;
 
         /** @var null|'questionmark-union'|'union'|'intersection' $mode */
         $mode = null;
 
         if ($state->currentTokenIs(TokenType::QUESTION_MARK)) {
-            $nullableByQuestionMark = true;
             $state->advance();
             $types[] = new BuiltInNode(BuiltInType::NULL);
             $mode = 'questionmark-union';

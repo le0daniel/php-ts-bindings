@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
-interface LeafNode
+interface LeafNode extends NodeInterface
 {
     /**
      * Parse an incoming value to the correct type. Returns Value::INVALID if the value is invalid.

@@ -15,6 +15,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use RuntimeException;
 
 final class AstValidator
 {
@@ -36,7 +37,7 @@ final class AstValidator
                 ConstraintNode::class, CustomCastingNode::class, ListNode::class, NamedNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
                 TupleNode::class, IntersectionNode::class, UnionNode::class => array_push($stack, ...$current->types),
                 StructNode::class => array_push($stack, ... $current->properties),
-                default => throw new \RuntimeException("Unexpected node: " . $current::class),
+                default => throw new RuntimeException("Unexpected node: " . $current::class),
             };
         }
     }

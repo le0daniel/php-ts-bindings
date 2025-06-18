@@ -104,15 +104,14 @@ PHP) === false) {
         }
 
         if ($node instanceof PropertyNode) {
-            $optimizedNode = new PropertyNode(
+            $identifier = '#prop_' . sha1((string)$node);
+            $this->dedupedNodes[$identifier] ??= new PropertyNode(
                 $node->name,
                 $this->dedupeNode($node->node),
                 $node->isOptional,
                 $node->propertyType
             );
 
-            $identifier = '#prop_' . sha1((string)$optimizedNode);
-            $this->dedupedNodes[$identifier] ??= $optimizedNode;
             return new ReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
@@ -130,7 +129,7 @@ PHP) === false) {
         // ToDo: Further optimization for example on union nodes with only Primitive Types or
         //       more intelligent node determination for better runtime performance.
         return match ($node::class) {
-            ConstraintNode::class => $this->dedupeConstraintNode($node),
+            ConstraintNode::class => $this->flattenConstraintNode($node),
             CustomCastingNode::class => new CustomCastingNode(
                 $this->dedupeNode($node->node),
                 $node->fullyQualifiedCastingClass,
@@ -157,7 +156,7 @@ PHP) === false) {
         };
     }
 
-    private function dedupeConstraintNode(ConstraintNode $node): ConstraintNode
+    private function flattenConstraintNode(ConstraintNode $node): ConstraintNode
     {
         /** @var list<Constraint> $constraints */
         $constraints = [];

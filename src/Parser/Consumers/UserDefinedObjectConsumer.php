@@ -1,12 +1,12 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Parsers;
+namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Contracts\Parser;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
-use Le0daniel\PhpTsBindings\Parser\Definition\Token;
+use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
@@ -24,19 +24,62 @@ use ReflectionException;
 use ReflectionParameter;
 use ReflectionProperty;
 use RuntimeException;
-use Throwable;
 
-final class CustomClassParser implements Parser
+final class UserDefinedObjectConsumer implements TypeConsumer
 {
 
-    public function canParse(string $fullyQualifiedClassName, Token $token): bool
+    public function canConsume(ParserState $state): bool
     {
-        if (!class_exists($fullyQualifiedClassName)) {
+        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 
-        $reflection = new ReflectionClass($fullyQualifiedClassName);
-        return $reflection->isUserDefined() && $reflection->isInstantiable();
+        $fqcn = $state->context->toFullyQualifiedClassName($state->current()->value);
+
+        if (!class_exists($fqcn)) {
+            return false;
+        }
+
+        $reflectionClass = new ReflectionClass($fqcn);
+        return new ReflectionClass($fqcn)->isUserDefined() && $reflectionClass->isInstantiable();
+    }
+
+    /**
+     * @throws ReflectionException
+     * @throws InvalidSyntaxException
+     */
+    public function consume(ParserState $state, TypeParser $parser): NodeInterface
+    {
+        $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
+        $state->advance();
+
+        $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
+
+        $hasConstructor = $reflectionClass->getConstructor() !== null;
+        if ($hasConstructor) {
+            return $this->parseConstructorStrategy($reflectionClass, $parser);
+        }
+
+        $context = ParsingContext::fromClassReflection($reflectionClass);
+        $properties = [];
+        foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            if ($property->isReadOnly() || $property->hasHooks()) {
+                throw new RuntimeException("Property {$property->name} is not writable");
+            }
+
+            $properties[] = new PropertyNode(
+                $property->getName(),
+                $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
+                false,
+                PropertyType::BOTH,
+            );
+        }
+
+        return new CustomCastingNode(
+            new StructNode(StructPhpType::ARRAY, $properties),
+            $reflectionClass->getName(),
+            ObjectCastStrategy::ASSIGN_PROPERTIES,
+        );
     }
 
     private function applyConstraints(ReflectionProperty|ReflectionParameter $reflection, NodeInterface $node): NodeInterface
@@ -96,40 +139,6 @@ final class CustomClassParser implements Parser
             new StructNode(StructPhpType::ARRAY, $structProperties),
             $reflectionClass->getName(),
             ObjectCastStrategy::CONSTRUCTOR,
-        );
-    }
-
-    /**
-     * @throws ReflectionException|Throwable
-     */
-    public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): CustomCastingNode
-    {
-        $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
-
-        $hasConstructor = $reflectionClass->getConstructor() !== null;
-        if ($hasConstructor) {
-            return $this->parseConstructorStrategy($reflectionClass, $parser);
-        }
-
-        $context = ParsingContext::fromClassReflection($reflectionClass);
-        $properties = [];
-        foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
-            if ($property->isReadOnly() || $property->hasHooks()) {
-                throw new RuntimeException("Property {$property->name} is not writable");
-            }
-
-            $properties[] = new PropertyNode(
-                $property->getName(),
-                $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
-                false,
-                PropertyType::BOTH,
-            );
-        }
-
-        return new CustomCastingNode(
-            new StructNode(StructPhpType::ARRAY, $properties),
-            $reflectionClass->getName(),
-            ObjectCastStrategy::ASSIGN_PROPERTIES,
         );
     }
 }
