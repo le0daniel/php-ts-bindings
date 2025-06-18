@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
+use JsonException;
 use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
@@ -9,7 +10,6 @@ use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
-use Throwable;
 use UnitEnum;
 
 final readonly class EnumNode implements NodeInterface, LeafNode
@@ -75,13 +75,26 @@ final readonly class EnumNode implements NodeInterface, LeafNode
         return $value->name;
     }
 
+    /**
+     * @throws JsonException
+     */
     public function inputDefinition(): string
     {
-        return "string";
+        $enumStrings = array_map( fn(UnitEnum $enum) => json_encode($enum->name, flags: JSON_THROW_ON_ERROR), $this->enumClassName::cases());
+        return implode('|', $enumStrings);
     }
 
+    /**
+     * @throws JsonException
+     */
     public function outputDefinition(): string
     {
-        return "string";
+        $enumStrings = array_map(fn(UnitEnum $enum) => json_encode($enum->name, flags: JSON_THROW_ON_ERROR), $this->enumClassName::cases());
+        return implode('|', $enumStrings);
+    }
+
+    public function name(): string
+    {
+        return str_replace('\\', '_', $this->enumClassName);
     }
 }

@@ -88,6 +88,9 @@ final readonly class LiteralNode implements NodeInterface, LeafNode
         };
     }
 
+    /**
+     * @throws \JsonException
+     */
     public function outputDefinition(): string
     {
         return $this->inputDefinition();
