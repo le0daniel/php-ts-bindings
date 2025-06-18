@@ -47,6 +47,10 @@ final class Context implements ExecutionContext
 
     public function removeCurrentIssues(): void
     {
-        unset($this->issues[$this->pathAsString()]);
+        foreach ($this->issues as $path => $issues) {
+            if (str_starts_with($path, $this->pathAsString())) {
+                unset($this->issues[$path]);
+            }
+        }
     }
 }
