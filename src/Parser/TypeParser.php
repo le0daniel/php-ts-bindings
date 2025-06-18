@@ -589,11 +589,15 @@ final readonly class TypeParser
         }
 
         $keyType = $generics[0];
-        if (!$keyType instanceof BuiltInNode || $keyType->type !== BuiltInType::STRING) {
-            $this->produceSyntaxError("Array key type must be 'string'. Got: {$keyType}", $tokens);
+        if (!$keyType instanceof BuiltInNode) {
+            $this->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}", $tokens);
         }
 
-        return new RecordNode($generics[1]);
+        return match ($keyType->type) {
+            BuiltInType::STRING => new RecordNode($generics[1]),
+            BuiltInType::INT => new ListNode($generics[1]),
+            default => $this->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}", $tokens),
+        };
     }
 
     /**

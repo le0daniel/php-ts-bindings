@@ -32,6 +32,7 @@ final readonly class StructNode implements NodeInterface, ValidatableNode
      */
     public function sortedProperties(): array
     {
+        /** @var list<PropertyNode> $properties */
         $properties = $this->properties;
 
         // Sort by name, then by type
@@ -48,7 +49,9 @@ final readonly class StructNode implements NodeInterface, ValidatableNode
 
     public function getProperty(string $name): ?PropertyNode
     {
-        return array_find($this->properties, fn(PropertyNode $property) => $property->name === $name);
+        /** @var list<PropertyNode> $properties */
+        $properties = $this->properties;
+        return array_find($properties, fn(PropertyNode $property) => $property->name === $name);
     }
 
     public function __toString(): string

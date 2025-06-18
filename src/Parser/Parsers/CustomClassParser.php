@@ -21,6 +21,7 @@ use Le0daniel\PhpTsBindings\Utils\Arrays;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionParameter;
 use ReflectionProperty;
 use RuntimeException;
 use Throwable;
@@ -38,7 +39,7 @@ final class CustomClassParser implements Parser
         return $reflection->isUserDefined() && $reflection->isInstantiable();
     }
 
-    private function applyConstraints(ReflectionProperty|\ReflectionParameter $reflection, NodeInterface $node): NodeInterface
+    private function applyConstraints(ReflectionProperty|ReflectionParameter $reflection, NodeInterface $node): NodeInterface
     {
         $constraints = Arrays::filterNullValues(
             array_map(

@@ -6,6 +6,6 @@ final class PhpDoc
 {
     public static function normalize(string $docBlocks): string
     {
-        return preg_replace('/(^\s*\/\*\*)|(^\s+\*\s)|\s\*\/\s*$/m', '', $docBlocks);
+        return preg_replace('/(^\s*\/\*\*)|(^\s+\*\s)|\s\*\/\s*$/m', '', $docBlocks) ?? $docBlocks;
     }
 }

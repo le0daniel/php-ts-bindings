@@ -52,6 +52,10 @@ final class UnionNode implements NodeInterface
 
     public function getDiscriminatedType(mixed $value): ?NodeInterface
     {
+        if (!$this->discriminatorMap) {
+            return null;
+        }
+
         $index = array_find_key($this->discriminatorMap, static fn(mixed $typeValue) => $typeValue === $value);
         if ($index !== null) {
             return $this->types[$index];

@@ -80,7 +80,10 @@ final readonly class EnumNode implements NodeInterface, LeafNode
      */
     public function inputDefinition(): string
     {
-        $enumStrings = array_map( fn(UnitEnum $enum) => json_encode($enum->name, flags: JSON_THROW_ON_ERROR), $this->enumClassName::cases());
+        $enumStrings = array_map(
+            fn(UnitEnum $enum) => json_encode($enum->name, flags: JSON_THROW_ON_ERROR),
+            $this->enumClassName::cases()
+        );
         return implode('|', $enumStrings);
     }
 
@@ -89,8 +92,7 @@ final readonly class EnumNode implements NodeInterface, LeafNode
      */
     public function outputDefinition(): string
     {
-        $enumStrings = array_map(fn(UnitEnum $enum) => json_encode($enum->name, flags: JSON_THROW_ON_ERROR), $this->enumClassName::cases());
-        return implode('|', $enumStrings);
+        return $this->inputDefinition();
     }
 
     public function name(): string

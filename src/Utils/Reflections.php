@@ -51,7 +51,7 @@ final class Reflections
             return (string)$property->getType();
         }
 
-        $constructorDocBlock = $property->getDeclaringClass()->getConstructor()->getDocComment();
+        $constructorDocBlock = $property->getDeclaringClass()->getConstructor()?->getDocComment();
         if (!$constructorDocBlock) {
             return (string)$property->getType();
         }

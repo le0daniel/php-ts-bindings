@@ -26,6 +26,7 @@ final class DateTimeParser implements Parser
 
     public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): NodeInterface
     {
+        /** @var class-string<DateTimeInterface> $className */
         $className = is_a($fullyQualifiedClassName, DateTimeInterface::class, true)
             ? $fullyQualifiedClassName
             : $token->value;

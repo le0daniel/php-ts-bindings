@@ -25,7 +25,7 @@ final readonly class TypeReflector
             return (string)$property->getType();
         }
 
-        $constructorDocBlock = $property->getDeclaringClass()->getConstructor()->getDocComment();
+        $constructorDocBlock = $property->getDeclaringClass()->getConstructor()?->getDocComment();
         if ($constructorDocBlock && $type = Regexes::findParamWithNameDeclaration($constructorDocBlock, $property->getName())) {
             return trim($type);
         }

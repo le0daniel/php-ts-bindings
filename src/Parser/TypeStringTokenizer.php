@@ -12,14 +12,14 @@ final class TypeStringTokenizer
 {
     /**
      * @param string $typeString
-     * @return list<Token>
+     * @return non-empty-list<Token>
      */
     public function tokenize(string $typeString): array
     {
         $currentOffset = 0;
         $length = strlen($typeString);
 
-        /** @var array<Token> $tokens */
+        /** @var list<Token> $tokens */
         $tokens = [];
         $buffer = "";
 

@@ -17,6 +17,7 @@ final class EnumCasesParser implements Parser
 
     public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): EnumNode
     {
+        /** @var class-string<UnitEnum> $fullyQualifiedClassName */
         return new EnumNode($fullyQualifiedClassName);
     }
 }
