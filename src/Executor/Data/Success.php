@@ -6,5 +6,12 @@ final readonly class Success
 {
     public function __construct(
         public mixed $value,
+        public Issues $issues = new Issues(),
     ) {}
+
+    public function isPartial(): bool
+    {
+        return !$this->issues->isEmpty();
+    }
+
 }

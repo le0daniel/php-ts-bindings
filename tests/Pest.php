@@ -41,7 +41,7 @@ expect()->extend('toBeSuccess', function () {
 
     return $this->toBeInstanceOf(Success::class, implode('', [
         "Failed asserting that result is success with: ",
-        $value instanceof Failure ? $value->serializeIssuesToString() : 'null'
+        $value instanceof Failure ? $value->issues->serializeToCompleteString() : 'null'
     ]));
 });
 
@@ -51,12 +51,12 @@ expect()->extend('toBeFailure', function (?string $message = null) {
 
     return $this->toBeInstanceOf(Failure::class)
         ->when(!is_null($message), function () use ($value, $message) {
-            if (array_any($value->flatIssues(), fn($issue) => $issue->messageOrLocalizationKey === $message)) {
+            if (array_any($value->issues->allFlat(), fn($issue) => $issue->messageOrLocalizationKey === $message)) {
                 expect(true)->toBeTrue();
                 return;
             }
 
-            $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $value->flatIssues());
+            $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $value->issues->allFlat());
 
             expect(false)->toBeTrue(
                 "Failed asserting that result is failure with message: {$message}. Got: " . implode(', ', $messages)
@@ -70,7 +70,7 @@ expect()->extend('toBeFailureAt', function (string $path, ?string $message = nul
 
     return $this->toBeFailure()
         ->when(is_string($message), function () use ($value, $message, $path) {
-            $issues = $value->issues[$path] ?? [];
+            $issues = $value->issues->at($path);
             if (array_any($issues, fn($issue) => $issue->messageOrLocalizationKey === $message)) {
                 expect(true)->toBeTrue();
                 return;
@@ -82,7 +82,7 @@ expect()->extend('toBeFailureAt', function (string $path, ?string $message = nul
                 "Failed asserting that result is failure with message: {$message}. Got: " . implode(', ', $messages)
             );
         })
-        ->and(count($value->issues[$path] ?? []) >= 1)
+        ->and(count($value->issues->at($path)) >= 1)
         ->toBeTrue();
 });
 

@@ -10,6 +10,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
+use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
@@ -29,26 +30,33 @@ final class SchemaExecutor
 {
     public function parse(NodeInterface $node, mixed $input, ParsingOptions $options = new ParsingOptions()): Success|Failure
     {
-        $context = new Context();
+        $context = new Context(
+            partialFailures: $options->partialFailures,
+            runConstraints: true,
+        );
         $result = $this->executeParse($node, $input, $context);
 
         if ($result === Value::INVALID) {
-            return new Failure($context->issues);
+            return new Failure(new Issues($context->issues));
         }
 
-        return new Success($result);
+        return new Success($result, new Issues($context->issues));
     }
 
     public function serialize(NodeInterface $node, mixed $output, SerializationOptions $options = new SerializationOptions()): Success|Failure
     {
-        $context = new Context();
+        $context = new Context(
+            partialFailures: $options->partialFailures,
+            runConstraints: $options->runConstraints,
+        );
+
         $result = $this->executeSerialize($node, $output, $context);
 
         if ($result === Value::INVALID) {
-            return new Failure($context->issues);
+            return new Failure(new Issues($context->issues));
         }
 
-        return new Success($result);
+        return new Success($result, new Issues($context->issues));
     }
 
     private function executeSerialize(NodeInterface $node, mixed $output, Context $context): mixed
@@ -95,7 +103,7 @@ final class SchemaExecutor
         };
 
         // Allow for catching errors at null boundaries during serialization.
-        if ($serializedValue === Value::INVALID && $node instanceof UnionNode && $node->acceptsNull) {
+        if ($context->partialFailures && $serializedValue === Value::INVALID && $node instanceof UnionNode && $node->acceptsNull) {
             return null;
         }
 
@@ -284,6 +292,7 @@ final class SchemaExecutor
         foreach ($node->types as $type) {
             $result = $this->executeSerialize($type, $output, $context);
             if ($result !== Value::INVALID) {
+                $context->removeCurrentIssues();
                 return $result; 
             }
         }

@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
+use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Validators\Email;
 
 /** @return array{bool, Issue[]} */
@@ -13,7 +14,7 @@ function validate(mixed $value, Constraint $constraint): array
 {
     $context = new Context();
     $result = $constraint->validate($value, $context);
-    return [$result, $context->getIssuesAt(Context::ROOT_PATH)];
+    return [$result, new Issues($context->issues)->at(Issues::ROOT_PATH)];
 }
 
 test('validate invalid string email', function () {

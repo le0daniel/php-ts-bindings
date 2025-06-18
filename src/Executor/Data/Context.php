@@ -6,11 +6,12 @@ use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 
 final class Context implements ExecutionContext
 {
-    public function __construct()
+    public function __construct(
+        public bool $partialFailures = false,
+        public bool $runConstraints = true,
+    )
     {
     }
-
-    public const string ROOT_PATH = '__root';
 
     /**
      * @var array<string|int>
@@ -36,7 +37,7 @@ final class Context implements ExecutionContext
     {
         return $this->path
             ? implode('.', $this->path)
-            : self::ROOT_PATH;
+            : Issues::ROOT_PATH;
     }
 
     public function addIssue(Issue $issue): void
@@ -44,11 +45,8 @@ final class Context implements ExecutionContext
         $this->issues[$this->pathAsString()][] = $issue;
     }
 
-    /**
-     * @return Issue[]
-     */
-    public function getIssuesAt(string $path): array
+    public function removeCurrentIssues(): void
     {
-        return $this->issues[$path] ?? [];
+        unset($this->issues[$this->pathAsString()]);
     }
 }

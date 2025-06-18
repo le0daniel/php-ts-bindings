@@ -3,6 +3,7 @@
 namespace Tests\Unit\Validators;
 
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
+use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Validators\LengthValidator;
 
 beforeEach(function () {
@@ -82,30 +83,30 @@ it('adds correct validation issues to context', function () {
 
     // Test invalid type
     $validator->validate(null, $context);
-    expect($context->issues[Context::ROOT_PATH])->toHaveCount(1)
-        ->and($context->issues[Context::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_type')
-        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
-        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo['message'])->toContain('Wrong type for length validation');
+    expect($context->issues[Issues::ROOT_PATH])->toHaveCount(1)
+        ->and($context->issues[Issues::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_type')
+        ->and($context->issues[Issues::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
+        ->and($context->issues[Issues::ROOT_PATH][0]->debugInfo['message'])->toContain('Wrong type for length validation');
 
     // Reset context
     $context = new Context();
 
     // Test min validation
     $validator->validate('a', $context);
-    expect($context->issues[Context::ROOT_PATH])->toHaveCount(1)
-        ->and($context->issues[Context::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_min')
-        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
-        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo['message'])->toContain('Expected value to be at least 2 characters long');
+    expect($context->issues[Issues::ROOT_PATH])->toHaveCount(1)
+        ->and($context->issues[Issues::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_min')
+        ->and($context->issues[Issues::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
+        ->and($context->issues[Issues::ROOT_PATH][0]->debugInfo['message'])->toContain('Expected value to be at least 2 characters long');
 
     // Reset context
     $context = new Context();
 
     // Test max validation
     $validator->validate('abcde', $context);
-    expect($context->issues[Context::ROOT_PATH])->toHaveCount(1)
-        ->and($context->issues[Context::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_max')
-        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
-        ->and($context->issues[Context::ROOT_PATH][0]->debugInfo['message'])->toContain('Expected value to be at most 4 characters long');
+    expect($context->issues[Issues::ROOT_PATH])->toHaveCount(1)
+        ->and($context->issues[Issues::ROOT_PATH][0]->messageOrLocalizationKey)->toBe('validation.invalid_max')
+        ->and($context->issues[Issues::ROOT_PATH][0]->debugInfo)->toHaveKey('message')
+        ->and($context->issues[Issues::ROOT_PATH][0]->debugInfo['message'])->toContain('Expected value to be at most 4 characters long');
 
     // Reset context
     $context = new Context();

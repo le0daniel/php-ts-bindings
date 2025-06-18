@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Stringable;
@@ -79,7 +80,14 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
                     : Value::INVALID,
                 BuiltInType::MIXED => $value,
             };
-        } catch (Throwable) {
+        } catch (Throwable $throwable) {
+            $context->addIssue(new Issue(
+                IssueMessage::INVALID_TYPE,
+                [
+                    'message' => "Expected value of type {$this->type->value}, got: " . gettype($value),
+                    'exception' => $throwable,
+                ],
+            ));
             return Value::INVALID;
         }
     }
