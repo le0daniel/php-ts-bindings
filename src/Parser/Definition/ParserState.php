@@ -5,7 +5,9 @@ namespace Le0daniel\PhpTsBindings\Parser\Definition;
 use Closure;
 use Iterator;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use RuntimeException;
+use Throwable;
 
 /**
  * @implements Iterator<int, Token>
@@ -113,5 +115,16 @@ final class ParserState implements Iterator
             $length > 0 ? str_pad("", $length, '^') : '|'
             )
         ]);
+    }
+
+    public function produceSyntaxError(string $message, ?Throwable $throwable = null): never
+    {
+        throw new InvalidSyntaxException(
+            implode(PHP_EOL, array_filter([
+                "Syntax Error: {$message}",
+                $this->highlightCurrentToken(),
+            ])),
+            previous: $throwable,
+        );
     }
 }

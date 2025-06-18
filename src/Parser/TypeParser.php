@@ -4,33 +4,29 @@ namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\Parser;
+use Le0daniel\PhpTsBindings\Parser\Consumers\AliasConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\BuiltInLeafConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\ClassConstConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\IntConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\ArrayConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\LiteralConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\StructConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
-use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\Parsers\CustomClassParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
 use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
-use Le0daniel\PhpTsBindings\Validators\LengthValidator;
-use Le0daniel\PhpTsBindings\Validators\NonEmptyString;
-use Le0daniel\PhpTsBindings\Validators\NonFalsyStringValidator;
-use ReflectionClass;
-use Throwable;
-use UnitEnum;
 
 final readonly class TypeParser
 {
@@ -38,6 +34,11 @@ final readonly class TypeParser
      * @var list<Parser>
      */
     private array $parsers;
+
+    /**
+     * @var list<TypeConsumer>
+     */
+    private array $consumers;
 
     /**
      * Parsers take a type token and return a Node for this type. The Definitions live outside of the classes
@@ -56,10 +57,20 @@ final readonly class TypeParser
     public function __construct(
         private TypeStringTokenizer $tokenizer = new TypeStringTokenizer(),
         array|null                  $parsers = null,
-        private GlobalTypeAliases   $globalTypeAliases = new GlobalTypeAliases(),
+        GlobalTypeAliases   $globalTypeAliases = new GlobalTypeAliases(),
     )
     {
         $this->parsers = $parsers ?? self::getDefaultParsers();
+
+        $this->consumers = [
+            new LiteralConsumer(),
+            new ClassConstConsumer(),
+            new AliasConsumer($globalTypeAliases),
+            new IntConsumer(),
+            new BuiltInLeafConsumer(),
+            new StructConsumer(),
+            new ArrayConsumer(),
+        ];
     }
 
     /**
@@ -95,14 +106,37 @@ final readonly class TypeParser
         return $this->consume($tokens);
     }
 
+    private function consumeTypeModifiers(ParserState $state, NodeInterface $type): NodeInterface
+    {
+        while ($state->current()->is(TokenType::CLOSED_BRACKETS)) {
+            $state->advance();
+            $type = new ListNode($type);
+        }
+        return $type;
+    }
+
     /**
+     * @param ParserState $state
+     * @return NodeInterface
      * @throws InvalidSyntaxException
      */
-    private function consumeCustomType(ParserState $tokens): NodeInterface
+    private function consumeType(ParserState $state): NodeInterface
     {
-        $token = $tokens->current();
-        $fqcn = $tokens->context->toFullyQualifiedClassName($token->value);
-        $tokens->advance();
+        // Delegate consumption of the actual type to the consumers.
+        foreach ($this->consumers as $consumer) {
+            if ($consumer->canConsume($state)) {
+                return $consumer->consume($state, $this);
+            }
+        }
+
+        $token = $state->current();
+
+        if (!$token->is(TokenType::IDENTIFIER)) {
+            $state->produceSyntaxError("Expected type identifier");
+        }
+
+        $fqcn = $state->context->toFullyQualifiedClassName($token->value);
+        $state->advance();
 
         foreach ($this->parsers as $parser) {
             if ($parser->canParse($fqcn, $token)) {
@@ -114,272 +148,14 @@ final readonly class TypeParser
             }
         }
 
-        $this->produceSyntaxError("Could not parse custom type: {$token->value}");
-    }
-
-    private function consumeTypeModifiers(ParserState $tokens, NodeInterface $type): NodeInterface
-    {
-        while ($tokens->current()->is(TokenType::CLOSED_BRACKETS)) {
-            $tokens->advance();
-            $type = new ListNode($type);
-        }
-        return $type;
-    }
-
-    /**
-     * @param ParserState $tokens
-     * @return NodeInterface
-     * @throws InvalidSyntaxException
-     */
-    private function consumeType(ParserState $tokens): NodeInterface
-    {
-        $token = $tokens->current();
-
-        // Handles primitive literals in schema
-        if ($token->isAnyTypeOf(TokenType::BOOL, TokenType::STRING, TokenType::FLOAT, TokenType::INT)) {
-            $tokens->advance();
-            return new LiteralNode(
-                LiteralType::identifyPrimitiveTypeValue($token->value),
-                $token->coercedValue(),
-            );
-        }
-
-        // We handle class const literals
-        if ($token->is(TokenType::CLASS_CONST)) {
-            [$className, $constOrEnumCase] = explode('::', $token->value);
-            $fqcn = $tokens->context->toFullyQualifiedClassName($className);
-
-            try {
-                $reflection = new ReflectionClass($fqcn);
-                $const = $reflection->getConstant($constOrEnumCase);
-                $isEnum = $const instanceof UnitEnum;
-                $tokens->advance();
-
-                return new LiteralNode(
-                    $isEnum ? LiteralType::ENUM_CASE : LiteralType::identifyPrimitiveTypeValue($const),
-                    $const
-                );
-            } catch (Throwable $exception) {
-                $this->produceSyntaxError("Could not identify class const or enum", $tokens, $exception);
-            }
-        }
-
-        if (!$token->is(TokenType::IDENTIFIER)) {
-            $this->produceSyntaxError("Expected type identifier", $tokens);
-        }
-
-        if ($this->globalTypeAliases->isGlobalAlias($token->value)) {
-            $tokens->advance();
-            return $this->globalTypeAliases->getGlobalAlias($token->value);
-        }
-
-        // Recursive support for locally defined types using @phpstan-type.
-        if ($tokens->context->isLocalType($token->value)) {
-            $tokens->advance();
-            return $this->parse(
-                $tokens->context->getLocalTypeDefinition($token->value),
-                $tokens->context,
-            );
-        }
-
-        // Recursive support for imported types using @phpstan-import-type.
-        if ($tokens->context->isImportedType($token->value)) {
-            $tokens->advance();
-
-            $importDefinition = $tokens->context->getImportedTypeInfo($token->value);
-            return $this->parse(
-                $importDefinition['typeName'],
-                ParsingContext::fromClassString($importDefinition['className']),
-            );
-        }
-
-        switch ($token->value) {
-            case 'int':
-                // Supports: int, int<min, max>
-                return $this->consumeInt($tokens);
-            case 'string':
-            case 'bool':
-            case 'null':
-            case 'float':
-            case 'mixed':
-                $tokens->advance();
-                return new BuiltInNode(BuiltInType::from($token->value));
-            case 'truthy-string':
-            case 'non-falsy-string':
-                return new ConstraintNode(
-                    new BuiltInNode(BuiltInType::STRING),
-                    [new NonFalsyStringValidator()],
-                );
-            case 'non-empty-string':
-                $tokens->advance();
-                return new ConstraintNode(
-                    new BuiltInNode(BuiltInType::STRING),
-                    [new NonEmptyString()],
-                );
-            case 'scalar':
-                $tokens->advance();
-                return new UnionNode([
-                    new BuiltInNode(BuiltInType::INT),
-                    new BuiltInNode(BuiltInType::FLOAT),
-                    new BuiltInNode(BuiltInType::BOOL),
-                    new BuiltInNode(BuiltInType::STRING),
-                ]);
-            case 'positive-int':
-                $tokens->advance();
-                return new ConstraintNode(
-                    new BuiltInNode(BuiltInType::INT),
-                    [new LengthValidator(min: 1, including: true)]
-                );
-            case 'negative-int':
-                $tokens->advance();
-                return new ConstraintNode(
-                    new BuiltInNode(BuiltInType::INT),
-                    [new LengthValidator(max: -1, including: true)]
-                );
-            case "non-negative-int":
-                $tokens->advance();
-                return new ConstraintNode(
-                    new BuiltInNode(BuiltInType::INT),
-                    [new LengthValidator(min: 0, including: true)]
-                );
-            case 'non-positive-int':
-                $tokens->advance();
-                return new ConstraintNode(
-                    new BuiltInNode(BuiltInType::INT),
-                    [new LengthValidator(max: 0, including: true)]
-                );
-            case 'numeric':
-                $tokens->advance();
-                return new UnionNode([
-                    new BuiltInNode(BuiltInType::INT),
-                    new BuiltInNode(BuiltInType::FLOAT),
-                ]);
-            case 'array':
-            case 'non-empty-array':
-            case 'list':
-            case 'non-empty-list':
-                return $this->consumeArrayType($tokens);
-            case 'object':
-                return $this->consumeStruct($tokens);
-            default:
-                return $this->consumeCustomType($tokens);
-        }
+        $state->produceSyntaxError("Could not parse custom type: {$token->value}");
     }
 
     /**
      * @throws InvalidSyntaxException
+     * @internal
      */
-    private function consumeInt(ParserState $tokens): NodeInterface
-    {
-        if (!$tokens->current()->is(TokenType::IDENTIFIER, 'int')) {
-            $this->produceSyntaxError("Expected int", $tokens);
-        }
-
-        $tokens->advance();
-
-        if (!$tokens->currentTokenIs(TokenType::LT)) {
-            return new BuiltInNode(BuiltInType::INT);
-        }
-
-        $tokens->advance();
-        $min = match (true) {
-            $tokens->currentTokenIs(TokenType::INT) => (int)$tokens->current()->value,
-            $tokens->currentTokenIs(TokenType::IDENTIFIER, 'min') => PHP_INT_MIN,
-            default => $this->produceSyntaxError('Expected int or min', $tokens),
-        };
-
-        $tokens->advance();
-        if (!$tokens->currentTokenIs(TokenType::COMMA)) {
-            $this->produceSyntaxError("Expected comma", $tokens);
-        }
-        $tokens->advance();
-
-        $max = match (true) {
-            $tokens->currentTokenIs(TokenType::INT) => (int)$tokens->current()->value,
-            $tokens->currentTokenIs(TokenType::IDENTIFIER, 'max') => PHP_INT_MAX,
-            default => $this->produceSyntaxError('Expected int or max', $tokens),
-        };
-
-        $tokens->advance();
-        if (!$tokens->current()->is(TokenType::GT)) {
-            $this->produceSyntaxError("Expected >", $tokens);
-        }
-
-        $tokens->advance();
-
-        return new ConstraintNode(
-            new BuiltInNode(BuiltInType::INT),
-            [new LengthValidator(min: $min, max: $max, including: true)]
-        );
-    }
-
-    /**
-     * @throws InvalidSyntaxException
-     */
-    private function consumeStruct(ParserState $tokens): NodeInterface
-    {
-        if (!$tokens->currentTokenIs(TokenType::IDENTIFIER) || !$tokens->currentValueIn('object', 'array')) {
-            $this->produceSyntaxError("Expected object", $tokens);
-        }
-
-        $structType = StructPhpType::from($tokens->current()->value);
-
-        $tokens->advance();
-        if (!$tokens->current()->is(TokenType::LBRACE)) {
-            return new RecordNode(new BuiltInNode(BuiltInType::MIXED));
-        }
-
-        $tokens->advance();
-        $properties = [];
-
-        while ($tokens->canAdvance()) {
-            if (!$tokens->current()->is(TokenType::IDENTIFIER)) {
-                $this->produceSyntaxError("Expected identifier", $tokens);
-            }
-
-            $name = $tokens->current()->value;
-            $tokens->advance();
-            $isOptional = $this->consumeOptionalObjectKey($tokens);
-
-            if (!$tokens->current()->is(TokenType::COLON)) {
-                $this->produceSyntaxError("Expected colon", $tokens);
-            }
-            $tokens->advance();
-
-            $type = $this->consume($tokens, TokenType::COMMA, TokenType::RBRACE);
-            $properties[] = new PropertyNode($name, $type, $isOptional);
-            if ($tokens->current()->is(TokenType::RBRACE)) {
-                break;
-            }
-            $tokens->advance();
-        }
-
-        if (!$tokens->current()->is(TokenType::RBRACE)) {
-            $this->produceSyntaxError("Expected brace", $tokens);
-        }
-
-        if (empty($properties)) {
-            $this->produceSyntaxError("Expected properties", $tokens);
-        }
-
-        // We move out of the object
-        $tokens->advance();
-        return new StructNode($structType, $properties);
-    }
-
-    private function consumeOptionalObjectKey(ParserState $tokens): bool
-    {
-        if ($tokens->current()->is(TokenType::QUESTION_MARK)) {
-            $tokens->advance();
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * @throws InvalidSyntaxException
-     */
-    private function consume(ParserState $tokens, TokenType ...$stopAt): NodeInterface
+    public function consume(ParserState $state, TokenType ...$stopAt): NodeInterface
     {
         $expectsType = true;
         $nullableByQuestionMark = false;
@@ -388,15 +164,15 @@ final readonly class TypeParser
         /** @var null|'union'|'intersection' $mode */
         $mode = null;
 
-        if ($tokens->currentTokenIs(TokenType::QUESTION_MARK)) {
+        if ($state->currentTokenIs(TokenType::QUESTION_MARK)) {
             $nullableByQuestionMark = true;
-            $tokens->advance();
+            $state->advance();
             $types[] = new BuiltInNode(BuiltInType::NULL);
             $mode = 'union';
         }
 
         do {
-            $token = $tokens->current();
+            $token = $state->current();
 
             // If we reach an ending token, we stop without consuming it.
             if ($token->isAnyTypeOf(TokenType::EOF, ...$stopAt)) {
@@ -406,62 +182,62 @@ final readonly class TypeParser
             if ($token->is(TokenType::PIPE)) {
                 $mode ??= 'union';
                 if ($expectsType) {
-                    $this->produceSyntaxError("Expected Type Identifier, got Pipe", $tokens);
+                    $state->produceSyntaxError("Expected Type Identifier, got Pipe");
                 }
 
                 if ($mode !== 'union') {
-                    $this->produceSyntaxError("Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C");
+                    $state->produceSyntaxError("Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C");
                 }
 
                 // Case where we have ?int|string. This is unsupported in PHP. We though support it through ().
                 // So (?int)|string is supported but equivalent to null|int|string.
                 if ($nullableByQuestionMark) {
-                    $this->produceSyntaxError("Cannot use ?type as nullable and pipe at the same time", $tokens);
+                    $state->produceSyntaxError("Cannot use ?type as nullable and pipe at the same time");
                 }
 
                 $expectsType = true;
-                $tokens->advance();
+                $state->advance();
                 continue;
             }
 
             if ($token->is(TokenType::AND)) {
                 $mode ??= 'intersection';
                 if ($expectsType) {
-                    $this->produceSyntaxError("Expected Type Identifier, got &", $tokens);
+                    $state->produceSyntaxError("Expected Type Identifier, got &");
                 }
 
                 if ($mode !== 'intersection') {
-                    $this->produceSyntaxError("Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C");
+                    $state->produceSyntaxError("Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C");
                 }
 
                 $expectsType = true;
-                $tokens->advance();
+                $state->advance();
                 continue;
             }
 
             if ($token->is(TokenType::LPAREN)) {
-                $tokens->advance();
-                $grouped = $this->consume($tokens, TokenType::RPAREN);
-                if (!$tokens->current()->is(TokenType::RPAREN)) {
-                    $this->produceSyntaxError("Expected closing parenthesis", $tokens);
+                $state->advance();
+                $grouped = $this->consume($state, TokenType::RPAREN);
+                if (!$state->current()->is(TokenType::RPAREN)) {
+                    $state->produceSyntaxError("Expected closing parenthesis");
                 }
-                $tokens->advance();
-                $types[] = $this->consumeTypeModifiers($tokens, $grouped);
+                $state->advance();
+                $types[] = $this->consumeTypeModifiers($state, $grouped);
                 $expectsType = false;
                 continue;
             }
 
-            $types[] = $this->consumeTypeModifiers($tokens, $this->consumeType($tokens));
+            $types[] = $this->consumeTypeModifiers($state, $this->consumeType($state));
             $expectsType = false;
-        } while ($tokens->canAdvance());
+        } while ($state->canAdvance());
 
         if ($expectsType) {
-            $this->produceSyntaxError("Expected type Identifier", $tokens);
+            $state->produceSyntaxError("Expected type Identifier");
         }
 
         if ($mode === 'intersection') {
             if (count($types) < 2) {
-                $this->produceSyntaxError("Intersections need at least 2 types.", $tokens);
+                $state->produceSyntaxError("Intersections need at least 2 types.");
             }
 
             return new IntersectionNode($types);
@@ -544,194 +320,5 @@ final readonly class TypeParser
         }
 
         return new UnionNode($types);
-    }
-
-    /**
-     * @throws InvalidSyntaxException
-     */
-    private function consumeArrayType(ParserState $tokens): NodeInterface
-    {
-        // ToDo: Handle non-empty-array | non-empty-list;
-        if (!$tokens->current()->is(TokenType::IDENTIFIER) || !in_array($tokens->current()->value, ['array', 'list'], true)) {
-            $this->produceSyntaxError("Expected Array Type Identifier: array or list", $tokens);
-        }
-
-        // Handle array structures.
-        if ($tokens->current()->value === 'array' && $tokens->nextTokenIs(TokenType::LBRACE)) {
-
-            // Handles: array{0: string, 1: int} => tuple
-            if ($tokens->peek(2)?->type === TokenType::INT && $tokens->peek(3)?->isAnyTypeOf(TokenType::COLON, TokenType::RBRACE)) {
-                return $this->consumeIntegerDeterminedTuple($tokens);
-            }
-
-            // Handles: array{string,int} => tuple
-            if ($tokens->peek(3)?->isAnyTypeOf(TokenType::COMMA, TokenType::RBRACE)) {
-                return $this->consumeTuple($tokens);
-            }
-
-            return $this->consumeStruct($tokens);
-        }
-
-        $maxGenerics = $tokens->current()->value === 'list' ? 1 : 2;
-
-        // Consuming of the array type identifier
-        $tokens->advance();
-
-        // No generics
-        if (!$tokens->currentTokenIs(TokenType::LT)) {
-            return new ListNode(new BuiltInNode(BuiltInType::MIXED));
-        }
-
-        $generics = $this->consumeGenerics($tokens, min: 1, max: $maxGenerics);
-
-        if (count($generics) === 1) {
-            return new ListNode($generics[0]);
-        }
-
-        $keyType = $generics[0];
-        if (!$keyType instanceof BuiltInNode) {
-            $this->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}", $tokens);
-        }
-
-        return match ($keyType->type) {
-            BuiltInType::STRING => new RecordNode($generics[1]),
-            BuiltInType::INT => new ListNode($generics[1]),
-            default => $this->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}", $tokens),
-        };
-    }
-
-    /**
-     * @throws InvalidSyntaxException
-     */
-    private function consumeTuple(ParserState $tokens): TupleNode
-    {
-        if (!$tokens->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
-            $this->produceSyntaxError("Expected array", $tokens);
-        }
-        $tokens->advance();
-
-        if (!$tokens->currentTokenIs(TokenType::LBRACE)) {
-            $this->produceSyntaxError("Expected {", $tokens);
-        }
-        $tokens->advance();
-
-        $types = [];
-        while ($tokens->canAdvance()) {
-            $types[] = $this->consume($tokens, TokenType::COMMA, TokenType::RBRACE);
-
-            if ($tokens->currentTokenIs(TokenType::RBRACE)) {
-                break;
-            }
-
-            if (!$tokens->currentTokenIs(TokenType::COMMA)) {
-                $this->produceSyntaxError("Expected comma for union: array{string, int}", $tokens);
-            }
-            $tokens->advance();
-        }
-
-        $tokens->advance();
-        return new TupleNode($types);
-    }
-
-    /**
-     * @throws InvalidSyntaxException
-     */
-    private function consumeIntegerDeterminedTuple(ParserState $tokens): TupleNode
-    {
-        if (!$tokens->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
-            $this->produceSyntaxError("Expected array", $tokens);
-        }
-        $tokens->advance();
-
-        if (!$tokens->currentTokenIs(TokenType::LBRACE)) {
-            $this->produceSyntaxError("Expected {", $tokens);
-        }
-        $tokens->advance();
-
-        $types = [];
-        while ($tokens->canAdvance()) {
-            if ($tokens->currentTokenIs(TokenType::RBRACE)) {
-                break;
-            }
-
-            if ($tokens->currentTokenIs(TokenType::COMMA)) {
-                $tokens->advance();
-                continue;
-            }
-
-            if (!$tokens->currentTokenIs(TokenType::INT, (string)count($types))) {
-                $this->produceSyntaxError("Expected int with value " . count($types), $tokens);
-            }
-            $tokens->advance();
-
-            if (!$tokens->currentTokenIs(TokenType::COLON)) {
-                $this->produceSyntaxError("Expected colon", $tokens);
-            }
-            $tokens->advance();
-            $types[] = $this->consume($tokens, TokenType::COMMA, TokenType::RBRACE);
-        }
-
-        $tokens->advance();
-        return new TupleNode($types);
-    }
-
-    /**
-     * @return list<NodeInterface>
-     * @throws InvalidSyntaxException
-     */
-    private function consumeGenerics(ParserState $tokens, ?int $min = null, ?int $max = null): array
-    {
-        $isGenericBlock = $tokens->currentTokenIs(TokenType::LT);
-        $generics = [];
-
-        // No Generics
-        if (!$isGenericBlock) {
-            if (isset($min)) {
-                $this->produceSyntaxError("Expected at least {$min} generics, got 0.", $tokens);
-            }
-            return [];
-        }
-
-        while ($tokens->canAdvance()) {
-            if ($tokens->currentTokenIs(TokenType::GT)) {
-                break;
-            }
-            $tokens->advance();
-            $generics[] = $this->consume($tokens, TokenType::COMMA, TokenType::GT);
-        }
-
-        if (!$tokens->currentTokenIs(TokenType::GT)) {
-            $this->produceSyntaxError("Expected '>' to end generics", $tokens);
-        }
-
-        if (empty($generics)) {
-            $this->produceSyntaxError("Expected at least one generic type, got none", $tokens);
-        }
-
-        if (isset($min) && count($generics) < $min) {
-            $this->produceSyntaxError("Expected at least {$min} generic type(s), got " . count($generics), $tokens);
-        }
-
-        if (isset($max) && count($generics) > $max) {
-            $this->produceSyntaxError("Expected at most {$max} generic type(s), got " . count($generics), $tokens);
-        }
-
-        $tokens->advance();
-
-        return $generics;
-    }
-
-    /**
-     * @throws InvalidSyntaxException
-     */
-    private function produceSyntaxError(string $message, ?ParserState $tokens = null, ?Throwable $exception = null): never
-    {
-        throw new InvalidSyntaxException(
-            implode(PHP_EOL, array_filter([
-                "Syntax Error: {$message}",
-                $tokens?->highlightCurrentToken(),
-            ])),
-            previous: $exception,
-        );
     }
 }
