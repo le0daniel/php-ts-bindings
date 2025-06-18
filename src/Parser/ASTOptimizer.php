@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\LazyReferencedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
@@ -85,7 +85,7 @@ PHP) === false) {
     /**
      * @template T of NodeInterface
      * @param T $node
-     * @return T|LazyReferencedNode
+     * @return T|ReferencedNode
      */
     private function dedupeNode(NodeInterface $node): NodeInterface
     {
@@ -93,14 +93,14 @@ PHP) === false) {
             return $this->dedupeNode($node->node);
         }
 
-        if ($node instanceof LazyReferencedNode) {
+        if ($node instanceof ReferencedNode) {
             return $node;
         }
 
         if ($node instanceof LeafNode) {
             $identifier = '#leaf_' . sha1((string)$node);
             $this->dedupedNodes[$identifier] ??= $node;
-            return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
+            return new ReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
         if ($node instanceof PropertyNode) {
@@ -113,7 +113,7 @@ PHP) === false) {
 
             $identifier = '#prop_' . sha1((string)$optimizedNode);
             $this->dedupedNodes[$identifier] ??= $optimizedNode;
-            return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
+            return new ReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
         // Deep optimization
@@ -124,7 +124,7 @@ PHP) === false) {
             );
             $identifier = '#struct_' . sha1((string)$deepOptimizedNode);
             $this->dedupedNodes[$identifier] ??= $deepOptimizedNode;
-            return new LazyReferencedNode($identifier, (string)$node, $this->registryVariableName);
+            return new ReferencedNode($identifier, (string)$node, $this->registryVariableName);
         }
 
         // ToDo: Further optimization for example on union nodes with only Primitive Types or

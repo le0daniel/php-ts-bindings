@@ -2,15 +2,15 @@
 
 namespace Tests\Unit\Definition;
 
-use Le0daniel\PhpTsBindings\Definition\Data\Mode;
-use Le0daniel\PhpTsBindings\Definition\TypescriptDefinition;
+use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
+use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinition;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Tests\Unit\Executor\Mocks\UserSchema;
 
-function toDefinition(string $typeString, ?Mode $mode = null): string
+function toDefinition(string $typeString, ?DefinitionTarget $mode = null): string
 {
-    $modes = $mode ? [$mode] : [Mode::INPUT, Mode::OUTPUT];
+    $modes = $mode ? [$mode] : [DefinitionTarget::INPUT, DefinitionTarget::OUTPUT];
     $parser = new TypeParser();
     $ast = $parser->parse($typeString);
 
@@ -54,12 +54,12 @@ describe('Test to definition', function () {
     });
 
     test('Custom class type input', function () {
-        expect(toDefinition(UserSchema::class, Mode::INPUT))
+        expect(toDefinition(UserSchema::class, DefinitionTarget::INPUT))
             ->toBe("{age:number;email:string;username:string;}");
     });
 
     test('Custom class type output', function () {
-        expect(toDefinition(UserSchema::class, Mode::OUTPUT))
+        expect(toDefinition(UserSchema::class, DefinitionTarget::OUTPUT))
             ->toBe("{age:number;username:string;}");
     });
 
@@ -74,7 +74,7 @@ describe('Test to definition', function () {
     });
 
     test('Complex union intersection', function () {
-        expect(toDefinition('((array{id: positive-int}|array{token: string})&array{reason: string})|' . UserSchema::class, Mode::INPUT))
+        expect(toDefinition('((array{id: positive-int}|array{token: string})&array{reason: string})|' . UserSchema::class, DefinitionTarget::INPUT))
             ->toBe("(({id:number;}|{token:string;})&{reason:string;})|{age:number;email:string;username:string;}");
     });
 });

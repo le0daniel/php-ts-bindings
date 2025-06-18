@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Definition\Data;
+namespace Le0daniel\PhpTsBindings\CodeGen\Data;
 
-enum Mode
+enum DefinitionTarget
 {
     case INPUT;
     case OUTPUT;

@@ -13,9 +13,9 @@ use Throwable;
 final readonly class CustomCastingNode implements NodeInterface
 {
     public function __construct(
-        public StructNode|LazyReferencedNode $node,
-        public string                        $fullyQualifiedCastingClass,
-        public ObjectCastStrategy            $strategy,
+        public StructNode|ReferencedNode $node,
+        public string                    $fullyQualifiedCastingClass,
+        public ObjectCastStrategy        $strategy,
     )
     {
     }

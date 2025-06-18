@@ -11,7 +11,7 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 final readonly class StructNode implements NodeInterface, ValidatableNode
 {
     /**
-     * @param non-empty-list<PropertyNode|LazyReferencedNode> $properties
+     * @param non-empty-list<PropertyNode|ReferencedNode> $properties
      */
     public function __construct(
         public StructPhpType $phpType,
@@ -53,7 +53,7 @@ final readonly class StructNode implements NodeInterface, ValidatableNode
 
     public function __toString(): string
     {
-        $properties = array_map(fn(PropertyNode|LazyReferencedNode $property) => (string) $property, $this->properties);
+        $properties = array_map(fn(PropertyNode|ReferencedNode $property) => (string) $property, $this->properties);
         $imploded = implode(', ', $properties);
         return "{$this->phpType->value}{{$imploded}}";
     }

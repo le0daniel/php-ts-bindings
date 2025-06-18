@@ -8,7 +8,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
  * This is used during ast optimization to replace references to other nodes with the actual node.
  * @internal
  */
-final readonly class LazyReferencedNode implements NodeInterface
+final readonly class ReferencedNode implements NodeInterface
 {
     public function __construct(
         public string  $referenceNode,
