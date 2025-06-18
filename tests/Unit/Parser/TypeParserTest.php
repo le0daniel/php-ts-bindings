@@ -75,7 +75,7 @@ test('test failure on question mark union', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
 
     expect(fn() => $parser->parse("?float|null"))
-        ->toThrow("Cannot use ?type as nullable and pipe at the same time");
+        ->toThrow("Cannot mix union with intersection or nullable types. Use brackets to do so. Example: (A&B)|C or null|A|B");
 });
 
 test('test group support of question mark nullability and flattened result', function () {

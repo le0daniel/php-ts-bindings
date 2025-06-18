@@ -161,14 +161,14 @@ final readonly class TypeParser
         $nullableByQuestionMark = false;
         $types = [];
 
-        /** @var null|'union'|'intersection' $mode */
+        /** @var null|'questionmark-union'|'union'|'intersection' $mode */
         $mode = null;
 
         if ($state->currentTokenIs(TokenType::QUESTION_MARK)) {
             $nullableByQuestionMark = true;
             $state->advance();
             $types[] = new BuiltInNode(BuiltInType::NULL);
-            $mode = 'union';
+            $mode = 'questionmark-union';
         }
 
         do {
@@ -186,13 +186,7 @@ final readonly class TypeParser
                 }
 
                 if ($mode !== 'union') {
-                    $state->produceSyntaxError("Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C");
-                }
-
-                // Case where we have ?int|string. This is unsupported in PHP. We though support it through ().
-                // So (?int)|string is supported but equivalent to null|int|string.
-                if ($nullableByQuestionMark) {
-                    $state->produceSyntaxError("Cannot use ?type as nullable and pipe at the same time");
+                    $state->produceSyntaxError("Cannot mix union with intersection or nullable types. Use brackets to do so. Example: (A&B)|C or null|A|B");
                 }
 
                 $expectsType = true;
@@ -215,6 +209,7 @@ final readonly class TypeParser
                 continue;
             }
 
+            // Consume Groups
             if ($token->is(TokenType::LPAREN)) {
                 $state->advance();
                 $grouped = $this->consume($state, TokenType::RPAREN);
@@ -241,6 +236,14 @@ final readonly class TypeParser
             }
 
             return new IntersectionNode($types);
+        }
+
+        if ($mode === 'questionmark-union') {
+            if (count($types) !== 2) {
+                $state->produceSyntaxError("Questionmark nullable unions need exactly 2 types. Example: ?MyClass, got: " . count($types) . " types.");
+            }
+
+            return new UnionNode($types, null, null);
         }
 
         return count($types) > 1
