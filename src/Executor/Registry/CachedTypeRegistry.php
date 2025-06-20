@@ -4,10 +4,10 @@ namespace Le0daniel\PhpTsBindings\Executor\Registry;
 
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Contracts\SchemaRegistry;
+use Le0daniel\PhpTsBindings\Executor\Contracts\TypeRegistry;
 
 
-final class CachedRegistry implements SchemaRegistry
+final class CachedTypeRegistry implements TypeRegistry
 {
     /**
      * @var array<string, NodeInterface>
@@ -15,7 +15,7 @@ final class CachedRegistry implements SchemaRegistry
     private array $instantiatedNodes = [];
 
     /**
-     * @param array<string, Closure(CachedRegistry): NodeInterface> $registeredSchemas
+     * @param array<string, Closure(CachedTypeRegistry): NodeInterface> $registeredSchemas
      */
     public function __construct(
         private readonly array $registeredSchemas,

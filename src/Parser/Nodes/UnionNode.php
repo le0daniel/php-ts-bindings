@@ -13,10 +13,12 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
  */
 final class UnionNode implements NodeInterface
 {
-    public bool $acceptsNull {
-        get {
-            return array_any($this->types, fn(NodeInterface $type) => $type instanceof BuiltInNode && $type->type === BuiltInType::NULL);
-        }
+    private bool $acceptsNull;
+
+    // Improves the performance of nullable Unions.
+    public function acceptsNull(): bool
+    {
+        return $this->acceptsNull ??= array_any($this->types, fn(NodeInterface $type) => $type instanceof BuiltInNode && $type->type === BuiltInType::NULL);
     }
 
     /**

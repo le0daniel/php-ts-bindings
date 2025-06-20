@@ -101,7 +101,7 @@ final readonly class SchemaExecutor implements Executor
         };
 
         // Allow for catching errors at null boundaries during serialization.
-        if ($context->partialFailures && $serializedValue === Value::INVALID && $node instanceof UnionNode && $node->acceptsNull) {
+        if ($context->partialFailures && $serializedValue === Value::INVALID && $node instanceof UnionNode && $node->acceptsNull()) {
             return null;
         }
 

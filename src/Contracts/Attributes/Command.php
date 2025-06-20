@@ -6,7 +6,7 @@ use Attribute;
 use UnitEnum;
 
 #[Attribute(Attribute::TARGET_METHOD)]
-final readonly class Action
+final readonly class Command
 {
     public function __construct(
         public string|UnitEnum|null $namespace = null,

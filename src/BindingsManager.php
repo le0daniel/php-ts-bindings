@@ -2,27 +2,91 @@
 
 namespace Le0daniel\PhpTsBindings;
 
-use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
+use Le0daniel\PhpTsBindings\Contracts\ExecutionAdapter;
+use Le0daniel\PhpTsBindings\Data\Exceptions\OperationNotFoundException;
+use Le0daniel\PhpTsBindings\Executor\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Executor\Data\Failure;
+use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Throwable;
 
-final class BindingsManager
+/**
+ * @template REQUEST
+ * @template RESPONSE
+ * @template CONTEXT
+ */
+final readonly class BindingsManager
 {
-
+    /**
+     * @param ExecutionAdapter<REQUEST,RESPONSE,CONTEXT> $adapter
+     * @param OperationRegistry $operations
+     * @param SchemaExecutor $executor
+     */
     public function __construct(
-        // private readonly TypeParser $parser,
-        // private ?SchemaRegistry $registry,
+        private ExecutionAdapter $adapter,
+        private OperationRegistry $operations,
+        private SchemaExecutor $executor = new SchemaExecutor(),
     )
     {
+
     }
 
     /**
-     * @return void
+     * @param REQUEST $input
+     * @return RESPONSE
      */
-    public function execute(mixed $input, mixed $context)
+    public function executeQuery(string $fullyQualifiedName, mixed $input): mixed
     {
-        // Discover if needed
-        // Parse input with executor
-        // Execute on method
-        // Serialize on success
-        // Return serialized output
+        return $this->execute('query', $fullyQualifiedName, $input);
+    }
+
+    /**
+     * @param REQUEST $input
+     * @return RESPONSE
+     */
+    public function executeCommand(string $fullyQualifiedName, mixed $input): mixed
+    {
+        return $this->execute('command', $fullyQualifiedName, $input);
+    }
+
+    /**
+     * @param 'command'|'query' $type
+     * @param string $fullyQualifiedName
+     * @param REQUEST $request
+     * @return RESPONSE
+     */
+    private function execute(string $type, string $fullyQualifiedName, mixed $request): mixed
+    {
+        if (!$this->operations->has($type, $fullyQualifiedName)) {
+            return $this->adapter->produceOperationNotFoundResponse($type, $fullyQualifiedName, $request);
+        }
+
+        $endpoint = $this->operations->get($type, $fullyQualifiedName);
+        $context = $this->adapter->createContext($request);
+
+        $parsedInput = $this->executor->parse(
+            $endpoint->input,
+            $this->adapter->getInputFromRequest('command', $request),
+        );
+
+        if ($parsedInput instanceof Failure) {
+            return $this->adapter->produceInvalidInputResponse($parsedInput, $context);
+        }
+
+        try {
+            $result = $this->executor->parse(
+                $endpoint->output,
+                $this->adapter->invokeEndpoint($endpoint->definition, $parsedInput->value, $context),
+            );
+
+            return $this->adapter->produceResponse($result, $request);
+        } catch (Throwable $exception) {
+            if ($endpoint->isHandledException($exception)) {
+                /** @var ClientAwareException $exception */
+                return $this->adapter->produceClientAwareErrorResponse($exception, $context);
+            }
+
+            return $this->adapter->produceInternalErrorResponse($exception, $context);
+        }
     }
 }

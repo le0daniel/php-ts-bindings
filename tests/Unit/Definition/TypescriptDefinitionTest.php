@@ -17,7 +17,7 @@ function toDefinition(string $typeString, ?DefinitionTarget $mode = null): strin
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $ast]);
 
-    /** @var \Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry $registry */
+    /** @var \Le0daniel\PhpTsBindings\Executor\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     $definitionWriter = new TypescriptDefinition();

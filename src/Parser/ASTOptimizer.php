@@ -6,7 +6,7 @@ use Closure;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry;
+use Le0daniel\PhpTsBindings\Executor\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
@@ -62,7 +62,7 @@ PHP) === false) {
             $nodes
         );
 
-        $registryClass = PHPExport::absolute(CachedRegistry::class);
+        $registryClass = PHPExport::absolute(CachedTypeRegistry::class);
 
         $dedupedAsString = Arrays::mapWithKeys(
             $this->dedupedNodes,

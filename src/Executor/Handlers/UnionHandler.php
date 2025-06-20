@@ -21,10 +21,12 @@ final class UnionHandler implements Handler
     /** @param UnionNode<NodeInterface> $node */
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
-        if ($value === null && $node->acceptsNull) {
+        // Quick check for nullability.
+        if ($value === null && $node->acceptsNull()) {
             return null;
         }
 
+        // Using discriminator for better performance.
         if ($node->isDiscriminated()) {
             $valueToCheck = $this->extractKeyedValue($node->discriminator, $value);
             if ($valueToCheck instanceof Value) {
@@ -59,7 +61,7 @@ final class UnionHandler implements Handler
     /** @param UnionNode<NodeInterface> $node */
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
-        if ($value === null && $node->acceptsNull) {
+        if ($value === null && $node->acceptsNull()) {
             return null;
         }
 

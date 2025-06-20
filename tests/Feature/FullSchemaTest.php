@@ -1,6 +1,6 @@
 <?php
 
-use Le0daniel\PhpTsBindings\Executor\Registry\CachedRegistry;
+use Le0daniel\PhpTsBindings\Executor\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -15,7 +15,7 @@ function prepare(string $type, string $mode = 'parse'): Closure
         $ast = new TypeParser()->parse($type);
         $registryCode = $optimizer->generateOptimizedCode(['node' => $ast]);
 
-        /** @var CachedRegistry $registry */
+        /** @var CachedTypeRegistry $registry */
         $registry = eval("return {$registryCode};");
         $executor = new SchemaExecutor();
 
