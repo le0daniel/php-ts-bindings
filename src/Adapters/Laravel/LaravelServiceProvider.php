@@ -21,11 +21,11 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
      */
     public function register(): void
     {
-        $this->app->bind(BindingsManager::class, function () {
+        $this->app->singleton(BindingsManager::class, function ($app) {
+            $config = $app->make('config');
+
             return new BindingsManager(
-                new LaravelHttpRequestAdapter(function () {
-                    return null;
-                }),
+                $app->make(LaravelHttpRequestAdapter::class),
                 new JustInTimeDiscoveryRegistry(app_path('Operations'), new TypeParser()),
                 new SchemaExecutor(),
             );
@@ -37,6 +37,11 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
      */
     public function boot(): void
     {
-        //
+        $this->publishes([
+            __DIR__.'/config/config.php' => config_path('operations.php'),
+        ]);
+        $this->mergeConfigFrom(
+            __DIR__.'/config/config.php', 'operations'
+        );
     }
 }

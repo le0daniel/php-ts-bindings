@@ -14,7 +14,6 @@ use Le0daniel\PhpTsBindings\Utils\Arrays;
 use ReflectionMethod;
 use ReflectionNamedType;
 use Throwable;
-use function PHPStan\dumpType;
 
 /**
  * @template C of object
@@ -26,7 +25,7 @@ final class LaravelHttpRequestAdapter implements ExecutionAdapter
     /**
      * @param Closure(Http\Request): C|null $contextFactory
      */
-    public function __construct(private readonly ?Closure $contextFactory = null)
+    public function __construct(private(set) readonly ?Closure $contextFactory = null)
     {
     }
 
@@ -85,12 +84,14 @@ final class LaravelHttpRequestAdapter implements ExecutionAdapter
 
     public function produceInvalidInputResponse(Failure $failure, mixed $context): JsonResponse
     {
+        $debug = config('app.debug', false);
         // ToDo: Add debug info
-        return new JsonResponse([
+        return new JsonResponse(Arrays::filterNullValues([
             'success' => false,
             'message' => 'Invalid input',
             'fields' => $failure->issues->serializeToFieldsArray(),
-        ], 422);
+            'debug' => $debug ? $failure->issues->serializeToDebugFields() : null,
+        ]), 422);
     }
 
     public function produceOperationNotFoundResponse(string $type, string $fullyQualifiedOperationName, mixed $request): JsonResponse
@@ -103,24 +104,41 @@ final class LaravelHttpRequestAdapter implements ExecutionAdapter
 
     public function produceInternalErrorResponse(Throwable $throwable, mixed $context): JsonResponse
     {
-        dd($throwable);
+        $debug = config('app.debug', false);
         // ToDo: Remove exposing of throwable here.
-        return new JsonResponse([
+        return new JsonResponse(Arrays::filterNullValues([
             'success' => false,
             'message' => 'Internal server error.',
-            'exception' => $throwable,
-        ], 500);
+            'exception' => $debug ? [
+                'class' => get_class($throwable),
+                'message' => $throwable->getMessage(),
+                'code' => $throwable->getCode(),
+                'file' => $throwable->getFile(),
+                'line' => $throwable->getLine(),
+                'trace' => $throwable->getTrace(),
+            ] : null,
+        ]), 500);
     }
 
     public function produceClientAwareErrorResponse(ClientAwareException $exception, mixed $context): JsonResponse
     {
-        return new JsonResponse([
+        $debug = config('app.debug', false);
+
+        return new JsonResponse(Arrays::filterNullValues([
             'success' => false,
             'message' => 'Internal error.',
             'code' => $exception::code(),
             'name' => $exception::name(),
             'error' => $exception->serializeToResult(),
-        ], 500);
+            'exception' => $debug ? [
+                'class' => get_class($exception),
+                'message' => $exception->getMessage(),
+                'code' => $exception->getCode(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'trace' => $exception->getTrace(),
+            ] : null,
+        ]), 500);
     }
 
     public function produceResponse(Success|Failure $result, mixed $context): JsonResponse
@@ -136,11 +154,14 @@ final class LaravelHttpRequestAdapter implements ExecutionAdapter
             ]), 200);
         }
 
+        $debug = config('app.debug', false);
+
         return new JsonResponse(Arrays::filterNullValues([
             'success' => false,
             'message' => 'Invalid output data. Serialization failed.',
             'issues' => $result->issues->serializeToFieldsArray(),
             'context' => $serializedContext,
+            'debug' => $debug ? $result->issues->serializeToDebugFields() : null,
         ]), 500);
     }
 }

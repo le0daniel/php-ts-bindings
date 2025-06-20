@@ -4,7 +4,6 @@ namespace Le0daniel\PhpTsBindings;
 
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExecutionAdapter;
-use Le0daniel\PhpTsBindings\Data\Exceptions\OperationNotFoundException;
 use Le0daniel\PhpTsBindings\Executor\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
@@ -24,7 +23,7 @@ final readonly class BindingsManager
      */
     public function __construct(
         private ExecutionAdapter $adapter,
-        private OperationRegistry $operations,
+        public OperationRegistry $operations,
         private SchemaExecutor $executor = new SchemaExecutor(),
     )
     {

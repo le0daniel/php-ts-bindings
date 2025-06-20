@@ -33,13 +33,32 @@ final class Issues
         return array_merge(...array_values($this->issuesMap));
     }
 
-    /**
-     * @return array<string, list<string>>
-     */
+
     public function serializeToFieldsArray(): array
     {
         return array_map(function ($issues) {
             return array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues);
+        }, $this->issuesMap);
+    }
+
+    /**
+     * @return array<string, list<array<string, mixed>>>
+     */
+    public function serializeToDebugFields(): array
+    {
+        return array_map(function ($issues) {
+            return array_map(fn(Issue $issue) => [
+                'message' => $issue->messageOrLocalizationKey,
+                'debugInfo' => $issue->debugInfo,
+                'exception' => $issue->exception ? [
+                    'class' => get_class($issue->exception),
+                    'message' => $issue->exception->getMessage(),
+                    'code' => $issue->exception->getCode(),
+                    'file' => $issue->exception->getFile(),
+                    'line' => $issue->exception->getLine(),
+                    'trace' => $issue->exception->getTrace(),
+                ] : null,
+            ], $issues);
         }, $this->issuesMap);
     }
 
