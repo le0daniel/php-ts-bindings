@@ -12,7 +12,9 @@ final class OperationDefinition implements ExportableToPhpCode
      * @param 'command'|'query' $type
      * @param class-string<object> $fullyQualifiedClassName
      * @param string $methodName
+     * @param string $name
      * @param string $namespace
+     *
      * @param string|null $inputParameterName
      * @param string|null $description
      * @param list<class-string<ClientAwareException>> $caughtExceptions
@@ -21,6 +23,7 @@ final class OperationDefinition implements ExportableToPhpCode
         public string  $type,
         public string  $fullyQualifiedClassName,
         public string  $methodName,
+        public string  $name,
         public string  $namespace,
         public ?string $inputParameterName,
         public ?string $description,
@@ -48,7 +51,7 @@ final class OperationDefinition implements ExportableToPhpCode
 
     public function fullyQualifiedName(): string
     {
-        return "{$this->namespace}.{$this->methodName}";
+        return "{$this->namespace}.{$this->name}";
     }
 
     public function exportPhpCode(): string

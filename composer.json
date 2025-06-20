@@ -1,37 +1,50 @@
 {
-    "name": "le0daniel/php-ts-bindings",
-    "description": "Library to create type bindings between PHP8 and TS, supporting parsing, serialization and emitting of  TS types for PHP objects/input strongly typed",
-    "type": "library",
-    "require-dev": {
-        "php": "^8.4",
-        "pestphp/pest": "4.x-dev",
-        "phpstan/phpstan": "2.1.x-dev"
-    },
-    "autoload": {
-        "psr-4": {
-            "Le0daniel\\PhpTsBindings\\": "src/"
-        }
-    },
-    "autoload-dev": {
-        "psr-4": {
-            "Tests\\": "tests/"
-        }
-    },
-    "authors": [
-        {
-            "name": "Leo Studer"
-        }
-    ],
-    "minimum-stability": "dev",
-    "prefer-stable": true,
-    "config": {
-        "allow-plugins": {
-            "pestphp/pest-plugin": true
-        }
-    },
-    "scripts": {
-        "test": "pest",
-        "phpstan": "phpstan --memory-limit=1G analyse",
-        "check:all": ["@test", "@phpstan"]
+  "name": "le0daniel/php-ts-bindings",
+  "description": "Library to create type bindings between PHP8 and TS, supporting parsing, serialization and emitting of  TS types for PHP objects/input strongly typed",
+  "type": "library",
+  "require-dev": {
+    "php": "^8.4",
+    "pestphp/pest": "4.x-dev",
+    "phpstan/phpstan": "2.1.x-dev"
+  },
+  "autoload": {
+    "psr-4": {
+      "Le0daniel\\PhpTsBindings\\": "src/"
     }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "authors": [
+    {
+      "name": "Leo Studer"
+    }
+  ],
+  "minimum-stability": "dev",
+  "prefer-stable": true,
+  "config": {
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "scripts": {
+    "test": "pest",
+    "phpstan": "phpstan --memory-limit=1G analyse",
+    "check:all": [
+      "@test",
+      "@phpstan"
+    ]
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "Le0daniel\\PhpTsBindings\\Adapters\\Laravel\\LaravelServiceProvider"
+      ],
+      "aliases": {
+        "Debugbar": "Barryvdh\\Debugbar\\Facade"
+      }
+    }
+  }
 }

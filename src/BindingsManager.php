@@ -66,7 +66,7 @@ final readonly class BindingsManager
 
         $parsedInput = $this->executor->parse(
             $endpoint->input,
-            $this->adapter->getInputFromRequest('command', $request),
+            $this->adapter->getInputFromRequest($type, $request),
         );
 
         if ($parsedInput instanceof Failure) {
@@ -79,7 +79,7 @@ final readonly class BindingsManager
                 $this->adapter->invokeEndpoint($endpoint->definition, $parsedInput->value, $context),
             );
 
-            return $this->adapter->produceResponse($result, $request);
+            return $this->adapter->produceResponse($result, $context);
         } catch (Throwable $exception) {
             if ($endpoint->isHandledException($exception)) {
                 /** @var ClientAwareException $exception */

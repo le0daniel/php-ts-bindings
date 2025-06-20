@@ -82,6 +82,7 @@ final class OperationDiscovery implements Discoverer
         $definition = new OperationDefinition(
             $type,
             $class->getName(),
+            $method->name,
             $attribute->name ?? $method->name,
             $attribute->namespaceAsString() ?? self::DEFAULT_NAMESPACE,
             $parameters[0]->getName(),

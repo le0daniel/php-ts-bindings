@@ -33,12 +33,22 @@ final class Issues
         return array_merge(...array_values($this->issuesMap));
     }
 
+    /**
+     * @return array<string, list<string>>
+     */
+    public function serializeToFieldsArray(): array
+    {
+        return array_map(function ($issues) {
+            return array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues);
+        }, $this->issuesMap);
+    }
+
     public function serializeToCompleteString(): string
     {
         $messages = [];
         foreach ($this->issuesMap as $path => $issues) {
             $imploded = implode(',', array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues));
-            $issues[] = "At {$path}: {$imploded}";
+            $messages[] = "At {$path}: {$imploded}";
         }
         return implode('. ', $messages);
     }
