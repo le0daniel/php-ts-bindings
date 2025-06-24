@@ -3,6 +3,8 @@
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
 use Attribute;
+use BackedEnum;
+use StringBackedEnum;
 use UnitEnum;
 
 #[Attribute(Attribute::TARGET_METHOD)]
@@ -18,6 +20,14 @@ final readonly class Query
 
     public function namespaceAsString(): ?string
     {
-        return $this->namespace instanceof UnitEnum ? $this->namespace->name : $this->namespace;
+        if (is_string($this->namespace) || is_null($this->namespace)) {
+            return $this->namespace;
+        }
+
+        if ($this->namespace instanceof BackedEnum) {
+            return (string) $this->namespace->value;
+        }
+
+        return $this->namespace->name;
     }
 }

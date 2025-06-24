@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
 use Attribute;
+use BackedEnum;
 use UnitEnum;
 
 #[Attribute(Attribute::TARGET_METHOD)]
@@ -14,5 +15,17 @@ final readonly class Command
         public ?string              $name = null,
     )
     {
+    }
+    public function namespaceAsString(): ?string
+    {
+        if (is_string($this->namespace) || is_null($this->namespace)) {
+            return $this->namespace;
+        }
+
+        if ($this->namespace instanceof BackedEnum) {
+            return (string) $this->namespace->value;
+        }
+
+        return $this->namespace->name;
     }
 }
