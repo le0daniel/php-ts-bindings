@@ -3,15 +3,13 @@
 namespace Le0daniel\PhpTsBindings\Discovery;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
-use Le0daniel\PhpTsBindings\Contracts\Attributes\Input;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 use Le0daniel\PhpTsBindings\Contracts\Discoverer;
-use Le0daniel\PhpTsBindings\Data\OperationDefinition;
+use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
-use ReflectionParameter;
 use RuntimeException;
 
 final class OperationDiscovery implements Discoverer

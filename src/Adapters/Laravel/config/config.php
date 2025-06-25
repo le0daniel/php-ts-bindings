@@ -16,24 +16,16 @@ return [
         "base_route" => null,
 
         /**
-         * Configure the middlewares that are required
+         * Configure the middlewares that are required.
+         * Global middlewares should be added via LaravelHttpController::registerCommandRoute()->middleware()
          *
          * Middlewares are applied as follows:
-         * - query|command
          * - namespace
+         *
+         * Those middlewares are run separately from the laravel middlewares. They are executed in the
+         * LaravelHttpController itself.
          */
         "middlewares" => [
-            // Middlewares that are only affecting the query query.
-            "query" => [
-
-            ],
-
-            // Middlewares that are only affecting the command part. This is where you should add the
-            // verify CSRF token.
-            "command" => [
-
-            ],
-
             // You can add middlewares by namespace. Just add the 'namespace' => []
             // Here to add any namespace specific middlewares.
         ],

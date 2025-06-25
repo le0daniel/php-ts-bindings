@@ -33,7 +33,9 @@ final class Issues
         return array_merge(...array_values($this->issuesMap));
     }
 
-
+    /**
+     * @return array<string, string[]>
+     */
     public function serializeToFieldsArray(): array
     {
         return array_map(function ($issues) {

@@ -2,9 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
-use Le0daniel\PhpTsBindings\Data\OperationDefinition;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
+use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
 use Throwable;
 
 /**

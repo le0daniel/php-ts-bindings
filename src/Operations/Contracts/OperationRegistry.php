@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Executor\Contracts;
+namespace Le0daniel\PhpTsBindings\Operations\Contracts;
 
-use Le0daniel\PhpTsBindings\Data\Endpoint;
+use Le0daniel\PhpTsBindings\Operations\Data\Endpoint;
 
 /**
  * @phpstan-type OperationType 'command'|'query'
@@ -24,4 +24,8 @@ interface OperationRegistry
      */
     public function get(string $type, string $fullyQualifiedKey): Endpoint;
 
+    /**
+     * @return list<Endpoint>
+     */
+    public function all(): array;
 }

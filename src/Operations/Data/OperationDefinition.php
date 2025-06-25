@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Data;
+namespace Le0daniel\PhpTsBindings\Operations\Data;
 
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;

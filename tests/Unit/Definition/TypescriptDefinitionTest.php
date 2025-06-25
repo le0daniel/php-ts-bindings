@@ -3,7 +3,7 @@
 namespace Tests\Unit\Definition;
 
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinition;
+use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Tests\Unit\Executor\Mocks\UserSchema;
@@ -20,7 +20,7 @@ function toDefinition(string $typeString, ?DefinitionTarget $mode = null): strin
     /** @var \Le0daniel\PhpTsBindings\Executor\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
-    $definitionWriter = new TypescriptDefinition();
+    $definitionWriter = new TypescriptDefinitionGenerator();
 
     /** @var string|null $definition */
     $definition = null;

@@ -17,7 +17,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Utils\Nodes;
 use RuntimeException;
 
-final class TypescriptDefinition
+final class TypescriptDefinitionGenerator
 {
     public function toDefinition(NodeInterface $node, DefinitionTarget $target): string
     {

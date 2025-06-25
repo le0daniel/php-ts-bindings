@@ -93,10 +93,7 @@ final readonly class LaravelHttpController
         $config = $app->make('config')->get('bindings.http.middleware');
         [$namespace] = explode('.', $fcn, 2);
 
-        $middlewares = [
-            ... ($config[$type] ?? []),
-            ... ($config[$namespace] ?? []),
-        ];
+        $middlewares = $config[$namespace] ?? [];
 
         return new Pipeline($app)
             ->send($request)

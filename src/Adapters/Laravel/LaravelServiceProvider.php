@@ -2,11 +2,13 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Contracts\Support\DeferrableProvider;
+use Illuminate\Support\ServiceProvider;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\BindingsManager;
-use Le0daniel\PhpTsBindings\Executor\Registry\JustInTimeDiscoveryRegistry;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Operations\JustInTimeDiscoveryRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 final class LaravelServiceProvider extends ServiceProvider implements DeferrableProvider
@@ -21,12 +23,22 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
      */
     public function register(): void
     {
+        $this->app->singleton(OperationRegistry::class, function ($app) {
+            $config = $app->make('config');
+
+            if ($this->app->runningInConsole() || !file_exists(app_path('bootstrap/cache/operations.php'))) {
+                return new JustInTimeDiscoveryRegistry($config->get('operations.discovery_path'), new TypeParser());
+            }
+
+            return new JustInTimeDiscoveryRegistry($config->get('operations.discovery_path'), new TypeParser());
+        });
+
         $this->app->singleton(BindingsManager::class, function ($app) {
             $config = $app->make('config');
 
             return new BindingsManager(
                 $app->make(LaravelHttpRequestAdapter::class),
-                new JustInTimeDiscoveryRegistry(app_path('Operations'), new TypeParser()),
+                new JustInTimeDiscoveryRegistry($config->get('operations.discovery_path'), new TypeParser()),
                 new SchemaExecutor(),
             );
         });
@@ -40,8 +52,15 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         $this->publishes([
             __DIR__.'/config/config.php' => config_path('operations.php'),
         ]);
+
         $this->mergeConfigFrom(
             __DIR__.'/config/config.php', 'operations'
         );
+
+        if ($this->app->runningInConsole()) {
+            $this->commands([
+                ListCommand::class,
+            ]);
+        }
     }
 }

@@ -4,9 +4,9 @@ namespace Le0daniel\PhpTsBindings;
 
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExecutionAdapter;
-use Le0daniel\PhpTsBindings\Executor\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Throwable;
 
 /**
@@ -24,7 +24,7 @@ final readonly class BindingsManager
     public function __construct(
         private ExecutionAdapter $adapter,
         public OperationRegistry $operations,
-        private SchemaExecutor $executor = new SchemaExecutor(),
+        private SchemaExecutor   $executor = new SchemaExecutor(),
     )
     {
 
@@ -64,7 +64,7 @@ final readonly class BindingsManager
         $context = $this->adapter->createContext($request);
 
         $parsedInput = $this->executor->parse(
-            $endpoint->input,
+            $endpoint->inputNode(),
             $this->adapter->getInputFromRequest($type, $request),
         );
 
@@ -74,7 +74,7 @@ final readonly class BindingsManager
 
         try {
             $result = $this->executor->parse(
-                $endpoint->output,
+                $endpoint->outputNode(),
                 $this->adapter->invokeEndpoint($endpoint->definition, $parsedInput->value, $context),
             );
 

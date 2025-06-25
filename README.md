@@ -30,7 +30,7 @@ phpstan is supported quite well, including locally defined types or imported typ
 
 ```php
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinition;
+use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -47,10 +47,10 @@ $ast = $parser->parse(
     ParsingContext::fromClassString(MyClassDeclaringThisParameter::class)
 );
 
-$inputDefinition = new TypescriptDefinition()->toDefinition($ast, DefinitionTarget::INPUT);
+$inputDefinition = new TypescriptDefinitionGenerator()->toDefinition($ast, DefinitionTarget::INPUT);
 // => string|Record<string>|{name: string;}
 
-$outputDefinition = new TypescriptDefinition()->toDefinition($ast, DefinitionTarget::OUTPUT);
+$outputDefinition = new TypescriptDefinitionGenerator()->toDefinition($ast, DefinitionTarget::OUTPUT);
 // => string|Record<string>|{name: string;}
 
 $executor = new SchemaExecutor()
