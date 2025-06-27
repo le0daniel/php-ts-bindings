@@ -2,11 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Operations;
 
-use Closure;
 use Le0daniel\PhpTsBindings\Discovery\DiscoveryManager;
-use Le0daniel\PhpTsBindings\Discovery\OperationDiscovery;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Operations\Data\Endpoint;
+use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
@@ -49,7 +47,7 @@ final class JustInTimeDiscoveryRegistry implements OperationRegistry
     /**
      * @throws ReflectionException
      */
-    public function get(string $type, string $fullyQualifiedKey): Endpoint
+    public function get(string $type, string $fullyQualifiedKey): Operation
     {
         $this->ensureIsDiscovered();
         $definition = match ($type) {
@@ -64,7 +62,7 @@ final class JustInTimeDiscoveryRegistry implements OperationRegistry
         $input = fn() => $this->parser->parse(TypeReflector::reflectParameter($inputParameter), $parsingContext);
         $output = fn() => $this->parser->parse(TypeReflector::reflectReturnType($classReflection->getMethod($definition->methodName)), $parsingContext);
 
-        return new Endpoint($definition, $input, $output);
+        return new Operation($definition, $input, $output);
     }
 
     public function writeToCache(string $filePath): void
@@ -73,7 +71,7 @@ final class JustInTimeDiscoveryRegistry implements OperationRegistry
 
         /** @var OperationDefinition[] $allOperations */
         $allOperations = [...$this->discovery->queries, ...$this->discovery->commands];
-        $endpointClass = PHPExport::absolute(Endpoint::class);
+        $endpointClass = PHPExport::absolute(Operation::class);
 
         $endpoints = [];
         $asts = [];

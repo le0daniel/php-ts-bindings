@@ -32,23 +32,6 @@ final class OperationDefinition implements ExportableToPhpCode
     {
     }
 
-    /**
-     * @return string
-     */
-    public function getInputSchemaName(): string
-    {
-        return "{$this->type}@{$this->fullyQualifiedName()}#input";
-    }
-
-    /**
-     * Those methods are used to create the output schema name when generating types and asts.
-     * @return string
-     */
-    public function getOutputSchemaName(): string
-    {
-        return "{$this->type}@{$this->fullyQualifiedName()}#output";
-    }
-
     public function fullyQualifiedName(): string
     {
         return "{$this->namespace}.{$this->name}";

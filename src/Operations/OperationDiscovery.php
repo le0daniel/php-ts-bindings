@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Discovery;
+namespace Le0daniel\PhpTsBindings\Operations;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;

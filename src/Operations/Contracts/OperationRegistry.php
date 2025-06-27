@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Operations\Contracts;
 
-use Le0daniel\PhpTsBindings\Operations\Data\Endpoint;
+use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 
 /**
  * @phpstan-type OperationType 'command'|'query'
@@ -20,12 +20,12 @@ interface OperationRegistry
     /**
      * @param OperationType $type
      * @param string $fullyQualifiedKey
-     * @return Endpoint
+     * @return Operation
      */
-    public function get(string $type, string $fullyQualifiedKey): Endpoint;
+    public function get(string $type, string $fullyQualifiedKey): Operation;
 
     /**
-     * @return list<Endpoint>
+     * @return list<Operation>
      */
     public function all(): array;
 }

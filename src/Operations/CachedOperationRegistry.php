@@ -2,19 +2,20 @@
 
 namespace Le0daniel\PhpTsBindings\Operations;
 
+use Closure;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Operations\Data\Endpoint;
+use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
 
 final class CachedOperationRegistry implements OperationRegistry
 {
     /**
-     * @param array<string, OperationDefinition> $operations
+     * @var array<string, Operation>
      */
     private array $instances = [];
 
     /**
-     * @param array<string, \Closure(): OperationDefinition> $operations
+     * @param array<string, Closure(): Operation> $operations
      */
     public function __construct(private readonly array $operations)
     {
@@ -25,7 +26,7 @@ final class CachedOperationRegistry implements OperationRegistry
         return array_key_exists("{$type}:{$fullyQualifiedKey}", $this->operations);
     }
 
-    public function get(string $type, string $fullyQualifiedKey): Endpoint
+    public function get(string $type, string $fullyQualifiedKey): Operation
     {
         $key = "{$type}:{$fullyQualifiedKey}";
         return $this->instances[$key] ??= $this->operations[$key]();
@@ -33,9 +34,9 @@ final class CachedOperationRegistry implements OperationRegistry
 
     public function all(): array
     {
-        foreach ($this->operations as $key => $operation) {
-            $this->instances[$key] ??= $operation();
+        foreach ($this->operations as $key => $factory) {
+            $this->instances[$key] ??= $factory();
         }
-        return $this->instances;
+        return array_values($this->instances);
     }
 }

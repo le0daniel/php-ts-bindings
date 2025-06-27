@@ -6,7 +6,7 @@ use Closure;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Throwable;
 
-final readonly class Endpoint
+final readonly class Operation
 {
     /**
      * @param OperationDefinition $definition

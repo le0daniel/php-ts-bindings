@@ -2,6 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
+use UnitEnum;
+
 final class Strings
 {
     /**
@@ -12,5 +14,17 @@ final class Strings
     {
         $parts = explode('\\', $className);
         return end($parts);
+    }
+
+    public static function toString(UnitEnum|string|\Stringable $value): string
+    {
+        if ($value instanceof UnitEnum) {
+            return match(true) {
+                $value instanceof \BackedEnum => (string) $value->value,
+                default => $value->name,
+            };
+        }
+
+        return (string) $value;
     }
 }

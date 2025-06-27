@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen;
 
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Operations\Data\Endpoint;
+use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 
 final readonly class OperationGenerator
@@ -21,7 +21,7 @@ final readonly class OperationGenerator
      */
     public function generate(OperationRegistry $registry): array
     {
-        /** @var array<string, list<Endpoint>> $groupedByNamespace */
+        /** @var array<string, list<Operation>> $groupedByNamespace */
         $groupedByNamespace = [];
         foreach ($registry->all() as $endpoint) {
             $groupedByNamespace[$endpoint->definition->namespace] ??= [];
@@ -31,7 +31,7 @@ final readonly class OperationGenerator
         return Arrays::mapWithKeys($groupedByNamespace, function (string $namespace, array $endpoints): string {
             return implode(
                 PHP_EOL,
-                array_map(fn(Endpoint $endpoint) => match ($endpoint->definition->type) {
+                array_map(fn(Operation $endpoint) => match ($endpoint->definition->type) {
                     'query' => $this->generateQueryEndpoint($endpoint),
                     'command' => $this->generateCommandEndpoint($endpoint),
                 }, $endpoints)
@@ -39,7 +39,7 @@ final readonly class OperationGenerator
         });
     }
 
-    private function generateQueryEndpoint(Endpoint $endpoint): string
+    private function generateQueryEndpoint(Operation $endpoint): string
     {
         $inputDefinition = $this->definitionGenerator->toDefinition($endpoint->inputNode(), DefinitionTarget::INPUT);
         $outputDefinition = $this->definitionGenerator->toDefinition($endpoint->outputNode(), DefinitionTarget::OUTPUT);
@@ -59,7 +59,7 @@ TS,
         ]);
     }
 
-    private function generateCommandEndpoint(Endpoint $endpoint): string {
+    private function generateCommandEndpoint(Operation $endpoint): string {
         $inputDefinition = $this->definitionGenerator->toDefinition($endpoint->inputNode(), DefinitionTarget::INPUT);
         $outputDefinition = $this->definitionGenerator->toDefinition($endpoint->outputNode(), DefinitionTarget::OUTPUT);
 
