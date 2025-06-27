@@ -46,8 +46,9 @@ final class OperationDefinition implements ExportableToPhpCode
         $namespace = PHPExport::export($this->namespace);
         $inputParameterName = PHPExport::export($this->inputParameterName);
         $caughtExceptions = PHPExport::exportArray($this->caughtExceptions);
+        $name = PHPExport::export($this->name);
 
         // Descriptions are ignored when caching.
-        return "new {$className}({$type}, {$fullyQualifiedClassName}, {$methodName}, {$namespace}, {$inputParameterName}, null, {$caughtExceptions})";
+        return "new {$className}({$type}, {$fullyQualifiedClassName}, {$methodName}, {$namespace}, {$name}, {$inputParameterName}, null, {$caughtExceptions})";
     }
 }

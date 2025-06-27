@@ -9,6 +9,7 @@ use Illuminate\Routing\Pipeline;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Attributes\Middleware;
+use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
 use ReflectionAttribute;
@@ -22,7 +23,8 @@ final readonly class LaravelHttpController
     public const string COMMAND_NAME = '__command_route';
 
     public function __construct(
-        private OperationRegistry $operationRegistry
+        private OperationRegistry $operationRegistry,
+        private SchemaExecutor    $executor,
     )
     {
     }
@@ -78,8 +80,8 @@ final readonly class LaravelHttpController
         return new Pipeline($app)
             ->send($request)
             ->through($middlewares)
-            ->then(function (Http\Request $request) use ($type) {
-                $input = match ($type) {
+            ->then(function (Http\Request $request) use ($type, $operation) {
+                $inputData = match ($type) {
                     'query' => array_map(static function (string $value): mixed {
                         try {
                             return json_decode($value, flags: JSON_THROW_ON_ERROR);
@@ -89,6 +91,9 @@ final readonly class LaravelHttpController
                     }, $request->query->all()),
                     'command' => $request->json()->all(),
                 };
+
+                $input = $this->executor->parse($operation->inputNode(), $inputData);
+
 
                 return $request;
             });

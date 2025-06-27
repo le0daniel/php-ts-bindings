@@ -98,10 +98,27 @@ final class JustInTimeDiscoveryRegistry implements OperationRegistry
 
 \$typeRegistry = {$optimizer->generateOptimizedCode($asts)};    
 return new {$operationRegistryClass}([{$endpointsCode}]);
-PHP);
+PHP
+        );
     }
 
     /**
+     * @return array<string, list<Operation>>
+     * @throws ReflectionException
+     */
+    public function getAllByNamespace(): array
+    {
+        $this->ensureIsDiscovered();
+        $namespaced = [];
+        foreach ($this->all() as $operation) {
+            $namespaced[$operation->definition->namespace] ??= [];
+            $namespaced[$operation->definition->namespace][] = $operation;
+        }
+        return $namespaced;
+    }
+
+    /**
+     * @return Operation[]
      * @throws ReflectionException
      */
     public function all(): array
@@ -109,7 +126,7 @@ PHP);
         $this->ensureIsDiscovered();
         /** @var OperationDefinition[] $allOperations */
         $allOperations = [...$this->discovery->queries, ...$this->discovery->commands];
-        return array_map( fn(OperationDefinition $operation) => $this->get($operation->type, $operation->fullyQualifiedName()),
+        return array_map(fn(OperationDefinition $operation) => $this->get($operation->type, $operation->fullyQualifiedName()),
             $allOperations
         );
     }

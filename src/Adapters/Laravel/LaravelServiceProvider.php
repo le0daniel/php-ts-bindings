@@ -4,7 +4,9 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\JustInTimeDiscoveryRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -51,6 +53,8 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         if ($this->app->runningInConsole()) {
             $this->commands([
                 ListCommand::class,
+                OptimizeCommand::class,
+                CodeGenCommand::class,
             ]);
         }
     }
