@@ -5,17 +5,18 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
-use Le0daniel\PhpTsBindings\BindingsManager;
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\JustInTimeDiscoveryRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 final class LaravelServiceProvider extends ServiceProvider implements DeferrableProvider
 {
+    /**
+     * @return class-string[]
+     */
     public function provides(): array
     {
-        return [BindingsManager::class];
+        return [OperationRegistry::class];
     }
 
     /**
@@ -31,16 +32,6 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
             }
 
             return new JustInTimeDiscoveryRegistry($config->get('operations.discovery_path'), new TypeParser());
-        });
-
-        $this->app->singleton(BindingsManager::class, function ($app) {
-            $config = $app->make('config');
-
-            return new BindingsManager(
-                $app->make(LaravelHttpRequestAdapter::class),
-                new JustInTimeDiscoveryRegistry($config->get('operations.discovery_path'), new TypeParser()),
-                new SchemaExecutor(),
-            );
         });
     }
 

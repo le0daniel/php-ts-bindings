@@ -15,5 +15,5 @@ parameters:
 #    ignoreErrors:
 #        - '#PHPDoc tag @var#'
 #
-    excludePaths:
-        - ./src/Adapters/*
+#    excludePaths:
+#        - ./src/Adapters/*

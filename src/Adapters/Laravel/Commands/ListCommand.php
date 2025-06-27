@@ -10,6 +10,6 @@ final class ListCommand extends Command
     protected $signature = 'operations:list';
     protected $description = 'Send a marketing email to a user';
     public function handle(OperationRegistry $registry): int {
-
+        return 0;
     }
 }

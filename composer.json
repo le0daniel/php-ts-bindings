@@ -5,7 +5,8 @@
   "require-dev": {
     "php": "^8.4",
     "pestphp/pest": "4.x-dev",
-    "phpstan/phpstan": "2.1.x-dev"
+    "phpstan/phpstan": "2.1.x-dev",
+    "laravel/framework": "^11|^12"
   },
   "autoload": {
     "psr-4": {
