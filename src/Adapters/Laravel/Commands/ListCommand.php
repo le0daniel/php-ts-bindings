@@ -60,7 +60,12 @@ final class ListCommand extends Command
         return 0;
     }
 
-    private function collectMiddleware(OperationDefinition $definition, array $middleware = [])
+    /**
+     * @param OperationDefinition $definition
+     * @return array<class-string>
+     * @throws \ReflectionException
+     */
+    private function collectMiddleware(OperationDefinition $definition): array
     {
         $reflectionClass = new \ReflectionClass($definition->fullyQualifiedClassName);
         $attributes = [
@@ -72,7 +77,7 @@ final class ListCommand extends Command
             $instance = $attribute->newInstance();
             array_push($carry, ...$instance->middleware);
             return $carry;
-        }, $middleware);
+        }, []);
     }
 
     private function bindUri(string $uri, Operation $operation): string
