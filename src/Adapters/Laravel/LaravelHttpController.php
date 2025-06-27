@@ -74,22 +74,22 @@ final readonly class LaravelHttpController
         $operation = $this->operationRegistry->get($type, $fcn);
         $middlewares = $this->collectMiddleware($operation->definition);
 
-        $input = match ($type) {
-            'query' => array_map(static function(string $value): mixed {
-                try {
-                    return json_decode($value, flags: JSON_THROW_ON_ERROR);
-                } catch (Throwable $exception) {
-                    return $value;
-                }
-            }, $request->query->all()),
-            'command' => $request->json()->all(),
-        };
-
         // ToDO: catch catchable errors.
         return new Pipeline($app)
             ->send($request)
             ->through($middlewares)
-            ->then(function (Http\Request $request) {
+            ->then(function (Http\Request $request) use ($type) {
+                $input = match ($type) {
+                    'query' => array_map(static function (string $value): mixed {
+                        try {
+                            return json_decode($value, flags: JSON_THROW_ON_ERROR);
+                        } catch (Throwable $exception) {
+                            return $value;
+                        }
+                    }, $request->query->all()),
+                    'command' => $request->json()->all(),
+                };
+
                 return $request;
             });
     }
