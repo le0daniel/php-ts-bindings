@@ -17,5 +17,10 @@ interface Client
 
     public function hardRedirect(string $url): void;
 
+    /**
+     * @param UnitEnum|string $namespace
+     * @param mixed ...$key
+     * @return void
+     */
     public function invalidate(UnitEnum|string $namespace, mixed... $key): void;
 }

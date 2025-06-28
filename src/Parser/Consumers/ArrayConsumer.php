@@ -19,9 +19,13 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
  * array{int, int} => TupleNode
  * array{0: int, 1: int} => TupleNode
  */
-final class ArrayConsumer implements TypeConsumer
+final readonly class ArrayConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
+
+    public function __construct()
+    {
+    }
 
     public function canConsume(ParserState $state): bool
     {
@@ -29,7 +33,7 @@ final class ArrayConsumer implements TypeConsumer
             return false;
         }
 
-        return in_array($state->current()->value, ['list', 'non-empty-list','array', 'non-empty-array',], true);
+        return in_array($state->current()->value, ['list', 'non-empty-list', 'array', 'non-empty-array'], true);
     }
 
     /**

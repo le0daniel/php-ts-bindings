@@ -10,6 +10,7 @@ use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
+use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use ReflectionClass;
 use ReflectionException;
@@ -84,8 +85,8 @@ final class JustInTimeDiscoveryRegistry implements OperationRegistry
             $asts[$outputAstName] = $endpoint->outputNode(...);
 
             $exportedDefinition = $endpoint->definition->exportPhpCode();
-            $endpoints["{$operation->type}.{$operation->fullyQualifiedName()}"] =
-                "fn() => new {$endpointClass}($exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";
+            $endpoints[] =
+                "'{$operation->type}.{$operation->fullyQualifiedName()}' => fn() => new {$endpointClass}($exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";
         }
 
         $optimizer = new AstOptimizer();

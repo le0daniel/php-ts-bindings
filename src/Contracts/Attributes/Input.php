@@ -2,7 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
-#[\Attribute(\Attribute::TARGET_PARAMETER)]
+use Attribute;
+
+#[Attribute(Attribute::TARGET_PARAMETER)]
 final class Input
 {
     public function __construct()

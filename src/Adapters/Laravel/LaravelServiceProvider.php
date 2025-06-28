@@ -2,6 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
+use Illuminate\Config\Repository;
+use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
@@ -26,14 +28,19 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
      */
     public function register(): void
     {
-        $this->app->singleton(OperationRegistry::class, function ($app) {
-            $config = $app->make('config');
+        $this->app->bind(TypeParser::class, function () {
+            return new TypeParser();
+        });
 
+        $this->app->singleton(OperationRegistry::class, function (Application $app) {
             if ($this->app->runningInConsole() || !file_exists(app_path('bootstrap/cache/operations.php'))) {
+                /** @var Repository $config */
+                $config = $app->make('config');
                 return new JustInTimeDiscoveryRegistry($config->get('operations.discovery_path'), new TypeParser());
             }
 
-            return new JustInTimeDiscoveryRegistry($config->get('operations.discovery_path'), new TypeParser());
+            // Gets the cached version
+            return require app_path('bootstrap/cache/operations.php');
         });
     }
 

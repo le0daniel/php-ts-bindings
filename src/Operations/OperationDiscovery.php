@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Operations;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 use Le0daniel\PhpTsBindings\Contracts\Discoverer;
@@ -77,6 +78,17 @@ final class OperationDiscovery implements Discoverer
             throw new RuntimeException("Method {$method->name} must have at least one parameter.");
         }
 
+        $attributes = [
+            ... $class->getAttributes(Middleware::class),
+            ... $method->getAttributes(Middleware::class),
+        ];
+
+        $middlewares = empty($attributes) ? [] : array_reduce($attributes, function (array $carry, ReflectionAttribute $attribute) {
+            $instance = $attribute->newInstance();
+            array_push($carry, ...$instance->middleware);
+            return $carry;
+        }, []);
+
         $definition = new OperationDefinition(
             $type,
             $class->getName(),
@@ -93,6 +105,7 @@ final class OperationDiscovery implements Discoverer
                 },
                 $throws
             ),
+            $middlewares,
         );
 
         return [

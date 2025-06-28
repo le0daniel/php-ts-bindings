@@ -86,6 +86,9 @@ final readonly class SchemaExecutor implements Executor
         return new Success($result, new Issues($context->issues));
     }
 
+    /**
+     * @internal
+     */
     public function executeSerialize(NodeInterface $node, mixed $data, Context $context): mixed
     {
         // Constraints are ignored when serializing.
@@ -108,6 +111,9 @@ final readonly class SchemaExecutor implements Executor
         return $serializedValue;
     }
 
+    /**
+     * @internal
+     */
     public function executeParse(NodeInterface $node, mixed $data, Context $context): mixed
     {
         if ($node instanceof ConstraintNode) {

@@ -4,10 +4,10 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
 use Illuminate\Console\Command;
 use Illuminate\Routing\Router;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
@@ -42,7 +42,7 @@ final class ListCommand extends Command
                 implode(', ', $queryRoute->methods()),
                 $operation->definition->fullyQualifiedClassName . '@' . $operation->definition->methodName,
                 implode(', ', $queryRoute->gatherMiddleware()),
-                implode(', ', $this->collectMiddleware($operation->definition)),
+                implode(', ', $operation->definition->middleware),
                 $typescriptDefinition->toDefinition($operation->inputNode(), DefinitionTarget::INPUT),
                 $typescriptDefinition->toDefinition($operation->outputNode(), DefinitionTarget::OUTPUT),
             ],
@@ -51,33 +51,13 @@ final class ListCommand extends Command
                 implode(', ', $commandRoute->methods()),
                 $operation->definition->fullyQualifiedClassName . '@' . $operation->definition->methodName,
                 implode(', ', $commandRoute->gatherMiddleware()),
-                implode(', ', $this->collectMiddleware($operation->definition)),
+                implode(', ', $operation->definition->middleware),
                 $typescriptDefinition->toDefinition($operation->inputNode(), DefinitionTarget::INPUT),
                 $typescriptDefinition->toDefinition($operation->outputNode(), DefinitionTarget::OUTPUT),
             ],
         }, $registry->all()));
 
         return 0;
-    }
-
-    /**
-     * @param OperationDefinition $definition
-     * @return array<class-string>
-     * @throws \ReflectionException
-     */
-    private function collectMiddleware(OperationDefinition $definition): array
-    {
-        $reflectionClass = new \ReflectionClass($definition->fullyQualifiedClassName);
-        $attributes = [
-            ... $reflectionClass->getAttributes(Middleware::class),
-            ... $reflectionClass->getMethod($definition->methodName)->getAttributes(Middleware::class),
-        ];
-
-        return array_reduce($attributes, function (array $carry, ReflectionAttribute $attribute) {
-            $instance = $attribute->newInstance();
-            array_push($carry, ...$instance->middleware);
-            return $carry;
-        }, []);
     }
 
     private function bindUri(string $uri, Operation $operation): string

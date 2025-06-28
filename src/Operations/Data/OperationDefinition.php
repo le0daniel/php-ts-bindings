@@ -18,6 +18,7 @@ final class OperationDefinition implements ExportableToPhpCode
      * @param string|null $inputParameterName
      * @param string|null $description
      * @param list<class-string<ClientAwareException>> $caughtExceptions
+     * @param list<class-string> $middleware
      */
     public function __construct(
         public string  $type,
@@ -28,6 +29,7 @@ final class OperationDefinition implements ExportableToPhpCode
         public ?string $inputParameterName,
         public ?string $description,
         public array   $caughtExceptions,
+        public array   $middleware,
     )
     {
     }
@@ -47,8 +49,9 @@ final class OperationDefinition implements ExportableToPhpCode
         $inputParameterName = PHPExport::export($this->inputParameterName);
         $caughtExceptions = PHPExport::exportArray($this->caughtExceptions);
         $name = PHPExport::export($this->name);
+        $middleware = PHPExport::exportArray($this->middleware);
 
         // Descriptions are ignored when caching.
-        return "new {$className}({$type}, {$fullyQualifiedClassName}, {$methodName}, {$namespace}, {$name}, {$inputParameterName}, null, {$caughtExceptions})";
+        return "new {$className}({$type}, {$fullyQualifiedClassName}, {$methodName},  {$name}, {$namespace}, {$inputParameterName}, null, {$caughtExceptions}, {$middleware})";
     }
 }
