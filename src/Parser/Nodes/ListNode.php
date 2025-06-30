@@ -8,22 +8,19 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 final readonly class ListNode implements NodeInterface
 {
     public function __construct(
-        public NodeInterface $node,
-        public ?string       $asClass = null,
+        public NodeInterface $node
     )
     {
     }
 
     public function __toString(): string
     {
-        $base = "list<{$this->node}>";
-        return $this->asClass ? "{$base}@{$this->asClass}" : $base;
+        return "list<{$this->node}>";
     }
 
     public function exportPhpCode(): string
     {
         $classname = PHPExport::absolute(self::class);
-        $class = $this->asClass ? PHPExport::absolute($this->asClass) . '::class' : 'null';
-        return "new {$classname}({$this->node->exportPhpCode()}, {$class})";
+        return "new {$classname}({$this->node->exportPhpCode()})";
     }
 }

@@ -5,7 +5,9 @@ namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
@@ -52,7 +54,7 @@ final readonly class ArrayConsumer implements TypeConsumer
     /**
      * @throws InvalidSyntaxException
      */
-    public function consume(ParserState $state, TypeParser $parser): RecordNode|ListNode|TupleNode
+    public function consume(ParserState $state, TypeParser $parser): RecordNode|ListNode|TupleNode|CustomCastingNode
     {
         $type = match ($state->current()->value) {
             'list', 'non-empty-list' => 'list',
@@ -94,7 +96,10 @@ final readonly class ArrayConsumer implements TypeConsumer
         $generics = $this->consumeGenerics($state, $parser, min: 1, max: $maxGenerics);
 
         if (count($generics) === 1) {
-            return new ListNode($generics[0], $customType);
+            $node = new ListNode($generics[0]);
+            return $customType
+                ? new CustomCastingNode($node, $customType, ObjectCastStrategy::COLLECTION)
+                : $node;
         }
 
         $keyType = $generics[0];
@@ -102,11 +107,15 @@ final readonly class ArrayConsumer implements TypeConsumer
             $state->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}");
         }
 
-        return match ($keyType->type) {
-            BuiltInType::STRING => new RecordNode($generics[1], $customType),
-            BuiltInType::INT => new ListNode($generics[1], $customType),
+        $node = match ($keyType->type) {
+            BuiltInType::STRING => new RecordNode($generics[1]),
+            BuiltInType::INT => new ListNode($generics[1]),
             default => $state->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}"),
         };
+
+        return $customType
+            ? new CustomCastingNode($node, $customType, ObjectCastStrategy::COLLECTION)
+            : $node;
     }
 
     /**

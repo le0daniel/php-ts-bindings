@@ -9,7 +9,9 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use stdClass;
+use Throwable;
 
 /**
  * @implements Handler<CustomCastingNode>
@@ -18,13 +20,19 @@ final class CustomClassHandler implements Handler
 {
 
 
-    /** @param CustomCastingNode $node */
-    public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|Value
+    /** @param CustomCastingNode $node
+     * @return  stdClass|array<int, mixed>|Value
+     */
+    public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|array|Value
     {
         $object = $executor->executeSerialize($node->node, $value, $context);
 
         if ($object === Value::INVALID) {
             return Value::INVALID;
+        }
+
+        if ($node->strategy === ObjectCastStrategy::COLLECTION && is_array($object)) {
+            return $object;
         }
 
         if (!$object instanceof stdClass) {
@@ -50,6 +58,32 @@ final class CustomClassHandler implements Handler
         if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
             return Value::INVALID;
         }
-        return $node->cast($arrayValue, $context);
+
+        try {
+            if ($node->strategy === ObjectCastStrategy::COLLECTION) {
+                return new ($node->fullyQualifiedCastingClass)($arrayValue);
+            }
+
+            if ($node->strategy === ObjectCastStrategy::CONSTRUCTOR) {
+                return new ($node->fullyQualifiedCastingClass)(...$arrayValue);
+            }
+
+            $instance = new $node->fullyQualifiedCastingClass;
+            foreach ($arrayValue as $key => $propertyValue) {
+                $instance->{$key} = $propertyValue;
+            }
+            return $instance;
+        } catch (Throwable $exception) {
+            $context->addIssue(new Issue(
+                'Internal error: ' . $exception->getMessage(),
+                [
+                    'message' => "Failed to cast value to {$node->fullyQualifiedCastingClass}: {$exception->getMessage()}",
+                    'value' => $value,
+                ],
+                $exception,
+            ));
+
+            return Value::INVALID;
+        }
     }
 }

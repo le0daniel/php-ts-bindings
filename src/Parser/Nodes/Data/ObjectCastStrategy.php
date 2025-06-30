@@ -6,4 +6,5 @@ enum ObjectCastStrategy
 {
     case CONSTRUCTOR;
     case ASSIGN_PROPERTIES;
+    case COLLECTION;
 }
