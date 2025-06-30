@@ -137,9 +137,11 @@ PHP) === false) {
             ),
             ListNode::class => new ListNode(
                 $this->dedupeNode($node->node),
+                $node->asClass,
             ),
             RecordNode::class => new RecordNode(
                 $this->dedupeNode($node->node),
+                $node->asClass,
             ),
             TupleNode::class => new TupleNode(
                 array_map($this->dedupeNode(...), $node->types),

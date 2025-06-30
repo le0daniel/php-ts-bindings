@@ -23,7 +23,19 @@ final readonly class ArrayConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
 
-    public function __construct()
+    /**
+     * Add classes which are Collection classes. A collection class is a generic class
+     * which is iterable and supports 1 (list) or 2 (list|record) generics. A collection class constructor
+     * is expected to accept exactly one argument, a PHP array.
+     *
+     * Example for it is laravel collections:
+     * - Collection<int, array{id: string}> => Array<{id: string}>
+     * - Collection<string, array{id: string}> => Record<string>
+     * @param array<class-string> $collectionLikeClasses
+     */
+    public function __construct(
+        public array $collectionLikeClasses = [],
+    )
     {
     }
 
@@ -33,7 +45,8 @@ final readonly class ArrayConsumer implements TypeConsumer
             return false;
         }
 
-        return in_array($state->current()->value, ['list', 'non-empty-list', 'array', 'non-empty-array'], true);
+        return in_array($state->current()->value, ['list', 'non-empty-list', 'array', 'non-empty-array'], true)
+            || in_array($state->context->toFullyQualifiedClassName($state->current()->value), $this->collectionLikeClasses, true);
     }
 
     /**
@@ -42,10 +55,12 @@ final readonly class ArrayConsumer implements TypeConsumer
     public function consume(ParserState $state, TypeParser $parser): RecordNode|ListNode|TupleNode
     {
         $type = match ($state->current()->value) {
-            'non-empty-array' => 'array',
-            'non-empty-list' => 'list',
-            default => $state->current()->value,
+            'list', 'non-empty-list' => 'list',
+            default => 'array',
         };
+        $customType = in_array($state->current()->value, ['list', 'non-empty-list', 'array', 'non-empty-array'], true)
+            ? null
+            : $state->context->toFullyQualifiedClassName($state->current()->value);
 
         if (!$state->current()->is(TokenType::IDENTIFIER) || !in_array($type, ['array', 'list'], true)) {
             $state->produceSyntaxError("Expected Array Type Identifier: array or list");
@@ -79,7 +94,7 @@ final readonly class ArrayConsumer implements TypeConsumer
         $generics = $this->consumeGenerics($state, $parser, min: 1, max: $maxGenerics);
 
         if (count($generics) === 1) {
-            return new ListNode($generics[0]);
+            return new ListNode($generics[0], $customType);
         }
 
         $keyType = $generics[0];
@@ -88,8 +103,8 @@ final readonly class ArrayConsumer implements TypeConsumer
         }
 
         return match ($keyType->type) {
-            BuiltInType::STRING => new RecordNode($generics[1]),
-            BuiltInType::INT => new ListNode($generics[1]),
+            BuiltInType::STRING => new RecordNode($generics[1], $customType),
+            BuiltInType::INT => new ListNode($generics[1], $customType),
             default => $state->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}"),
         };
     }

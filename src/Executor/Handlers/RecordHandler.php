@@ -51,9 +51,9 @@ final class RecordHandler implements Handler
 
     /**
      * @param RecordNode $node
-     * @return array<string, mixed>|Value
+     * @return array<string, mixed>|object|Value::INVALID
      */
-    public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): array|Value
+    public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): array|object
     {
         if (!is_array($value)) {
             return Value::INVALID;
@@ -81,6 +81,11 @@ final class RecordHandler implements Handler
 
             $record[$key] = $result;
         }
+
+        if ($node->asClass) {
+            return new $node->asClass($record);
+        }
+
         return $record;
     }
 }

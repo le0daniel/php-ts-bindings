@@ -47,23 +47,32 @@ final readonly class TypeParser
      * at runtime.
      *
      * @param TypeStringTokenizer $tokenizer
-     * @param list<Parser>|null $parsers
-     * @param GlobalTypeAliases $globalTypeAliases
+     * @param TypeConsumer[]|null $consumers
      */
     public function __construct(
         private TypeStringTokenizer $tokenizer = new TypeStringTokenizer(),
-        array|null                  $parsers = null,
-        GlobalTypeAliases           $globalTypeAliases = new GlobalTypeAliases(),
+        ?array $consumers = null,
     )
     {
-        $this->consumers = [
+        $this->consumers = $consumers ?? self::defaultConsumers();
+    }
+
+    /**
+     * @param GlobalTypeAliases $globalTypeAliases
+     * @param list<class-string> $collectionClasses
+     * @param list<Parser>|null $parsers
+     * @return TypeConsumer[]
+     */
+    public static function defaultConsumers(GlobalTypeAliases $globalTypeAliases = new GlobalTypeAliases(), array $collectionClasses = [], ?array $parsers = null): array
+    {
+        return [
             new LiteralConsumer(),
             new ClassConstConsumer(),
             new AliasConsumer($globalTypeAliases),
             new IntConsumer(),
             new BuiltInLeafConsumer(),
             new StructConsumer(),
-            new ArrayConsumer(),
+            new ArrayConsumer($collectionClasses),
             new UserDefinedParsers($parsers ?? self::getDefaultParsers()),
             new UserDefinedObjectConsumer(),
         ];

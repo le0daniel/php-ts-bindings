@@ -199,12 +199,12 @@ test('numeric', function () {
 test('Global aliases', function () {
     $parser = new TypeParser(
         new TypeStringTokenizer(),
-        globalTypeAliases: new GlobalTypeAliases([
+        TypeParser::defaultConsumers(new GlobalTypeAliases([
             'Email' => fn() => new ConstraintNode(
                 new BuiltInNode(BuiltInType::STRING),
                 [new Email()],
             ),
-        ]),
+        ]))
     );
     /** @var ConstraintNode $node */
     $node = $parser->parse("Email");

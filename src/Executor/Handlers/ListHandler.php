@@ -47,16 +47,16 @@ final class ListHandler implements Handler
 
     /**
      * @param ListNode $node
-     * @return Value|array<int, mixed>
+     * @return Value|array<int, mixed>|object
      */
-    public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): Value|array
+    public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): array|object
     {
         if (!is_array($value) || !array_is_list($value)) {
             return Value::INVALID;
         }
 
         if (empty($value)) {
-            return [];
+            return $node->asClass ? new $node->asClass([]) : [];
         }
 
         $list = [];
@@ -76,6 +76,6 @@ final class ListHandler implements Handler
             $index++;
         }
 
-        return $list;
+        return $node->asClass ? new $node->asClass($list) : $list;
     }
 }
