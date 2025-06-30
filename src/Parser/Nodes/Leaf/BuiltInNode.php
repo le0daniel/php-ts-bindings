@@ -48,7 +48,7 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
 
         if ($result === Value::INVALID) {
             $context->addIssue(new Issue(
-                'Invalid value',
+                IssueMessage::INVALID_TYPE,
                 [
                     'message' => "Expected value of type {$this->type->value}, got: " . gettype($value),
                 ]
@@ -62,7 +62,7 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         try {
-            return match ($this->type) {
+            $value = match ($this->type) {
                 BuiltInType::STRING => is_string($value) || $value instanceof Stringable
                     ? (string) $value
                     : Value::INVALID,
@@ -80,6 +80,16 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
                     : Value::INVALID,
                 BuiltInType::MIXED => $value,
             };
+
+            if ($value === Value::INVALID) {
+                $context->addIssue(new Issue(
+                    IssueMessage::INVALID_TYPE,
+                    [
+                        'message' => "Expected value of type {$this->type->value}, got: " . gettype($value),
+                    ]
+                ));
+            }
+            return $value;
         } catch (Throwable $throwable) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,

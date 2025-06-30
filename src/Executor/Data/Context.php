@@ -48,7 +48,8 @@ final class Context implements ExecutionContext
     public function removeCurrentIssues(): void
     {
         foreach ($this->issues as $path => $issues) {
-            if (str_starts_with($path, $this->pathAsString())) {
+            // This is needed as path '0' is transformed to int in php.
+            if (str_starts_with((string) $path, $this->pathAsString())) {
                 unset($this->issues[$path]);
             }
         }

@@ -192,6 +192,7 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
 
 
 test('serialization with partial failures', function () {
+    /** @var Success $result */
     $result = executeSerialize('array{name: string|null, other: string}', [
         'name' => 123,
         'other' => 'my value',
@@ -201,9 +202,7 @@ test('serialization with partial failures', function () {
         ->and($result->value)->toEqual((object) [
             'name' => null,
             'other' => 'my value',
-        ])
-        // ToDo: add full support for partial failures
-        //->and($result->isPartial())->toBeTrue()
+        ])->and($result->isPartial())->toBeTrue()
     ;
 });
 
