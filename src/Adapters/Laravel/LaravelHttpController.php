@@ -80,6 +80,7 @@ final readonly class LaravelHttpController
      * @param Success $input
      * @param Client $client
      * @return array<string, mixed>
+     * @throws ReflectionException
      */
     private function createParameters(Operation $operation, Success $input, Client $client): array
     {

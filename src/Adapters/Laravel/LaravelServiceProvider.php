@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 use Illuminate\Config\Repository;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
+use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
@@ -29,7 +30,11 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     public function register(): void
     {
         $this->app->bind(TypeParser::class, function () {
-            return new TypeParser();
+            return new TypeParser(
+                consumers: TypeParser::defaultConsumers(
+                    collectionClasses: [Collection::class]
+                ),
+            );
         });
 
         $this->app->singleton(OperationRegistry::class, function (Application $app) {
