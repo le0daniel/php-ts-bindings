@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http;
 use Illuminate\Http\JsonResponse;
@@ -22,6 +23,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Throwable;
 
@@ -35,6 +37,7 @@ final readonly class LaravelHttpController
         private ConfigRepository  $config,
         private OperationRegistry $operationRegistry,
         private SchemaExecutor    $executor,
+        private ExceptionHandler  $exceptionHandler,
         private ?ContextFactory   $contextFactory,
     )
     {
@@ -108,15 +111,14 @@ final readonly class LaravelHttpController
         $client = $this->createClient($request);
         $context = $this->createContext($request);
         $controllerClass = $app->make($operation->definition->fullyQualifiedClassName);
-
         $pipeline = new MiddlewarePipeline($app, $operation->definition->middleware);
 
         try {
             /** @var Success $result */
             $result = $pipeline->execute($input, $context, $client, function (mixed $input, mixed $context, Client $client) use ($controllerClass, $operation) {
                 $result = $controllerClass->{$operation->definition->methodName}($input, $context, $client);
-
                 $response = $this->executor->serialize($operation->outputNode(), $result);
+
                 // We throw, so that middleware transactions need to handle invalid output.
                 if ($response instanceof Failure) {
                     throw $response;
@@ -130,47 +132,50 @@ final readonly class LaravelHttpController
                 'data' => $result->value,
                 '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
             ]), 200);
-        } catch (Failure $failure) {
-            $isDebugEnables = $this->config->get('app.debug');
-            return new JsonResponse(Arrays::filterNullValues([
-                'success' => false,
-                'message' => 'Internal server error.',
-                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
-                '__debug' => $isDebugEnables ? $failure->issues->serializeToDebugFields() : null,
-            ]), 500);
         } catch (Throwable $exception) {
-            $isDebugEnables = $this->config->get('app.debug');
-            if ($exception instanceof ClientAwareException && in_array($exception::class, $operation->definition->caughtExceptions)) {
-                return new JsonResponse(Arrays::filterNullValues([
-                    'success' => false,
-                    'type' => $exception::name(),
-                    'data' => $exception instanceof ExposesClientData ? $exception->serializeToResult() : null,
-                    '__debug' => $isDebugEnables ? [
-                        'class' => get_class($exception),
-                        'message' => $exception->getMessage(),
-                        'code' => $exception->getCode(),
-                        'file' => $exception->getFile(),
-                        'line' => $exception->getLine(),
-                        'trace' => $exception->getTrace(),
-                    ] : null,
-                ]), $exception::code());
-            }
+            $this->exceptionHandler->report($exception);
+            return $this->produceExceptionResponse($exception, $operation, $client);
+        }
+    }
 
+    private function produceExceptionResponse(Throwable $exception, Operation $operation, Client $client): JsonResponse
+    {
+        $isDebugEnables = $this->config->get('app.debug');
+
+        if ($exception instanceof Failure) {
             return new JsonResponse(Arrays::filterNullValues([
                 'success' => false,
                 'message' => 'Internal server error.',
+                '__debug' => $isDebugEnables ? $exception->issues->serializeToDebugFields() : null,
                 '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
-                '__debug' => $isDebugEnables ? [
-                    'class' => get_class($exception),
-                    'message' => $exception->getMessage(),
-                    'code' => $exception->getCode(),
-                    'file' => $exception->getFile(),
-                    'line' => $exception->getLine(),
-                    'trace' => $exception->getTrace(),
-                ] : null,
             ]), 500);
         }
 
+        $debugData = $isDebugEnables ? [
+            'class' => get_class($exception),
+            'message' => $exception->getMessage(),
+            'code' => $exception->getCode(),
+            'file' => $exception->getFile(),
+            'line' => $exception->getLine(),
+            'trace' => $exception->getTrace(),
+        ] : null;
+
+        if ($exception instanceof ClientAwareException && in_array($exception::class, $operation->definition->caughtExceptions, true)) {
+            return new JsonResponse(Arrays::filterNullValues([
+                'success' => false,
+                'type' => $exception::name(),
+                'data' => $exception instanceof ExposesClientData ? $exception->serializeToResult() : null,
+                '__debug' => $debugData,
+                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+            ]), $exception::code());
+        }
+
+        return new JsonResponse(Arrays::filterNullValues([
+            'success' => false,
+            'message' => 'Internal server error.',
+            '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+            '__debug' => $debugData,
+        ]), 500);
     }
 
     private function produceInvalidInputResponse(Failure $failure): JsonResponse
@@ -180,7 +185,7 @@ final readonly class LaravelHttpController
             'success' => false,
             'type' => 'INVALID_INPUT',
             'data' => $failure->issues->serializeToFieldsArray(),
-            'debug' => $isDebugEnabled ? $failure->issues->serializeToDebugFields() : null,
+            '__debug' => $isDebugEnabled ? $failure->issues->serializeToDebugFields() : null,
         ]), 422);
     }
 
