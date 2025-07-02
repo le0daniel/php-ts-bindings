@@ -3,37 +3,39 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
 use Illuminate\Config\Repository as ConfigRepository;
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Routing\Pipeline;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades;
 use JsonSerializable;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\ActionClient;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\NullClient;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\Client;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline\MiddlewarePipeline;
+use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
+use Le0daniel\PhpTsBindings\Contracts\ExposesClientData;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
-use ReflectionException;
-use ReflectionMethod;
-use ReflectionNamedType;
 use Throwable;
 
 final readonly class LaravelHttpController
 {
     public const string QUERY_NAME = '__query_route';
     public const string COMMAND_NAME = '__command_route';
+    public const string CLIENT_ID_HEADER = 'X-Client-Id';
 
     public function __construct(
-        private ConfigRepository        $config,
+        private ConfigRepository  $config,
         private OperationRegistry $operationRegistry,
         private SchemaExecutor    $executor,
+        private ?ContextFactory   $contextFactory,
     )
     {
     }
@@ -50,9 +52,10 @@ final readonly class LaravelHttpController
 
     private function createClient(Http\Request $request): Client
     {
-        if ($request->header('X-Client-Id') === 'operations') {
-            return new ActionClient();
+        if ($request->header(self::CLIENT_ID_HEADER) === 'operations') {
+            return new OperationSPAClient();
         }
+
         return new NullClient();
     }
 
@@ -75,33 +78,9 @@ final readonly class LaravelHttpController
         };
     }
 
-    /**
-     * @param Operation $operation
-     * @param Success $input
-     * @param Client $client
-     * @return array<string, mixed>
-     * @throws ReflectionException
-     */
-    private function createParameters(Operation $operation, Success $input, Client $client): array
+    private function createContext(Http\Request $request): mixed
     {
-        $parameters = [
-            $operation->definition->inputParameterName => $input->value,
-        ];
-        $reflection = new ReflectionMethod($operation->definition->fullyQualifiedClassName, $operation->definition->methodName);
-        foreach ($reflection->getParameters() as $parameter) {
-            $type = $parameter->getType();
-            if (!$type instanceof ReflectionNamedType) {
-                continue;
-            }
-
-            if (is_a($type->getName(), Client::class, true)) {
-                $parameters[$parameter->getName()] = $client;
-                continue;
-            }
-
-            // ToDo: Create Context.
-        }
-        return $parameters;
+        return $this->contextFactory?->createContextFromHttpRequest($request);
     }
 
     /**
@@ -110,7 +89,7 @@ final readonly class LaravelHttpController
      * @param Http\Request $request
      * @param Application $app
      * @return mixed
-     * @throws ReflectionException
+     * @throws BindingResolutionException
      */
     private function handleWebRequest(string $type, string $fcn, Http\Request $request, Application $app): mixed
     {
@@ -119,36 +98,79 @@ final readonly class LaravelHttpController
         }
 
         $operation = $this->operationRegistry->get($type, $fcn);
-        $inputData = $this->gatherInputFromRequest($type, $request);
+
+        $input = $this->executor->parse($operation->inputNode(), $this->gatherInputFromRequest($type, $request));
+        if ($input instanceof Failure) {
+            return $this->produceInvalidInputResponse($input);
+        }
+
+        // Create execution needs based on Definition and Request.
         $client = $this->createClient($request);
+        $context = $this->createContext($request);
+        $controllerClass = $app->make($operation->definition->fullyQualifiedClassName);
 
-        // ToDO: catch catchable errors.
-        return new Pipeline($app)
-            ->send($request)
-            ->through($operation->definition->middleware)
-            ->then(function (Http\Request $request) use ($inputData, $operation, $app, $client) {
-                $input = $this->executor->parse($operation->inputNode(), $inputData);
-                if ($input instanceof Failure) {
-                    return $this->produceInvalidInputResponse($input);
-                }
+        $pipeline = new MiddlewarePipeline($app, $operation->definition->middleware);
 
-                /** @var mixed $result */
-                $result = $app->call(
-                    [$operation->definition->fullyQualifiedClassName, $operation->definition->methodName],
-                    $this->createParameters($operation, $input, $client),
-                );
+        try {
+            /** @var Success $result */
+            $result = $pipeline->execute($input, $context, $client, function (mixed $input, mixed $context, Client $client) use ($controllerClass, $operation) {
+                $result = $controllerClass->{$operation->definition->methodName}($input, $context, $client);
 
                 $response = $this->executor->serialize($operation->outputNode(), $result);
+                // We throw, so that middleware transactions need to handle invalid output.
                 if ($response instanceof Failure) {
-                    // ToDo: probably throw
+                    throw $response;
                 }
 
-                return new JsonResponse(Arrays::filterNullValues([
-                    'success' => true,
-                    'data' => $response,
-                    '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
-                ]), 200);
+                return $response;
             });
+
+            return new JsonResponse(Arrays::filterNullValues([
+                'success' => true,
+                'data' => $result->value,
+                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+            ]), 200);
+        } catch (Failure $failure) {
+            $isDebugEnables = $this->config->get('app.debug');
+            return new JsonResponse(Arrays::filterNullValues([
+                'success' => false,
+                'message' => 'Internal server error.',
+                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+                '__debug' => $isDebugEnables ? $failure->issues->serializeToDebugFields() : null,
+            ]), 500);
+        } catch (Throwable $exception) {
+            $isDebugEnables = $this->config->get('app.debug');
+            if ($exception instanceof ClientAwareException && in_array($exception::class, $operation->definition->caughtExceptions)) {
+                return new JsonResponse(Arrays::filterNullValues([
+                    'success' => false,
+                    'type' => $exception::name(),
+                    'data' => $exception instanceof ExposesClientData ? $exception->serializeToResult() : null,
+                    '__debug' => $isDebugEnables ? [
+                        'class' => get_class($exception),
+                        'message' => $exception->getMessage(),
+                        'code' => $exception->getCode(),
+                        'file' => $exception->getFile(),
+                        'line' => $exception->getLine(),
+                        'trace' => $exception->getTrace(),
+                    ] : null,
+                ]), $exception::code());
+            }
+
+            return new JsonResponse(Arrays::filterNullValues([
+                'success' => false,
+                'message' => 'Internal server error.',
+                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+                '__debug' => $isDebugEnables ? [
+                    'class' => get_class($exception),
+                    'message' => $exception->getMessage(),
+                    'code' => $exception->getCode(),
+                    'file' => $exception->getFile(),
+                    'line' => $exception->getLine(),
+                    'trace' => $exception->getTrace(),
+                ] : null,
+            ]), 500);
+        }
+
     }
 
     private function produceInvalidInputResponse(Failure $failure): JsonResponse

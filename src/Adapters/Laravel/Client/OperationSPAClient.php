@@ -11,7 +11,7 @@ use UnitEnum;
  * @phpstan-type Redirect array{type: 'soft'|'hard', url: string}
  * @phpstan-type Toast array{type: 'success'|'error'|'alert'|'info', message: string}
  */
-final class ActionClient implements Client, \JsonSerializable
+final class OperationSPAClient implements Client, \JsonSerializable
 {
     /** @var Redirect|null  */
     private ?array $redirect = null;

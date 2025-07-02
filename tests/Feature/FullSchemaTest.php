@@ -29,8 +29,11 @@ function prepare(string $type, string $mode = 'parse'): Closure
         $registryResult = $executor->{$mode}($registry->get('node'), $value);
 
         expect($astResult)->toBeInstanceOf($registryResult::class)
-            ->and($astResult->issues->serializeToCompleteString())->toEqual($registryResult->issues->serializeToCompleteString())
-            ->and(serialize($astResult))->toEqual(serialize($registryResult));
+            ->and($astResult->issues->serializeToCompleteString())->toEqual($registryResult->issues->serializeToCompleteString());
+
+        if ($astResult instanceof Success) {
+            expect(serialize($astResult->value))->toEqual(serialize($registryResult->value));
+        }
 
         return $astResult;
     };

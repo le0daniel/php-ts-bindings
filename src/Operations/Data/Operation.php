@@ -30,9 +30,4 @@ final readonly class Operation
     {
         return $this->output instanceof Closure ? ($this->output)() : $this->output;
     }
-
-    public function isHandledException(Throwable $exception): bool
-    {
-        return in_array($exception::class, $this->definition->caughtExceptions, true);
-    }
 }

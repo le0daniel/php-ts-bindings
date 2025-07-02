@@ -2,11 +2,14 @@
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
-final class Failure
+use Exception;
+
+final class Failure extends Exception
 {
     public function __construct(
         public Issues $issues,
     )
     {
+        parent::__construct('Validation failed.', 422);
     }
 }
