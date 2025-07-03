@@ -104,21 +104,6 @@ PHP
     }
 
     /**
-     * @return array<string, list<Operation>>
-     * @throws ReflectionException
-     */
-    public function getAllByNamespace(): array
-    {
-        $this->ensureIsDiscovered();
-        $namespaced = [];
-        foreach ($this->all() as $operation) {
-            $namespaced[$operation->definition->namespace] ??= [];
-            $namespaced[$operation->definition->namespace][] = $operation;
-        }
-        return $namespaced;
-    }
-
-    /**
      * @return Operation[]
      * @throws ReflectionException
      */

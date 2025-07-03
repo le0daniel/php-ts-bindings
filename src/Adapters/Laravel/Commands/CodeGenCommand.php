@@ -42,19 +42,25 @@ final class CodeGenCommand extends Command
 
         $this->clearDirectory($directory);
 
-        $namespaces = array_keys($registry->getAllByNamespace());
-
         $this->generateLib($directory, $registry);
         $this->generateOperationUtility($directory, $router);
 
-        foreach ($registry->getAllByNamespace() as $namespace => $operations) {
+        /** @var array<string, Operation[]> $allByNamespace */
+        $allByNamespace = array_reduce($registry->all(), function (array $carry, Operation $operation) {
+            $carry[$operation->definition->namespace] ??= [];
+            $carry[$operation->definition->namespace][] = $operation;
+            return $carry;
+        }, []);
+
+        foreach ($allByNamespace as $namespace => $operations) {
             file_put_contents(
                 "{$directory}/{$namespace}.ts",
                 implode(PHP_EOL, [
                     $this->generateOperationImports(),
                     '',
-                    ... array_map($this->generateOperationCode(...), $operations)
-                ]) . PHP_EOL
+                    ... array_map($this->generateOperationCode(...), $operations),
+                    '',
+                ])
             );
         }
     }
@@ -66,7 +72,6 @@ import type { OperationOptions, Result } from './lib/types';
 import { executeOperation, throwOnFailure } from './lib/bindings';
 import { queryKey } from './lib/utils';
 import { useQuery } from '@tanstack/react-query';
-
 TypeScript;
     }
 
@@ -149,6 +154,9 @@ TypeScript;
         ));
     }
 
+    /**
+     * @throws JsonException
+     */
     private function generateOperationCode(Operation $operation): string
     {
         $inputDefinition = $this->typescriptGenerator->toDefinition($operation->inputNode(), DefinitionTarget::INPUT);
@@ -164,31 +172,20 @@ TypeScript;
 export async function {$operation->definition->name}(input: {$inputDefinition}, options?: OperationOptions): Promise<{$resultType}> {
     return await executeOperation<{$inputDefinition},{$outputDefinition}, {$handledErrorsOrNever}>('{$operation->definition->type}', '{$operation->definition->fullyQualifiedName()}', input, options);
 }
-{$this->generateQueryFunctionAndKey($operation)}
+{$this->generateQueryFunctionAndKey($operation, $inputDefinition, $outputDefinition)}
 
 TypeScript;
     }
 
-    /**
-     * @throws JsonException
-     */
-    private function generateQueryFunctionAndKey(Operation $operation): string
+    private function generateQueryFunctionAndKey(Operation $operation, string $inputDefinition, string $outputDefinition): string
     {
         if ($operation->definition->type !== 'query') {
             return '';
         }
 
         $queryFnName = ucfirst($operation->definition->name);
-        $namespace = json_encode($operation->definition->namespace, JSON_THROW_ON_ERROR);
-        $name = json_encode($operation->definition->name, JSON_THROW_ON_ERROR);
-        $inputDefinition = $this->typescriptGenerator->toDefinition($operation->inputNode(), DefinitionTarget::INPUT);
-        $outputDefinition = $this->typescriptGenerator->toDefinition($operation->outputNode(), DefinitionTarget::OUTPUT);
 
         return <<<TypeScript
-/**
- * This is a react query function for a query operation. Defined in:
- * @php {$operation->definition->fullyQualifiedClassName}::{$operation->definition->methodName}
- */
 export function use{$queryFnName}Query(input: {$inputDefinition}, queryOptions?: Partial<{enabled: boolean}>) {
     return useQuery({
         queryKey: queryKey('{$operation->definition->fullyQualifiedName()}', input),
