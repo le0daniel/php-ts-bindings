@@ -163,7 +163,7 @@ final readonly class LaravelHttpController
         if ($exception instanceof ClientAwareException && in_array($exception::class, $operation->definition->caughtExceptions, true)) {
             return new JsonResponse(Arrays::filterNullValues([
                 'success' => false,
-                'type' => $exception::name(),
+                'type' => $exception::type(),
                 'data' => $exception instanceof ExposesClientData ? $exception->serializeToResult() : null,
                 '__debug' => $debugData,
                 '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,

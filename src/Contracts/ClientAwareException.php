@@ -15,7 +15,7 @@ interface ClientAwareException extends Throwable
      *
      * @return string
      */
-    public static function name(): string;
+    public static function type(): string;
 
     /**
      * Return a code to identify this exception.
