@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Router;
 use JsonException;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Helpers\CodeGen\OperationDescription;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
@@ -79,11 +80,16 @@ TypeScript;
         file_put_contents("{$directory}/bindings.ts", <<<TypeScript
 export type OperationNamespaces = {$namespaceUnion};
 export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number;};
-export type Hook = (type: 'query'|'command', actionName: string, result: unknown) => Promise<void> | void;
+export type Hook = (type: 'query'|'command', actionName: string, input: unknown, result: WithClientDirectives<Result<unknown, object>>) => Promise<void> | void;
 
+const hooks: Hook[] = [];
 let customFetcher: typeof window.fetch | null = null;
 let operationOptions = {
     timeoutMs: 10000,
+    paths: {
+        query: '/{$queryRoute}',
+        command: '/{$commandRoute}',
+    }
 };
 
 type InternalError = {code: 500;type: "INTERNAL_ERROR"} 
@@ -95,10 +101,22 @@ export type Success<T> = {success: true, data: T}
 export type Failure<E extends object = never> = {success: false} & (InternalError | InvalidInputError | AuthenticationError | AuthorizationError | E)
 export type Result<T, E extends object = never> = Success<T> | Failure<E>;
 export type WithClientDirectives<T> = T & {__client?: unknown}
+export type SPAClientDirectives<T> = T & {
+    __client: {
+        type: "operations-spa",
+        redirect?: {type: "soft"|"hard"; url: string;},
+        toasts?: {type: 'success'|'error'|'alert'|'info', message: string;}[],
+        invalidations?: [string, string, ...unknown[]][]
+    }
+};
 
-const hooks: Hook[] = [];
-const queryPath = '/{$queryRoute}';
-const commandPath = '/{$commandRoute}';
+export function isSpaClientDirectives<const T>(result: WithClientDirectives<T>): result is SPAClientDirectives<T> {
+    if (!result.__client || typeof result.__client !== 'object') {
+        return false;
+    }
+    
+    return "type" in result.__client && result.__client.type === "operations-spa";
+}
 
 export function configureFetcher(fetcher: typeof window.fetch): void {
     customFetcher = fetcher;
@@ -106,6 +124,16 @@ export function configureFetcher(fetcher: typeof window.fetch): void {
 
 export function configure(options: Partial<typeof operationOptions>): void {
     operationOptions = {...operationOptions, ...options};
+}
+
+export function addHook(hook: Hook): (() => void) {
+    hooks.push(hook);
+    return () => {
+        const index = hooks.indexOf(hook);
+        if (index >= 0) {
+            hooks.splice(index, 1); 
+        }
+    };
 }
 
 export function throwOnFailure<const T>(result: Result<T>): asserts result is Success<T> {
@@ -120,9 +148,19 @@ function createJsonEncodedQueryParams(input: object): string {
     }).join('&');
 }
 
+async function callHooks<T, E extends object>(type: 'query'|'command', actionName: string, input: unknown, result: WithClientDirectives<Result<T, E>>): Promise<WithClientDirectives<Result<T, E>>> {
+    try {
+        await Promise.all(hooks.map(hook => hook(type, actionName, input, result)));
+        return result;  
+    } catch (error) {
+        console.error('Error while calling hooks', error);
+        return result;   
+    }
+}
+
 export async function executeOperation<I, O, E extends object>(type: 'query'|'command', fqn: string, input: I, options?: OperationOptions): Promise<WithClientDirectives<Result<O, E>>> {
     const fetcher = customFetcher ?? fetch;
-    const fullyQualifiedPath = (type === 'query' ? queryPath : commandPath).replace('{fqn}', fqn);
+    const fullyQualifiedPath = operationOptions.paths[type].replace('{fqn}', fqn);
 
     const timeout = AbortSignal.timeout(options?.timeoutMs ?? operationOptions.timeoutMs);
     const signal = options?.signal ? AbortSignal.any([options?.signal, timeout]) : timeout;
@@ -153,16 +191,16 @@ export async function executeOperation<I, O, E extends object>(type: 'query'|'co
     }
 
     if (response.ok) {
-        return {...json, success: true} as WithClientDirectives<Success<O>>;
+        return await callHooks(type, fqn, input, {...json, success: true} as WithClientDirectives<Success<O>>);
     }
 
     console.error('Request failed', response, json);
-    return {
+    return await callHooks(type, fqn, input, {
         ...json,
         success: false,
         code: json?.code ?? response.status,
         type: response.type ?? 'INTERNAL_ERROR'
-    } as WithClientDirectives<Failure<E>>;
+    } as WithClientDirectives<Failure<E>>);
 }
  
 TypeScript
@@ -194,14 +232,10 @@ TypeScript
         $handledErrorsOrNever = $handledErrors ? "{$handledErrors}" : 'never';
         $resultType = $handledErrors ? "Result<{$outputDefinition},{$handledErrors}>" : "Result<{$outputDefinition}>";
 
+        $description = OperationDescription::describe($operation);
+
         return <<<TypeScript
-/**
- * This operation is defined in:
- * @php {$operation->definition->fullyQualifiedClassName}::{$operation->definition->methodName}
- *
- * Non standard exceptions:
- * - {$handledErrorsOrNever}
- */
+{$description}
 export async function {$operation->definition->name}(input: {$inputDefinition}, options?: OperationOptions): Promise<{$resultType}> {
     return await executeOperation<{$inputDefinition},{$outputDefinition}, {$handledErrorsOrNever}>('{$operation->definition->type}', '{$operation->definition->fullyQualifiedName()}', input, options);
 }

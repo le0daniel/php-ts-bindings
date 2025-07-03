@@ -62,6 +62,7 @@ final class OperationSPAClient implements Client, \JsonSerializable
     public function jsonSerialize(): array
     {
         return Arrays::filterNullValues([
+            'type' => 'operations-spa',
             'redirect' => $this->redirect,
             'toasts' => $this->toasts,
             'invalidations' => $this->invalidations,
