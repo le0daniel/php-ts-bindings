@@ -43,11 +43,19 @@ final readonly class LaravelHttpController
     {
     }
 
+    /**
+     * @throws BindingResolutionException
+     * @throws Throwable
+     */
     public function handleHttpQueryRequest(string $fcn, Http\Request $request, Application $app): JsonResponse
     {
         return $this->handleWebRequest('query', $fcn, $request, $app);
     }
 
+    /**
+     * @throws BindingResolutionException
+     * @throws Throwable
+     */
     public function handleHttpCommandRequest(string $fcn, Http\Request $request, Application $app): JsonResponse
     {
         return $this->handleWebRequest('command', $fcn, $request, $app);
@@ -92,7 +100,7 @@ final readonly class LaravelHttpController
      * @param Http\Request $request
      * @param Application $app
      * @return mixed
-     * @throws BindingResolutionException
+     * @throws BindingResolutionException|Throwable
      */
     private function handleWebRequest(string $type, string $fcn, Http\Request $request, Application $app): mixed
     {
