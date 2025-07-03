@@ -10,6 +10,8 @@ use Illuminate\Support\ServiceProvider;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Context\NullContextFactory;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\JustInTimeDiscoveryRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -47,6 +49,14 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
             // Gets the cached version
             return require app_path('bootstrap/cache/operations.php');
         });
+
+        $this->app->when(LaravelHttpController::class)
+            ->needs(ContextFactory::class)
+            ->give(function (Application $app): ContextFactory {
+                $config = $app->make('config');
+                $context = $config->get('operations.context');
+                return $context ? $app->make($context) : new NullContextFactory();
+            });
     }
 
     /**

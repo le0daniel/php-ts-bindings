@@ -500,5 +500,4 @@ test('fails on missing or too many generics', function () {
         ->toThrow('Number of generics does not match. Expected 1 <I>, got 2.')
         ->and(fn() => $parser->parse(Paginated::class))
         ->toThrow('Number of generics does not match. Expected 1 <I>, got 0.');
-
 });

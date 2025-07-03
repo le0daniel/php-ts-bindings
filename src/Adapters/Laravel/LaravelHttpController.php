@@ -55,7 +55,7 @@ final readonly class LaravelHttpController
 
     private function createClient(Http\Request $request): Client
     {
-        if ($request->header(self::CLIENT_ID_HEADER) === 'operations') {
+        if ($request->header(self::CLIENT_ID_HEADER) === 'operations-spa') {
             return new OperationSPAClient();
         }
 
@@ -115,7 +115,7 @@ final readonly class LaravelHttpController
 
         try {
             /** @var Success $result */
-            $result = $pipeline->execute($input, $context, $client, function (mixed $input, mixed $context, Client $client) use ($controllerClass, $operation) {
+            $result = $pipeline->execute($input->value, $context, $client, function (mixed $input, mixed $context, Client $client) use ($controllerClass, $operation) {
                 $result = $controllerClass->{$operation->definition->methodName}($input, $context, $client);
                 $response = $this->executor->serialize($operation->outputNode(), $result);
 
