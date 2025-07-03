@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Operations\JustInTimeDiscoveryRegistry;
+use Le0daniel\PhpTsBindings\Utils\Arrays;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use RuntimeException;
@@ -40,7 +41,11 @@ final class CodeGenCommand extends Command
             : base_path($this->argument('directory'));
 
         $this->clearDirectory($directory);
-        $this->generateOperationUtility($directory, array_keys($registry->getAllByNamespace()), $router);
+
+        $namespaces = array_keys($registry->getAllByNamespace());
+
+        $this->generateLib($directory, $registry);
+        $this->generateOperationUtility($directory, $router);
 
         foreach ($registry->getAllByNamespace() as $namespace => $operations) {
             file_put_contents(
@@ -57,11 +62,63 @@ final class CodeGenCommand extends Command
     private function generateOperationImports(): string
     {
         return <<<TypeScript
-import type { OperationOptions, Result } from './bindings';
-import { executeOperation, throwOnFailure } from './bindings';
+import type { OperationOptions, Result } from './lib/types';
+import { executeOperation, throwOnFailure } from './lib/bindings';
+import { queryKey } from './lib/utils';
 import { useQuery } from '@tanstack/react-query';
 
 TypeScript;
+    }
+
+    /**
+     * @throws JsonException
+     */
+    private function generateLib(string $directory, OperationRegistry $registry): void
+    {
+        if (!is_dir("{$directory}/lib")) {
+            mkdir("{$directory}/lib");
+        }
+
+        $namespaces = array_reduce($registry->all(), function (array $carry, Operation $operation) {
+            if (!in_array($operation->definition->namespace, $carry, true)) {
+                $carry[] = $operation->definition->namespace;
+            }
+            return $carry;
+        }, []);
+        $namespaceUnion = implode('|', array_map(fn(string $namespace) => json_encode($namespace, flags: JSON_THROW_ON_ERROR), $namespaces));
+
+        $invalidations = array_reduce($registry->all(), function (array $carry, Operation $operation) {
+            if ($operation->definition->type !== 'query') {
+                return $carry;
+            }
+
+            $carry[$operation->definition->namespace] ??= [];
+            $carry[$operation->definition->namespace][] = $operation->definition->name;
+            return $carry;
+        }, []);
+
+        $invalidationMap = Arrays::mapWithKeys($invalidations, function (string $namespace, array $operations) {
+            return "{$namespace}: " . implode('|', array_map(fn(string $operation) => json_encode($operation, flags: JSON_THROW_ON_ERROR), $operations));
+        });
+
+        file_put_contents("{$directory}/lib/types.ts", $this->getTemplate('types', [
+            "'NAMESPACE_UNION'" => $namespaceUnion,
+            "{namespace: 'one'|'two'}" => "{" . implode(';', $invalidationMap) . "}",
+        ]));
+        file_put_contents("{$directory}/lib/OperationClient.ts", $this->getTemplate('OperationClient'));
+        file_put_contents("{$directory}/lib/DefaultClient.ts", $this->getTemplate('DefaultClient'));
+        file_put_contents("{$directory}/lib/utils.ts", $this->getTemplate('utils'));
+    }
+
+    /**
+     * @param string $name
+     * @param array<string, string> $params
+     * @return void
+     */
+    private function getTemplate(string $name, array $params = []): string
+    {
+        $content = file_get_contents(__DIR__ . "/templates/{$name}.ts");
+        return str_replace(array_keys($params), array_values($params), $content);
     }
 
     /**
@@ -70,141 +127,15 @@ TypeScript;
      * @return void
      * @throws JsonException
      */
-    private function generateOperationUtility(string $directory, array $namespaces, Router $router): void
+    private function generateOperationUtility(string $directory, Router $router): void
     {
-        $queryRoute = $router->getRoutes()->getByName(LaravelHttpController::QUERY_NAME)->uri();
-        $commandRoute = $router->getRoutes()->getByName(LaravelHttpController::COMMAND_NAME)->uri();
+        $queryRoute = str_replace('/{fqn}', '', $router->getRoutes()->getByName(LaravelHttpController::QUERY_NAME)->uri());
+        $commandRoute = str_replace('/{fqn}', '', $router->getRoutes()->getByName(LaravelHttpController::COMMAND_NAME)->uri());
 
-        $namespaceUnion = implode('|', array_map(fn(string $namespace) => json_encode($namespace, flags: JSON_THROW_ON_ERROR), $namespaces));
-
-        file_put_contents("{$directory}/bindings.ts", <<<TypeScript
-export type OperationNamespaces = {$namespaceUnion};
-export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number;};
-export type Hook = (type: 'query'|'command', actionName: string, input: unknown, result: WithClientDirectives<Result<unknown, object>>) => Promise<void> | void;
-
-const hooks: Hook[] = [];
-let customFetcher: typeof window.fetch | null = null;
-let operationOptions = {
-    timeoutMs: 10000,
-    paths: {
-        query: '/{$queryRoute}',
-        command: '/{$commandRoute}',
-    }
-};
-
-type InternalError = {code: 500;type: "INTERNAL_ERROR"} 
-type InvalidInputError = {code: 422;type: "INVALID_INPUT";data: Record<string, string[]>;}
-type AuthenticationError = {code: 401;type: "UNAUTHENTICATED";}
-type AuthorizationError = {code: 403;type: "UNAUTHORIZED";}
-
-export type Success<T> = {success: true, data: T}
-export type Failure<E extends object = never> = {success: false} & (InternalError | InvalidInputError | AuthenticationError | AuthorizationError | E)
-export type Result<T, E extends object = never> = Success<T> | Failure<E>;
-export type WithClientDirectives<T> = T & {__client?: unknown}
-export type SPAClientDirectives<T> = T & {
-    __client: {
-        type: "operations-spa",
-        redirect?: {type: "soft"|"hard"; url: string;},
-        toasts?: {type: 'success'|'error'|'alert'|'info', message: string;}[],
-        invalidations?: [string, string, ...unknown[]][]
-    }
-};
-
-export function isSpaClientDirectives<const T>(result: WithClientDirectives<T>): result is SPAClientDirectives<T> {
-    if (!result.__client || typeof result.__client !== 'object') {
-        return false;
-    }
-    
-    return "type" in result.__client && result.__client.type === "operations-spa";
-}
-
-export function configureFetcher(fetcher: typeof window.fetch): void {
-    customFetcher = fetcher;
-}
-
-export function configure(options: Partial<typeof operationOptions>): void {
-    operationOptions = {...operationOptions, ...options};
-}
-
-export function addHook(hook: Hook): (() => void) {
-    hooks.push(hook);
-    return () => {
-        const index = hooks.indexOf(hook);
-        if (index >= 0) {
-            hooks.splice(index, 1); 
-        }
-    };
-}
-
-export function throwOnFailure<const T>(result: Result<T>): asserts result is Success<T> {
-    if (!result.success) {
-        throw new Error('Operation failed');   
-    }
-}
-
-function createJsonEncodedQueryParams(input: object): string {
-    return Object.entries(input).map(([key, value]) => {
-        return `\${encodeURIComponent(key)}=\${encodeURIComponent(JSON.stringify(value))}`;
-    }).join('&');
-}
-
-async function callHooks<T, E extends object>(type: 'query'|'command', actionName: string, input: unknown, result: WithClientDirectives<Result<T, E>>): Promise<WithClientDirectives<Result<T, E>>> {
-    try {
-        await Promise.all(hooks.map(hook => hook(type, actionName, input, result)));
-        return result;  
-    } catch (error) {
-        console.error('Error while calling hooks', error);
-        return result;   
-    }
-}
-
-export async function executeOperation<I, O, E extends object>(type: 'query'|'command', fqn: string, input: I, options?: OperationOptions): Promise<WithClientDirectives<Result<O, E>>> {
-    const fetcher = customFetcher ?? fetch;
-    const fullyQualifiedPath = operationOptions.paths[type].replace('{fqn}', fqn);
-
-    const timeout = AbortSignal.timeout(options?.timeoutMs ?? operationOptions.timeoutMs);
-    const signal = options?.signal ? AbortSignal.any([options?.signal, timeout]) : timeout;
-
-    const headers: Record<string, string> = {
-        Accept: 'application/json',
-    };
-
-    if (type === 'command') {
-        headers['Content-Type'] = 'application/json';
-    }
-
-    const queryParams = type === 'query' && input && typeof input === 'object'
-        ? `?\${createJsonEncodedQueryParams(input)}`
-        : '';
-
-    const response = await fetcher(`\${fullyQualifiedPath}\${queryParams}`, {
-        method: type === 'query' ? 'GET': 'POST',
-        signal,
-        headers,
-        body: type === 'command' ? JSON.stringify(input) : undefined,
-    });
-
-    // ToDo: deal with response
-    const json = await response.json();
-    if (!json || typeof json !== 'object') {
-        throw new Error('Invalid response body. Could not parse json correctly.');
-    }
-
-    if (response.ok) {
-        return await callHooks(type, fqn, input, {...json, success: true} as WithClientDirectives<Success<O>>);
-    }
-
-    console.error('Request failed', response, json);
-    return await callHooks(type, fqn, input, {
-        ...json,
-        success: false,
-        code: json?.code ?? response.status,
-        type: response.type ?? 'INTERNAL_ERROR'
-    } as WithClientDirectives<Failure<E>>);
-}
- 
-TypeScript
-        );
+        file_put_contents("{$directory}/lib/bindings.ts", $this->getTemplate('bindings', [
+            '{queryRoute}' => $queryRoute,
+            '{commandRoute}' => $commandRoute,
+        ]));
     }
 
     private function generateErrorTypes(Operation $operation): ?string
@@ -266,7 +197,7 @@ TypeScript;
  */
 export function use{$queryFnName}Query(input: {$inputDefinition}, queryOptions?: Partial<{enabled: boolean}>) {
     return useQuery({
-        queryKey: [/* namespace */ {$namespace}, /* name */ {$name}, input],
+        queryKey: queryKey('{$operation->definition->fullyQualifiedName()}', input),
         queryFn: async ({signal}): Promise<{$outputDefinition}> => {
             const result = await {$operation->definition->name}(input, {signal});
             throwOnFailure(result);
