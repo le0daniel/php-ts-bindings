@@ -27,6 +27,7 @@ use RuntimeException;
 
 final class UserDefinedObjectConsumer implements TypeConsumer
 {
+    use InteractsWithGenerics;
 
     public function canConsume(ParserState $state): bool
     {
@@ -55,12 +56,14 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 
         $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
 
+        $assignedGenerics = $this->consumeGenerics($state, $parser);
+        $context = ParsingContext::fromClassReflection($reflectionClass, $assignedGenerics);
+
         $hasConstructor = $reflectionClass->getConstructor() !== null;
         if ($hasConstructor) {
-            return $this->parseConstructorStrategy($reflectionClass, $parser);
+            return $this->parseConstructorStrategy($reflectionClass, $parser, $context);
         }
 
-        $context = ParsingContext::fromClassReflection($reflectionClass);
         $properties = [];
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
             if ($property->isReadOnly() || $property->hasHooks()) {
@@ -104,10 +107,8 @@ final class UserDefinedObjectConsumer implements TypeConsumer
      * @param ReflectionClass<object> $reflectionClass
      * @throws InvalidSyntaxException
      */
-    private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser): CustomCastingNode
+    private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
     {
-        $context = ParsingContext::fromClassReflection($reflectionClass);
-
         /** @var array<PropertyNode> $structProperties */
         $structProperties = [];
 

@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Tests\Feature\Mocks\CreateObjectInput;
 use Tests\Feature\Mocks\CreateUserInput;
+use Tests\Feature\Mocks\Paginated;
 
 function prepare(string $type, string $mode = 'parse'): Closure
 {
@@ -39,32 +40,36 @@ function prepare(string $type, string $mode = 'parse'): Closure
     };
 }
 
+test("Schema with Paginated generic", function () {
+    $schema = prepare(Paginated::class . '<object{id: string, name: string}>', 'serialize');
+    expect($schema(new Paginated([(object)['name' => 'leo', "id" => "123", 'other' => "wow"]], 2)))->toBeSuccess();
+});
+
 test('Test Create User input schema', function () {
     $schema = prepare('string|int|' . CreateUserInput::class);
 
-    expect($schema('my string value'))->toBeSuccess();
-    expect($schema(-123))->toBeSuccess();
-    expect($schema([
-        'username' => 'my username',
-        'age' => 123,
-        'email' => 'my@mail.test',
-    ]))->toBeSuccess();
-
-    expect($schema([
-        'username' => 'my username',
-        'age' => 123,
-        'email' => 'my mail',
-    ]))->toBeFailureAt('email', 'validation.invalid_email');
+    expect($schema('my string value'))->toBeSuccess()
+        ->and($schema(-123))->toBeSuccess()
+        ->and($schema([
+            'username' => 'my username',
+            'age' => 123,
+            'email' => 'my@mail.test',
+        ]))->toBeSuccess()
+        ->and($schema([
+            'username' => 'my username',
+            'age' => 123,
+            'email' => 'my mail',
+        ]))->toBeFailureAt('email', 'validation.invalid_email');
 
     $createUser = $schema([
         'username' => 'my username',
         'age' => 123,
         'email' => 'my@mail.test',
     ])->value;
-    expect($createUser)->toBeInstanceOf(CreateUserInput::class);
-    expect($createUser->username)->toBe('my username');
-    expect($createUser->age)->toBe(123);
-    expect($createUser->email)->toBe('my@mail.test');
+    expect($createUser)->toBeInstanceOf(CreateUserInput::class)
+        ->and($createUser->username)->toBe('my username')
+        ->and($createUser->age)->toBe(123)
+        ->and($createUser->email)->toBe('my@mail.test');
 });
 
 test("Create user input schema", function () {

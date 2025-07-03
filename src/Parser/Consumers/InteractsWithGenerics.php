@@ -13,7 +13,7 @@ trait InteractsWithGenerics
 
     /**
      * @throws InvalidSyntaxException
-     * @return array<int, NodeInterface>
+     * @return NodeInterface[]
      */
     private function consumeGenerics(ParserState $state, TypeParser $parser, ?int $min = null, ?int $max = null): array
     {

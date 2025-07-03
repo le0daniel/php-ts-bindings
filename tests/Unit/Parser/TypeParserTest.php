@@ -2,9 +2,12 @@
 
 namespace Tests\Unit\Parser;
 
+use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
+use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
@@ -18,6 +21,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 use Le0daniel\PhpTsBindings\Validators\Email;
+use Tests\Feature\Mocks\Paginated;
 use Tests\Mocks\ResultEnum;
 use Tests\Unit\Parser\Data\Stubs\Address;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
@@ -475,4 +479,26 @@ test('Complex intersection', function () {
     expect($node)->toBeInstanceOf(IntersectionNode::class);
     compareToOptimizedAst($node);
     validateAst($node);
+});
+
+test('Generics parsing', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse(Paginated::class . '<array{id:string}>');
+    expect($node)->toBeInstanceOf(CustomCastingNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+
+    $typescriptGenerator = new TypescriptDefinitionGenerator();
+    $definition = $typescriptGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
+    expect($definition)->toBe('{items:Array<{id:string;}>;total:number;}');
+});
+
+test('fails on missing or too many generics', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    expect(fn() => $parser->parse(Paginated::class . '<array{id:string}, array{id:string}>'))
+        ->toThrow('Number of generics does not match. Expected 1 <I>, got 2.')
+        ->and(fn() => $parser->parse(Paginated::class))
+        ->toThrow('Number of generics does not match. Expected 1 <I>, got 0.');
+
 });

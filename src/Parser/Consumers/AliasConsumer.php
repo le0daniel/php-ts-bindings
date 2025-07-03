@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use ReflectionException;
 
 final class AliasConsumer implements TypeConsumer
 {
@@ -27,11 +28,12 @@ final class AliasConsumer implements TypeConsumer
         $token = $state->current();
         return $state->context->isLocalType($token->value)
             || $state->context->isImportedType($token->value)
+            || $state->context->isGeneric($token->value)
             || $this->globalTypeAliases->isGlobalAlias($token->value);
     }
 
     /**
-     * @throws InvalidSyntaxException
+     * @throws InvalidSyntaxException|ReflectionException
      */
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
@@ -40,6 +42,11 @@ final class AliasConsumer implements TypeConsumer
         if ($this->globalTypeAliases->isGlobalAlias($token->value)) {
             $state->advance();
             return $this->globalTypeAliases->getGlobalAlias($token->value);
+        }
+
+        if ($state->context->isGeneric($token->value)) {
+            $state->advance();
+            return $state->context->getGeneric($token->value);
         }
 
         // Recursive support for locally defined types using @phpstan-type.
