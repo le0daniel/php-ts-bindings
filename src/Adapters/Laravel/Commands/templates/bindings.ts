@@ -27,8 +27,9 @@ export async function executeOperation<I, O, E extends object>(type: 'query'|'co
         return await options.client.execute(type, fqn, input, options);
     }
 
-    if (!client) {
-        throw new Error('No client set');
+    if (client) {
+        return await client.execute(type, fqn, input, options);
     }
-    return await client.execute(type, fqn, input, options);
+
+    throw new Error('No client set');
 }

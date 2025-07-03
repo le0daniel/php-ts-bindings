@@ -5,8 +5,8 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Router;
 use JsonException;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Helpers\CodeGen\OperationDescription;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Utils\OperationDescription;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
@@ -113,7 +113,7 @@ TypeScript;
     /**
      * @param string $name
      * @param array<string, string> $params
-     * @return void
+     * @return string
      */
     private function getTemplate(string $name, array $params = []): string
     {
@@ -121,12 +121,6 @@ TypeScript;
         return str_replace(array_keys($params), array_values($params), $content);
     }
 
-    /**
-     * @param string $directory
-     * @param list<string> $namespaces
-     * @return void
-     * @throws JsonException
-     */
     private function generateOperationUtility(string $directory, Router $router): void
     {
         $queryRoute = str_replace('/{fqn}', '', $router->getRoutes()->getByName(LaravelHttpController::QUERY_NAME)->uri());

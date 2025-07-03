@@ -145,6 +145,8 @@ final readonly class LaravelHttpController
         if ($exception instanceof Failure) {
             return new JsonResponse(Arrays::filterNullValues([
                 'success' => false,
+                'type' => 'INTERNAL_SERVER_ERROR',
+                'code' => 500,
                 'message' => 'Internal server error.',
                 '__debug' => $isDebugEnables ? $exception->issues->serializeToDebugFields() : null,
                 '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
@@ -164,6 +166,7 @@ final readonly class LaravelHttpController
             return new JsonResponse(Arrays::filterNullValues([
                 'success' => false,
                 'type' => $exception::type(),
+                'code' => $exception::code(),
                 'data' => $exception instanceof ExposesClientData ? $exception->serializeToResult() : null,
                 '__debug' => $debugData,
                 '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
@@ -172,6 +175,8 @@ final readonly class LaravelHttpController
 
         return new JsonResponse(Arrays::filterNullValues([
             'success' => false,
+            'type' => 'INTERNAL_SERVER_ERROR',
+            'code' => 500,
             'message' => 'Internal server error.',
             '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
             '__debug' => $debugData,
@@ -184,6 +189,7 @@ final readonly class LaravelHttpController
         return new JsonResponse(Arrays::filterNullValues([
             'success' => false,
             'type' => 'INVALID_INPUT',
+            'code' => 422,
             'data' => $failure->issues->serializeToFieldsArray(),
             '__debug' => $isDebugEnabled ? $failure->issues->serializeToDebugFields() : null,
         ]), 422);

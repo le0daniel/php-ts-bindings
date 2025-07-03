@@ -3,7 +3,7 @@ export type QUERY_MAP = {namespace: 'one'|'two'};
 export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number;};
 export type FullyQualifiedName = `${string}.${string}`;
 
-type InternalError = {code: 500;type: "INTERNAL_ERROR"}
+type InternalError = {code: 500;type: "INTERNAL_SERVER_ERROR"}
 type InvalidInputError = {code: 422;type: "INVALID_INPUT";data: Record<string, string[]>;}
 type AuthenticationError = {code: 401;type: "UNAUTHENTICATED";}
 type AuthorizationError = {code: 403;type: "UNAUTHORIZED";}

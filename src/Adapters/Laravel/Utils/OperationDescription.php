@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Helpers\CodeGen;
+namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Utils;
 
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Operations\Data\Operation;
