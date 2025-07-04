@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
 use Illuminate\Console\Command;
+use Le0daniel\PhpTsBindings\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\JustInTimeDiscoveryRegistry;
 use RuntimeException;
@@ -19,7 +20,7 @@ final class OptimizeCommand extends Command
         }
 
         try {
-            $registry->writeToCache(base_path('bootstrap/cache/operations.php'));
+            CachedOperationRegistry::writeToCache($registry, base_path('bootstrap/cache/operations.php'));
             require base_path('bootstrap/cache/operations.php');
         } catch (\Throwable $e) {
             unlink(base_path('bootstrap/cache/operations.php'));

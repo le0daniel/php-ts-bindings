@@ -40,7 +40,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         });
 
         $this->app->singleton(OperationRegistry::class, function (Application $app) {
-            if ($this->app->runningInConsole() || !file_exists(app_path('bootstrap/cache/operations.php'))) {
+            if ($this->app->runningInConsole() || !file_exists(base_path('bootstrap/cache/operations.php'))) {
                 /** @var Repository $config */
                 $config = $app->make('config');
                 return JustInTimeDiscoveryRegistry::eagerlyDiscover(
@@ -50,7 +50,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
             }
 
             // Gets the cached version
-            return require app_path('bootstrap/cache/operations.php');
+            return require base_path('bootstrap/cache/operations.php');
         });
 
         $this->app->when(LaravelHttpController::class)
