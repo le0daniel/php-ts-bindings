@@ -1,5 +1,8 @@
-import {Hook, OperationClient} from "./OperationClient";
+import {OperationClient} from "./OperationClient";
 import {Failure, FullyQualifiedName, OperationOptions, Result, Success, WithClientDirectives} from "./types";
+
+export type Hook = (result: WithClientDirectives<Result<unknown, object>>) => Promise<void> | void;
+
 
 export class DefaultClient implements OperationClient {
 
@@ -34,9 +37,9 @@ export class DefaultClient implements OperationClient {
         }).join('&');
     }
 
-    private async callHooks<const T extends Result<unknown, object>>(type: 'query' | 'command', fqn: FullyQualifiedName, input: unknown, result: WithClientDirectives<T>) {
+    private async callHooks<const T extends Result<unknown, object>>(result: WithClientDirectives<T>) {
         try {
-            await Promise.all(this.hooks.map(hook => hook(type, fqn, input, result)));
+            await Promise.all(this.hooks.map(hook => hook(result)));
             return result;
         } catch (error) {
             console.error('Error while calling hooks', error);
@@ -80,11 +83,11 @@ export class DefaultClient implements OperationClient {
         }
 
         if (response.ok) {
-            return await this.callHooks(type, fullyQualifiedName, input, {...json, success: true} as WithClientDirectives<Success<O>>);
+            return await this.callHooks({...json, success: true} as WithClientDirectives<Success<O>>);
         }
 
         console.error('Request failed', response, json);
-        return await this.callHooks(type, fullyQualifiedName, input, {
+        return await this.callHooks({
             ...json,
             success: false,
             code: json?.code ?? response.status,
