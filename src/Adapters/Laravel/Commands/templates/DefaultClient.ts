@@ -74,7 +74,6 @@ export class DefaultClient implements OperationClient {
             body: type === 'command' ? JSON.stringify(input) : undefined,
         });
 
-        // ToDo: deal with response
         const json = await response.json();
         if (!json || typeof json !== 'object') {
             throw new Error('Invalid response body. Could not parse json correctly.');
