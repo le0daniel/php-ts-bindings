@@ -67,7 +67,7 @@ export class DefaultClient implements OperationClient {
             ? `?${this.createJsonEncodedQueryParams(input)}`
             : '';
 
-        const response = await (this.fetcher)(`${fullPath}${queryParams}`, {
+        const response = await this.fetcher(`${fullPath}${queryParams}`, {
             method: type === 'query' ? 'GET': 'POST',
             signal,
             headers,
