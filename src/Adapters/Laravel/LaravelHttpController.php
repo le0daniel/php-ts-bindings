@@ -81,7 +81,7 @@ final readonly class LaravelHttpController
             'query' => array_map(static function (string $value): mixed {
                 try {
                     return json_decode($value, flags: JSON_THROW_ON_ERROR);
-                } catch (Throwable $exception) {
+                } catch (Throwable) {
                     return $value;
                 }
             }, $request->query->all()),
@@ -189,6 +189,21 @@ final readonly class LaravelHttpController
             '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
             '__debug' => $debugData,
         ]), 500);
+    }
+
+    private function produceOperationNotFoundResponse(string $type, string $fcn): JsonResponse
+    {
+        $isDebugEnabled = $this->config->get('app.debug');
+        return new JsonResponse(Arrays::filterNullValues([
+        'success' => false,
+            'type' => 'NOT_FOUND',
+            'code' => 404,
+            'message' => 'Internal server error.',
+            '__debug' => $isDebugEnabled ? [
+                'message' => "Could not find {$type}: {$fcn}",
+                'hint' => "Make sure to enable it correctly.",
+            ] : null,
+        ]), 404);
     }
 
     private function produceInvalidInputResponse(Failure $failure): JsonResponse

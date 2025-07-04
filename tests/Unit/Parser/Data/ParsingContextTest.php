@@ -26,7 +26,7 @@ test('from class reflection', function () {
             'UserWithData' => 'array{id: int, name: string, age: int, address: AddressInputData}',
         ])
         ->and($context->importedTypes)
-        ->toBe([
+        ->toEqual([
             'AddressInputData' => [
                 'className' => 'Tests\Unit\Parser\Data\Stubs\Address',
                 'typeName' => 'AddressInput',

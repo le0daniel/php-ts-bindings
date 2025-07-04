@@ -14,14 +14,6 @@ use RuntimeException;
  */
 final readonly class ParsingContext
 {
-    private const array REGEX_PARTS = [
-        '{cn}' => '[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*',
-        '{fqcn}' => '\\\\?[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*(\\\\[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)*',
-    ];
-    private const string LOCAL_TYPE_REGEX = "/@phpstan-type\s+(?<typeName>[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)\s+(?<typeDefinition>[^@]+)/m";
-    private const string IMPORTED_TYPE_REGEX = '/@phpstan-import-type\s+(?<typeName>{cn})\s+from\s+(?<fromClass>{fqcn})(\s+as\s+(?<alias>{cn}))?/';
-    private const string GENERICS_TYPE_REGEX = '/@template\s+(?<genericName>{cn})/';
-
     /**
      * @param string|null $namespace
      * @param array<string, class-string> $usedNamespaceMap
@@ -57,16 +49,6 @@ final readonly class ParsingContext
     public function isLocalType(string $typeName): bool
     {
         return array_key_exists($typeName, $this->localTypes);
-    }
-
-    private static function compileRegex(string $regex): string
-    {
-        return str_replace(array_keys(self::REGEX_PARTS), array_values(self::REGEX_PARTS), $regex);
-    }
-
-    public static function regex(): string
-    {
-        return self::compileRegex(self::IMPORTED_TYPE_REGEX);
     }
 
     /**
@@ -122,8 +104,8 @@ final readonly class ParsingContext
         return new self(
             $namespace,
             $useNamespaceMap,
-            self::findLocallyDefinedTypes($class->getDocComment()),
-            self::findImportedTypeDefinition($class->getDocComment(), $namespace, $useNamespaceMap),
+            Utils\PhpDoc::findLocallyDefinedTypes($class->getDocComment()),
+            self::findFullyQualifiedImportedTypes($class->getDocComment(), $namespace, $useNamespaceMap),
             self::assignGenerics($class->getDocComment(), $generics),
         );
     }
@@ -142,8 +124,8 @@ final readonly class ParsingContext
         return new self(
             $reflector->getNamespace(),
             $useNamespaceMap,
-            self::findLocallyDefinedTypes($class->getDocComment()),
-            self::findImportedTypeDefinition($class->getDocComment(), $namespace, $useNamespaceMap),
+            Utils\PhpDoc::findLocallyDefinedTypes($class->getDocComment()),
+            self::findFullyQualifiedImportedTypes($class->getDocComment(), $namespace, $useNamespaceMap),
             self::assignGenerics($class->getDocComment(), $generics),
         );
     }
@@ -154,28 +136,12 @@ final readonly class ParsingContext
      * @param array<string, class-string> $usedNamespaces
      * @return array<string,ImportedType>
      */
-    private static function findImportedTypeDefinition(null|false|string $docBlock, ?string $namespace, array $usedNamespaces): array
+    private static function findFullyQualifiedImportedTypes(null|false|string $docBlock, ?string $namespace, array $usedNamespaces): array
     {
-        if (empty($docBlock)) {
-            return [];
-        }
-
-        $importedTypes = [];
-        foreach (explode(PHP_EOL, $docBlock) as $line) {
-            $matches = [];
-            if (preg_match(self::compileRegex(self::IMPORTED_TYPE_REGEX), $line, $matches) !== 1) {
-                continue;
-            }
-
-            $importedTypeName = $matches['typeName'];
-            $fromClass = Utils\Namespaces::toFullyQualifiedClassName($matches['fromClass'], $namespace, $usedNamespaces);
-            $localAlias = $matches['alias'] ?? null;
-            $importedTypes[$localAlias ?? $importedTypeName] = [
-                'className' => $fromClass,
-                'typeName' => $importedTypeName,
-            ];
-        }
-        return $importedTypes;
+        return array_map(fn(array $import) => [
+            'typeName' => $import['typeName'],
+            'className' => Utils\Namespaces::toFullyQualifiedClassName($import['className'], $namespace, $usedNamespaces),
+        ], Utils\PhpDoc::findImportedTypeDefinition($docBlock));
     }
 
     /**
@@ -184,7 +150,7 @@ final readonly class ParsingContext
      */
     private static function assignGenerics(null|false|string $docBlock, array $generics): array
     {
-        $declaredGenerics = self::findGenerics($docBlock);
+        $declaredGenerics = Utils\PhpDoc::findGenerics($docBlock);
         if (count($declaredGenerics) !== count($generics)) {
             $declaredGenericNames = implode(', ', $declaredGenerics);
             $expectedCount = count($declaredGenerics);
@@ -198,56 +164,5 @@ final readonly class ParsingContext
             $assignedGenerics[$genericName] = $generics[$index];
         }
         return $assignedGenerics;
-    }
-
-    /**
-     * @return list<string>
-     */
-    private static function findGenerics(null|false|string $docBlock): array
-    {
-        if (empty($docBlock)) {
-            return [];
-        }
-
-        $matches = [];
-        $result = preg_match_all(
-            self::compileRegex(self::GENERICS_TYPE_REGEX),
-            Utils\PhpDoc::normalize($docBlock),
-            $matches,
-            PREG_SET_ORDER
-        );
-
-        if (!$result) {
-            return [];
-        }
-
-        return array_map(fn(array $match): string => $match['genericName'], $matches);
-    }
-
-    /** @return array<string,string> */
-    private static function findLocallyDefinedTypes(null|false|string $docBlock): array
-    {
-        if (empty($docBlock)) {
-            return [];
-        }
-
-        $matches = [];
-        $result = preg_match_all(
-            self::compileRegex(self::LOCAL_TYPE_REGEX),
-            Utils\PhpDoc::normalize($docBlock),
-            $matches,
-            PREG_SET_ORDER
-        );
-
-        if (!$result) {
-            return [];
-        }
-
-        $localTypes = [];
-        foreach ($matches as $match) {
-            $localTypes[$match['typeName']] = trim(str_replace(PHP_EOL, ' ', $match['typeDefinition']));
-        }
-
-        return $localTypes;
     }
 }
