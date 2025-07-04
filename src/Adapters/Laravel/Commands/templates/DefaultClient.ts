@@ -56,6 +56,7 @@ export class DefaultClient implements OperationClient {
 
         const headers: Record<string, string> = {
             Accept: 'application/json',
+            "X-Client-ID": "operations-spa"
         };
 
         if (type === 'command') {
