@@ -23,6 +23,7 @@ final class OptimizeCommand extends Command
             require base_path('bootstrap/cache/operations.php');
         } catch (\Throwable $e) {
             unlink(base_path('bootstrap/cache/operations.php'));
+            return 1;
         }
 
         return 0;
