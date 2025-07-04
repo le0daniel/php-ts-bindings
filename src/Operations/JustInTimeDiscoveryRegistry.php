@@ -2,47 +2,69 @@
 
 namespace Le0daniel\PhpTsBindings\Operations;
 
+use Closure;
 use Le0daniel\PhpTsBindings\Discovery\DiscoveryManager;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\Data\Operation;
-use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
-use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use ReflectionClass;
 use ReflectionException;
 
 final class JustInTimeDiscoveryRegistry implements OperationRegistry
 {
-    private bool $isLoaded = false;
-    private OperationDiscovery $discovery;
+    /**
+     * @var array<string, Operation>
+     */
+    private array $instances = [];
 
+    /**
+     * @param array<string, Closure(): Operation> $factories
+     */
     public function __construct(
-        private readonly string     $directory,
-        private readonly TypeParser $parser,
+        private readonly array $factories,
     )
     {
-        $this->discovery = new OperationDiscovery();
     }
 
-    private function ensureIsDiscovered(): void
+    /**
+     * @param TypeParser $parser
+     * @param string|string[] $directories
+     * @return self
+     */
+    public static function eagerlyDiscover(TypeParser $parser, string|array $directories): self
     {
-        if (!$this->isLoaded) {
-            new DiscoveryManager([$this->discovery,])->discover($this->directory);
-            $this->isLoaded = true;
+        $directories = is_array($directories) ? $directories : [$directories];
+        $collector = new OperationDiscovery();
+        $discoverer = new DiscoveryManager([$collector]);
+        foreach ($directories as $directory) {
+            $discoverer->discover($directory);
         }
+
+        $factories = [];
+        foreach ([...$collector->queries, ...$collector->commands] as $definition) {
+            $factories["{$definition->type}@{$definition->fullyQualifiedName()}"] = static function () use ($definition, $parser) {
+                $classReflection = new ReflectionClass($definition->fullyQualifiedClassName);
+                $inputParameter = $classReflection->getMethod($definition->methodName)->getParameters()[0];
+
+                $parsingContext = ParsingContext::fromClassReflection($classReflection);
+                $input = fn() => $parser->parse(TypeReflector::reflectParameter($inputParameter), $parsingContext);
+                $output = fn() => $parser->parse(TypeReflector::reflectReturnType($classReflection->getMethod($definition->methodName)), $parsingContext);
+
+                return new Operation($definition, $input, $output);
+            };
+        }
+
+        return new self($factories);
     }
 
     public function has(string $type, string $fullyQualifiedKey): bool
     {
-        $this->ensureIsDiscovered();
-        return match ($type) {
-            'command' => array_key_exists($fullyQualifiedKey, $this->discovery->commands),
-            'query' => array_key_exists($fullyQualifiedKey, $this->discovery->queries),
-        };
+        $key = "{$type}@{$fullyQualifiedKey}";
+        return array_key_exists($key, $this->factories);
     }
 
     /**
@@ -50,34 +72,19 @@ final class JustInTimeDiscoveryRegistry implements OperationRegistry
      */
     public function get(string $type, string $fullyQualifiedKey): Operation
     {
-        $this->ensureIsDiscovered();
-        $definition = match ($type) {
-            'command' => $this->discovery->commands[$fullyQualifiedKey],
-            'query' => $this->discovery->queries[$fullyQualifiedKey],
-        };
-
-        $classReflection = new ReflectionClass($definition->fullyQualifiedClassName);
-        $inputParameter = $classReflection->getMethod($definition->methodName)->getParameters()[0];
-
-        $parsingContext = ParsingContext::fromClassReflection($classReflection);
-        $input = fn() => $this->parser->parse(TypeReflector::reflectParameter($inputParameter), $parsingContext);
-        $output = fn() => $this->parser->parse(TypeReflector::reflectReturnType($classReflection->getMethod($definition->methodName)), $parsingContext);
-
-        return new Operation($definition, $input, $output);
+        $key = "{$type}@{$fullyQualifiedKey}";
+        return $this->instances[$key] ??= $this->factories[$key]();
     }
 
     public function writeToCache(string $filePath): void
     {
-        $this->ensureIsDiscovered();
-
-        /** @var OperationDefinition[] $allOperations */
-        $allOperations = [...$this->discovery->queries, ...$this->discovery->commands];
         $endpointClass = PHPExport::absolute(Operation::class);
 
         $endpoints = [];
         $asts = [];
-        foreach ($allOperations as $operation) {
-            $endpoint = $this->get($operation->type, $operation->fullyQualifiedName());
+        foreach ($this->all() as $endpoint) {
+            $operation = $endpoint->definition;
+
             $inputAstName = "{$operation->type}:{$endpoint->definition->fullyQualifiedClassName}#input";
             $outputAstName = "{$operation->type}:{$endpoint->definition->fullyQualifiedClassName}#output";
 
@@ -105,15 +112,12 @@ PHP
 
     /**
      * @return Operation[]
-     * @throws ReflectionException
      */
     public function all(): array
     {
-        $this->ensureIsDiscovered();
-        /** @var OperationDefinition[] $allOperations */
-        $allOperations = [...$this->discovery->queries, ...$this->discovery->commands];
-        return array_map(fn(OperationDefinition $operation) => $this->get($operation->type, $operation->fullyQualifiedName()),
-            $allOperations
-        );
+        foreach ($this->factories as $key => $factory) {
+            $this->instances[$key] ??= $factory();
+        }
+        return array_values($this->instances);
     }
 }

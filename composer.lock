@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c3a6dbdc63b26788d2885a48a4cfec69",
+    "content-hash": "814709d575e4c353623db3319a676879",
     "packages": [],
     "packages-dev": [
         {
@@ -3075,16 +3075,16 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/pestphp/pest.git",
-                "reference": "af3fdceddb937ac894b6e59b75921e46f50cf3f0"
+                "reference": "73bf579da32e1c9c6b820a5adf85fc69f76549fc"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/pestphp/pest/zipball/af3fdceddb937ac894b6e59b75921e46f50cf3f0",
-                "reference": "af3fdceddb937ac894b6e59b75921e46f50cf3f0",
+                "url": "https://api.github.com/repos/pestphp/pest/zipball/73bf579da32e1c9c6b820a5adf85fc69f76549fc",
+                "reference": "73bf579da32e1c9c6b820a5adf85fc69f76549fc",
                 "shasum": ""
             },
             "require": {
-                "brianium/paratest": "^7.10.2",
+                "brianium/paratest": "^7.10.3",
                 "nunomaduro/collision": "^8.8.2",
                 "nunomaduro/termwind": "^2.3.1",
                 "pestphp/pest-plugin": "^4.0.0",
@@ -3092,7 +3092,8 @@
                 "pestphp/pest-plugin-mutate": "^4.0.0",
                 "pestphp/pest-plugin-profanity": "^4.0.0",
                 "php": "^8.3.0",
-                "phpunit/phpunit": "^12.2.5"
+                "phpunit/phpunit": "^12.2.5",
+                "symfony/process": "^7.3"
             },
             "conflict": {
                 "filp/whoops": "<2.16.0",
@@ -3103,8 +3104,7 @@
             "require-dev": {
                 "pestphp/pest-dev-tools": "^4.0.0",
                 "pestphp/pest-plugin-browser": "^4.0.0",
-                "pestphp/pest-plugin-type-coverage": "^4.0.0",
-                "symfony/process": "^7.3.0"
+                "pestphp/pest-plugin-type-coverage": "^4.0.0"
             },
             "bin": [
                 "bin/pest"
@@ -3130,6 +3130,7 @@
                         "Pest\\Plugins\\Snapshot",
                         "Pest\\Plugins\\Verbose",
                         "Pest\\Plugins\\Version",
+                        "Pest\\Plugins\\Shard",
                         "Pest\\Plugins\\Parallel"
                     ]
                 },
@@ -3181,7 +3182,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-06-28T17:31:45+00:00"
+            "time": "2025-07-01T23:26:15+00:00"
         },
         {
             "name": "pestphp/pest-plugin",
@@ -3874,12 +3875,12 @@
             "source": {
                 "type": "git",
                 "url": "https://github.com/phpstan/phpstan.git",
-                "reference": "c883a90ec7ed3b379b8400ccb1d3f0bce9315a7d"
+                "reference": "49e882f6527b1487100223a512f20a6d7f6f735a"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/c883a90ec7ed3b379b8400ccb1d3f0bce9315a7d",
-                "reference": "c883a90ec7ed3b379b8400ccb1d3f0bce9315a7d",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/49e882f6527b1487100223a512f20a6d7f6f735a",
+                "reference": "49e882f6527b1487100223a512f20a6d7f6f735a",
                 "shasum": ""
             },
             "require": {
@@ -3925,7 +3926,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2025-06-26T12:22:20+00:00"
+            "time": "2025-07-02T14:25:42+00:00"
         },
         {
             "name": "phpunit/php-code-coverage",
@@ -8489,9 +8490,9 @@
     },
     "prefer-stable": true,
     "prefer-lowest": false,
-    "platform": {},
-    "platform-dev": {
+    "platform": {
         "php": "^8.4"
     },
+    "platform-dev": {},
     "plugin-api-version": "2.6.0"
 }

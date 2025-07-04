@@ -5,7 +5,6 @@ namespace Le0daniel\PhpTsBindings\Operations;
 use Closure;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\Data\Operation;
-use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
 
 final class CachedOperationRegistry implements OperationRegistry
 {

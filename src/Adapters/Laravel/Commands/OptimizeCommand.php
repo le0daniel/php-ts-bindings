@@ -18,7 +18,13 @@ final class OptimizeCommand extends Command
             throw new RuntimeException('Cannot optimize a registry that is not a JustInTimeDiscoveryRegistry');
         }
 
-        $registry->writeToCache(base_path('bootstrap/cache/operations.php'));
+        try {
+            $registry->writeToCache(base_path('bootstrap/cache/operations.php'));
+            require base_path('bootstrap/cache/operations.php');
+        } catch (\Throwable $e) {
+            unlink(base_path('bootstrap/cache/operations.php'));
+        }
+
         return 0;
     }
 }
