@@ -32,9 +32,11 @@ export class DefaultClient implements OperationClient {
             return '';
         }
 
-        return Object.entries(input).map(([key, value]) => {
-            return `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}`;
-        }).join('&');
+        return Object.entries(input)
+            .filter(([key, value]) => value !== undefined)
+            .map(([key, value]) => {
+                return `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}`;
+            }).join('&');
     }
 
     private async callHooks<const T extends Result<unknown, object>>(result: WithClientDirectives<T>) {
@@ -71,7 +73,7 @@ export class DefaultClient implements OperationClient {
             : '';
 
         const response = await this.fetcher(`${fullPath}${queryParams}`, {
-            method: type === 'query' ? 'GET': 'POST',
+            method: type === 'query' ? 'GET' : 'POST',
             signal,
             headers,
             body: type === 'command' ? JSON.stringify(input) : undefined,
