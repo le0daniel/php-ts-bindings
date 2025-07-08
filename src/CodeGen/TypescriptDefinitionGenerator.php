@@ -47,7 +47,10 @@ final class TypescriptDefinitionGenerator
         );
 
         $properties = array_map(
-            fn(PropertyNode $property) => "{$property->name}:{$this->toDefinition($property->node, $target)};",
+            function (PropertyNode $property) use ($target): string {
+                $optional = $property->isOptional ? '?' : '';
+                return "{$property->name}{$optional}:{$this->toDefinition($property->node, $target)};";
+            },
             $filteredProperties,
         );
 
