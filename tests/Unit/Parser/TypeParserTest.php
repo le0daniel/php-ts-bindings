@@ -25,6 +25,7 @@ use Tests\Feature\Mocks\Paginated;
 use Tests\Mocks\ResultEnum;
 use Tests\Unit\Parser\Data\Stubs\Address;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
+use Tests\Unit\Parser\Data\Stubs\ReadonlyOutputFields;
 
 
 test('test simple union', function () {
@@ -491,6 +492,18 @@ test('Generics parsing', function () {
     $typescriptGenerator = new TypescriptDefinitionGenerator();
     $definition = $typescriptGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
     expect($definition)->toBe('{items:Array<{id:string;}>;total:number;}');
+});
+
+test('Generics parsing with readonly output properties', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse(ReadonlyOutputFields::class);
+    expect($node)->toBeInstanceOf(CustomCastingNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+
+    $typescriptGenerator = new TypescriptDefinitionGenerator();
+    $definition = $typescriptGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
+    expect($definition)->toBe('{email:string;name:string;}');
 });
 
 test('fails on missing or too many generics', function () {

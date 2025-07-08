@@ -132,7 +132,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
                 $property->name,
                 $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
                 false,
-                PropertyType::INPUT,
+                PropertyType::OUTPUT,
             );
         }
 
