@@ -140,6 +140,7 @@ final class StructHandler implements Handler
     {
         return match (true) {
             is_array($input) => array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED,
+            is_object($input) && method_exists($input, '__isset') && method_exists($input, '__get') => $input->__isset($key) ? $input->__get($key) : Value::UNDEFINED,
             $input instanceof ArrayAccess => $input->offsetExists($key) ? $input[$key] : Value::UNDEFINED,
             is_object($input) => property_exists($input, $key) ? $input->{$key} : Value::UNDEFINED,
             default => Value::INVALID,
