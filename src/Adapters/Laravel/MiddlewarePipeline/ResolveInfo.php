@@ -5,7 +5,7 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline;
 final class ResolveInfo
 {
     public string $fullyQualifiedName {
-        get => "{$this->namespace}.{$this->fullyQualifiedName}";
+        get => "{$this->namespace}.{$this->name}";
     }
 
     public function __construct(
