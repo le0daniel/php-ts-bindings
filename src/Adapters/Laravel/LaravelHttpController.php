@@ -18,11 +18,12 @@ use Illuminate\Routing\Route;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades;
 use JsonSerializable;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\NullClient;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\Client;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline\MiddlewarePipeline;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline\ResolveInfo;
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExposesClientData;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
@@ -126,10 +127,17 @@ final readonly class LaravelHttpController
         $context = $this->createContext($request);
         $controllerClass = $app->make($operation->definition->fullyQualifiedClassName);
         $pipeline = new MiddlewarePipeline($app, $operation->definition->middleware);
+        $resolveInfo = new ResolveInfo(
+            $operation->definition->namespace,
+            $operation->definition->name,
+            $operation->definition->type,
+            $operation->definition->fullyQualifiedClassName,
+            $operation->definition->methodName,
+        );
 
         try {
             /** @var Success $result */
-            $result = $pipeline->execute($input->value, $context, $client, function (mixed $input, mixed $context, Client $client) use ($controllerClass, $operation) {
+            $result = $pipeline->execute($input->value, [$context, $resolveInfo], function (mixed $input) use ($controllerClass, $client, $operation, $context) {
                 $result = $controllerClass->{$operation->definition->methodName}($input, $context, $client);
                 $response = $this->executor->serialize($operation->outputNode(), $result);
 
@@ -230,7 +238,7 @@ final readonly class LaravelHttpController
     {
         $isDebugEnabled = $this->config->get('app.debug');
         return new JsonResponse(Arrays::filterNullValues([
-        'success' => false,
+            'success' => false,
             'type' => 'NOT_FOUND',
             'code' => 404,
             'message' => 'Internal server error.',
