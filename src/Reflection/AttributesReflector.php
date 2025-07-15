@@ -2,16 +2,15 @@
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
-use Attribute;
 use ReflectionAttribute;
 use RuntimeException;
 
-final class AttributesReflector
+final readonly class AttributesReflector
 {
     /**
      * @param list<ReflectionAttribute<object>> $attributes
      */
-    public function __construct(private readonly array $attributes)
+    public function __construct(private array $attributes)
     {
     }
 
