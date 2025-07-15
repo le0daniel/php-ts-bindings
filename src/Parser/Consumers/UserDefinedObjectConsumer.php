@@ -101,8 +101,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
         $castingStrategy = $this->determineCastingStrategy($reflectionClass);
 
-        $assignedGenerics = $this->consumeGenerics($state, $parser);
-        $context = ParsingContext::fromClassReflection($reflectionClass, $assignedGenerics);
+        $context = ParsingContext::fromClassReflection($reflectionClass, $this->consumeGenerics($state, $parser));
 
         return match ($castingStrategy) {
             ObjectCastStrategy::NEVER => $this->parseNeverStrategy($reflectionClass, $parser, $context),
