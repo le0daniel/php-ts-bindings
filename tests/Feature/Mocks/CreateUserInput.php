@@ -2,9 +2,11 @@
 
 namespace Tests\Feature\Mocks;
 
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Validators\Email;
-use Le0daniel\PhpTsBindings\Validators\NonEmptyString;
 
+#[Castable]
 final class CreateUserInput
 {
     public string $username;

@@ -26,6 +26,7 @@ use Tests\Mocks\ResultEnum;
 use Tests\Unit\Parser\Data\Stubs\Address;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 use Tests\Unit\Parser\Data\Stubs\ReadonlyOutputFields;
+use Tests\Unit\Parser\Data\Stubs\UncastableClass;
 
 
 test('test simple union', function () {
@@ -503,7 +504,22 @@ test('Generics parsing with readonly output properties', function () {
 
     $typescriptGenerator = new TypescriptDefinitionGenerator();
     $definition = $typescriptGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($definition)->toBe('{email:string;name:string;}');
+    expect($definition)->toBe('{name:string;email:string;}');
+});
+
+test('Do not cast in default mode', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse(UncastableClass::class);
+    expect($node)->toBeInstanceOf(CustomCastingNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+
+    $typescriptGenerator = new TypescriptDefinitionGenerator();
+    $inputDef = $typescriptGenerator->toDefinition($node, DefinitionTarget::INPUT);
+    $outputDef = $typescriptGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
+
+    expect($inputDef)->toBe('never');
+    expect($outputDef)->toBe('{email:string;name:string;}');
 });
 
 test('fails on missing or too many generics', function () {

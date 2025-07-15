@@ -54,6 +54,10 @@ final class CustomClassHandler implements Handler
     /** @param CustomCastingNode $node */
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
+        if ($node->strategy === ObjectCastStrategy::NEVER) {
+            return Value::INVALID;
+        }
+
         $arrayValue = $executor->executeParse($node->node, $value, $context);
         if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
             return Value::INVALID;
