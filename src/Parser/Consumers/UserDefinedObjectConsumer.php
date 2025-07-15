@@ -18,6 +18,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use ReflectionAttribute;
@@ -43,28 +44,27 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             return false;
         }
 
-        $fqcn = $state->context->toFullyQualifiedClassName($state->current()->value);
+        $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
 
-        if (!class_exists($fqcn)) {
+        if (!class_exists($fullyQualifiedClassName)) {
             return false;
         }
 
-        $reflectionClass = new ReflectionClass($fqcn);
-        return new ReflectionClass($fqcn)->isUserDefined() && $reflectionClass->isInstantiable();
+        $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
+        return new ReflectionClass($fullyQualifiedClassName)->isUserDefined() && $reflectionClass->isInstantiable();
     }
 
     /** @param ReflectionClass<object> $class */
     private function determineCastingStrategy(ReflectionClass $class): ObjectCastStrategy
     {
-        $outputOnly = count($class->getAttributes(OutputOnly::class)) === 1;
-        if ($outputOnly) {
+        $attributes = new AttributesReflector($class->getAttributes());
+
+        if ($attributes->has(OutputOnly::class)) {
             return ObjectCastStrategy::NEVER;
         }
 
-        $castingAttribute = $class->getAttributes(Castable::class);
-        if (count($castingAttribute) === 1) {
-            /** @var Castable $instance */
-            $instance = $castingAttribute[0]->newInstance();
+        if ($attributes->has(Castable::class)) {
+            $instance = $attributes->getSingleInstance(Castable::class);
             return $instance->strategy ?? $this->findCastingStrategy($class);
         }
 
