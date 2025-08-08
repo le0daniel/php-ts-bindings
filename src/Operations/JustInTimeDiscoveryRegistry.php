@@ -6,11 +6,9 @@ use Closure;
 use Le0daniel\PhpTsBindings\Discovery\DiscoveryManager;
 use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Operations\Data\Operation;
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
-use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use ReflectionClass;
 use ReflectionException;
 
