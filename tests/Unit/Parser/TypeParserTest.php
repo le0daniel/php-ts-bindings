@@ -472,6 +472,42 @@ test('Simple intersection', function () {
     validateAst($node);
 });
 
+test('Tailing comma', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var IntersectionNode $node */
+    $node = $parser->parse('array{id:string,}');
+    expect($node)->toBeInstanceOf(StructNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+});
+
+test('Tailing comma on object struct', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var IntersectionNode $node */
+    $node = $parser->parse('object{id:string,}');
+    expect($node)->toBeInstanceOf(StructNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+});
+
+test('Tailing comma tuple', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var IntersectionNode $node */
+    $node = $parser->parse('array{string, string,}');
+    expect($node)->toBeInstanceOf(TupleNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+});
+
+test('Tailing comma tuple with integer keys', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var IntersectionNode $node */
+    $node = $parser->parse('array{0:string, 1:string,}');
+    expect($node)->toBeInstanceOf(TupleNode::class);
+    compareToOptimizedAst($node);
+    validateAst($node);
+});
+
 test('Complex intersection', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
     /** @var IntersectionNode $node */

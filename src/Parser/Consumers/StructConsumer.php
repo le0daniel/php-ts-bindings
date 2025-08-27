@@ -61,6 +61,13 @@ final class StructConsumer implements TypeConsumer
             if ($state->current()->is(TokenType::RBRACE)) {
                 break;
             }
+
+            // Accept tailing comma
+            if ($state->current()->is(TokenType::COMMA) && $state->nextTokenIs(TokenType::RBRACE)) {
+                $state->advance();
+                break;
+            }
+
             $state->advance();
         }
 

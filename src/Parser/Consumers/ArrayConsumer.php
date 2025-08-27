@@ -139,6 +139,11 @@ final readonly class ArrayConsumer implements TypeConsumer
                 break;
             }
 
+            if ($state->currentTokenIs(TokenType::COMMA) && $state->nextTokenIs(TokenType::RBRACE)) {
+                $state->advance();
+                break;
+            }
+
             if ($state->currentTokenIs(TokenType::COMMA)) {
                 $state->advance();
                 continue;
@@ -180,6 +185,11 @@ final readonly class ArrayConsumer implements TypeConsumer
             $types[] = $parser->consume($state, TokenType::COMMA, TokenType::RBRACE);
 
             if ($state->currentTokenIs(TokenType::RBRACE)) {
+                break;
+            }
+
+            if ($state->currentTokenIs(TokenType::COMMA) && $state->nextTokenIs(TokenType::RBRACE)) {
+                $state->advance();
                 break;
             }
 

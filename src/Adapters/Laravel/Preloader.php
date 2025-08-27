@@ -26,7 +26,7 @@ final readonly class Preloader
      * Execute a query and returns it's result. No middlewares not input validation/serialization is called.
      * The query is simply executed and the result serialized.
      *
-     * This is really useful if you want to preload data on the server on page load and make it instantly available on the
+     * This is really useful if you want to preload data on the server on a page load and make it instantly available on the
      * client side.
      *
      * @throws Failure

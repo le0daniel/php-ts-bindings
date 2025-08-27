@@ -28,14 +28,36 @@ test('tokenize', function () {
 });
 
 test("0 Values caught correctly", function () {
-    
-
     $tokens = tokenize("string|0|array{0: string, 1: string}");
 
     expect($tokens->at(2)->is(TokenType::INT))->toBeTrue();
     expect($tokens->at(2)->value)->toBe("0");
     expect($tokens->at(6)->is(TokenType::INT))->toBeTrue();
     expect($tokens->at(6)->value)->toBe("0");
+});
+
+test("Tailing comma allowed on array", function () {
+    $tokens = tokenize("array{name: string,}");
+
+    expect($tokens->at(0)->is(TokenType::IDENTIFIER))->toBeTrue();
+    expect($tokens->at(1)->is(TokenType::LBRACE))->toBeTrue();
+    expect($tokens->at(2)->is(TokenType::IDENTIFIER))->toBeTrue();
+    expect($tokens->at(3)->is(TokenType::COLON))->toBeTrue();
+    expect($tokens->at(4)->is(TokenType::IDENTIFIER))->toBeTrue();
+    expect($tokens->at(5)->is(TokenType::COMMA))->toBeTrue();
+    expect($tokens->at(6)->is(TokenType::RBRACE))->toBeTrue();
+});
+
+test("Tailing comma allowed on object", function () {
+    $tokens = tokenize("object{name: string,}");
+
+    expect($tokens->at(0)->is(TokenType::IDENTIFIER))->toBeTrue();
+    expect($tokens->at(1)->is(TokenType::LBRACE))->toBeTrue();
+    expect($tokens->at(2)->is(TokenType::IDENTIFIER))->toBeTrue();
+    expect($tokens->at(3)->is(TokenType::COLON))->toBeTrue();
+    expect($tokens->at(4)->is(TokenType::IDENTIFIER))->toBeTrue();
+    expect($tokens->at(5)->is(TokenType::COMMA))->toBeTrue();
+    expect($tokens->at(6)->is(TokenType::RBRACE))->toBeTrue();
 });
 
 test("Identifies Class Const correctly", function () {
