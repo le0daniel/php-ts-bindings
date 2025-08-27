@@ -1,4 +1,5 @@
 export type OperationNamespaces = 'NAMESPACE_UNION';
+export type OPERATIONS = {query: {}, command: {}};
 export type QUERY_MAP = {namespace: 'one'|'two'};
 export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number;};
 export type FullyQualifiedName = `${string}.${string}`;

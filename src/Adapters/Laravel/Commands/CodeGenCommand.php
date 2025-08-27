@@ -109,10 +109,48 @@ TypeScript;
         file_put_contents("{$directory}/lib/types.ts", $this->getTemplate('types', [
             "'NAMESPACE_UNION'" => $namespaceUnion,
             "{namespace: 'one'|'two'}" => "{" . implode(';', $invalidationMap) . "}",
+            "{query: {}, command: {}}" => $this->typemapToTypescript($this->produceFullTypeMap($registry)),
         ]));
         file_put_contents("{$directory}/lib/OperationClient.ts", $this->getTemplate('OperationClient'));
         file_put_contents("{$directory}/lib/DefaultClient.ts", $this->getTemplate('DefaultClient'));
         file_put_contents("{$directory}/lib/utils.ts", $this->getTemplate('utils'));
+    }
+
+    /**
+     * @param OperationRegistry $registry
+     * @return array{"query": array<string, array{input: string, output: string, errors: string}>, "command": array<string, array{input: string, output: string, errors: string}>}
+     */
+    private function produceFullTypeMap(OperationRegistry $registry): array
+    {
+        return array_reduce($registry->all(), function (array $carry, Operation $operation) {
+            $carry[$operation->definition->type] ??= [];
+
+            $inputDefinition = $this->typescriptGenerator->toDefinition($operation->inputNode(), DefinitionTarget::INPUT);
+            $outputDefinition = $this->typescriptGenerator->toDefinition($operation->outputNode(), DefinitionTarget::OUTPUT);
+            $errorTypes = $this->generateErrorTypes($operation);
+
+            $carry[$operation->definition->type][$operation->definition->fullyQualifiedName()] = [
+                'input' => $inputDefinition,
+                'output' => $outputDefinition,
+                'errors' => $errorTypes ?? 'never',
+            ];
+
+            return $carry;
+        }, []);
+    }
+
+    /**
+     * @param array{"query": array<string, array{input: string, output: string, errors: string}>, "command": array<string, array{input: string, output: string, errors: string}>} $typeMap
+     * @return string
+     */
+    private function typemapToTypescript(array $typeMap): string
+    {
+        return '{' . implode(';', Arrays::mapWithKeys($typeMap, function (string $type, array $operations) {
+            $typeString = implode(';', Arrays::mapWithKeys($operations, function (string $operation, array $definition) {
+                return "'{$operation}': {input: {$definition['input']}, output: {$definition['output']}, errors: {$definition['errors']}}";
+            }));
+            return "{$type}: {{$typeString}}";
+        })) . '}';
     }
 
     /**
