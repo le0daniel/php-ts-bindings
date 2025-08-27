@@ -42,6 +42,10 @@ describe('Test to definition', function () {
             ->toBe("{name:string;}|string");
     });
 
+    test('Optional Fields', function () {
+        expect(toDefinition('array{name?: string}|string'))
+            ->toBe("{name?:string;}|string");
+    });
 
     test('Array type returns object', function () {
         expect(toDefinition('array{name: string}'))

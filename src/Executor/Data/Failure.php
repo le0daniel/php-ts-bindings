@@ -10,6 +10,6 @@ final class Failure extends Exception
         public Issues $issues,
     )
     {
-        parent::__construct('Validation failed.', 422);
+        parent::__construct("Validation failed: {$this->issues->serializeToCompleteString()}.", 422);
     }
 }

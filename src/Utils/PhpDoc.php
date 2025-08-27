@@ -10,7 +10,7 @@ final class PhpDoc
     ];
     private const string LOCAL_TYPE_REGEX = "/@phpstan-type\s+(?<typeName>[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)\s+(?<typeDefinition>[^@]+)/m";
     private const string IMPORTED_TYPE_REGEX = '/@phpstan-import-type\s+(?<typeName>{cn})\s+from\s+(?<fromClass>{fqcn})(\s+as\s+(?<alias>{cn}))?/';
-    private const string GENERICS_TYPE_REGEX = '/@template\s+(?<genericName>{cn})/';
+    private const string GENERICS_TYPE_REGEX = '/@template(-covariant)?\s+(?<genericName>{cn})/';
 
     public static function normalize(string $docBlocks): string
     {

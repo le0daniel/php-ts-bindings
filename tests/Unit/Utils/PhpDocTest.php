@@ -117,3 +117,13 @@ test('Find Generics', function () {
 DOC
     ))->toEqual(['T', 'O']);
 });
+
+test('Find Generics with covariant', function () {
+    expect(PhpDoc::findGenerics(<<<DOC
+/**
+ * @template-covariant T of OtherClass
+ * @template O 
+ */
+DOC
+    ))->toEqual(['T', 'O']);
+});

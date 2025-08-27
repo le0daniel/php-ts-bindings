@@ -2,21 +2,28 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
 use Illuminate\Config\Repository as ConfigRepository;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Database\RecordNotFoundException;
+use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Http;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
+use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades;
 use JsonSerializable;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\NullClient;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\Client;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline\MiddlewarePipeline;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline\ResolveInfo;
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExposesClientData;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
@@ -105,7 +112,7 @@ final readonly class LaravelHttpController
     private function handleWebRequest(string $type, string $fcn, Http\Request $request, Application $app): mixed
     {
         if (!$this->operationRegistry->has($type, $fcn)) {
-            return new JsonResponse(['error' => "Not found"], 404);
+            return $this->produceOperationNotFoundResponse($type, $fcn);
         }
 
         $operation = $this->operationRegistry->get($type, $fcn);
@@ -120,10 +127,17 @@ final readonly class LaravelHttpController
         $context = $this->createContext($request);
         $controllerClass = $app->make($operation->definition->fullyQualifiedClassName);
         $pipeline = new MiddlewarePipeline($app, $operation->definition->middleware);
+        $resolveInfo = new ResolveInfo(
+            $operation->definition->namespace,
+            $operation->definition->name,
+            $operation->definition->type,
+            $operation->definition->fullyQualifiedClassName,
+            $operation->definition->methodName,
+        );
 
         try {
             /** @var Success $result */
-            $result = $pipeline->execute($input->value, $context, $client, function (mixed $input, mixed $context, Client $client) use ($controllerClass, $operation) {
+            $result = $pipeline->execute($input->value, [$context, $resolveInfo], function (mixed $input) use ($controllerClass, $client, $operation, $context) {
                 $result = $controllerClass->{$operation->definition->methodName}($input, $context, $client);
                 $response = $this->executor->serialize($operation->outputNode(), $result);
 
@@ -181,21 +195,50 @@ final readonly class LaravelHttpController
             ]), $exception::code());
         }
 
-        return new JsonResponse(Arrays::filterNullValues([
-            'success' => false,
-            'type' => 'INTERNAL_SERVER_ERROR',
-            'code' => 500,
-            'message' => 'Internal server error.',
-            '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
-            '__debug' => $debugData,
-        ]), 500);
+        return match ($exception::class) {
+            AuthenticationException::class => new JsonResponse(Arrays::filterNullValues([
+                'success' => false,
+                'type' => 'UNAUTHENTICATED',
+                'code' => 401,
+                'message' => 'Unauthenticated.',
+                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+                '__debug' => $debugData,
+            ])),
+            TokenMismatchException::class,
+            AuthorizationException::class => new JsonResponse(Arrays::filterNullValues([
+                'success' => false,
+                'type' => 'UNAUTHORIZED',
+                'code' => 403,
+                'message' => 'Unauthorized',
+                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+                '__debug' => $debugData,
+            ])),
+            ModelNotFoundException::class,
+            RecordNotFoundException::class,
+            RecordsNotFoundException::class => new JsonResponse(Arrays::filterNullValues([
+                'success' => false,
+                'type' => 'NOT_FOUND',
+                'code' => 404,
+                'message' => 'Not Found.',
+                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+                '__debug' => $debugData,
+            ])),
+            default => new JsonResponse(Arrays::filterNullValues([
+                'success' => false,
+                'type' => 'INTERNAL_SERVER_ERROR',
+                'code' => 500,
+                'message' => 'Internal server error.',
+                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+                '__debug' => $debugData,
+            ]), 500)
+        };
     }
 
     private function produceOperationNotFoundResponse(string $type, string $fcn): JsonResponse
     {
         $isDebugEnabled = $this->config->get('app.debug');
         return new JsonResponse(Arrays::filterNullValues([
-        'success' => false,
+            'success' => false,
             'type' => 'NOT_FOUND',
             'code' => 404,
             'message' => 'Internal server error.',

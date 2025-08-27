@@ -5,7 +5,7 @@ import { DefaultClient } from './DefaultClient';
 let client: OperationClient|null;
 
 export function createDefaultClient(fetcher?: typeof window.fetch): DefaultClient {
-    return new DefaultClient(window.fetch, {
+    return new DefaultClient(fetcher ?? fetch, {
         paths: {query: '{queryRoute}', command: '{commandRoute}'},
         baseUrl: '',
         timeoutMs: 10000,

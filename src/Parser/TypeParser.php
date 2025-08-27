@@ -61,9 +61,15 @@ final readonly class TypeParser
      * @param GlobalTypeAliases $globalTypeAliases
      * @param list<class-string> $collectionClasses
      * @param list<Parser>|null $parsers
+     * @param bool $allowAllObjectCasting
      * @return TypeConsumer[]
      */
-    public static function defaultConsumers(GlobalTypeAliases $globalTypeAliases = new GlobalTypeAliases(), array $collectionClasses = [], ?array $parsers = null): array
+    public static function defaultConsumers(
+        GlobalTypeAliases $globalTypeAliases = new GlobalTypeAliases(),
+        array $collectionClasses = [],
+        ?array $parsers = null,
+        bool $allowAllObjectCasting = false,
+    ): array
     {
         return [
             new LiteralConsumer(),
@@ -74,7 +80,7 @@ final readonly class TypeParser
             new StructConsumer(),
             new ArrayConsumer($collectionClasses),
             new UserDefinedParsers($parsers ?? self::getDefaultParsers()),
-            new UserDefinedObjectConsumer(),
+            new UserDefinedObjectConsumer($allowAllObjectCasting),
         ];
     }
 

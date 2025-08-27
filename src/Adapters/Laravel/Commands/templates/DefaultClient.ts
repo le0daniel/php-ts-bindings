@@ -1,5 +1,8 @@
-import {Hook, OperationClient} from "./OperationClient";
+import {OperationClient} from "./OperationClient";
 import {Failure, FullyQualifiedName, OperationOptions, Result, Success, WithClientDirectives} from "./types";
+
+export type Hook = (result: WithClientDirectives<Result<unknown, object>>) => Promise<void> | void;
+
 
 export class DefaultClient implements OperationClient {
 
@@ -29,14 +32,16 @@ export class DefaultClient implements OperationClient {
             return '';
         }
 
-        return Object.entries(input).map(([key, value]) => {
-            return `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}`;
-        }).join('&');
+        return Object.entries(input)
+            .filter(([key, value]) => value !== undefined)
+            .map(([key, value]) => {
+                return `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}`;
+            }).join('&');
     }
 
-    private async callHooks<const T extends Result<unknown, object>>(type: 'query' | 'command', fqn: FullyQualifiedName, input: unknown, result: WithClientDirectives<T>) {
+    private async callHooks<const T extends Result<unknown, object>>(result: WithClientDirectives<T>) {
         try {
-            await Promise.all(this.hooks.map(hook => hook(type, fqn, input, result)));
+            await Promise.all(this.hooks.map(hook => hook(result)));
             return result;
         } catch (error) {
             console.error('Error while calling hooks', error);
@@ -56,6 +61,7 @@ export class DefaultClient implements OperationClient {
 
         const headers: Record<string, string> = {
             Accept: 'application/json',
+            "X-Client-ID": "operations-spa"
         };
 
         if (type === 'command') {
@@ -66,25 +72,24 @@ export class DefaultClient implements OperationClient {
             ? `?${this.createJsonEncodedQueryParams(input)}`
             : '';
 
-        const response = await (this.fetcher)(fullPath, {
-            method: type === 'query' ? 'GET': 'POST',
+        const response = await this.fetcher(`${fullPath}${queryParams}`, {
+            method: type === 'query' ? 'GET' : 'POST',
             signal,
             headers,
             body: type === 'command' ? JSON.stringify(input) : undefined,
         });
 
-        // ToDo: deal with response
         const json = await response.json();
         if (!json || typeof json !== 'object') {
             throw new Error('Invalid response body. Could not parse json correctly.');
         }
 
         if (response.ok) {
-            return await this.callHooks(type, fullyQualifiedName, input, {...json, success: true} as WithClientDirectives<Success<O>>);
+            return await this.callHooks({...json, success: true} as WithClientDirectives<Success<O>>);
         }
 
         console.error('Request failed', response, json);
-        return await this.callHooks(type, fullyQualifiedName, input, {
+        return await this.callHooks({
             ...json,
             success: false,
             code: json?.code ?? response.status,

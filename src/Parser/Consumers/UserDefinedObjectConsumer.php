@@ -2,6 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\OutputOnly;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
@@ -16,6 +18,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use ReflectionAttribute;
@@ -29,20 +32,61 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
 
+    public function __construct(
+        public readonly bool $allowAllObjectCasting = false
+    )
+    {
+    }
+
     public function canConsume(ParserState $state): bool
     {
         if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 
-        $fqcn = $state->context->toFullyQualifiedClassName($state->current()->value);
+        $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
 
-        if (!class_exists($fqcn)) {
+        if (!class_exists($fullyQualifiedClassName)) {
             return false;
         }
 
-        $reflectionClass = new ReflectionClass($fqcn);
-        return new ReflectionClass($fqcn)->isUserDefined() && $reflectionClass->isInstantiable();
+        $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
+        return new ReflectionClass($fullyQualifiedClassName)->isUserDefined() && $reflectionClass->isInstantiable();
+    }
+
+    /** @param ReflectionClass<object> $class */
+    private function determineCastingStrategy(ReflectionClass $class): ObjectCastStrategy
+    {
+        $attributes = new AttributesReflector($class->getAttributes());
+
+        if ($attributes->has(OutputOnly::class)) {
+            return ObjectCastStrategy::NEVER;
+        }
+
+        if ($attributes->has(Castable::class)) {
+            $instance = $attributes->getSingleInstance(Castable::class);
+            return $instance->strategy ?? $this->findCastingStrategy($class);
+        }
+
+        if (!$this->allowAllObjectCasting) {
+            return ObjectCastStrategy::NEVER;
+        }
+
+        return $this->findCastingStrategy($class);
+    }
+
+    /**
+     * @param ReflectionClass<object> $class
+     * @return ObjectCastStrategy
+     */
+    private function findCastingStrategy(ReflectionClass $class): ObjectCastStrategy
+    {
+        $hasConstructor = $class->getConstructor() !== null;
+        if ($hasConstructor) {
+            return ObjectCastStrategy::CONSTRUCTOR;
+        }
+
+        return ObjectCastStrategy::ASSIGN_PROPERTIES;
     }
 
     /**
@@ -55,15 +99,42 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         $state->advance();
 
         $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
+        $castingStrategy = $this->determineCastingStrategy($reflectionClass);
 
-        $assignedGenerics = $this->consumeGenerics($state, $parser);
-        $context = ParsingContext::fromClassReflection($reflectionClass, $assignedGenerics);
+        $context = ParsingContext::fromClassReflection($reflectionClass, $this->consumeGenerics($state, $parser));
 
-        $hasConstructor = $reflectionClass->getConstructor() !== null;
-        if ($hasConstructor) {
-            return $this->parseConstructorStrategy($reflectionClass, $parser, $context);
-        }
+        return match ($castingStrategy) {
+            ObjectCastStrategy::NEVER => $this->parseNeverStrategy($reflectionClass, $parser, $context),
+            ObjectCastStrategy::ASSIGN_PROPERTIES => $this->parseSetPropertiesStrategy($reflectionClass, $parser, $context),
+            ObjectCastStrategy::CONSTRUCTOR => $this->parseConstructorStrategy($reflectionClass, $parser, $context),
+            default => throw new RuntimeException("Casting strategy {$castingStrategy->name} is not supported"),
+        };
+    }
 
+    /** @param ReflectionClass<object> $reflectionClass */
+    private function parseNeverStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
+    {
+        return new CustomCastingNode(
+            new StructNode(
+                StructPhpType::ARRAY,
+                array_map(
+                    fn(ReflectionProperty $property) => new PropertyNode(
+                        $property->getName(),
+                        $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
+                        false,
+                        PropertyType::OUTPUT,
+                    ),
+                    $reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
+                ),
+            ),
+            $reflectionClass->getName(),
+            ObjectCastStrategy::NEVER,
+        );
+    }
+
+    /** @param ReflectionClass<object> $reflectionClass */
+    private function parseSetPropertiesStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
+    {
         $properties = [];
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
             if ($property->isReadOnly() || $property->hasHooks()) {
@@ -132,7 +203,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
                 $property->name,
                 $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
                 false,
-                PropertyType::INPUT,
+                PropertyType::OUTPUT,
             );
         }
 

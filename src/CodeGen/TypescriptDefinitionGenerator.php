@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
@@ -32,9 +33,18 @@ final class TypescriptDefinitionGenerator
             ListNode::class => "Array<{$this->toDefinition($node->node, $target)}>",
             RecordNode::class => "Record<string,{$this->toDefinition($node->node, $target)}>",
             TupleNode::class => '[' . implode(',', array_map(fn(NodeInterface $node) => $this->toDefinition($node, $target), $node->types)) . ']',
-            ConstraintNode::class, CustomCastingNode::class => $this->toDefinition($node->node, $target),
+            ConstraintNode::class => $this->toDefinition($node->node, $target),
+            CustomCastingNode::class => $this->printCustomCastingNode($node, $target),
             default => throw new RuntimeException("Not implemented: " . $node::class),
         };
+    }
+
+    private function printCustomCastingNode(CustomCastingNode $node, DefinitionTarget $target): string
+    {
+        // Returns if an object can ever be targeted for input.
+        return $target === DefinitionTarget::INPUT && $node->strategy === ObjectCastStrategy::NEVER
+            ? 'never'
+            : $this->toDefinition($node->node, $target);
     }
 
     private function printStructNode(StructNode $node, DefinitionTarget $target): string
@@ -47,7 +57,10 @@ final class TypescriptDefinitionGenerator
         );
 
         $properties = array_map(
-            fn(PropertyNode $property) => "{$property->name}:{$this->toDefinition($property->node, $target)};",
+            function (PropertyNode $property) use ($target): string {
+                $optional = $property->isOptional ? '?' : '';
+                return "{$property->name}{$optional}:{$this->toDefinition($property->node, $target)};";
+            },
             $filteredProperties,
         );
 

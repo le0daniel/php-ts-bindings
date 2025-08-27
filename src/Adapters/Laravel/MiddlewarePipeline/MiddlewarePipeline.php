@@ -19,22 +19,32 @@ final readonly class MiddlewarePipeline
     {
     }
 
-    private function reducer(): Closure
+    /**
+     * @param array{mixed, ResolveInfo} $context
+     * @return Closure
+     */
+    private function reducer(array $context): Closure
     {
-        return function ($stack, string $middlewareClassName) {
-            return function (mixed $input, mixed $context, Client $client) use ($stack, $middlewareClassName) {
+        return function ($stack, string $middlewareClassName) use ($context) {
+            return function (mixed $input) use ($stack, $middlewareClassName, $context) {
                 $instance = $this->application->make($middlewareClassName);
-                return $instance->handle($input, $context, $client, $stack);
+                return $instance->handle($input, $stack, ...$context);
             };
         };
     }
 
-    public function execute(mixed $input, mixed $context, Client $client, Closure $then): mixed
+    /**
+     * @param array{mixed} $pipe
+     * @param array{mixed, ResolveInfo} $context
+     * @param Closure $then
+     * @return mixed
+     */
+    public function execute(mixed $pipe, array $context, Closure $then): mixed
     {
         $pipeline = array_reduce(
-            array_reverse($this->middleware), $this->reducer(), $then,
+            array_reverse($this->middleware), $this->reducer($context), $then,
         );
 
-        return $pipeline($input, $context, $client);
+        return $pipeline($pipe);
     }
 }

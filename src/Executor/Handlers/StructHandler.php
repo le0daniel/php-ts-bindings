@@ -90,7 +90,10 @@ final class StructHandler implements Handler
             }
 
             $context->enterPath($propertyNode->name);
-            $propertyValue = $this->extractKeyedValue($propertyNode->name, $value);
+            $propertyValue = match (true) {
+                is_array($value) => array_key_exists($propertyNode->name, $value) ? $value[$propertyNode->name] : Value::UNDEFINED,
+                default => property_exists($value, $propertyNode->name) ? $value->{$propertyNode->name} : Value::UNDEFINED,
+            };
 
             if ($propertyValue === Value::INVALID) {
                 $context->addIssue(new Issue(
@@ -138,10 +141,21 @@ final class StructHandler implements Handler
 
     private function extractKeyedValue(string $key, mixed $input): mixed
     {
+        if (is_array($input)) {
+            return array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED;
+        }
+
+        if ($input instanceof ArrayAccess) {
+            return $input->offsetExists($key) ? $input[$key] : Value::UNDEFINED;
+        }
+
+        if (!is_object($input)) {
+            return Value::INVALID;
+        }
+
         return match (true) {
-            is_array($input) => array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED,
-            $input instanceof ArrayAccess => $input->offsetExists($key) ? $input[$key] : Value::UNDEFINED,
-            is_object($input) => property_exists($input, $key) ? $input->{$key} : Value::UNDEFINED,
+            property_exists($input, $key) => $input->{$key},
+            method_exists($input, '__get') && method_exists($input, '__isset') => $input->__isset($key) ? $input->__get($key) : Value::UNDEFINED,
             default => Value::INVALID,
         };
     }

@@ -2,8 +2,10 @@
   "name": "le0daniel/php-ts-bindings",
   "description": "Library to create type bindings between PHP8 and TS, supporting parsing, serialization and emitting of  TS types for PHP objects/input strongly typed",
   "type": "library",
+  "require": {
+    "php": "^8.4"
+  },
   "require-dev": {
-    "php": "^8.4",
     "pestphp/pest": "4.x-dev",
     "phpstan/phpstan": "2.1.x-dev",
     "laravel/framework": "^11|^12",

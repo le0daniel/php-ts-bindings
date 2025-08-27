@@ -7,6 +7,7 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
@@ -39,14 +40,17 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         });
 
         $this->app->singleton(OperationRegistry::class, function (Application $app) {
-            if ($this->app->runningInConsole() || !file_exists(app_path('bootstrap/cache/operations.php'))) {
+            if ($this->app->runningInConsole() || !file_exists(base_path('bootstrap/cache/operations.php'))) {
                 /** @var Repository $config */
                 $config = $app->make('config');
-                return new JustInTimeDiscoveryRegistry($config->get('operations.discovery_path'), new TypeParser());
+                return JustInTimeDiscoveryRegistry::eagerlyDiscover(
+                    $app->make(TypeParser::class),
+                    $config->get('operations.discovery_path', []),
+                );
             }
 
             // Gets the cached version
-            return require app_path('bootstrap/cache/operations.php');
+            return require base_path('bootstrap/cache/operations.php');
         });
 
         $this->app->when(LaravelHttpController::class)
@@ -75,8 +79,13 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
             $this->commands([
                 ListCommand::class,
                 OptimizeCommand::class,
+                ClearOptimizeCommand::class,
                 CodeGenCommand::class,
             ]);
+            $this->optimizes(
+                'operations:optimize',
+                'operations:clear-optimize'
+            );
         }
     }
 }
