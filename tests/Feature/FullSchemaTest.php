@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Tests\Feature\Mocks\CreateObjectInput;
 use Tests\Feature\Mocks\CreateUserInput;
+use Tests\Feature\Mocks\CreateUserWithOptionalEmail;
 use Tests\Feature\Mocks\Paginated;
 
 function prepare(string $type, string $mode = 'parse'): Closure
@@ -43,6 +44,12 @@ function prepare(string $type, string $mode = 'parse'): Closure
 test("Schema with Paginated generic", function () {
     $schema = prepare(Paginated::class . '<object{id: string, name: string}>', 'serialize');
     expect($schema(new Paginated([(object)['name' => 'leo', "id" => "123", 'other' => "wow"]], 2)))->toBeSuccess();
+});
+
+test("Test schema with optional email", function () {
+    $schema = prepare(CreateUserWithOptionalEmail::class);
+
+    expect($schema(['username' => 'other']))->toBeSuccess();
 });
 
 test('Test Create User input schema', function () {

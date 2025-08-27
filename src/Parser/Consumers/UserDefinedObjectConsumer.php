@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Optional;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\OutputOnly;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
@@ -111,6 +112,29 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         };
     }
 
+    private function allowsOptional(ReflectionProperty|ReflectionParameter $param): bool
+    {
+        if (empty($param->getAttributes(Optional::class))) {
+            return false;
+        }
+
+        $hasDefaultValue = match ($param::class) {
+            ReflectionParameter::class => $param->isDefaultValueAvailable(),
+            ReflectionProperty::class => $param->hasDefaultValue(),
+            default => false,
+        };
+
+        if ($hasDefaultValue) {
+            return true;
+        }
+
+        if (!$param->getType()->allowsNull()) {
+            throw new RuntimeException("Optional parameter must allow null or provide a default value. PHP does not difference between null and undefined.");
+        }
+
+        return true;
+    }
+
     /** @param ReflectionClass<object> $reflectionClass */
     private function parseNeverStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
     {
@@ -144,8 +168,8 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             $properties[] = new PropertyNode(
                 $property->getName(),
                 $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
-                false,
-                PropertyType::BOTH,
+                isOptional: $this->allowsOptional($property),
+                propertyType: PropertyType::BOTH,
             );
         }
 
@@ -187,8 +211,8 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             $structProperties[] = new PropertyNode(
                 $parameter->name,
                 $this->applyConstraints($parameter, $parser->parse(TypeReflector::reflectParameter($parameter), $context)),
-                false,
-                PropertyType::INPUT,
+                isOptional: $this->allowsOptional($parameter),
+                propertyType: PropertyType::INPUT,
             );
         }
 
@@ -202,8 +226,8 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             $structProperties[] = new PropertyNode(
                 $property->name,
                 $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
-                false,
-                PropertyType::OUTPUT,
+                isOptional: $this->allowsOptional($property),
+                propertyType: PropertyType::OUTPUT,
             );
         }
 
