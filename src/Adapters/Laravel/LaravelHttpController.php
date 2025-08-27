@@ -22,15 +22,16 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\NullClient;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\Client;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Exceptions\InputValidationFailedException;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline\MiddlewarePipeline;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline\ResolveInfo;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExposesClientData;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
-use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Throwable;
 
@@ -116,14 +117,18 @@ final readonly class LaravelHttpController
         }
 
         $operation = $this->operationRegistry->get($type, $fcn);
+        $client = $this->createClient($request);
 
         $input = $this->executor->parse($operation->inputNode(), $this->gatherInputFromRequest($type, $request));
         if ($input instanceof Failure) {
-            return $this->produceInvalidInputResponse($input);
+            return $this->produceExceptionResponse(
+                new InputValidationFailedException($input),
+                $operation,
+                $client
+            );
         }
 
         // Create execution needs based on Definition and Request.
-        $client = $this->createClient($request);
         $context = $this->createContext($request);
         $controllerClass = $app->make($operation->definition->fullyQualifiedClassName);
         $pipeline = new MiddlewarePipeline($app, $operation->definition->middleware);
@@ -165,6 +170,10 @@ final readonly class LaravelHttpController
     private function produceExceptionResponse(Throwable $exception, Operation $operation, Client $client): JsonResponse
     {
         $isDebugEnables = $this->config->get('app.debug');
+
+        if ($exception instanceof InputValidationFailedException) {
+            return $this->produceInvalidInputResponse($exception->failure);
+        }
 
         if ($exception instanceof Failure) {
             return new JsonResponse(Arrays::filterNullValues([

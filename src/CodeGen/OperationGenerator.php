@@ -2,9 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen;
 
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
-use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 
 final readonly class OperationGenerator

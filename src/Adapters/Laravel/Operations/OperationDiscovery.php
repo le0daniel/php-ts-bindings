@@ -1,13 +1,13 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Operations;
+namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Operations;
 
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\OperationDefinition;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 use Le0daniel\PhpTsBindings\Contracts\Discoverer;
-use Le0daniel\PhpTsBindings\Operations\Data\OperationDefinition;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;

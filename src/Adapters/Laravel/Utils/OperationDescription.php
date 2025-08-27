@@ -2,8 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Utils;
 
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
-use Le0daniel\PhpTsBindings\Operations\Data\Operation;
 
 final class OperationDescription
 {

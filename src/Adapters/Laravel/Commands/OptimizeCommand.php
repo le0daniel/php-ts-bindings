@@ -3,9 +3,9 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
 use Illuminate\Console\Command;
-use Le0daniel\PhpTsBindings\Operations\CachedOperationRegistry;
-use Le0daniel\PhpTsBindings\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Operations\JustInTimeDiscoveryRegistry;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\CachedOperationRegistry;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\JustInTimeDiscoveryRegistry;
 use RuntimeException;
 
 final class OptimizeCommand extends Command

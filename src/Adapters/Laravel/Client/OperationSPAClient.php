@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Client;
 
+use JsonSerializable;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\Client;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\Strings;
@@ -11,7 +12,7 @@ use UnitEnum;
  * @phpstan-type Redirect array{type: 'soft'|'hard', url: string}
  * @phpstan-type Toast array{type: 'success'|'error'|'alert'|'info', message: string}
  */
-final class OperationSPAClient implements Client, \JsonSerializable
+final class OperationSPAClient implements Client, JsonSerializable
 {
     /** @var Redirect|null  */
     private ?array $redirect = null;
@@ -57,15 +58,25 @@ final class OperationSPAClient implements Client, \JsonSerializable
     }
 
     /**
-     * @return array{redirect?: Redirect, toasts?: null|Toast[], invalidations?: list<list<mixed>>}
+     * @return array{redirect?: Redirect, toasts?: null|Toast[], invalidations?: list<list<mixed>>, type: 'operations-spa'}|null
      */
-    public function jsonSerialize(): array
+    public function jsonSerialize(): array|null
     {
-        return Arrays::filterNullValues([
-            'type' => 'operations-spa',
+        $data = Arrays::filterNullValues([
             'redirect' => $this->redirect,
             'toasts' => $this->toasts,
             'invalidations' => $this->invalidations,
         ]);
+
+
+        // @phpstan-ignore-next-line empty.variable -- the array can be empty, the filterNullValues fn is not correctly typed.
+        if (empty($data)) {
+            return null;
+        }
+
+        return [
+            ...$data,
+            'type' => 'operations-spa',
+        ];
     }
 }

@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Operations\Contracts;
+namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts;
 
-use Le0daniel\PhpTsBindings\Operations\Data\Operation;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\Operation;
 
 /**
  * @phpstan-type OperationType 'command'|'query'

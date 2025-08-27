@@ -1,10 +1,9 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Operations\Data;
+namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data;
 
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Throwable;
 
 final readonly class Operation
 {
