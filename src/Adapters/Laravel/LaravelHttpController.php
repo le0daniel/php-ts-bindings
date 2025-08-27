@@ -106,10 +106,10 @@ final readonly class LaravelHttpController
      * @param string $fcn
      * @param Http\Request $request
      * @param Application $app
-     * @return mixed
+     * @return JsonResponse
      * @throws BindingResolutionException|Throwable
      */
-    private function handleWebRequest(string $type, string $fcn, Http\Request $request, Application $app): mixed
+    private function handleWebRequest(string $type, string $fcn, Http\Request $request, Application $app): JsonResponse
     {
         if (!$this->operationRegistry->has($type, $fcn)) {
             return $this->produceOperationNotFoundResponse($type, $fcn);
@@ -135,29 +135,31 @@ final readonly class LaravelHttpController
             $operation->definition->methodName,
         );
 
-        try {
-            /** @var Success $result */
-            $result = $pipeline->execute($input->value, [$context, $resolveInfo], function (mixed $input) use ($controllerClass, $client, $operation, $context) {
-                $result = $controllerClass->{$operation->definition->methodName}($input, $context, $client);
-                $response = $this->executor->serialize($operation->outputNode(), $result);
-
-                // We throw, so that middleware transactions need to handle invalid output.
-                if ($response instanceof Failure) {
-                    throw $response;
+        /** @var Success|Throwable $result */
+        $result = $pipeline
+            ->catch(function (Throwable $throwable) {
+                return $throwable;
+            })
+            ->execute($input->value, [$context, $resolveInfo], function (mixed $input) use ($controllerClass, $client, $operation, $context) {
+                try {
+                    $result = $controllerClass->{$operation->definition->methodName}($input, $context, $client);
+                    return $this->executor->serialize($operation->outputNode(), $result);
+                } catch (Throwable $exception) {
+                    return $exception;
                 }
-
-                return $response;
             });
 
-            return new JsonResponse(Arrays::filterNullValues([
-                'success' => true,
-                'data' => $result->value,
-                '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
-            ]), 200);
-        } catch (Throwable $exception) {
-            $this->exceptionHandler->report($exception);
-            return $this->produceExceptionResponse($exception, $operation, $client);
+        // Every exception is logged
+        if ($result instanceof Throwable) {
+            $this->exceptionHandler->report($result);
+            return $this->produceExceptionResponse($result, $operation, $client);
         }
+
+        return new JsonResponse(Arrays::filterNullValues([
+            'success' => true,
+            'data' => $result->value,
+            '__client' => $client instanceof JsonSerializable ? $client->jsonSerialize() : null,
+        ]), 200);
     }
 
     private function produceExceptionResponse(Throwable $exception, Operation $operation, Client $client): JsonResponse

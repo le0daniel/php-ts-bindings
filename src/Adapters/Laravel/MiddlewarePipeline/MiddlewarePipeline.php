@@ -4,17 +4,25 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\MiddlewarePipeline;
 
 use Closure;
 use Illuminate\Contracts\Foundation\Application;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\Client;
+use Throwable;
 
-final readonly class MiddlewarePipeline
+/**
+ * @phpstan-type CatchFn Closure(Throwable): mixed
+ */
+final class MiddlewarePipeline
 {
+    /**
+     * @var CatchFn|null
+     */
+    private Closure|null $catch = null;
+
     /**
      * @param Application $application
      * @param class-string[] $middleware
      */
     public function __construct(
-        private Application $application,
-        private array       $middleware,
+        private readonly Application $application,
+        private readonly array       $middleware,
     )
     {
     }
@@ -34,17 +42,35 @@ final readonly class MiddlewarePipeline
     }
 
     /**
+     * @param CatchFn $catch
+     * @return $this
+     */
+    public function catch(Closure $catch): self
+    {
+        $this->catch = $catch;
+        return $this;
+    }
+
+    /**
      * @param array{mixed} $pipe
      * @param array{mixed, ResolveInfo} $context
      * @param Closure $then
      * @return mixed
+     * @throws Throwable
      */
     public function execute(mixed $pipe, array $context, Closure $then): mixed
     {
-        $pipeline = array_reduce(
-            array_reverse($this->middleware), $this->reducer($context), $then,
-        );
+        try {
+            $pipeline = array_reduce(
+                array_reverse($this->middleware), $this->reducer($context), $then,
+            );
 
-        return $pipeline($pipe);
+            return $pipeline($pipe);
+        } catch (Throwable $e) {
+            if ($this->catch) {
+                return ($this->catch)($e);
+            }
+            throw $e;
+        }
     }
 }
