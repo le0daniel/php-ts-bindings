@@ -50,8 +50,8 @@ final class CachedOperationRegistry implements OperationRegistry
         foreach ($registry->all() as $endpoint) {
             $operation = $endpoint->definition;
 
-            $inputAstName = "{$operation->type}:{$endpoint->definition->fullyQualifiedClassName}#input";
-            $outputAstName = "{$operation->type}:{$endpoint->definition->fullyQualifiedClassName}#output";
+            $inputAstName = "{$operation->type}:{$operation->fullyQualifiedName()}#input";
+            $outputAstName = "{$operation->type}:{$operation->fullyQualifiedName()}#output";
 
             $asts[$inputAstName] = $endpoint->inputNode(...);
             $asts[$outputAstName] = $endpoint->outputNode(...);
