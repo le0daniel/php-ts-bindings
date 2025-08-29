@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Routing\Router;
 use JsonException;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\FunctionNameGenerator;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\Operation;
@@ -16,22 +17,30 @@ use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
+use ReflectionException;
 use RuntimeException;
 use SplFileInfo;
 
 final class CodeGenCommand extends Command
 {
     private TypescriptDefinitionGenerator $typescriptGenerator;
+    private FunctionNameGenerator $functionNameGenerator;
+
     protected $signature = 'operations:codegen {directory}';
     protected $description = 'Generate the typescript bindings for all operations';
 
     /**
-     * @throws \ReflectionException
      * @throws JsonException
      */
-    public function handle(OperationRegistry $registry, Router $router): void
+    public function handle(
+        OperationRegistry     $registry,
+        Router                $router,
+        FunctionNameGenerator $functionNameGenerator
+    ): void
     {
         $this->typescriptGenerator = new TypescriptDefinitionGenerator();
+        $this->functionNameGenerator = $functionNameGenerator;
+
         if (!$registry instanceof JustInTimeDiscoveryRegistry) {
             throw new RuntimeException('Cannot generate code for a registry that is not a JustInTimeDiscoveryRegistry');
         }
@@ -146,11 +155,11 @@ TypeScript;
     private function typemapToTypescript(array $typeMap): string
     {
         return '{' . implode(';', Arrays::mapWithKeys($typeMap, function (string $type, array $operations) {
-            $typeString = implode(';', Arrays::mapWithKeys($operations, function (string $operation, array $definition) {
-                return "'{$operation}': {input: {$definition['input']}, output: {$definition['output']}, errors: {$definition['errors']}}";
-            }));
-            return "{$type}: {{$typeString}}";
-        })) . '}';
+                $typeString = implode(';', Arrays::mapWithKeys($operations, function (string $operation, array $definition) {
+                    return "'{$operation}': {input: {$definition['input']}, output: {$definition['output']}, errors: {$definition['errors']}}";
+                }));
+                return "{$type}: {{$typeString}}";
+            })) . '}';
     }
 
     /**
@@ -204,10 +213,11 @@ TypeScript;
         $resultType = $handledErrors ? "Result<{$outputDefinition},{$handledErrors}>" : "Result<{$outputDefinition}>";
 
         $description = OperationDescription::describe($operation);
+        $functionName = $this->functionNameGenerator->generateName($operation->definition);
 
         return <<<TypeScript
 {$description}
-export async function {$operation->definition->name}(input: {$inputDefinition}, options?: OperationOptions): Promise<{$resultType}> {
+export async function {$functionName}(input: {$inputDefinition}, options?: OperationOptions): Promise<{$resultType}> {
     return await executeOperation<{$inputDefinition},{$outputDefinition}, {$handledErrorsOrNever}>('{$operation->definition->type}', '{$operation->definition->fullyQualifiedName()}', input, options);
 }
 {$this->generateQueryFunctionAndKey($operation, $inputDefinition, $outputDefinition)}
@@ -221,14 +231,15 @@ TypeScript;
             return '';
         }
 
-        $queryFnName = ucfirst($operation->definition->name);
+        $functionName = $this->functionNameGenerator->generateName($operation->definition);
+        $queryFnName = ucfirst($functionName);
 
         return <<<TypeScript
 export function use{$queryFnName}Query(input: {$inputDefinition}, queryOptions?: Partial<{enabled: boolean}>) {
     return useQuery({
         queryKey: queryKey('{$operation->definition->fullyQualifiedName()}', input),
         queryFn: async ({signal}): Promise<{$outputDefinition}> => {
-            const result = await {$operation->definition->name}(input, {signal});
+            const result = await {$functionName}(input, {signal});
             throwOnFailure(result);
             return result.data;
         },

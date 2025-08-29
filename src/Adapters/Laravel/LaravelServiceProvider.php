@@ -12,6 +12,8 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\FunctionNameGenerator;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Generators\DefaultNameGenerator;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\JustInTimeDiscoveryRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -51,6 +53,13 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
             // Gets the cached version
             return require base_path('bootstrap/cache/operations.php');
+        });
+
+        $this->app->bind(FunctionNameGenerator::class, function (Application $app) {
+            /** @var Repository $config */
+            $config = $app->make('config');
+            $generator = $config->get('operations.names.functionNameGenerator', DefaultNameGenerator::class);
+            return $app->make($generator);
         });
 
         $this->app->when(LaravelHttpController::class)

@@ -14,4 +14,8 @@ return [
      * @see Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory
      */
     "context" => null,
+
+    "names" => [
+        "functionNameGenerator" => null,
+    ],
 ];
