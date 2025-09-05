@@ -37,7 +37,8 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
         return new OperationCode(
             <<<TypeScript
 /**
- * Name: {$definition->namespace}.{$definition->name} 
+ * Type: {$definition->type}
+ * Name: {$definition->fullyQualifiedName()} 
  *
  * @php {$definition->fullyQualifiedClassName}::{$definition->methodName}
  */
