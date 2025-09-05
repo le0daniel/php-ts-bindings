@@ -45,17 +45,46 @@ your types. The return type is also applied and serialized, allowing you to be r
 ```php
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
+use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
+use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 
 $server = new Server(
-    EagerlyLoadedRegistry::eagerlyDiscover('your directory', keyGenerator: EagerlyLoadedRegistry::hashKeyGenerator())
+    EagerlyLoadedRegistry::eagerlyDiscover('your/directory', keyGenerator: new PlainlyExposedKeyGenerator())
 );
 
-$result = $server->query('key', ['User Input'], new MyCustomContext);
-
+$inputData = Request::fromGlobals()->jsonInput;
+$result = $server->query('users.getUser', $inputData, new MyCustomContext);
 renderResponse($result);
+
+# Class in your/directory
+class MySuperClass {
+
+    #[Query(namespace: "users")]
+    #[Throws(UserNotFoundException::class)]
+    /**
+     * @param array{id: positive-int} $input 
+     * @return object{id: int, name: string, email: string} 
+     */
+    public final getUser(array $input, MyCustomContext $context, Client $client): object {
+        return User::findOrFail($input['id']);
+    }
+}
 ```
 
+This provides you full type safety without any additional code. Your PHP code is fully analysable by PHPStan.
+
 ### Laravel Default Integration
+
+We provide a first-party integration with laravel. By default, we discover remotely called functions in
+`App/Operations/(.*)`. This is configurable via the config file exposed (run: `php artisan vendor:publish`) to see all
+options. This lets you configure how exceptions are mapped to different buckets. Configure key generation.
+
+Additionally, we provide code generation out of the box for laravel and your typescript project. To do so, run
+`php artisan operations:codegen frontend/directory`, this will directly generate you a good starter kit for operations,
+so that ou can seamlessly bridge the gap between your FE and BE. See more below for detailed codegen examples and
+customizations, including writing your very own code generation plugin. 
 
 ## Type Parsing
 

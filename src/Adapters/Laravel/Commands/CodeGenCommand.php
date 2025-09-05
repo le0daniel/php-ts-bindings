@@ -45,8 +45,9 @@ final class CodeGenCommand extends Command
     . '{--naming=name : Naming mode to use. Modes: name, fqn, operation-prefix, namespace-postfix or classname::methodName for custom function}'
     . '{--verify} ';
 
+    protected $description = 'Generate the typescript bindings for all operations';
 
-    protected $description = <<<DESCRIPTION
+    protected $help = <<<DESCRIPTION
 Generate the typescript bindings for all operations
   Use --with=tanstack-query,... or --with=.* --with=.* to include a specific generators like tanstack-query operations.
   
