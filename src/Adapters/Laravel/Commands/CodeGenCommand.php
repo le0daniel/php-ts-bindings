@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
+use Closure;
 use Generator;
 use Illuminate\Console\Command;
 use Illuminate\Container\Attributes\Give;
@@ -11,6 +12,7 @@ use Illuminate\Routing\Router;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators\DependsOn;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators\EmitOperations;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators\EmitQueryKey;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators\EmitTanstackQuery;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators\EmitTypeMap;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators\EmitTypes;
@@ -40,6 +42,7 @@ final class CodeGenCommand extends Command
     . '{--custom=* : class-string<GeneratesLibFiles | GeneratesOperationCode>} '
     . '{--without=* : tanstack-query | type-map} '
     . '{--ignore=* : Ignored namespaces (namespace) or specific operations by specifying namespace.name} '
+    . '{--naming=name : Naming mode to use. Modes: name, fqn, operation-prefix, namespace-postfix}'
     . '{--verify} ';
 
 
@@ -54,6 +57,7 @@ Generate the typescript bindings for all operations
     - operations (default: true) 
     - type-map (default: false)
     - tanstack-query (default: false)
+    - query-key (default: false)
     
   To provide custom generators, create a class that implements at least one of the following interfaces:
     - GeneratesLibFiles (gets all operations and can write multiple lib files)
@@ -150,6 +154,33 @@ DESCRIPTION;
     }
 
     /**
+     * @return Closure(OperationData): string
+     */
+    private function getNamingGenerator(): Closure
+    {
+        return match ($this->option('naming')) {
+            'fqn' => function (OperationData $operationData): string {
+                $namespace = $operationData->definition->namespace;
+                $name = ucfirst($operationData->definition->name);
+                return "{$namespace}{$name}";
+            },
+            'operation-prefix' => function (OperationData $operationData): string {
+                $name = ucfirst($operationData->definition->name);
+                return "{$operationData->definition->namespace}{$name}";
+            },
+            'namespace-postfix' => function (OperationData $operationData): string {
+                $namespace = ucfirst($operationData->definition->namespace);
+                $name = $operationData->definition->name;
+                return "{$name}{$namespace}";
+            },
+            // Includes 'name',
+            default => function (OperationData $operationData): string {
+                return $operationData->definition->name;
+            },
+        };
+    }
+
+    /**
      * @param string $directory
      * @param array<string, TsFile> $libFiles
      * @param array<string, TsFile> $operationFiles
@@ -239,13 +270,16 @@ DESCRIPTION;
             return $default;
         };
 
+        $namingGenerator = $this->getNamingGenerator();
+
         $generators = array_filter([
             $includeGenerator('types', true) ? new EmitTypes() : null,
             $includeGenerator('bindings', true) ? new EmitOperationClientBindings() : null,
             $includeGenerator('utils', true) ? new EmitTypeUtils() : null,
-            $includeGenerator('operations', true) ? new EmitOperations() : null,
+            $includeGenerator('operations', true) ? new EmitOperations($namingGenerator) : null,
             $includeGenerator('type-map', false) ? new EmitTypeMap() : null,
-            $includeGenerator('tanstack-query', false) ? new EmitTanstackQuery() : null,
+            $includeGenerator('tanstack-query', false) ? new EmitTanstackQuery($namingGenerator) : null,
+            $includeGenerator('query-key', false) ? new EmitQueryKey($namingGenerator) : null,
         ], fn($value) => $value !== null);
 
         $customGenerators = array_map(
