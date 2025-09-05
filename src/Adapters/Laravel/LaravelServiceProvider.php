@@ -36,7 +36,12 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
      */
     public function provides(): array
     {
-        return [OperationRegistry::class];
+        return [
+            TypeParser::class,
+            Server::class,
+            LaravelHttpController::class,
+            self::DEFAULT_SERVER,
+        ];
     }
 
     /**
