@@ -9,7 +9,7 @@ use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 
 test('from class reflection', function () {
     // Reads all the context out of the file.
-    $context = ParsingContext::fromClassReflection(new ReflectionClass(MyUserClass::class));
+    $context = ParsingContext::fromReflectionClass(new ReflectionClass(MyUserClass::class));
     $fromFileContext = ParsingContext::fromFilePath(__DIR__ . '/Stubs/MyUserClass.php');
 
     expect(serialize($context))

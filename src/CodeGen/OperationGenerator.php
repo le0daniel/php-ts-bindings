@@ -2,9 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\Operation;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
+use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 
 final readonly class OperationGenerator
@@ -47,7 +47,6 @@ final readonly class OperationGenerator
         return implode(PHP_EOL, [
             "/**",
             " * Query",
-            " * {$endpoint->definition->description}",
             " * @php {$endpoint->definition->fullyQualifiedClassName}::{$endpoint->definition->methodName}",
             " */",
             <<<TS
@@ -66,7 +65,6 @@ TS,
         return implode(PHP_EOL, [
             "/**",
             " * Command",
-            " * {$endpoint->definition->description}",
             " * @php {$endpoint->definition->fullyQualifiedClassName}::{$endpoint->definition->methodName}",
             " */",
             <<<TS

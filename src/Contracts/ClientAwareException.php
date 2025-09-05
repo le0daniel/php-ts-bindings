@@ -4,6 +4,10 @@ namespace Le0daniel\PhpTsBindings\Contracts;
 
 use Throwable;
 
+/**
+ * Defines an exception that can be handled by the domain exception presenter
+ * from the server.
+ */
 interface ClientAwareException extends Throwable
 {
     /**

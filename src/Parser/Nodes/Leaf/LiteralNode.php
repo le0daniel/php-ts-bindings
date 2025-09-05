@@ -2,11 +2,10 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use InvalidArgumentException;
-use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
+use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;

@@ -3,9 +3,12 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
 use Illuminate\Console\Command;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\CachedOperationRegistry;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\JustInTimeDiscoveryRegistry;
+use Illuminate\Container\Attributes\Give;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider;
+use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
+use Le0daniel\PhpTsBindings\Server\Server;
 use RuntimeException;
 
 final class OptimizeCommand extends Command
@@ -13,9 +16,11 @@ final class OptimizeCommand extends Command
     protected $signature = 'operations:optimize';
     protected $description = 'Optimize the schema operations for production use';
 
-    public function handle(OperationRegistry $registry): int
+    public function handle(#[Give(LaravelServiceProvider::DEFAULT_SERVER)] Server $server): int
     {
-        if (!$registry instanceof JustInTimeDiscoveryRegistry) {
+        $registry = $server->registry;
+
+        if (!$registry instanceof EagerlyLoadedRegistry) {
             throw new RuntimeException('Cannot optimize a registry that is not a JustInTimeDiscoveryRegistry');
         }
 

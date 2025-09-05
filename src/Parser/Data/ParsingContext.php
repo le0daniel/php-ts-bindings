@@ -87,7 +87,7 @@ final readonly class ParsingContext
      */
     public static function fromClassString(string $classString, array $generics = []): self
     {
-        return self::fromClassReflection(new ReflectionClass($classString), $generics);
+        return self::fromReflectionClass(new ReflectionClass($classString), $generics);
     }
 
     /**
@@ -95,7 +95,7 @@ final readonly class ParsingContext
      * @param list<NodeInterface> $generics
      * @return self
      */
-    public static function fromClassReflection(ReflectionClass $class, array $generics = []): self
+    public static function fromReflectionClass(ReflectionClass $class, array $generics = []): self
     {
         $reflector = new FileReflector($class->getFileName());
         $namespace = $reflector->getNamespace();

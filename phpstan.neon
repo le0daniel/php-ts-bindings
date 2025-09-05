@@ -12,8 +12,9 @@ parameters:
 #    typeAliases:
 #        Email: 'non-empty-string'
 
-#    ignoreErrors:
-#        - '#PHPDoc tag @var#'
+    ignoreErrors:
+        - '#class-string<operations.default_server>#'
+
 #
 #    excludePaths:
 #        - ./src/Adapters/*

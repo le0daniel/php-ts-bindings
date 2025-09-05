@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\Validators;
 
 use Attribute;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
-use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
+use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;

@@ -4,10 +4,12 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
 use DateTimeImmutable;
 use DateTimeInterface;
-use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
+use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 
@@ -42,6 +44,12 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
     public function parseValue(mixed $value, ExecutionContext $context): DateTimeInterface|Value
     {
         if (!is_string($value)) {
+            $context->addIssue(new Issue(
+                IssueMessage::INVALID_TYPE,
+                [
+                    'message' => "Expected value of type string, got: " . gettype($value),
+                ]
+            ));
             return Value::INVALID;
         }
 
@@ -51,6 +59,13 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
                 DateTimeImmutable::createFromFormat($this->format, $value)
             );
         } catch (Throwable $exception) {
+            $context->addIssue(new Issue(
+                IssueMessage::INVALID_TYPE,
+                [
+                    'message' => "Failed to parse date correctly. Expected format: {$this->format}, got: '{$value}'",
+                ],
+                $exception
+            ));
             return Value::INVALID;
         }
     }
@@ -61,6 +76,12 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
     public function serializeValue(mixed $value, ExecutionContext $context): string|Value
     {
         if (!$value instanceof DateTimeInterface) {
+            $context->addIssue(new Issue(
+                IssueMessage::INVALID_TYPE,
+                [
+                    'message' => "Expected instance of DateTimeInterface, got: " . gettype($value),
+                ],
+            ));
             return Value::INVALID;
         }
         return $value->format($this->format);

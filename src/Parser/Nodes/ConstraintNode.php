@@ -3,8 +3,8 @@
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
-use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 final readonly class ConstraintNode implements NodeInterface

@@ -7,13 +7,17 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\Client;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\Operation;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Operations\Data\OperationDefinition;
+use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
+use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
+use Le0daniel\PhpTsBindings\Server\Presenter\InvalidInputPresenter;
+use Le0daniel\PhpTsBindings\Server\Server;
 use Mockery;
 use Symfony\Component\HttpFoundation\InputBag;
 
@@ -23,26 +27,23 @@ test('handle successful http query request', function () {
     $inputData = ['name' => 'some_value'];
 
     $typeParser = new TypeParser();
-    $repository = Mockery::mock(Repository::class);
     $operationRegistry = Mockery::mock(OperationRegistry::class);
     $exceptionHandler = Mockery::mock(ExceptionHandler::class);
     $app = Mockery::mock(Application::class);
     $request = Mockery::mock(Request::class);
     $request->query = new InputBag($inputData);
 
-    $operationDefinition = new OperationDefinition(
+    $operationDefinition = new Definition(
         'query',
         'MyClass',
         'someMethod',
         'method',
         'docs',
-        'input',
-        null,
-        [],
         [],
     );
 
     $operation = new Operation(
+        'somekey',
         $operationDefinition,
         fn() => $typeParser->parse('array{name: string}'),
         fn() => $typeParser->parse('array{id: string, name: string}'),
@@ -63,14 +64,18 @@ test('handle successful http query request', function () {
     $operationRegistry->shouldReceive('get')->with('query', $fcn)->andReturn($operation);
 
     $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturnNull();
-    $app->shouldReceive('make')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
+    $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
 
-    $controller = new LaravelHttpController(
-        $repository,
+    $server = new Server(
         $operationRegistry,
         new SchemaExecutor(),
+        [new CatchAllPresenter()],
+    );
+
+    $controller = new LaravelHttpController(
+        $server,
         $exceptionHandler,
-        null
+        null,
     );
 
     // Act
@@ -98,19 +103,17 @@ test('handle invalid input http query request', function () {
     $request = Mockery::mock(Request::class);
     $request->query = new InputBag($inputData);
 
-    $operationDefinition = new OperationDefinition(
+    $operationDefinition = new Definition(
         'query',
         'MyClass',
         'someMethod',
         'method',
         'docs',
-        'input',
-        null,
-        [],
         [],
     );
 
     $operation = new Operation(
+        'somekey',
         $operationDefinition,
         fn() => $typeParser->parse('array{name: string}'),
         fn() => $typeParser->parse('array{id: string, name: string}'),
@@ -129,17 +132,22 @@ test('handle invalid input http query request', function () {
 
     $operationRegistry->shouldReceive('has')->with('query', $fcn)->andReturn(true);
     $operationRegistry->shouldReceive('get')->with('query', $fcn)->andReturn($operation);
+    $exceptionHandler->shouldReceive('report')->with(InvalidInputException::class);
 
     $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturnNull();
-    $app->shouldReceive('make')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
+    $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
     $repository->shouldReceive('get')->with('app.debug')->andReturn(false);
 
-    $controller = new LaravelHttpController(
-        $repository,
+    $server = new Server(
         $operationRegistry,
         new SchemaExecutor(),
+        [new InvalidInputPresenter(), new CatchAllPresenter()],
+    );
+
+    $controller = new LaravelHttpController(
+        $server,
         $exceptionHandler,
-        null
+        null,
     );
 
     // Act
@@ -150,10 +158,13 @@ test('handle invalid input http query request', function () {
         ->and($response->getStatusCode())->toBe(422)
         ->and($response->getData(true))->toEqual([
             'success' => false,
-            'data' => [
-                '__root' => ['validation.missing_property']
+            'details' => [
+                'type' => 'INVALID_INPUT',
+                'fields' => [
+                    '__root' => ['validation.missing_property']
+                ],
+                'code' => 422,
             ],
-            'type' => 'INVALID_INPUT',
             'code' => 422,
         ]);
 });

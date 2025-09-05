@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
-use Le0daniel\PhpTsBindings\Contracts\ExecutionContext;
+use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 
 final class Context implements ExecutionContext
 {

@@ -10,9 +10,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Context;
  */
 interface Handler
 {
-    /** @param NodeInterface $node */
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed;
 
-    /** @param NodeInterface $node */
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed;
 }

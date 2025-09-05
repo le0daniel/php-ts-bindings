@@ -2,6 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
+use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
+
 interface LeafNode extends NodeInterface
 {
     /**
