@@ -17,7 +17,7 @@ final class InvalidInputPresenter implements ExceptionPresenter
 
     public function toTypeScriptDefinition(Definition $definition): string
     {
-        return '{code:422; type:"INVALID_INPUT"; fields: Record<string, string[]>;}';
+        return '{type:"INVALID_INPUT"; fields: Record<string, string[]>;}';
     }
 
     /*
@@ -29,7 +29,6 @@ final class InvalidInputPresenter implements ExceptionPresenter
 
         return [
             'type' => 'INVALID_INPUT',
-            'code' => 422,
             'fields' => $throwable->failure->issues->serializeToFieldsArray(),
         ];
     }

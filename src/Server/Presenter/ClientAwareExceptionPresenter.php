@@ -47,9 +47,7 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
 
         return implode('|', array_map(function (string $exceptionClass): string {
             $type = $exceptionClass::type();
-            $code = $exceptionClass::code();
-
-            return "{code: {$code}; type: '{$type}'}";
+            return "{type: '{$type}'}";
         }, $exceptionClasses));
     }
 
@@ -61,7 +59,6 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
         /** @var ClientAwareException $throwable */
 
         return [
-            'code' => $throwable::code(),
             'type' => $throwable::type(),
         ];
     }

@@ -24,7 +24,7 @@ final class NotFoundPresenter implements ExceptionPresenter
 
     public function toTypeScriptDefinition(Definition $definition): string
     {
-        return '{code: 404;type: "NOT_FOUND";}';
+        return '{type: "NOT_FOUND";}';
     }
 
     /*
@@ -33,7 +33,6 @@ final class NotFoundPresenter implements ExceptionPresenter
     public function details(Throwable $throwable): array
     {
         return [
-            'code' => 404,
             'type' => 'NOT_FOUND',
         ];
     }

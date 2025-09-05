@@ -24,7 +24,7 @@ final class UnauthenticatedPresenter implements ExceptionPresenter
 
     public function toTypeScriptDefinition(Definition $definition): string
     {
-        return '{code: 401;type: "UNAUTHENTICATED";}';
+        return '{type: "UNAUTHENTICATED";}';
     }
 
     /*
@@ -33,7 +33,6 @@ final class UnauthenticatedPresenter implements ExceptionPresenter
     public function details(Throwable $throwable): array
     {
         return [
-            'code' => 401,
             'type' => 'UNAUTHENTICATED',
         ];
     }

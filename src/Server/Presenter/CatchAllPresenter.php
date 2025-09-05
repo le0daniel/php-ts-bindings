@@ -16,7 +16,7 @@ final class CatchAllPresenter implements ExceptionPresenter
 
     public function toTypeScriptDefinition(Definition $definition): string
     {
-        return '{code: 500;type: "INTERNAL_SERVER_ERROR"}';
+        return '{type: "INTERNAL_SERVER_ERROR"}';
     }
 
     /*
@@ -25,7 +25,6 @@ final class CatchAllPresenter implements ExceptionPresenter
     public function details(Throwable $throwable): array
     {
         return [
-            'code' => 500,
             'type' => 'INTERNAL_SERVER_ERROR',
         ];
     }
