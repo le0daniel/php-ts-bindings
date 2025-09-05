@@ -42,7 +42,7 @@ final class CodeGenCommand extends Command
     . '{--custom=* : class-string<GeneratesLibFiles | GeneratesOperationCode>} '
     . '{--without=* : tanstack-query | type-map} '
     . '{--ignore=* : Ignored namespaces (namespace) or specific operations by specifying namespace.name} '
-    . '{--naming=name : Naming mode to use. Modes: name, fqn, operation-prefix, namespace-postfix}'
+    . '{--naming=name : Naming mode to use. Modes: name, fqn, operation-prefix, namespace-postfix or classname::methodName for custom function}'
     . '{--verify} ';
 
 
@@ -156,9 +156,9 @@ DESCRIPTION;
     /**
      * @return Closure(OperationData): string
      */
-    private function getNamingGenerator(): Closure
+    private function getNamingGenerator(Application $application): Closure
     {
-        return match ($this->option('naming')) {
+        $nameGenerator = match ($this->option('naming')) {
             'fqn' => function (OperationData $operationData): string {
                 $namespace = $operationData->definition->namespace;
                 $name = ucfirst($operationData->definition->name);
@@ -173,11 +173,25 @@ DESCRIPTION;
                 $name = $operationData->definition->name;
                 return "{$name}{$namespace}";
             },
-            // Includes 'name',
-            default => function (OperationData $operationData): string {
+            'name' => function (OperationData $operationData): string {
                 return $operationData->definition->name;
             },
+            default => null,
         };
+
+        if ($nameGenerator) {
+            return $nameGenerator;
+        }
+
+        $possibleClassNameAndMethod = $this->option('naming');
+        $parts = explode('::', $possibleClassNameAndMethod, 2);
+
+        if (count($parts) === 2 && class_exists($parts[0]) && method_exists($parts[0], $parts[1])) {
+            return Closure::fromCallable([$application->make($parts[0]), $parts[1]]);
+        }
+
+        $this->error("Unknown naming mode {$this->option('naming')}.");
+        exit(1);
     }
 
     /**
@@ -270,7 +284,7 @@ DESCRIPTION;
             return $default;
         };
 
-        $namingGenerator = $this->getNamingGenerator();
+        $namingGenerator = $this->getNamingGenerator($application);
 
         $generators = array_filter([
             $includeGenerator('types', true) ? new EmitTypes() : null,
