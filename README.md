@@ -1,21 +1,27 @@
 # PHP-TS Bindings
 
-Create simple and enforced PHP contracts with Typescript. Write strict php code and bridge the gap to your FE typescript
-code seamlessly. Similar to React Server actions, but with your existing PHP code base.
+This library is an RPC-style library. In comparison to other libraries, it leverages PHP Stan types for input and output
+definition, together with attributes to declare commands and queries.
+
+This Library might be for you if you have a well-typed modern PHP Project and want to seamlessly communicate with the
+Backend, while enjoying full stack type safety between PHP and Typescript.
 
 ## Motivation
 
 Writing modern and statically analysable PHP is great. It provides type safety with tools like PHPStan, catching a whole
-class of errors before you even deploy your application. This is great. The big issue arises at the boundry between a
-modern client using typescript, where you loose type safety at the api level between PHP and TS.
+class of errors before you even deploy your application. This is great. The big issue arises at the boundary between a
+modern client using TypeScript, where you loose type safety at the api level between PHP and TS.
 
-Other fullstack frameworks like NextJS introduced server actions, that create full stack type safety. The dev experience
-is great, allowing you to seamlessly interact with the backend and enjoy type safety throughout your stack.
+Writing a lot of client side code with frameworks like Next.js, I really fell in love with full stack type safety. This
+is a bit a challenge when using PHP, as the type system can be quite limiting at times. PHPstan comes to the help here,
+but creating API resources is painful compared to Next.js server actions.
+
+This made me think, why is there no such thing in PHP?
 
 This library aims to provide you a similar experience for your whole stack, by leveraging modern PHP and PHPStan type
 annotations, providing a clear contract between your frontend and backend. It doesn't require you to add specific code,
 rather expects you to strictly type your PHP input and output types – thats it. From that, it will generate you strict
-contracts and easy to use server actions and queries. As simple as that. 
+contracts and easy to use server actions and queries. As simple as that.
 
 ## Installation
 
@@ -27,6 +33,31 @@ composer require le0daniel/php-ts-bindings
 
 Get the type definition either for the PHP type system or in combination with the PHPDoc type annotations. Especially
 phpstan is supported quite well, including locally defined types or imported types.
+
+At its core, this library provides a Server class, taking a Registry of registered Operations (Commands and Queries).
+They can then be run with unvalidated input. The server takes care of input validation based on your types, running
+specified middlewares and returning structured output as defined in your output types. That's it. It requires your
+methods to have at least an input parameter which is typed and a typed return type.
+
+The definitions from PHPStan are parsed, applied to the provided input, guaranteeing that the input is valid based on
+your types. The return type is also applied and serialized, allowing you to be really specific about what is exposed.
+
+```php
+use Le0daniel\PhpTsBindings\Server\Server;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
+
+$server = new Server(
+    EagerlyLoadedRegistry::eagerlyDiscover('your directory', keyGenerator: EagerlyLoadedRegistry::hashKeyGenerator())
+);
+
+$result = $server->query('key', ['User Input'], new MyCustomContext);
+
+renderResponse($result);
+```
+
+### Laravel Default Integration
+
+## Type Parsing
 
 ```php
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
