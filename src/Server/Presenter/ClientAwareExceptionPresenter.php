@@ -52,7 +52,7 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
     }
 
     /**
-     * @return array{code: int, type: string}
+     * @return array{type: string}
      */
     public function details(Throwable $throwable): array
     {

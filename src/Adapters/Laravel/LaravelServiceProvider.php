@@ -11,9 +11,10 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
-use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
+use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
 use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
@@ -36,6 +37,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
      */
     public function provides(): array
     {
+        // @phpstan-ignore-next-line return.type -- allowed here.
         return [
             TypeParser::class,
             Server::class,
@@ -67,11 +69,12 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
                     $config->get('operations.discovery_path', []),
                     $app->make(TypeParser::class),
                     match ($config->get('operations.key.mode', 'obfuscate')) {
-                        'plain' => EagerlyLoadedRegistry::plainKeyGenerator(),
-                        'obfuscate' => EagerlyLoadedRegistry::hashKeyGenerator(
+                        'plain' => new PlainlyExposedKeyGenerator(),
+                        'obfuscate' => new HashSha256KeyGenerator(
                             $config->get('operations.key.pepper', 'none')
                         ),
-                        default => EagerlyLoadedRegistry::hashKeyGenerator('default'),
+                        "custom" => $app->make($config->get('operations.key.className')),
+                        default => new HashSha256KeyGenerator("default"),
                     },
                 );
 

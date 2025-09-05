@@ -163,7 +163,6 @@ test('handle invalid input http query request', function () {
                 'fields' => [
                     '__root' => ['validation.missing_property']
                 ],
-                'code' => 422,
             ],
             'code' => 422,
         ]);

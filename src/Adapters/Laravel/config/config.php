@@ -29,6 +29,7 @@ return [
      * Options:
      * - obfuscate: Uses sha256 with an optional pepper to hash both the name and namespace.
      * - plain
+     * - custom: MUST define className
      */
     "key" => [
         "mode" => "obfuscate",
@@ -37,6 +38,12 @@ return [
          * Only relevant for mode 'obfuscate'
          */
         "pepper" => "none",
+
+        /**
+         * Only relevantly for mode custom
+         * Class must implement: Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator
+         */
+        "className" => null,
     ],
 
     /**
