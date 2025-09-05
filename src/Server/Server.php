@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\OperationNotFoundException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\UnknownResultTypeException;
@@ -30,10 +31,10 @@ class Server
      * @param ExceptionPresenter $defaultPresenter
      */
     public function __construct(
-        public OperationRegistry  $registry,
-        public SchemaExecutor     $executor,
-        public array              $exceptionPresenters,
-        public ExceptionPresenter $defaultPresenter = new CatchAllPresenter(),
+        public readonly OperationRegistry  $registry,
+        public readonly SchemaExecutor     $executor,
+        public readonly array              $exceptionPresenters,
+        public readonly ExceptionPresenter $defaultPresenter = new CatchAllPresenter(),
     )
     {
     }
@@ -42,7 +43,7 @@ class Server
     {
         if (!$this->registry->has('query', $name)) {
             return new RpcError(
-                404,
+                ErrorType::NOT_FOUND,
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
                 ['type' => 'NOT_FOUND']
             );
@@ -55,7 +56,7 @@ class Server
     {
         if (!$this->registry->has('command', $name)) {
             return new RpcError(
-                404,
+                ErrorType::NOT_FOUND,
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
                 ['type' => 'NOT_FOUND']
             );
@@ -118,7 +119,7 @@ class Server
         foreach ($this->exceptionPresenters as $presenter) {
             if ($presenter->matches($exception, $definition)) {
                 return new RpcError(
-                    $presenter::statusCode(),
+                    $presenter::errorType(),
                     $exception,
                     $presenter->details($exception)
                 );
@@ -126,7 +127,7 @@ class Server
         }
 
         return new RpcError(
-            $this->defaultPresenter::statusCode(),
+            $this->defaultPresenter::errorType(),
             $exception,
             $this->defaultPresenter->details($exception)
         );

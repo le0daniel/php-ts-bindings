@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use ReflectionAttribute;
 use ReflectionException;
 use ReflectionMethod;
@@ -63,8 +64,8 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
         ];
     }
 
-    public static function statusCode(): int
+    public static function errorType(): ErrorType
     {
-        return 400;
+        return ErrorType::DOMAIN_ERROR;
     }
 }

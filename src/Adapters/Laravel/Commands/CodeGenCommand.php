@@ -368,9 +368,9 @@ DESCRIPTION;
     {
         // This could be moved to AST
         $possibleTypes = Arrays::filterNullValues(array_map(function (ExceptionPresenter $presenter) use ($operation): null|string {
-            $code = $presenter::statusCode();
+            $code = $presenter::errorType();
             $details = $presenter->toTypeScriptDefinition($operation);
-            return $details === null ? null : "{code: {$code}, details: {$details}}";
+            return $details === null ? null : "{code: {$code->value}, details: {$details}}";
         }, [...$server->exceptionPresenters, $server->defaultPresenter]));
 
         // @phpstan-ignore-next-line empty.variable

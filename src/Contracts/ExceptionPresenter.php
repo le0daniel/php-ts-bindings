@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Contracts;
 
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Throwable;
 
@@ -33,7 +34,7 @@ interface ExceptionPresenter
 
     /**
      * Transport layer status code.
-     * @return int
+     * @return ErrorType
      */
-    public static function statusCode(): int;
+    public static function errorType(): ErrorType;
 }

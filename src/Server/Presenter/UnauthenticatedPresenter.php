@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\Server\Presenter;
 
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Throwable;
 
 final class UnauthenticatedPresenter implements ExceptionPresenter
@@ -37,8 +38,8 @@ final class UnauthenticatedPresenter implements ExceptionPresenter
         ];
     }
 
-    public static function statusCode(): int
+    public static function errorType(): ErrorType
     {
-        return 401;
+        return ErrorType::AUTHENTICATION_ERROR;
     }
 }
