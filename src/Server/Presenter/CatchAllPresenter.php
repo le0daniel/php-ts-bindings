@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\Server\Presenter;
 
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Throwable;
 
 final class CatchAllPresenter implements ExceptionPresenter
@@ -29,8 +30,8 @@ final class CatchAllPresenter implements ExceptionPresenter
         ];
     }
 
-    public static function statusCode(): int
+    public static function errorType(): ErrorType
     {
-        return 500;
+        return ErrorType::INTERNAL_ERROR;
     }
 }

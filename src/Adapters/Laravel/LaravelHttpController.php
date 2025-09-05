@@ -154,7 +154,7 @@ readonly class LaravelHttpController
         $this->exceptionHandler->report($result->cause);
         $content = $this->appendClientDirectives([
             'success' => false,
-            'code' => $result->code,
+            'code' => $result->type->value,
             'details' => $result->details
         ], $client);
 
@@ -172,7 +172,7 @@ readonly class LaravelHttpController
 
         return new JsonResponse(
             $content,
-            $result->code
+            $result->type->value
         );
     }
 }

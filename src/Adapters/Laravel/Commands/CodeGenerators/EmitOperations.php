@@ -37,12 +37,18 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
         return new OperationCode(
             <<<TypeScript
 /**
- * Name: {$definition->namespace}.{$definition->name} 
+ * Type: {$definition->type}
+ * Name: {$definition->fullyQualifiedName()} 
  *
  * @php {$definition->fullyQualifiedClassName}::{$definition->methodName}
  */
 export async function {$name}(input: $operation->inputDefinition, options?: OperationOptions) {
-    return await executeOperation<{$operation->inputDefinition}, {$operation->outputDefinition}, {$operation->errorDefinition}>('{$definition->type}', '{$operation->key}', input, options)
+    return await executeOperation<{$operation->inputDefinition}, {$operation->outputDefinition}, {$operation->errorDefinition}>(
+        '{$definition->type}', 
+        '{$operation->key}', 
+        input, 
+        options
+    )
 }
 TypeScript
             ,

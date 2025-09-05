@@ -35,10 +35,10 @@
   },
   "scripts": {
     "test": "pest",
-    "phpstan": "phpstan --memory-limit=1G analyse",
+    "check:types": "phpstan --memory-limit=1G analyse",
     "check:all": [
       "@test",
-      "@phpstan"
+      "@check:types"
     ]
   },
   "extra": {
