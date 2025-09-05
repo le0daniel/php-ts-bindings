@@ -8,7 +8,7 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\OperationCode;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\OperationData;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Utils\Paths;
 
-final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
+final readonly class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {
     public function dependsOnGenerator(): array
     {
@@ -17,7 +17,7 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
         ];
     }
 
-    public function __construct(private readonly ?\Closure $nameGenerator = null)
+    public function __construct(private ?\Closure $nameGenerator = null)
     {
     }
 
@@ -38,7 +38,7 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 
         return new OperationCode(
             <<<TypeScript
-export function use{$upperCaseName}(input: {$operation->inputDefinition}, queryOptions?: Partial<{enabled: boolean}>) {
+export function use{$upperCaseName}Query(input: {$operation->inputDefinition}, queryOptions?: Partial<{enabled: boolean}>) {
     return useQuery({
         queryKey: queryKey('{$definition->namespace}', '{$definition->name}', input),
         queryFn: async ({signal}): Promise<{$operation->outputDefinition}> => {
