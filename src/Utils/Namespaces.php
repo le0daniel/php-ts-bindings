@@ -32,17 +32,23 @@ final class Namespaces
         $map = [];
         foreach ($namespaces as $namespace => $alias) {
             if (is_int($namespace)) {
+                /** @var class-string $alias */
                 $map[Strings::classBaseName($alias)] = self::withoutLeadingSlash($alias);
             } else {
+                /** @var class-string $namespace */
                 $map[$alias] = self::withoutLeadingSlash($namespace);
             }
         }
         return $map;
     }
 
+    /**
+     * @param class-string $className
+     * @return class-string
+     */
     private static function withoutLeadingSlash(string $className): string
     {
-        return str_starts_with($className, '\\') ? substr($className, 1) : $className;
+        return str_starts_with($className, '\\') ? substr($className, 1) : $className; // @return class-string
     }
 
     /**
@@ -51,6 +57,7 @@ final class Namespaces
     public static function toFullyQualifiedClassName(string $className, ?string $namespace, array $namespacesMap): string
     {
         if (str_starts_with($className, '\\')) {
+            /** @var class-string $className */
             return self::withoutLeadingSlash($className);
         }
 
