@@ -77,7 +77,7 @@ readonly class LaravelHttpController
 
         $result = $this->server->command(
             $fqn,
-            $this->gatherInputFromRequest('query', $request),
+            $this->gatherInputFromRequest('command', $request),
             $context,
             $client,
             $app
