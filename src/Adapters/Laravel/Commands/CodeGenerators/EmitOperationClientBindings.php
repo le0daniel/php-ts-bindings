@@ -142,10 +142,27 @@ export class DefaultClient implements OperationClient {
 
 }
 TypeScript,
+            "OperationException" => <<<TypeScript
+import type {Failure} from "./types";
+
+export class OperationException extends Error {
+    public readonly cause: Failure<any>;
+
+    constructor(cause: Failure<any>) {
+        this.cause = cause;
+        super(`Operation failed with code \${cause.code}`);
+    }
+    
+    public static is(e: unknown): e is OperationException {
+        return e instanceof OperationException;
+    }
+}
+TypeScript,
             "bindings" => <<<TypeScript
 import type { Result, Success, WithClientDirectives } from './types';
 import type { OperationClient, OperationOptions } from './OperationClient';
 import { DefaultClient } from './DefaultClient';
+import { OperationException } from './OperationException';
 
 let client: OperationClient|null;
 
@@ -163,7 +180,7 @@ export function setClient(operationClient: OperationClient|null): void {
 
 export function throwOnFailure<const T>(result: Result<T, any>): asserts result is Success<T> {
     if (!result.success) {
-        throw new Error('Operation failed');
+        throw new OperationException(result);
     }
 }
 
