@@ -96,7 +96,7 @@ class Server
                     return $exception;
                 }
             })
-            ->execute($validatedInput->value, [$context, $resolveInfo, $client]);
+            ->execute($validatedInput->value, $context, $resolveInfo, $client);
 
         if ($result instanceof Success) {
             return new RpcSuccess($result->value, $client);
