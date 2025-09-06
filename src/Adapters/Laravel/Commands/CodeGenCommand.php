@@ -112,6 +112,11 @@ DESCRIPTION;
             );
         }
 
+        // Deterministically sort for new runs
+        usort($definitions, function (OperationData $a, OperationData $b): int {
+            return strcmp($a->definition->fullyQualifiedName(), $b->definition->fullyQualifiedName());
+        });
+
         $metadata = new GeneralMetadata(
             $router->getRoutes()->getByName(LaravelHttpController::QUERY_NAME)->uri(),
             $router->getRoutes()->getByName(LaravelHttpController::COMMAND_NAME)->uri(),
