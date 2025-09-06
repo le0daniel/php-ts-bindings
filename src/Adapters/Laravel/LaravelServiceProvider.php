@@ -64,7 +64,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
             $isRepositoryCached = !$this->app->runningInConsole() && file_exists(base_path('bootstrap/cache/operations.php'));
 
             $repository = $isRepositoryCached
-                ? new CachedOperationRegistry(require(base_path('bootstrap/cache/operations.php')))
+                ? require(base_path('bootstrap/cache/operations.php'))
                 : EagerlyLoadedRegistry::eagerlyDiscover(
                     $config->get('operations.discovery_path', []),
                     $app->make(TypeParser::class),
