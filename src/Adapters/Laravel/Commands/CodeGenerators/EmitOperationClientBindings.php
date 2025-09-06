@@ -149,8 +149,8 @@ export class OperationException extends Error {
     public readonly cause: Failure<any>;
 
     constructor(cause: Failure<any>) {
-        this.cause = cause;
         super(`Operation failed with code \${cause.code}`);
+        this.cause = cause;
     }
     
     public static is(e: unknown): e is OperationException {
