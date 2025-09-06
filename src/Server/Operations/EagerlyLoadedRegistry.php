@@ -40,17 +40,17 @@ final class EagerlyLoadedRegistry implements OperationRegistry
         string|array          $directories,
         TypeParser            $parser = new TypeParser(),
         OperationKeyGenerator $keyGenerator = new HashSha256KeyGenerator('default', 8, 24),
+        OperationDiscovery    $discovery = new OperationDiscovery(),
     ): self
     {
         $directories = is_array($directories) ? $directories : [$directories];
-        $collector = new OperationDiscovery();
-        $discoverer = new DiscoveryManager([$collector]);
+        $discoverer = new DiscoveryManager([$discovery]);
         foreach ($directories as $directory) {
             $discoverer->discover($directory);
         }
 
         $factories = [];
-        foreach ([...$collector->queries, ...$collector->commands] as $definition) {
+        foreach ($discovery->operations as $definition) {
             $key = $keyGenerator->generateKey($definition);
 
             // Lazily execute the parsing.

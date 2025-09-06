@@ -2,10 +2,10 @@
 
 namespace Le0daniel\PhpTsBindings\Server\Operations;
 
+use Closure;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
-use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 use Le0daniel\PhpTsBindings\Contracts\Discoverer;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use ReflectionAttribute;
@@ -18,13 +18,35 @@ final class OperationDiscovery implements Discoverer
     private const string DEFAULT_NAMESPACE = 'global';
 
     /** @var array<string, Definition> */
-    private(set) array $queries = [];
+    private(set) array $operations = [];
 
-    /** @var array<string, Definition> */
-    private(set) array $commands = [];
+    /**
+     * @param Closure(ReflectionClass<object>, ReflectionMethod, Query|Command): bool|null $filterFn
+     */
+    public function __construct(private readonly Closure|null $filterFn = null)
+    {
+    }
+
+    /**
+     * Used for extensibility.
+     * Return false to filter the item out and have your own custom rules
+     *
+     * @param ReflectionClass<object> $class
+     * @param ReflectionMethod $method
+     * @param Query|Command $attribute
+     * @return bool
+     */
+    protected function filter(ReflectionClass $class, ReflectionMethod $method, Query|Command $attribute): bool
+    {
+        if ($this->filterFn) {
+            return ($this->filterFn)($class, $method, $attribute);
+        }
+
+        return true;
+    }
 
     /** @param ReflectionClass<object> $class */
-    public function discover(ReflectionClass $class): void
+    final public function discover(ReflectionClass $class): void
     {
         foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             $attributes = $method->getAttributes();
@@ -33,26 +55,22 @@ final class OperationDiscovery implements Discoverer
             }
 
             foreach ($attributes as $attribute) {
-                if ($attribute->getName() === Query::class) {
-                    /** @var Query $instance */
+                if ($attribute->getName() === Query::class || $attribute->getName() === Command::class) {
+                    /** @var Query|Command $instance */
                     $instance = $attribute->newInstance();
-                    [$fqn, $definition] = $this->toDefinition($instance, $class, $method);
-                    if (array_key_exists($fqn, $this->queries)) {
-                        throw new RuntimeException("Name collision for query: {$fqn} defined in {$definition->fullyQualifiedClassName} -> {$definition->methodName}.");
-                    }
-                    $this->queries[$fqn] = $definition;
-                    break;
-                }
 
-                if ($attribute->getName() === Command::class) {
-                    /** @var Command $instance */
-                    $instance = $attribute->newInstance();
-                    [$fqn, $definition] = $this->toDefinition($instance, $class, $method);
-                    if (array_key_exists($fqn, $this->commands)) {
-                        throw new RuntimeException("Name collision for action: {$fqn} defined in {$definition->fullyQualifiedClassName} -> {$definition->methodName}.");
+                    if (!$this->filter($class, $method, $instance)) {
+                        continue;
                     }
-                    $this->commands[$fqn] = $definition;
-                    break;
+
+                    $definition = $this->toDefinition($instance, $class, $method);
+                    $fullKey = "{$definition->type}@{$definition->fullyQualifiedName()}";
+
+                    if (array_key_exists($fullKey, $this->operations)) {
+                        throw new RuntimeException("Name collision for: {$definition->fullyQualifiedName()} defined in {$definition->fullyQualifiedClassName} -> {$definition->methodName}.");
+                    }
+
+                    $this->operations[$fullKey] = $definition;
                 }
             }
         }
@@ -62,16 +80,14 @@ final class OperationDiscovery implements Discoverer
      * @param Query|Command $attribute
      * @param ReflectionClass<object> $class
      * @param ReflectionMethod $method
-     * @return array{string, Definition}
+     * @return Definition
      */
-    private function toDefinition(Query|Command $attribute, ReflectionClass $class, ReflectionMethod $method): array
+    private function toDefinition(Query|Command $attribute, ReflectionClass $class, ReflectionMethod $method): Definition
     {
         $type = match ($attribute::class) {
             Query::class => 'query',
             Command::class => 'command',
         };
-
-        $throws = $method->getAttributes(Throws::class);
 
         $parameters = $method->getParameters();
         if (count($parameters) < 1) {
@@ -79,6 +95,7 @@ final class OperationDiscovery implements Discoverer
         }
 
         $attributes = [
+            // Collect all middlewares, on the class and the method itself.
             ... $class->getAttributes(Middleware::class),
             ... $method->getAttributes(Middleware::class),
         ];
@@ -89,7 +106,7 @@ final class OperationDiscovery implements Discoverer
             return $carry;
         }, []);
 
-        $definition = new Definition(
+        return new Definition(
             $type,
             $class->getName(),
             $method->name,
@@ -97,10 +114,5 @@ final class OperationDiscovery implements Discoverer
             $attribute->namespaceAsString() ?? self::DEFAULT_NAMESPACE,
             $middlewares,
         );
-
-        return [
-            $definition->fullyQualifiedName(),
-            $definition,
-        ];
     }
 }
