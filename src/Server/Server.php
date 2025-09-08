@@ -22,7 +22,7 @@ use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
 use Psr\Container\ContainerInterface;
 use Throwable;
 
-class Server
+final readonly class Server
 {
     /**
      * @param OperationRegistry $registry
@@ -31,15 +31,15 @@ class Server
      * @param ExceptionPresenter $defaultPresenter
      */
     public function __construct(
-        public readonly OperationRegistry  $registry,
-        public readonly SchemaExecutor     $executor,
-        public readonly array              $exceptionPresenters,
-        public readonly ExceptionPresenter $defaultPresenter = new CatchAllPresenter(),
+        public OperationRegistry  $registry,
+        public SchemaExecutor     $executor,
+        public array              $exceptionPresenters,
+        public ExceptionPresenter $defaultPresenter = new CatchAllPresenter(),
     )
     {
     }
 
-    final public function query(string $name, mixed $input, mixed $context, Client $client, ?ContainerInterface $container = null): RpcError|RpcSuccess
+    public function query(string $name, mixed $input, mixed $context, Client $client, ?ContainerInterface $container = null): RpcError|RpcSuccess
     {
         if (!$this->registry->has('query', $name)) {
             return new RpcError(
@@ -52,7 +52,7 @@ class Server
         return $this->execute($this->registry->get('query', $name), $input, $context, $client, $container);
     }
 
-    final public function command(string $name, mixed $input, mixed $context, Client $client, ?ContainerInterface $container = null): RpcError|RpcSuccess
+    public function command(string $name, mixed $input, mixed $context, Client $client, ?ContainerInterface $container = null): RpcError|RpcSuccess
     {
         if (!$this->registry->has('command', $name)) {
             return new RpcError(
@@ -109,12 +109,11 @@ class Server
     }
 
     /**
-     * Can be owerwritten by your own implementation.
      * @param Throwable $exception
      * @param Definition $definition
      * @return RpcError
      */
-    protected function produceError(Throwable $exception, Definition $definition): RpcError
+    private function produceError(Throwable $exception, Definition $definition): RpcError
     {
         foreach ($this->exceptionPresenters as $presenter) {
             if ($presenter->matches($exception, $definition)) {
