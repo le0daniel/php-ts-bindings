@@ -4,15 +4,18 @@ namespace Tests\Unit\Parser;
 
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
+use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -36,6 +39,34 @@ test('test simple union', function () {
         ->toBeInstanceOf(UnionNode::class);
 
     compareToOptimizedAst($node);
+});
+
+test('test literal union', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    /** @var UnionNode $node */
+    expect($node = $parser->parse("7|'18'|true"))
+        ->toBeInstanceOf(UnionNode::class);
+
+    compareToOptimizedAst($node);
+
+    /**
+     * @var int $index
+     * @var LiteralNode $type
+     */
+    foreach ($node->types as $index => $type) {
+        match ($index) {
+            0 => expect($type)->toBeInstanceOf(LiteralNode::class)
+                ->and($type->value)->toBe(7)
+                ->and($type->type)->toBe(LiteralType::INT),
+            1 => expect($type)->toBeInstanceOf(LiteralNode::class)
+                ->and($type->value)->toBe('18')
+                ->and($type->type)->toBe(LiteralType::STRING),
+            2 => expect($type)->toBeInstanceOf(LiteralNode::class)
+                ->and($type->value)->toBe(true)
+                ->and($type->type)->toBe(LiteralType::BOOL),
+        };
+    }
 });
 
 test('test scalar', function () {

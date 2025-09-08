@@ -22,7 +22,7 @@ final class LiteralConsumer implements TypeConsumer
         $state->advance();
 
         return new LiteralNode(
-            LiteralType::identifyPrimitiveTypeValue($token->value),
+            LiteralType::identifyPrimitiveTypeValue($token->coercedValue()),
             $token->coercedValue(),
         );
     }
