@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Discovery;
+namespace Le0daniel\PhpTsBindings\Server\Operations;
 
 use Le0daniel\PhpTsBindings\Contracts\Discoverer;
 use Le0daniel\PhpTsBindings\Reflection\FileReflector;

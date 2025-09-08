@@ -5,7 +5,6 @@ namespace Le0daniel\PhpTsBindings\Server\Operations;
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Discovery\DiscoveryManager;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;

@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
+use Le0daniel\PhpTsBindings\Contracts\Coersable;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -13,7 +14,7 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Stringable;
 use Throwable;
 
-readonly class BuiltInNode implements NodeInterface, LeafNode
+readonly class BuiltInNode implements NodeInterface, LeafNode, Coersable
 {
 
     public function __construct(public BuiltInType $type)
@@ -116,5 +117,24 @@ readonly class BuiltInNode implements NodeInterface, LeafNode
     public function outputDefinition(): string
     {
         return $this->inputDefinition();
+    }
+
+    public function coerce(mixed $value): mixed
+    {
+        return match ($this->type) {
+            BuiltInType::STRING => (string) $value,
+            BuiltInType::INT => filter_var($value, FILTER_VALIDATE_INT) !== false
+                ? (int) $value
+                : $value,
+            BuiltInType::BOOL => match ($value) {
+                'true', '1' => true,
+                'false', '0' => false,
+                default => $value,
+            },
+            BuiltInType::FLOAT => filter_var($value, FILTER_VALIDATE_INT) !== false || filter_var($value, FILTER_VALIDATE_FLOAT) !== false
+                ? (float) $value
+                : $value,
+            default => $value
+        };
     }
 }
