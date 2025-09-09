@@ -89,6 +89,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
                     new ClientAwareExceptionPresenter(),
                 ],
                 new CatchAllPresenter(),
+                $app,
             );
         });
 
