@@ -47,8 +47,8 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
         }
 
         return implode('|', array_map(function (string $exceptionClass): string {
-            $type = $exceptionClass::type();
-            return "{type: '{$type}'}";
+            $type = json_encode($exceptionClass::type(), JSON_THROW_ON_ERROR);
+            return "{type: {$type}}";
         }, $exceptionClasses));
     }
 
@@ -58,7 +58,6 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
     public function details(Throwable $throwable): array
     {
         /** @var ClientAwareException $throwable */
-
         return [
             'type' => $throwable::type(),
         ];
