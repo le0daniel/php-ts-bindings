@@ -11,8 +11,8 @@ final class ResolveInfo
     /**
      * @param string $namespace
      * @param string $name
-     * @param string $operationType
-     * @param class-string $className
+     * @param "query"|"command" $operationType
+     * @param class-string<object> $className
      * @param string $methodName
      */
     public function __construct(

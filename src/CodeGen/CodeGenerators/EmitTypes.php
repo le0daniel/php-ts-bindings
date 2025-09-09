@@ -2,8 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
+use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 
 final class EmitTypes implements GeneratesLibFiles
 {

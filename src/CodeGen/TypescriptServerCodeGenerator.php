@@ -2,12 +2,12 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\DependsOn;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\GeneratesLibFiles;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\GeneratesOperationCode;
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
+use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;

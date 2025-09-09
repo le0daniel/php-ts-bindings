@@ -1,9 +1,9 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
+namespace Le0daniel\PhpTsBindings\CodeGen\Contracts;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 
 interface GeneratesLibFiles

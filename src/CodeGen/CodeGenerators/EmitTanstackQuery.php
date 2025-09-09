@@ -2,11 +2,13 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Utils\Paths;
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
+use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 
 final readonly class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {

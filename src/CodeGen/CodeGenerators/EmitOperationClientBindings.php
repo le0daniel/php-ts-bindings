@@ -2,7 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
+use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 
 final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
 {
