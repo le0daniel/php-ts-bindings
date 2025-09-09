@@ -48,7 +48,7 @@ final readonly class Server
 
     public function query(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        if (!$this->registry->has('query', $name)) {
+        if (!$this->registry->has(OperationType::QUERY, $name)) {
             return new RpcError(
                 ErrorType::NOT_FOUND,
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
@@ -56,12 +56,12 @@ final readonly class Server
             );
         }
 
-        return $this->execute($this->registry->get('query', $name), $input, $context, $client);
+        return $this->execute($this->registry->get(OperationType::QUERY, $name), $input, $context, $client);
     }
 
     public function command(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        if (!$this->registry->has('command', $name)) {
+        if (!$this->registry->has(OperationType::COMMAND, $name)) {
             return new RpcError(
                 ErrorType::NOT_FOUND,
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
@@ -69,7 +69,7 @@ final readonly class Server
             );
         }
 
-        return $this->execute($this->registry->get('command', $name), $input, $context, $client);
+        return $this->execute($this->registry->get(OperationType::COMMAND, $name), $input, $context, $client);
     }
 
     private function execute(Operation $operation, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess

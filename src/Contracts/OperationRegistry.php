@@ -3,10 +3,8 @@
 namespace Le0daniel\PhpTsBindings\Contracts;
 
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 
-/**
- * @phpstan-type OperationType 'command'|'query'
- */
 interface OperationRegistry
 {
 
@@ -15,14 +13,14 @@ interface OperationRegistry
      * @param string $fullyQualifiedKey
      * @return bool
      */
-    public function has(string $type, string $fullyQualifiedKey): bool;
+    public function has(OperationType $type, string $fullyQualifiedKey): bool;
 
     /**
      * @param OperationType $type
      * @param string $fullyQualifiedKey
      * @return Operation
      */
-    public function get(string $type, string $fullyQualifiedKey): Operation;
+    public function get(OperationType $type, string $fullyQualifiedKey): Operation;
 
     /**
      * @return array<string, Operation>

@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
 use ReflectionClass;
 use ReflectionException;
@@ -51,9 +52,10 @@ final class EagerlyLoadedRegistry implements OperationRegistry
         $factories = [];
         foreach ($discovery->operations as $definition) {
             $key = $keyGenerator->generateKey($definition->namespace, $definition->name);
+            $fullyQualifiedKey = self::key($definition->type, $key);
 
             // Lazily execute the parsing.
-            $factories["{$definition->type->name}@{$key}"] = static function () use ($definition, $parser, $key) {
+            $factories[$fullyQualifiedKey] = static function () use ($definition, $parser, $key) {
                 $classReflection = new ReflectionClass($definition->fullyQualifiedClassName);
                 $inputParameter = $classReflection->getMethod($definition->methodName)->getParameters()[0];
 
@@ -68,18 +70,22 @@ final class EagerlyLoadedRegistry implements OperationRegistry
         return new self($factories);
     }
 
-    public function has(string $type, string $fullyQualifiedKey): bool
+    private static function key(OperationType $type, string $fullyQualifiedKey): string {
+        return "{$type->name}@{$fullyQualifiedKey}";
+    }
+
+    public function has(OperationType $type, string $fullyQualifiedKey): bool
     {
-        $key = "{$type}@{$fullyQualifiedKey}";
+        $key = self::key($type, $fullyQualifiedKey);
         return array_key_exists($key, $this->factories);
     }
 
     /**
      * @throws ReflectionException
      */
-    public function get(string $type, string $fullyQualifiedKey): Operation
+    public function get(OperationType $type, string $fullyQualifiedKey): Operation
     {
-        $key = "{$type}@{$fullyQualifiedKey}";
+        $key = self::key($type, $fullyQualifiedKey);
         return $this->instances[$key] ??= $this->factories[$key]();
     }
 

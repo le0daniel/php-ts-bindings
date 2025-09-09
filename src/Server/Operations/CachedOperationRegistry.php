@@ -6,6 +6,7 @@ use Closure;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 final class CachedOperationRegistry implements OperationRegistry
@@ -22,15 +23,23 @@ final class CachedOperationRegistry implements OperationRegistry
     {
     }
 
-    public function has(string $type, string $fullyQualifiedKey): bool
+    public function has(OperationType $type, string $fullyQualifiedKey): bool
     {
-        return array_key_exists("{$type}:{$fullyQualifiedKey}", $this->operations);
+        return array_key_exists(
+            self::key($type, $fullyQualifiedKey),
+            $this->operations
+        );
     }
 
-    public function get(string $type, string $fullyQualifiedKey): Operation
+    public function get(OperationType $type, string $fullyQualifiedKey): Operation
     {
-        $key = "{$type}:{$fullyQualifiedKey}";
+        $key = self::key($type, $fullyQualifiedKey);
         return $this->instances[$key] ??= $this->operations[$key]();
+    }
+
+    private static function key(OperationType $type, string $fullyQualifiedKey): string
+    {
+        return "{$type->name}:{$fullyQualifiedKey}";
     }
 
     public function all(): array
@@ -57,8 +66,10 @@ final class CachedOperationRegistry implements OperationRegistry
             $asts[$outputAstName] = $endpoint->outputNode(...);
 
             $exportedDefinition = $endpoint->definition->exportPhpCode();
+            $key = self::key($operation->type, $operation->fullyQualifiedName());
+
             $endpoints[] =
-                "'{$operation->type->name}:{$endpoint->key}' => fn() => new {$endpointClass}('{$endpoint->key}', $exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";
+                "'{$key}' => fn() => new {$endpointClass}('{$endpoint->key}', $exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";
         }
 
         $optimizer = new AstOptimizer();

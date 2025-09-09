@@ -61,8 +61,8 @@ test('handle successful http query request', function () {
         }
     };
 
-    $operationRegistry->shouldReceive('has')->with('query', $fcn)->andReturn(true);
-    $operationRegistry->shouldReceive('get')->with('query', $fcn)->andReturn($operation);
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
 
     $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturnNull();
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
@@ -133,8 +133,8 @@ test('handle invalid input http query request', function () {
         }
     };
 
-    $operationRegistry->shouldReceive('has')->with('query', $fcn)->andReturn(true);
-    $operationRegistry->shouldReceive('get')->with('query', $fcn)->andReturn($operation);
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
     $exceptionHandler->shouldReceive('report')->with(InvalidInputException::class);
 
     $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturnNull();
