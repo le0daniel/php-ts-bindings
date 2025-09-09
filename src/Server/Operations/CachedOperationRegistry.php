@@ -50,15 +50,15 @@ final class CachedOperationRegistry implements OperationRegistry
         foreach ($registry->all() as $endpoint) {
             $operation = $endpoint->definition;
 
-            $inputAstName = "{$operation->type}:{$operation->fullyQualifiedName()}#input";
-            $outputAstName = "{$operation->type}:{$operation->fullyQualifiedName()}#output";
+            $inputAstName = "{$operation->type->name}:{$operation->fullyQualifiedName()}#input";
+            $outputAstName = "{$operation->type->name}:{$operation->fullyQualifiedName()}#output";
 
             $asts[$inputAstName] = $endpoint->inputNode(...);
             $asts[$outputAstName] = $endpoint->outputNode(...);
 
             $exportedDefinition = $endpoint->definition->exportPhpCode();
             $endpoints[] =
-                "'{$endpoint->definition->type}:{$endpoint->key}' => fn() => new {$endpointClass}('{$endpoint->key}', $exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";
+                "'{$operation->type->name}:{$endpoint->key}' => fn() => new {$endpointClass}('{$endpoint->key}', $exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";
         }
 
         $optimizer = new AstOptimizer();

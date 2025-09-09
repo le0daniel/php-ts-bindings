@@ -39,14 +39,14 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
         return new TypescriptCodeBlock(
             <<<TypeScript
 /**
- * Type: {$definition->type}
+ * Type: {$definition->type->name}
  * Name: {$definition->fullyQualifiedName()} 
  *
  * @php {$definition->fullyQualifiedClassName}::{$definition->methodName}
  */
 export async function {$name}(input: $operation->inputDefinition, options?: OperationOptions) {
     return await executeOperation<{$operation->inputDefinition}, {$operation->outputDefinition}, {$operation->errorDefinition}>(
-        '{$definition->type}', 
+        '{$definition->type->lowerCase()}', 
         '{$operation->key}', 
         input, 
         options

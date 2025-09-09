@@ -53,7 +53,7 @@ final class EagerlyLoadedRegistry implements OperationRegistry
             $key = $keyGenerator->generateKey($definition->namespace, $definition->name);
 
             // Lazily execute the parsing.
-            $factories["{$definition->type}@{$key}"] = static function () use ($definition, $parser, $key) {
+            $factories["{$definition->type->name}@{$key}"] = static function () use ($definition, $parser, $key) {
                 $classReflection = new ReflectionClass($definition->fullyQualifiedClassName);
                 $inputParameter = $classReflection->getMethod($definition->methodName)->getParameters()[0];
 

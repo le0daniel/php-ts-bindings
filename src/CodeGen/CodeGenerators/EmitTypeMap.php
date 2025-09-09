@@ -17,7 +17,7 @@ final class EmitTypeMap implements GeneratesLibFiles
          * @var array<"query"|"command", array<string, array{input: string, output: string, errors: string}>> $map
          */
         $map = array_reduce($operations, function (array $carry, TypedOperation $operation): array {
-            $carry[$operation->definition->type][$operation->definition->fullyQualifiedName()] = [
+            $carry[$operation->definition->type->lowerCase()][$operation->definition->fullyQualifiedName()] = [
                 'input' => $operation->inputDefinition,
                 'output' => $operation->outputDefinition,
                 'errors' => $operation->errorDefinition,

@@ -15,6 +15,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
 use Le0daniel\PhpTsBindings\Server\Presenter\InvalidInputPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
@@ -34,7 +35,7 @@ test('handle successful http query request', function () {
     $request->query = new InputBag($inputData);
 
     $operationDefinition = new Definition(
-        'query',
+        OperationType::QUERY,
         'MyClass',
         'someMethod',
         'method',
@@ -106,7 +107,7 @@ test('handle invalid input http query request', function () {
     $request->query = new InputBag($inputData);
 
     $operationDefinition = new Definition(
-        'query',
+        OperationType::QUERY,
         'MyClass',
         'someMethod',
         'method',

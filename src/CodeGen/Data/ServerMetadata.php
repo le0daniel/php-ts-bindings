@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\Data;
 
 use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 
 final readonly class ServerMetadata
 {
@@ -22,7 +23,7 @@ final readonly class ServerMetadata
 
     public function getFullyQualifiedUrl(Operation $operation): string
     {
-        return $operation->definition->type === 'query'
+        return $operation->definition->type === OperationType::QUERY
             ? str_replace('{fqn}', $operation->key, $this->queryUrl)
             : str_replace('{fqn}', $operation->key, $this->commandUrl);
     }

@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 
 final readonly class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {
@@ -31,7 +32,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
     public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptCodeBlock
     {
         $definition = $operation->operation->definition;
-        if ($definition->type !== 'query') {
+        if ($definition->type !== OperationType::QUERY) {
             return null;
         }
 

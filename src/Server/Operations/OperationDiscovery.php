@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 use Le0daniel\PhpTsBindings\Contracts\Discoverer;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
@@ -64,7 +65,7 @@ final class OperationDiscovery implements Discoverer
                     }
 
                     $definition = $this->toDefinition($instance, $class, $method);
-                    $fullKey = "{$definition->type}@{$definition->fullyQualifiedName()}";
+                    $fullKey = "{$definition->type->name}@{$definition->fullyQualifiedName()}";
 
                     if (array_key_exists($fullKey, $this->operations)) {
                         throw new RuntimeException("Name collision for: {$definition->fullyQualifiedName()} defined in {$definition->fullyQualifiedClassName} -> {$definition->methodName}.");
@@ -85,8 +86,8 @@ final class OperationDiscovery implements Discoverer
     private function toDefinition(Query|Command $attribute, ReflectionClass $class, ReflectionMethod $method): Definition
     {
         $type = match ($attribute::class) {
-            Query::class => 'query',
-            Command::class => 'command',
+            Query::class => OperationType::QUERY,
+            Command::class => OperationType::COMMAND,
         };
 
         $parameters = $method->getParameters();

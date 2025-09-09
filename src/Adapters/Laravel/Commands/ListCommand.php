@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Server;
 use RuntimeException;
 
@@ -34,7 +35,7 @@ final class ListCommand extends Command
         $this->table([
             'PLAIN NAME','URI', 'METHOD', "TARGET", "LARAVEL MIDDLEWARE", "MIDDLEWARE",
         ], array_map(fn(Operation $operation) => match ($operation->definition->type) {
-            'query' => [
+            OperationType::QUERY => [
                 $operation->definition->fullyQualifiedName(),
                 $this->bindUri($queryRoute->uri(), $operation),
                 implode(', ', $queryRoute->methods()),
@@ -42,7 +43,7 @@ final class ListCommand extends Command
                 implode(', ', $queryRoute->gatherMiddleware()),
                 implode(', ', $operation->definition->middleware),
             ],
-            'command' => [
+            OperationType::COMMAND => [
                 $operation->definition->fullyQualifiedName(),
                 $this->bindUri($commandRoute->uri(), $operation),
                 implode(', ', $commandRoute->methods()),

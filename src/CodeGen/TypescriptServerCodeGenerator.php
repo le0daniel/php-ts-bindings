@@ -95,8 +95,8 @@ final readonly class TypescriptServerCodeGenerator
         // Deterministically sort for consistency between systems
         usort($definitions, function (TypedOperation $a, TypedOperation $b): int {
             return strcmp(
-                "{$a->definition->fullyQualifiedName()}#{$a->definition->type}",
-                "{$b->definition->fullyQualifiedName()}#{$b->definition->type}",
+                "{$a->definition->fullyQualifiedName()}#{$a->definition->type->name}",
+                "{$b->definition->fullyQualifiedName()}#{$b->definition->type->name}",
             );
         });
 

@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 final class Definition implements ExportableToPhpCode
 {
     /**
-     * @param 'command'|'query' $type
+     * @param OperationType $type
      * @param class-string<object> $fullyQualifiedClassName
      * @param string $methodName
      * @param string $name
@@ -17,12 +17,12 @@ final class Definition implements ExportableToPhpCode
      * @param list<class-string> $middleware
      */
     public function __construct(
-        public string  $type,
-        public string  $fullyQualifiedClassName,
-        public string  $methodName,
-        public string  $name,
-        public string  $namespace,
-        public array   $middleware,
+        public OperationType $type,
+        public string        $fullyQualifiedClassName,
+        public string        $methodName,
+        public string        $name,
+        public string        $namespace,
+        public array         $middleware,
     )
     {
     }
