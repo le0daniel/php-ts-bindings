@@ -1,20 +1,21 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators;
+namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\GeneralMetadata;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\OperationData;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 
 final class EmitTypeMap implements GeneratesLibFiles
 {
 
-    public function emitFiles(array $operations, GeneralMetadata $metadata): array
+    public function emitFiles(array $operations, ServerMetadata $metadata): array
     {
         /**
          * @var array<"query"|"command", array<string, array{input: string, output: string, errors: string}>> $map
          */
-        $map = array_reduce($operations, function (array $carry, OperationData $operation): array {
+        $map = array_reduce($operations, function (array $carry, TypedOperation $operation): array {
             $carry[$operation->definition->type][$operation->definition->fullyQualifiedName()] = [
                 'input' => $operation->inputDefinition,
                 'output' => $operation->outputDefinition,
@@ -31,7 +32,7 @@ final class EmitTypeMap implements GeneratesLibFiles
         })) . '}';
 
         return [
-            'types' => new TsFile(content: <<<TypeScript
+            'types' => new TypeScriptFile(code: <<<TypeScript
 
 /**
  * Full type map of all operations, input and output types.

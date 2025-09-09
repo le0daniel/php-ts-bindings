@@ -1,13 +1,13 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators;
+namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
 use Closure;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\GeneralMetadata;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ImportStatement;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\OperationCode;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\OperationData;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Utils\Paths;
+use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
+use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
 
 final class EmitQueryKey implements DependsOn, GeneratesOperationCode
 {
@@ -22,13 +22,13 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
     {
     }
 
-    private function generateName(OperationData $operation): string
+    private function generateName(TypedOperation $operation): string
     {
         return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
     }
 
 
-    public function generateOperationCode(OperationData $operation, GeneralMetadata $metadata): ?OperationCode
+    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptCodeBlock
     {
         $definition = $operation->operation->definition;
         if ($definition->type !== 'query') {
@@ -37,7 +37,7 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
 
         $name = $this->generateName($operation);
 
-        return new OperationCode(
+        return new TypescriptCodeBlock(
             <<<TypeScript
 /** @pure */
 export function {$name}QueryKey(input: {$operation->inputDefinition}) {
@@ -46,7 +46,7 @@ export function {$name}QueryKey(input: {$operation->inputDefinition}) {
 TypeScript
             ,
             [
-                new ImportStatement(
+                new TypescriptImportStatement(
                     from: Paths::libImport("utils"),
                     imports: ['queryKey'],
                 ),

@@ -2,15 +2,22 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Data;
 
+use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 
-final class GeneralMetadata
+final readonly class ServerMetadata
 {
     public function __construct(
-        public readonly string $queryUrl,
-        public readonly string $commandUrl,
+        public string $queryUrl,
+        public string $commandUrl,
     )
     {
+        if (!str_contains($this->queryUrl, '{fqn}')) {
+            throw new InvalidArgumentException('Query URL must contain {fqn} placeholder');
+        }
+        if (!str_contains($this->commandUrl, '{fqn}')) {
+            throw new InvalidArgumentException('Command URL must contain {fqn} placeholder');
+        }
     }
 
     public function getFullyQualifiedUrl(Operation $operation): string

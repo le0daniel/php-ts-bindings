@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators;
+namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\GeneralMetadata;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
 
 final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
 {
@@ -17,7 +17,7 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
     /**
      * @return array<string, string>
      */
-    public function emitFiles(array $operations, GeneralMetadata $metadata): array
+    public function emitFiles(array $operations, ServerMetadata $metadata): array
     {
         return [
             "OperationClient" => <<<TypeScript

@@ -1,10 +1,10 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Data;
+namespace Le0daniel\PhpTsBindings\CodeGen\Helpers;
 
 use InvalidArgumentException;
 
-final readonly class ImportStatement
+final readonly class TypescriptImportStatement
 {
     /**
      * @var list<string>
@@ -23,7 +23,7 @@ final readonly class ImportStatement
         $this->imports = is_string($imports) ? [$imports] : $imports;
     }
 
-    public function merge(ImportStatement $other): ImportStatement
+    public function merge(TypescriptImportStatement $other): TypescriptImportStatement
     {
         if ($this->from !== $other->from) {
             throw new InvalidArgumentException("Cannot merge imports from different files");
@@ -34,7 +34,7 @@ final readonly class ImportStatement
             ... $other->getImports()
         ]));
 
-        return new ImportStatement($this->from, $uniqueImports);
+        return new TypescriptImportStatement($this->from, $uniqueImports);
     }
 
     public function toString(): string

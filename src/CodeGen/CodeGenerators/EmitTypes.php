@@ -1,9 +1,9 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators;
+namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\GeneralMetadata;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\OperationData;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\TypedOperation;
 
 final class EmitTypes implements GeneratesLibFiles
 {
@@ -11,9 +11,9 @@ final class EmitTypes implements GeneratesLibFiles
     /**
      * @return array<string, string>
      */
-    public function emitFiles(array $operations, GeneralMetadata $metadata): array
+    public function emitFiles(array $operations, ServerMetadata $metadata): array
     {
-        $uniqueNamespaces = array_reduce($operations, function (array $carry, OperationData $operation) {
+        $uniqueNamespaces = array_reduce($operations, function (array $carry, TypedOperation $operation) {
             if (!in_array($operation->operation->definition->namespace, $carry, true)) {
                 return [
                     ...$carry,

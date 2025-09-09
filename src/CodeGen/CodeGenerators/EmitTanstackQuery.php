@@ -1,12 +1,12 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenerators;
+namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\GeneralMetadata;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ImportStatement;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\OperationCode;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\OperationData;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Utils\Paths;
+use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
+use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
 
 final readonly class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {
@@ -21,12 +21,12 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
     {
     }
 
-    private function generateName(OperationData $operation): string
+    private function generateName(TypedOperation $operation): string
     {
         return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
     }
 
-    public function generateOperationCode(OperationData $operation, GeneralMetadata $metadata): ?OperationCode
+    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptCodeBlock
     {
         $definition = $operation->operation->definition;
         if ($definition->type !== 'query') {
@@ -36,7 +36,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         $name = $this->generateName($operation);
         $upperCaseName = ucfirst($name);
 
-        return new OperationCode(
+        return new TypescriptCodeBlock(
             <<<TypeScript
 export function use{$upperCaseName}Query(input: {$operation->inputDefinition}, queryOptions?: Partial<{enabled: boolean}>) {
     return useQuery({
@@ -52,15 +52,15 @@ export function use{$upperCaseName}Query(input: {$operation->inputDefinition}, q
 TypeScript
             ,
             [
-                new ImportStatement(
+                new TypescriptImportStatement(
                     from: "@tanstack/react-query",
                     imports: ['useQuery'],
                 ),
-                new ImportStatement(
+                new TypescriptImportStatement(
                     from: Paths::libImport("utils"),
                     imports: ['queryKey'],
                 ),
-                new ImportStatement(
+                new TypescriptImportStatement(
                     from: Paths::libImport("bindings"),
                     imports: ['throwOnFailure'],
                 )

@@ -5,7 +5,7 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Data;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 
-final class OperationData
+final class TypedOperation
 {
     public Definition $definition {
         get => $this->operation->definition;
