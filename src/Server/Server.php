@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
+use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
@@ -15,9 +16,11 @@ use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\OperationNotFoundException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\UnknownResultTypeException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\Pipeline\ContextualPipeline;
 use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
 use Psr\Container\ContainerInterface;
@@ -38,6 +41,7 @@ final readonly class Server
         public array                    $exceptionPresenters,
         public ExceptionPresenter       $defaultPresenter = new CatchAllPresenter(),
         private null|ContainerInterface $container = null,
+        public ServerConfiguration      $configuration = new ServerConfiguration(),
     )
     {
     }
@@ -70,7 +74,12 @@ final readonly class Server
 
     private function execute(Operation $operation, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        $validatedInput = $this->executor->parse($operation->inputNode(), $input);
+        $validatedInput = $this->executor->parse($operation->inputNode(), $input, new ParsingOptions(
+            coercePrimitives: $operation->definition->type === OperationType::QUERY
+                ? $this->configuration->coerceQueryInput
+                : false,
+        ));
+
         if ($validatedInput instanceof Failure) {
             return $this->produceError(
                 new InvalidInputException($validatedInput),
