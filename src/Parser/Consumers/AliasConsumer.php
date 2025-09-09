@@ -12,10 +12,10 @@ use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use ReflectionException;
 
-final class AliasConsumer implements TypeConsumer
+final readonly class AliasConsumer implements TypeConsumer
 {
     public function __construct(
-        private readonly GlobalTypeAliases $globalTypeAliases,
+        private GlobalTypeAliases $globalTypeAliases,
     )
     {
     }

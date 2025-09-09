@@ -69,7 +69,9 @@ test('handle successful http query request', function () {
     $server = new Server(
         $operationRegistry,
         new SchemaExecutor(),
-        [new CatchAllPresenter()],
+        [],
+        new CatchAllPresenter(),
+        $app,
     );
 
     $controller = new LaravelHttpController(
@@ -79,7 +81,7 @@ test('handle successful http query request', function () {
     );
 
     // Act
-    $response = $controller->handleHttpQueryRequest($fcn, $request, $app);
+    $response = $controller->handleHttpQueryRequest($fcn, $request);
 
     // Assert
     expect($response)->toBeInstanceOf(JsonResponse::class)
@@ -141,7 +143,9 @@ test('handle invalid input http query request', function () {
     $server = new Server(
         $operationRegistry,
         new SchemaExecutor(),
-        [new InvalidInputPresenter(), new CatchAllPresenter()],
+        [new InvalidInputPresenter()],
+        new CatchAllPresenter(),
+        $app,
     );
 
     $controller = new LaravelHttpController(
@@ -151,7 +155,7 @@ test('handle invalid input http query request', function () {
     );
 
     // Act
-    $response = $controller->handleHttpQueryRequest($fcn, $request, $app);
+    $response = $controller->handleHttpQueryRequest($fcn, $request);
 
     // Assert
     expect($response)->toBeInstanceOf(JsonResponse::class)

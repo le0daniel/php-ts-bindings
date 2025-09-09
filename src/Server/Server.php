@@ -29,17 +29,19 @@ final readonly class Server
      * @param SchemaExecutor $executor
      * @param list<ExceptionPresenter> $exceptionPresenters
      * @param ExceptionPresenter $defaultPresenter
+     * @param ContainerInterface|null $container
      */
     public function __construct(
-        public OperationRegistry  $registry,
-        public SchemaExecutor     $executor,
-        public array              $exceptionPresenters,
-        public ExceptionPresenter $defaultPresenter = new CatchAllPresenter(),
+        public OperationRegistry        $registry,
+        public SchemaExecutor           $executor,
+        public array                    $exceptionPresenters,
+        public ExceptionPresenter       $defaultPresenter = new CatchAllPresenter(),
+        private null|ContainerInterface $container = null,
     )
     {
     }
 
-    public function query(string $name, mixed $input, mixed $context, Client $client, ?ContainerInterface $container = null): RpcError|RpcSuccess
+    public function query(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
         if (!$this->registry->has('query', $name)) {
             return new RpcError(
@@ -49,10 +51,10 @@ final readonly class Server
             );
         }
 
-        return $this->execute($this->registry->get('query', $name), $input, $context, $client, $container);
+        return $this->execute($this->registry->get('query', $name), $input, $context, $client);
     }
 
-    public function command(string $name, mixed $input, mixed $context, Client $client, ?ContainerInterface $container = null): RpcError|RpcSuccess
+    public function command(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
         if (!$this->registry->has('command', $name)) {
             return new RpcError(
@@ -62,10 +64,10 @@ final readonly class Server
             );
         }
 
-        return $this->execute($this->registry->get('command', $name), $input, $context, $client, $container);
+        return $this->execute($this->registry->get('command', $name), $input, $context, $client);
     }
 
-    private function execute(Operation $operation, mixed $input, mixed $context, Client $client, ?ContainerInterface $container): RpcError|RpcSuccess
+    private function execute(Operation $operation, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
         $validatedInput = $this->executor->parse($operation->inputNode(), $input);
         if ($validatedInput instanceof Failure) {
@@ -75,8 +77,12 @@ final readonly class Server
             );
         }
 
-        $middlewares = array_map(fn(string $className) => $container ? $container->get($className) : new $className, $operation->definition->middleware);
-        $controllerClass = $container ? $container->get($operation->definition->fullyQualifiedClassName) : new $operation->definition->fullyQualifiedClassName;
+        $middlewares = array_map(fn(string $className) => $this->container
+            ? $this->container->get($className)
+            : new $className, $operation->definition->middleware);
+        $controllerClass = $this->container
+            ? $this->container->get($operation->definition->fullyQualifiedClassName)
+            : new $operation->definition->fullyQualifiedClassName;
 
         $resolveInfo = new ResolveInfo(
             $operation->definition->namespace,

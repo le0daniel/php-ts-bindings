@@ -51,7 +51,7 @@ readonly class LaravelHttpController
     /**
      * @throws Throwable
      */
-    public function handleHttpQueryRequest(string $fqn, Http\Request $request, Application $app): JsonResponse
+    public function handleHttpQueryRequest(string $fqn, Http\Request $request): JsonResponse
     {
         $client = $this->createClient($request);
         $context = $this->createContext($request);
@@ -61,7 +61,6 @@ readonly class LaravelHttpController
             $this->gatherInputFromRequest('query', $request),
             $context,
             $client,
-            $app
         );
 
         return $this->produceJsonResponse($result, $client);
@@ -70,7 +69,7 @@ readonly class LaravelHttpController
     /**
      * @throws Throwable
      */
-    public function handleHttpCommandRequest(string $fqn, Http\Request $request, Application $app): JsonResponse
+    public function handleHttpCommandRequest(string $fqn, Http\Request $request): JsonResponse
     {
         $client = $this->createClient($request);
         $context = $this->createContext($request);
@@ -80,7 +79,6 @@ readonly class LaravelHttpController
             $this->gatherInputFromRequest('command', $request),
             $context,
             $client,
-            $app
         );
 
         return $this->produceJsonResponse($result, $client);
