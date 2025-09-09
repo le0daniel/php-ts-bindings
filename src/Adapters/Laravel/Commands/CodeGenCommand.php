@@ -161,6 +161,7 @@ DESCRIPTION;
 
     /**
      * @return Closure(OperationData): string
+     * @throws BindingResolutionException
      */
     private function getNamingGenerator(Application $application): Closure
     {
