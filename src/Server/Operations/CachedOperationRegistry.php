@@ -66,7 +66,7 @@ final class CachedOperationRegistry implements OperationRegistry
             $asts[$outputAstName] = $endpoint->outputNode(...);
 
             $exportedDefinition = $endpoint->definition->exportPhpCode();
-            $key = self::key($operation->type, $operation->fullyQualifiedName());
+            $key = self::key($operation->type, $endpoint->key);
 
             $endpoints[] =
                 "'{$key}' => fn() => new {$endpointClass}('{$endpoint->key}', $exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";
