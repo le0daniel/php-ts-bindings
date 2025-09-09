@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\OperationNotFoundException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\UnknownResultTypeException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
@@ -94,10 +95,19 @@ final readonly class Server
 
         $result = new ContextualPipeline($middlewares)
             ->catchErrorsWith(fn(Throwable $throwable) => $throwable)
-            ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context) {
+            ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context): Success|Throwable {
                 try {
-                    $result = $controllerClass->{$operation->definition->methodName}($input, $context, $client);
-                    return $this->executor->serialize($operation->outputNode(), $result);
+                    $serializedResult = $this->executor
+                        ->serialize(
+                            $operation->outputNode(),
+                            $controllerClass->{$operation->definition->methodName}($input, $context, $client)
+                        );
+
+                    if ($serializedResult instanceof Failure) {
+                        return new InvalidOutputException($serializedResult);
+                    }
+
+                    return $serializedResult;
                 } catch (Throwable $exception) {
                     return $exception;
                 }

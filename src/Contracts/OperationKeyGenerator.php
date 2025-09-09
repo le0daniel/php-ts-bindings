@@ -7,6 +7,6 @@ use Le0daniel\PhpTsBindings\Server\Data\Definition;
 interface OperationKeyGenerator
 {
 
-    public function generateKey(Definition $definition): string;
+    public function generateKey(string $namespace, string $name): string;
 
 }

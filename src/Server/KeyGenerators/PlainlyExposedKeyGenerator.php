@@ -8,8 +8,8 @@ use Le0daniel\PhpTsBindings\Server\Data\Definition;
 final class PlainlyExposedKeyGenerator implements OperationKeyGenerator
 {
 
-    public function generateKey(Definition $definition): string
+    public function generateKey(string $namespace, string $name): string
     {
-        return $definition->fullyQualifiedName();
+        return "{$namespace}.{$name}";
     }
 }

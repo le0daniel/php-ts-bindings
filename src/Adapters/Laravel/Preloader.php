@@ -2,53 +2,65 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
-use Illuminate\Contracts\Container\BindingResolutionException;
-use Illuminate\Contracts\Foundation\Application;
-use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Executor\Data\Failure;
-use Le0daniel\PhpTsBindings\Executor\Data\Success;
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
+use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
+use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Strings;
+use RuntimeException;
 use UnitEnum;
 
 final readonly class Preloader
 {
+    /**
+     * It's critical that the key generator is the same as the Key generator used by the server's repository.
+     * Why? Because this is how the key is actually derived from the namespace and name.
+     *
+     * @param Server $server
+     * @param OperationKeyGenerator $keyGenerator
+     */
     public function __construct(
-        private OperationRegistry $registry,
-        private SchemaExecutor    $executor,
-        private Application       $application,
+        private Server                $server,
+        private OperationKeyGenerator $keyGenerator,
     )
     {
     }
 
     /**
-     * Execute a query and returns it's result. No middlewares not input validation is called.
+     * Execute a query and returns it's result.
      * The query is simply executed and the result serialized.
      *
      * This is really useful if you want to preload data on the server on a page load and make it instantly available on the
      * client side.
      *
-     * @throws Failure
-     * @throws BindingResolutionException
      * @return array{result: mixed, key: list<mixed>}
      */
     public function preload(string|UnitEnum $namespace, string $name, mixed $input, mixed $context): array
     {
-        $fqcn = Strings::toString($namespace) . '.' . $name;
-        $operation = $this->registry->get('query', $fqcn);
+        $namespaceAsString = Strings::toString($namespace);
+        $fqcn = $this->keyGenerator->generateKey(Strings::toString($namespaceAsString), $name);
+        $result = $this->server->query($fqcn, $input, $context, new NullClient());
 
-        $instance = $this->application->make($operation->definition->fullyQualifiedClassName);
-        $result = $instance->{$operation->definition->methodName}($input, $context, new NullClient());
-        $serializedResult = $this->executor->serialize($operation->outputNode(), $result);
-
-        if (!$result instanceof Success) {
-            throw $serializedResult;
+        if (!$result instanceof RpcSuccess) {
+            throw new RuntimeException("Failed to preload: {$namespaceAsString}.{$name}");
         }
 
         return [
-            'result' => $serializedResult->value,
-            'key' => [Strings::toString($namespace), $name, $input]
+            'result' => $result->data,
+            'key' => [$namespaceAsString, $name, $input]
         ];
+    }
+
+    /**
+     * @param list<array{namespace: string|UnitEnum, name: string, input: mixed}> $preloads
+     * @param mixed $context
+     * @return list<array{result: mixed, key: list<mixed>}>
+     */
+    public function preloadMany(array $preloads, mixed $context): array
+    {
+        return array_map(
+            fn(array $preload) => $this->preload($preload['namespace'], $preload['name'], $preload['input'], $context),
+            $preloads
+        );
     }
 }

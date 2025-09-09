@@ -17,15 +17,15 @@ use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use RuntimeException;
 
-final class TypescriptServerCodeGenerator
+final readonly class TypescriptServerCodeGenerator
 {
     /**
      * @param array<GeneratesLibFiles|GeneratesOperationCode> $generators
      * @throws InvalidGeneratorDependencies
      */
     public function __construct(
-        private readonly array $generators,
-        private readonly TypescriptDefinitionGenerator $definitionGenerator,
+        private array                         $generators,
+        private TypescriptDefinitionGenerator $definitionGenerator,
     )
     {
         $this->verifyGeneratorDependencies();

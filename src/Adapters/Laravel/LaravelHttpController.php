@@ -15,6 +15,7 @@ use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Server;
@@ -157,14 +158,15 @@ readonly class LaravelHttpController
         ], $client);
 
         if ($this->debug) {
+            $exception = $result->cause;
             $content['__debug'] = Arrays::filterNullValues([
-                'class' => get_class($result->cause),
-                'message' => $result->cause->getMessage(),
-                'code' => $result->cause->getCode(),
-                'file' => $result->cause->getFile(),
-                'line' => $result->cause->getLine(),
-                'trace' => $result->cause->getTrace(),
-                'issues' => $result->cause instanceof Failure ? $result->cause->issues->serializeToDebugFields() : null,
+                'class' => $exception::class,
+                'message' => $exception->getMessage(),
+                'code' => $exception->getCode(),
+                'file' => $exception->getFile(),
+                'line' => $exception->getLine(),
+                'trace' => $exception->getTrace(),
+                'issues' => $exception instanceof InvalidOutputException ? $exception->issues->serializeToDebugFields() : null,
             ]);
         }
 

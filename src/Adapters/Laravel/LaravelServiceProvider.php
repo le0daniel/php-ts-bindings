@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
+use Illuminate\Config\Repository;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
@@ -40,8 +41,8 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         // @phpstan-ignore-next-line return.type -- allowed here.
         return [
             TypeParser::class,
-            Server::class,
             LaravelHttpController::class,
+            Preloader::class,
             self::DEFAULT_SERVER,
         ];
     }
@@ -89,6 +90,23 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
                     new ClientAwareExceptionPresenter(),
                 ],
                 new CatchAllPresenter(),
+            );
+        });
+
+        $this->app->singleton(Preloader::class, function (Application $app): Preloader {
+            /** @var Repository $config */
+            $config = $app->make('config');
+
+            return new Preloader(
+                $app->make(self::DEFAULT_SERVER),
+                match ($config->get('operations.key.mode', 'obfuscate')) {
+                    'plain' => new PlainlyExposedKeyGenerator(),
+                    'obfuscate' => new HashSha256KeyGenerator(
+                        $config->get('operations.key.pepper', 'none')
+                    ),
+                    "custom" => $app->make($config->get('operations.key.className')),
+                    default => new HashSha256KeyGenerator("default"),
+                },
             );
         });
 

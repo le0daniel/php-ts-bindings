@@ -16,10 +16,10 @@ final class HashSha256KeyGenerator implements OperationKeyGenerator
     {
     }
 
-    public function generateKey(Definition $definition): string
+    public function generateKey(string $namespace, string $name): string
     {
-        $namespaceHash = Hashs::base64UrlEncodedSha256("{$definition->namespace}|{$this->pepper}");
-        $fnHash = Hashs::base64UrlEncodedSha256("{$definition->name}|{$this->pepper}");
+        $namespaceHash = Hashs::base64UrlEncodedSha256("{$namespace}|{$this->pepper}");
+        $fnHash = Hashs::base64UrlEncodedSha256("{$name}|{$this->pepper}");
 
         $namespace = substr($namespaceHash, 0, $this->namespaceLength);
         $fnName = substr($fnHash, 0, $this->fnNameLength);

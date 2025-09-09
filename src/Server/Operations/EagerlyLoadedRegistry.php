@@ -50,7 +50,7 @@ final class EagerlyLoadedRegistry implements OperationRegistry
 
         $factories = [];
         foreach ($discovery->operations as $definition) {
-            $key = $keyGenerator->generateKey($definition);
+            $key = $keyGenerator->generateKey($definition->namespace, $definition->name);
 
             // Lazily execute the parsing.
             $factories["{$definition->type}@{$key}"] = static function () use ($definition, $parser, $key) {
