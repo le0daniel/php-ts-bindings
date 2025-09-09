@@ -69,7 +69,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode
 
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
-        if ($this->type !== LiteralType::ENUM_CASE) {
+        if ($this->type === LiteralType::ENUM_CASE) {
             return $value === $this->value ? $this->value->name : Value::INVALID;
         }
 
