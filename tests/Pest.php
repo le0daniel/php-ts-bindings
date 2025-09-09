@@ -101,7 +101,7 @@ function compareToOptimizedAst(NodeInterface $node) {
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Executor\Registry\CachedTypeRegistry $registry */
+    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     expect(
@@ -114,7 +114,7 @@ function validateAst(NodeInterface $node): void
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Executor\Registry\CachedTypeRegistry $registry */
+    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
     $optimizedAst = $registry->get('node');
 

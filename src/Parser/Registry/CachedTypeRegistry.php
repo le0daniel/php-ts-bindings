@@ -1,10 +1,10 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Executor\Registry;
+namespace Le0daniel\PhpTsBindings\Parser\Registry;
 
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Executor\Contracts\TypeRegistry;
+use Le0daniel\PhpTsBindings\Parser\Contracts\TypeRegistry;
 
 
 final class CachedTypeRegistry implements TypeRegistry

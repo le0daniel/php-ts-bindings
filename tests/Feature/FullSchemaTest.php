@@ -3,9 +3,9 @@
 use Illuminate\Support\Collection;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
-use Le0daniel\PhpTsBindings\Executor\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Tests\Feature\Mocks\CreateObjectInput;
 use Tests\Feature\Mocks\CreateUserInput;
