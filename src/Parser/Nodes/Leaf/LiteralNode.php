@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
+use Le0daniel\PhpTsBindings\Contracts\Coersable;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -11,7 +12,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use UnitEnum;
 
-final readonly class LiteralNode implements NodeInterface, LeafNode
+final readonly class LiteralNode implements NodeInterface, LeafNode, Coersable
 {
     /**
      * @param bool|int|float|null|UnitEnum $value
@@ -94,5 +95,21 @@ final readonly class LiteralNode implements NodeInterface, LeafNode
     public function outputDefinition(): string
     {
         return $this->inputDefinition();
+    }
+
+    public function coerce(mixed $value): mixed
+    {
+        return match ($this->type) {
+            LiteralType::BOOL => match ($value) {
+                'true', '1' => true,
+                'false', '0' => false,
+                default => $value,
+            },
+            LiteralType::INT => filter_var($value, FILTER_VALIDATE_INT) !== false
+                ? (int) $value : $value,
+            LiteralType::FLOAT => filter_var($value, FILTER_VALIDATE_INT) !== false || filter_var($value, FILTER_VALIDATE_FLOAT) !== false
+                ? (float) $value : $value,
+            default => $value,
+        };
     }
 }

@@ -6,6 +6,7 @@ final readonly class ParsingOptions
 {
     public function __construct(
         public bool $partialFailures = false,
+        public bool $coercePrimitives = false,
     )
     {
     }

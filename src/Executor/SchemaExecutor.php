@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Executor;
 
-use ArrayAccess;
+use Le0daniel\PhpTsBindings\Contracts\Coersable;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -10,8 +10,6 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
-use Le0daniel\PhpTsBindings\Executor\Data\Issue;
-use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
@@ -32,8 +30,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
-use RuntimeException;
-use stdClass;
 
 final readonly class SchemaExecutor implements Executor
 {
@@ -60,6 +56,7 @@ final readonly class SchemaExecutor implements Executor
         $context = new Context(
             partialFailures: $options->partialFailures,
             runConstraints: true,
+            coercePrimitives: $options->coercePrimitives,
         );
         $result = $this->executeParse($node, $input, $context);
 
@@ -127,7 +124,9 @@ final readonly class SchemaExecutor implements Executor
         return match (true) {
             array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
             $node instanceof NamedNode => $this->executeParse($node->node, $data, $context),
-            $node instanceof LeafNode => $node->parseValue($data, $context),
+            $node instanceof LeafNode => $context->coercePrimitives && $node instanceof Coersable
+                ? $node->parseValue($node->coerce($data), $context)
+                : $node->parseValue($data, $context),
             default => Value::INVALID,
         };
     }
