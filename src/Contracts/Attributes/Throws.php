@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
  * Used to declare which exceptions an endpoint can throw. If no exception is explicitly declared,
  * a 500 Internal Server error is returned to the client.
  */
-#[Attribute(Attribute::TARGET_METHOD)]
+#[Attribute(Attribute::TARGET_METHOD|Attribute::IS_REPEATABLE)]
 final class Throws
 {
     /**
