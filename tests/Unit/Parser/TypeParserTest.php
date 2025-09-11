@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
@@ -27,6 +28,7 @@ use Le0daniel\PhpTsBindings\Validators\Email;
 use Tests\Feature\Mocks\Paginated;
 use Tests\Mocks\ResultEnum;
 use Tests\Unit\Parser\Data\Stubs\Address;
+use Tests\Unit\Parser\Data\Stubs\FullAccount;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 use Tests\Unit\Parser\Data\Stubs\ReadonlyOutputFields;
 use Tests\Unit\Parser\Data\Stubs\UncastableClass;
@@ -67,6 +69,26 @@ test('test literal union', function () {
                 ->and($type->type)->toBe(LiteralType::BOOL),
         };
     }
+});
+
+test('Complex inheritance', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    $node = $parser->parse(FullAccount::class);
+
+    expect($node)->toBeInstanceOf(CustomCastingNode::class)
+        ->and($node->node)->toBeInstanceOf(StructNode::class)
+        ->and($node->node->phpType)->toEqual(StructPhpType::ARRAY)
+        ->and($node->strategy)->toEqual(ObjectCastStrategy::NEVER);
+
+    $node = $parser->parse('?'.FullAccount::class);
+    expect($node)->toBeInstanceOf(UnionNode::class)
+        ->and($node->types[0])->toBeInstanceOf(BuiltInNode::class)
+        ->and($node->types[0]->type)->toEqual(BuiltInType::NULL)
+        ->and($node->types[1])->toBeInstanceOf(CustomCastingNode::class)
+        ->and($node->types[1]->node)->toBeInstanceOf(StructNode::class)
+        ->and($node->types[1]->node->phpType)->toEqual(StructPhpType::ARRAY)
+        ->and($node->types[1]->strategy)->toEqual(ObjectCastStrategy::NEVER);
 });
 
 test('test scalar', function () {

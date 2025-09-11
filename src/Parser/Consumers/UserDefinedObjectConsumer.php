@@ -145,7 +145,13 @@ final class UserDefinedObjectConsumer implements TypeConsumer
                 array_map(
                     fn(ReflectionProperty $property) => new PropertyNode(
                         $property->getName(),
-                        $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
+                        $this->applyConstraints(
+                            $property,
+                            $parser->parse(
+                                TypeReflector::reflectProperty($property),
+                                $context->descendIntoDeclaringClass($property)
+                            )
+                        ),
                         false,
                         PropertyType::OUTPUT,
                     ),
@@ -168,7 +174,13 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 
             $properties[] = new PropertyNode(
                 $property->getName(),
-                $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
+                $this->applyConstraints(
+                    $property,
+                    $parser->parse(
+                        TypeReflector::reflectProperty($property),
+                        $context->descendIntoDeclaringClass($property)
+                    )
+                ),
                 isOptional: $this->allowsOptional($property),
                 propertyType: PropertyType::BOTH,
             );
@@ -211,7 +223,13 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         foreach ($reflectionClass->getConstructor()->getParameters() as $parameter) {
             $structProperties[] = new PropertyNode(
                 $parameter->name,
-                $this->applyConstraints($parameter, $parser->parse(TypeReflector::reflectParameter($parameter), $context)),
+                $this->applyConstraints(
+                    $parameter,
+                    $parser->parse(
+                        TypeReflector::reflectParameter($parameter),
+                        $context->descendIntoDeclaringClass($parameter)
+                    )
+                ),
                 isOptional: $this->allowsOptional($parameter),
                 propertyType: PropertyType::INPUT,
             );
@@ -226,7 +244,13 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 
             $structProperties[] = new PropertyNode(
                 $property->name,
-                $this->applyConstraints($property, $parser->parse(TypeReflector::reflectProperty($property), $context)),
+                $this->applyConstraints(
+                    $property,
+                    $parser->parse(
+                        TypeReflector::reflectProperty($property),
+                        $context->descendIntoDeclaringClass($property)
+                    )
+                ),
                 isOptional: $this->allowsOptional($property),
                 propertyType: PropertyType::OUTPUT,
             );

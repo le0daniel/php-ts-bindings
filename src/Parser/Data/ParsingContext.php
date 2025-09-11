@@ -27,6 +27,7 @@ final readonly class ParsingContext
         public array   $localTypes = [],
         public array   $importedTypes = [],
         public array   $generics = [],
+        public ?string $declaredInClass = null,
     )
     {
     }
@@ -81,6 +82,17 @@ final readonly class ParsingContext
         return $this->importedTypes[$typeName];
     }
 
+    public function descendIntoDeclaringClass(\ReflectionProperty|\ReflectionParameter $property): self
+    {
+        // Declaration is in the same class file.
+        if ($this->declaredInClass === $property->getDeclaringClass()->getName()) {
+            return $this;
+        }
+
+        // ToDo: Identify the generics that should be passed down. Currently ignored.
+        return self::fromReflectionClass($property->getDeclaringClass());
+    }
+
     /**
      * @param list<NodeInterface> $generics
      * @throws ReflectionException
@@ -107,6 +119,7 @@ final readonly class ParsingContext
             Utils\PhpDoc::findLocallyDefinedTypes($class->getDocComment()),
             self::findFullyQualifiedImportedTypes($class->getDocComment(), $namespace, $useNamespaceMap),
             self::assignGenerics($class->getDocComment(), $generics),
+            $class->getName(),
         );
     }
 
@@ -127,6 +140,7 @@ final readonly class ParsingContext
             Utils\PhpDoc::findLocallyDefinedTypes($class->getDocComment()),
             self::findFullyQualifiedImportedTypes($class->getDocComment(), $namespace, $useNamespaceMap),
             self::assignGenerics($class->getDocComment(), $generics),
+            $class->getName(),
         );
     }
 
