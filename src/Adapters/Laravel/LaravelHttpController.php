@@ -16,6 +16,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Server;
@@ -59,7 +60,7 @@ readonly class LaravelHttpController
 
         $result = $this->server->query(
             $fqn,
-            $this->gatherInputFromRequest('query', $request),
+            $this->gatherInputFromRequest(OperationType::QUERY, $request),
             $context,
             $client,
         );
@@ -77,7 +78,7 @@ readonly class LaravelHttpController
 
         $result = $this->server->command(
             $fqn,
-            $this->gatherInputFromRequest('command', $request),
+            $this->gatherInputFromRequest(OperationType::COMMAND, $request),
             $context,
             $client,
         );
@@ -95,22 +96,22 @@ readonly class LaravelHttpController
     }
 
     /**
-     * @param 'command'|'query' $type
-     * @param Request $request
-     * @return array<int|string, mixed>
+     * @return array<int|string, mixed>|null
      */
-    private function gatherInputFromRequest(string $type, Http\Request $request): array
+    private function gatherInputFromRequest(OperationType $type, Http\Request $request): ?array
     {
-        return match ($type) {
-            'query' => array_map(static function (string $value): mixed {
+        $inputData = match ($type) {
+            OperationType::QUERY => array_map(static function (string $value): mixed {
                 try {
                     return json_decode($value, flags: JSON_THROW_ON_ERROR);
                 } catch (Throwable) {
                     return $value;
                 }
             }, $request->query->all()),
-            'command' => $request->json()->all(),
+            OperationType::COMMAND => $request->json()->all(),
         };
+
+        return empty($inputData) ? null : $inputData;
     }
 
     private function createContext(Http\Request $request): mixed
