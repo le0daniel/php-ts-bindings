@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
+use Closure;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
@@ -14,7 +15,7 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
 {
 
     public function __construct(
-        private readonly ?\Closure $nameGenerator = null,
+        private readonly ?Closure $nameGenerator = null,
     )
     {
     }
@@ -36,15 +37,45 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
         $definition = $operation->operation->definition;
         $name = $this->generateName($operation);
 
-        return new TypescriptCodeBlock(
-            <<<TypeScript
+        $imports = [
+            new TypescriptImportStatement(
+                from: Paths::libImport("bindings"),
+                imports: ["executeOperation"]
+            ),
+            new TypescriptImportStatement(
+                from: Paths::libImport("OperationClient"),
+                imports: ["OperationOptions"]
+            )
+        ];
+        $docBlock = <<<TypeScript
 /**
  * Type: {$definition->type->name}
  * Name: {$definition->fullyQualifiedName()} 
  *
  * @php {$definition->fullyQualifiedClassName}::{$definition->methodName}
  */
-export async function {$name}(input: $operation->inputDefinition, options?: OperationOptions) {
+TypeScript;
+
+        if ($operation->inputDefinition === 'null') {
+            return new TypescriptCodeBlock(
+                <<<TypeScript
+{$docBlock}
+export async function {$name}(options?: OperationOptions) {
+    return await executeOperation<{$operation->inputDefinition}, {$operation->outputDefinition}, {$operation->errorDefinition}>(
+        '{$definition->type->lowerCase()}', 
+        '{$operation->key}', 
+        null, 
+        options
+    )
+}
+TypeScript, $imports,
+            );
+        }
+
+        return new TypescriptCodeBlock(
+            <<<TypeScript
+{$docBlock}
+export async function {$name}(input: {$operation->inputDefinition}, options?: OperationOptions) {
     return await executeOperation<{$operation->inputDefinition}, {$operation->outputDefinition}, {$operation->errorDefinition}>(
         '{$definition->type->lowerCase()}', 
         '{$operation->key}', 
@@ -52,18 +83,7 @@ export async function {$name}(input: $operation->inputDefinition, options?: Oper
         options
     )
 }
-TypeScript
-            ,
-            [
-                new TypescriptImportStatement(
-                    from: Paths::libImport("bindings"),
-                    imports: ["executeOperation"]
-                ),
-                new TypescriptImportStatement(
-                    from: Paths::libImport("OperationClient"),
-                    imports: ["OperationOptions"]
-                )
-            ]
+TypeScript, $imports,
         );
     }
 }
