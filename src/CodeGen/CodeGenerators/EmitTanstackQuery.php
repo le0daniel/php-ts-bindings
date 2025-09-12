@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
+use Closure;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
@@ -20,7 +21,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         ];
     }
 
-    public function __construct(private ?\Closure $nameGenerator = null)
+    public function __construct(private ?Closure $nameGenerator = null)
     {
     }
 
@@ -38,6 +39,37 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
 
         $name = $this->generateName($operation);
         $upperCaseName = ucfirst($name);
+        $imports = [
+            new TypescriptImportStatement(
+                from: "@tanstack/react-query",
+                imports: ['useQuery'],
+            ),
+            new TypescriptImportStatement(
+                from: Paths::libImport("utils"),
+                imports: ['queryKey'],
+            ),
+            new TypescriptImportStatement(
+                from: Paths::libImport("bindings"),
+                imports: ['throwOnFailure'],
+            )
+        ];
+
+        if ($operation->inputDefinition === 'null') {
+            return new TypescriptCodeBlock(
+                <<<TypeScript
+export function use{$upperCaseName}Query(queryOptions?: Partial<{enabled: boolean}>) {
+    return useQuery({
+        queryKey: queryKey('{$definition->namespace}', '{$definition->name}', input),
+        queryFn: async ({signal}): Promise<{$operation->outputDefinition}> => {
+            const result = await {$name}({signal});
+            throwOnFailure(result);
+            return result.data;
+        },
+        ... queryOptions,
+    })
+}
+TypeScript, $imports);
+        }
 
         return new TypescriptCodeBlock(
             <<<TypeScript
@@ -52,22 +84,6 @@ export function use{$upperCaseName}Query(input: {$operation->inputDefinition}, q
         ... queryOptions,
     })
 }
-TypeScript
-            ,
-            [
-                new TypescriptImportStatement(
-                    from: "@tanstack/react-query",
-                    imports: ['useQuery'],
-                ),
-                new TypescriptImportStatement(
-                    from: Paths::libImport("utils"),
-                    imports: ['queryKey'],
-                ),
-                new TypescriptImportStatement(
-                    from: Paths::libImport("bindings"),
-                    imports: ['throwOnFailure'],
-                )
-            ]
-        );
+TypeScript, $imports);
     }
 }
