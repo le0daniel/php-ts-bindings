@@ -59,7 +59,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
                 <<<TypeScript
 export function use{$upperCaseName}Query(queryOptions?: Partial<{enabled: boolean}>) {
     return useQuery({
-        queryKey: queryKey('{$definition->namespace}', '{$definition->name}', input),
+        queryKey: queryKey('{$definition->namespace}', '{$definition->name}'),
         queryFn: async ({signal}): Promise<{$operation->outputDefinition}> => {
             const result = await {$name}({signal});
             throwOnFailure(result);
