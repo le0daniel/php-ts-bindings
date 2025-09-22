@@ -11,7 +11,11 @@ final class ClearOptimizeCommand extends Command
 
     public function handle(): int
     {
-        unlink(base_path('bootstrap/cache/operations.php'));
+        $cacheFile = base_path('bootstrap/cache/operations.php');
+        if (file_exists($cacheFile)) {
+            unlink($cacheFile);
+        }
+
         return 0;
     }
 }
