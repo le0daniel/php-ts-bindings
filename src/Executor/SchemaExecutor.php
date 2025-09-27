@@ -21,11 +21,14 @@ use Le0daniel\PhpTsBindings\Executor\Handlers\RecordHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\StructHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\TupleHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\UnionHandler;
+use Le0daniel\PhpTsBindings\Executor\Handlers\UtilsNodeHandler;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\OmitNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PickNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -48,6 +51,8 @@ final readonly class SchemaExecutor implements Executor
             IntersectionNode::class => new IntersectionHandler(),
             TupleNode::class => new TupleHandler(),
             ListNode::class => new ListHandler(),
+            PickNode::class => new UtilsNodeHandler(),
+            OmitNode::class => new UtilsNodeHandler(),
         ];
     }
 

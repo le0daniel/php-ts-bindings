@@ -15,7 +15,7 @@ use UnitEnum;
 final readonly class LiteralNode implements NodeInterface, LeafNode, Coersable
 {
     /**
-     * @param bool|int|float|null|UnitEnum $value
+     * @param string|bool|int|float|null|UnitEnum $value
      */
     public function __construct(
         public LiteralType $type,

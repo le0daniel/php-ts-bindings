@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Parser\Consumers\LiteralConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\StructConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedObjectConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedParsers;
+use Le0daniel\PhpTsBindings\Parser\Consumers\UtilsConsumer;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
@@ -81,6 +82,7 @@ final readonly class TypeParser
             new ArrayConsumer($collectionClasses),
             new UserDefinedParsers($parsers ?? self::getDefaultParsers()),
             new UserDefinedObjectConsumer($allowAllObjectCasting),
+            new UtilsConsumer(),
         ];
     }
 

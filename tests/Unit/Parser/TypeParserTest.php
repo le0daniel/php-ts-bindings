@@ -17,6 +17,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\OmitNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PickNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -30,6 +32,7 @@ use Tests\Unit\Parser\Data\Stubs\Address;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 use Tests\Unit\Parser\Data\Stubs\ReadonlyOutputFields;
 use Tests\Unit\Parser\Data\Stubs\UncastableClass;
+use Tests\Unit\Parser\Data\UserMock;
 
 
 test('test simple union', function () {
@@ -596,4 +599,56 @@ test('fails on missing or too many generics', function () {
         ->toThrow('Number of generics does not match. Expected 1 <I>, got 2.')
         ->and(fn() => $parser->parse(Paginated::class))
         ->toThrow('Number of generics does not match. Expected 1 <I>, got 0.');
+});
+
+test('Test Pick Node simple case', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var PickNode $node */
+    $node = $parser->parse("Pick<array{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(PickNode::class)
+        ->and($node->node)->toBeInstanceOf(StructNode::class)
+        ->and($node->propertyNames)->toEqual(['id']);
+
+    /** @var PickNode $node */
+    $node = $parser->parse("Pick<object{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(PickNode::class)
+        ->and($node->node)->toBeInstanceOf(StructNode::class)
+        ->and($node->propertyNames)->toEqual(['id']);
+
+    compareToOptimizedAst($node);
+});
+
+test('Test Omit Node simple case', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var OmitNode $node */
+    $node = $parser->parse("Omit<array{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(OmitNode::class)
+        ->and($node->node)->toBeInstanceOf(StructNode::class)
+        ->and($node->propertyNames)->toEqual(['id']);
+
+    /** @var OmitNode $node */
+    $node = $parser->parse("Omit<object{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(OmitNode::class)
+        ->and($node->node)->toBeInstanceOf(StructNode::class)
+        ->and($node->propertyNames)->toEqual(['id']);
+
+    compareToOptimizedAst($node);
+});
+
+test('Test Pick Node with custom class', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    /** @var PickNode $node */
+    $node = $parser->parse("Pick<" . UserMock::class . ", 'id'>");
+    expect($node)->toBeInstanceOf(PickNode::class)
+        ->and($node->node)->toBeInstanceOf(CustomCastingNode::class)
+        ->and($node->propertyNames)->toEqual(['id']);
+
+    /** @var PickNode $node */
+    $node = $parser->parse("Omit<object{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(OmitNode::class)
+        ->and($node->node)->toBeInstanceOf(StructNode::class)
+        ->and($node->propertyNames)->toEqual(['id']);
+
+    compareToOptimizedAst($node);
 });
