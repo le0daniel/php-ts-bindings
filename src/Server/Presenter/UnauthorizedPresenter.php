@@ -20,7 +20,7 @@ final class UnauthorizedPresenter implements ExceptionPresenter
 
     public function matches(Throwable $throwable, Definition $definition): bool
     {
-        return in_array(get_class($throwable), $this->unauthenticatedClassNames);
+        return in_array(get_class($throwable), $this->unauthenticatedClassNames, true);
     }
 
     public function toTypeScriptDefinition(Definition $definition): string

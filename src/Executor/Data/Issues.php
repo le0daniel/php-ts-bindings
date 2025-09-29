@@ -48,6 +48,7 @@ final class Issues
      */
     public function serializeToDebugFields(): array
     {
+        /** @phpstan-ignore-next-line return.type */
         return array_map(function ($issues) {
             return array_map(fn(Issue $issue) => [
                 'message' => $issue->messageOrLocalizationKey,

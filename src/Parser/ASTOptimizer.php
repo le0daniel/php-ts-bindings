@@ -11,8 +11,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\OmitNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\PickNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
@@ -154,8 +152,6 @@ PHP) === false) {
             IntersectionNode::class => new IntersectionNode(
                 array_map($this->dedupeNode(...), $node->types),
             ),
-            PickNode::class => new PickNode($this->dedupeNode($node->node), $node->propertyNames),
-            OmitNode::class => new OmitNode($this->dedupeNode($node->node), $node->propertyNames),
             default => throw new RuntimeException('Unknown node type: ' . $node::class),
         };
     }

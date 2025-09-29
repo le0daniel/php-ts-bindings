@@ -8,9 +8,10 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\OmitNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\PickNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -35,13 +36,22 @@ final class UtilsConsumer implements TypeConsumer
             $state->produceSyntaxError("Expected struct or custom casting node for picking or omitting");
         }
 
-        return match ($type) {
-            'Pick' => new PickNode($nodeToPickFrom, $this->propertiesToPickOrOmit($state, $pick)),
-            'Omit' => new OmitNode($nodeToPickFrom, $this->propertiesToPickOrOmit($state, $pick)),
-            default => $state->produceSyntaxError("Expected Pick or Omit"),
-        };
-    }
+        $structNode = $nodeToPickFrom instanceof CustomCastingNode
+            // For a custom casting node, we pick from the object and create a new struct from it.
+            ? $nodeToPickFrom->node
+                ->filter(fn(PropertyNode $propertyNode): bool => $propertyNode->propertyType->isOutput())
+                ->map(fn(PropertyNode $propertyType) => $propertyType->changePropertyType(PropertyType::BOTH))
+                ->ofType(StructPhpType::OBJECT)
+            : $nodeToPickFrom;
 
+        return $structNode->filter(
+            fn(PropertyNode $property): bool => match ($type) {
+                'Pick' => in_array($property->name, $this->propertiesToPickOrOmit($state, $pick), true),
+                'Omit' => !in_array($property->name, $this->propertiesToPickOrOmit($state, $pick), true),
+                default => $state->produceSyntaxError("Expected Pick or Omit"),
+            }
+        );
+    }
 
 
     /**
@@ -53,18 +63,16 @@ final class UtilsConsumer implements TypeConsumer
     private function propertiesToPickOrOmit(ParserState $state, NodeInterface $node): array
     {
         if ($node instanceof LiteralNode && $node->type === LiteralType::STRING) {
-            return [(string) $node->value];
+            return [(string)$node->value];
         }
 
         if (!$node instanceof UnionNode) {
             $state->produceSyntaxError("Expected union node or string literal for picking or omitting");
         }
 
-        /** @var UnionNode $node */
-
         return array_map(function (NodeInterface $node) use ($state): string {
             if ($node instanceof LiteralNode && $node->type === LiteralType::STRING) {
-                return (string) $node->value;
+                return (string)$node->value;
             }
 
             $type = $node::class;

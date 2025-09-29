@@ -68,8 +68,6 @@ final class OperationSPAClient implements Client, JsonSerializable
             'invalidations' => $this->invalidations,
         ]);
 
-
-        // @phpstan-ignore-next-line empty.variable -- the array can be empty, the filterNullValues fn is not correctly typed.
         if (empty($data)) {
             return null;
         }

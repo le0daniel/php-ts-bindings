@@ -48,7 +48,9 @@ final class Namespaces
      */
     private static function withoutLeadingSlash(string $className): string
     {
-        return str_starts_with($className, '\\') ? substr($className, 1) : $className; // @return class-string
+        /** @var class-string $value */
+        $value = str_starts_with($className, '\\') ? substr($className, 1) : $className;
+        return $value;
     }
 
     /**

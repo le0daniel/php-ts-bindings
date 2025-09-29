@@ -10,8 +10,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\OmitNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\PickNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -39,7 +37,6 @@ final class AstValidator
                 ConstraintNode::class, CustomCastingNode::class, ListNode::class, NamedNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
                 TupleNode::class, IntersectionNode::class, UnionNode::class => array_push($stack, ...$current->types),
                 StructNode::class => array_push($stack, ... $current->properties),
-                PickNode::class, OmitNode::class => array_push($stack, $current->node),
                 default => throw new RuntimeException("Unexpected node: " . $current::class),
             };
         }

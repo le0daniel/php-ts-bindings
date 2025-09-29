@@ -6,6 +6,7 @@ use Closure;
 use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
@@ -41,6 +42,23 @@ final readonly class StructNode implements NodeInterface, ValidatableNode
     }
 
     /**
+     * @param Closure(PropertyNode): PropertyNode $closure
+     * @return self
+     */
+    public function map(Closure $closure): self
+    {
+        return new self(
+            $this->phpType,
+            array_map($closure, $this->properties),
+        );
+    }
+
+    public function ofType(StructPhpType $type): self
+    {
+        return new self($type, $this->properties);
+    }
+
+    /**
      * @return PropertyNode[]
      */
     public function sortedProperties(): array
@@ -65,6 +83,11 @@ final readonly class StructNode implements NodeInterface, ValidatableNode
         /** @var list<PropertyNode> $properties */
         $properties = $this->properties;
         return array_find($properties, fn(PropertyNode $property) => $property->name === $name);
+    }
+
+    public function hasProperty(string $name): bool
+    {
+        return $this->getProperty($name) !== null;
     }
 
     public function __toString(): string

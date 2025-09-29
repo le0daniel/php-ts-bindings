@@ -20,7 +20,7 @@ final class NotFoundPresenter implements ExceptionPresenter
 
     public function matches(Throwable $throwable, Definition $definition): bool
     {
-        return in_array(get_class($throwable), $this->classNames);
+        return in_array(get_class($throwable), $this->classNames, true);
     }
 
     public function toTypeScriptDefinition(Definition $definition): string

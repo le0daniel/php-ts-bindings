@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
@@ -603,52 +604,64 @@ test('fails on missing or too many generics', function () {
 
 test('Test Pick Node simple case', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
-    /** @var PickNode $node */
+    /** @var StructNode $node */
     $node = $parser->parse("Pick<array{id: string, name: string}, 'id'>");
-    expect($node)->toBeInstanceOf(PickNode::class)
-        ->and($node->node)->toBeInstanceOf(StructNode::class)
-        ->and($node->propertyNames)->toEqual(['id']);
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('id'))->toBeTrue()
+        ->and($node->getProperty('id')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::ARRAY);
 
-    /** @var PickNode $node */
+    /** @var StructNode $node */
     $node = $parser->parse("Pick<object{id: string, name: string}, 'id'>");
-    expect($node)->toBeInstanceOf(PickNode::class)
-        ->and($node->node)->toBeInstanceOf(StructNode::class)
-        ->and($node->propertyNames)->toEqual(['id']);
-
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('id'))->toBeTrue()
+        ->and($node->getProperty('id')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
+    ;
     compareToOptimizedAst($node);
 });
 
 test('Test Omit Node simple case', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
-    /** @var OmitNode $node */
+    /** @var StructNode $node */
     $node = $parser->parse("Omit<array{id: string, name: string}, 'id'>");
-    expect($node)->toBeInstanceOf(OmitNode::class)
-        ->and($node->node)->toBeInstanceOf(StructNode::class)
-        ->and($node->propertyNames)->toEqual(['id']);
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('name'))->toBeTrue()
+        ->and($node->getProperty('name')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::ARRAY);
 
-    /** @var OmitNode $node */
+    /** @var StructNode $node */
     $node = $parser->parse("Omit<object{id: string, name: string}, 'id'>");
-    expect($node)->toBeInstanceOf(OmitNode::class)
-        ->and($node->node)->toBeInstanceOf(StructNode::class)
-        ->and($node->propertyNames)->toEqual(['id']);
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('name'))->toBeTrue()
+        ->and($node->getProperty('name')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
 
     compareToOptimizedAst($node);
 });
 
-test('Test Pick Node with custom class', function () {
+test('Test Pick and Omit Node with custom class', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
 
-    /** @var PickNode $node */
-    $node = $parser->parse("Pick<" . UserMock::class . ", 'id'>");
-    expect($node)->toBeInstanceOf(PickNode::class)
-        ->and($node->node)->toBeInstanceOf(CustomCastingNode::class)
-        ->and($node->propertyNames)->toEqual(['id']);
+    /** @var StructNode $node */
+    $node = $parser->parse("Pick<" . UserMock::class . ", 'username'>");
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('username'))->toBeTrue()
+        ->and($node->getProperty('username')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
 
-    /** @var PickNode $node */
-    $node = $parser->parse("Omit<object{id: string, name: string}, 'id'>");
-    expect($node)->toBeInstanceOf(OmitNode::class)
-        ->and($node->node)->toBeInstanceOf(StructNode::class)
-        ->and($node->propertyNames)->toEqual(['id']);
+    /** @var StructNode $node */
+    $node = $parser->parse("Omit<" . UserMock::class . ", 'username'>");
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(2)
+        ->and($node->getProperty('age')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->getProperty('email')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
 
     compareToOptimizedAst($node);
 });

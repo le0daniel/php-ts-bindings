@@ -60,6 +60,7 @@ final class ContextualPipeline
 
     public function execute(mixed $value, mixed ... $context): mixed
     {
+        $context = array_values($context);
         $middle = function ($value) use ($context) {
             if ($this->then) {
                 try {
