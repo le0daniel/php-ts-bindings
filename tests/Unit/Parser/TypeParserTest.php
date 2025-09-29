@@ -4,7 +4,6 @@ namespace Tests\Unit\Parser;
 
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
@@ -18,8 +17,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\OmitNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\PickNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -655,6 +652,8 @@ test('Test Pick and Omit Node with custom class', function () {
         ->and($node->getProperty('username')->propertyType)->toEqual(PropertyType::BOTH)
         ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
 
+    compareToOptimizedAst($node);
+
     /** @var StructNode $node */
     $node = $parser->parse("Omit<" . UserMock::class . ", 'username'>");
     expect($node)->toBeInstanceOf(StructNode::class)
@@ -665,3 +664,24 @@ test('Test Pick and Omit Node with custom class', function () {
 
     compareToOptimizedAst($node);
 });
+
+test('Pick and Omit Typescript definitions', function (string $expectedDefinition, string $type) {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse($type);
+    compareToOptimizedAst($node);
+
+    $outputDef = typescriptDefinition($node, DefinitionTarget::OUTPUT);
+    expect($outputDef)->toBe($expectedDefinition);
+
+})->with([
+    'Simple Pick' => ['{name:string;}', 'Pick<array{id: string, name: string}, "name">'],
+    'Simple Omit' => ['{id:string;}', 'Omit<array{id: string, name: string}, "name">'],
+    'Pick multiple' => ['{age:number;name:string;}', 'Pick<array{id: string, name: string, age: int}, "name"|"age">'],
+    'Omit multiple' => ['{email:string;id:string;}', 'Omit<array{id: string, name: string, email: string, age: int}, "name"|"age">'],
+    'Pick from object' => ['{name:string;}', 'Pick<object{id: string, name: string}, "name">'],
+    'Omit from object' => ['{id:string;}', 'Omit<object{id: string, name: string}, "name">'],
+    'Pick from class' => ['{username:string;}', 'Pick<' . UserMock::class . ', "username">'],
+    'Omit from class' => ['{email:string;username:string;}', 'Omit<' . UserMock::class . ', "age">'],
+    'Simple Pick with optional' => ['{name?:string|null;}', 'Pick<array{id?: string, name?: string|null}, "name">'],
+    'Simple Omit with optional' => ['{id?:string;}', 'Omit<array{id?: string, name: string}, "name">'],
+]);

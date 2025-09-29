@@ -11,11 +11,14 @@
 |
 */
 
+use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
+use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\AstSorter;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
 
 pest()->extend(Tests\TestCase::class)->in('Feature');
@@ -98,15 +101,37 @@ expect()->extend('toBeFailureAt', function (string $path, ?string $message = nul
 */
 
 function compareToOptimizedAst(NodeInterface $node) {
+    $sortedNode = AstSorter::sort($node);
     $optimizer = new ASTOptimizer();
-    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
+    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $sortedNode]);
 
     /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     expect(
         (string) $registry->get('node')
-    )->toEqual((string) $node);
+    )->toEqual((string) $sortedNode);
+}
+
+function typescriptDefinition(NodeInterface $node, DefinitionTarget $target): string
+{
+    $sortedNode = AstSorter::sort($node);
+
+    $optimizer = new ASTOptimizer();
+    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $sortedNode]);
+
+    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
+    $registry = eval("return {$optimizedCode};");
+
+    $tsGenerator = new TypescriptDefinitionGenerator();
+
+    foreach (DefinitionTarget::cases() as $case) {
+        $expected = $tsGenerator->toDefinition($sortedNode, $case);
+        $optimized = $tsGenerator->toDefinition($registry->get('node'), $case);
+        expect($expected)->toEqual($optimized);
+    }
+
+    return $tsGenerator->toDefinition($sortedNode, $target);
 }
 
 function validateAst(NodeInterface $node): void
