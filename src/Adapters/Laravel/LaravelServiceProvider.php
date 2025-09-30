@@ -90,7 +90,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
                 new CatchAllPresenter(),
                 $app,
                 new ServerConfiguration()
-                    ->withMiddlewares(config('operations.middleware', [])),
+                    ->withMiddlewares(...config('operations.middleware', [])),
             );
         });
 
