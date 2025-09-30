@@ -21,7 +21,9 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\Pipeline\ContextualPipeline;
 use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
+use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
+use Psr\Container\NotFoundExceptionInterface;
 use Throwable;
 
 final readonly class Server
@@ -72,25 +74,16 @@ final readonly class Server
         return $this->execute($this->registry->get(OperationType::COMMAND, $name), $input, $context, $client);
     }
 
+    /**
+     * @throws ContainerExceptionInterface|NotFoundExceptionInterface
+     */
     private function execute(Operation $operation, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        $validatedInput = $this->executor->parse($operation->inputNode(), $input, new ParsingOptions(
-            coercePrimitives: $operation->definition->type === OperationType::QUERY
-                ? $this->configuration->coerceQueryInput
-                : false,
-        ));
-
-        if ($validatedInput instanceof Failure) {
-            return $this->produceError(
-                new InvalidInputException($validatedInput),
-                $operation->definition
-            );
-        }
-
         $middlewareClassNames = [
             ... $this->configuration->middleware,
             ... $operation->definition->middleware,
         ];
+
         $middlewares = array_map(
             fn(string $className) => $this->container
                 ? $this->container->get($className)
@@ -115,10 +108,25 @@ final readonly class Server
             ->catchErrorsWith(fn(Throwable $throwable) => new RpcError(ErrorType::INTERNAL_ERROR, $throwable, []))
             ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context): RpcSuccess|RpcError {
                 try {
+                    $inputValidationResult = $this
+                        ->executor
+                        ->parse($operation->inputNode(), $input, new ParsingOptions(
+                            coercePrimitives: $operation->definition->type === OperationType::QUERY
+                                ? $this->configuration->coerceQueryInput
+                                : false,
+                        ));
+
+                    if ($inputValidationResult instanceof Failure) {
+                        return $this->produceError(
+                            new InvalidInputException($inputValidationResult),
+                            $operation->definition
+                        );
+                    }
+
                     $serializedResult = $this->executor
                         ->serialize(
                             $operation->outputNode(),
-                            $controllerClass->{$operation->definition->methodName}($input, $context, $client)
+                            $controllerClass->{$operation->definition->methodName}($inputValidationResult->value, $context, $client)
                         );
 
                     if ($serializedResult instanceof Failure) {
@@ -132,8 +140,7 @@ final readonly class Server
                 } catch (Throwable $exception) {
                     return new RpcError(ErrorType::INTERNAL_ERROR, $exception, []);
                 }
-            })
-            ->execute($validatedInput->value, $context, $resolveInfo, $client);
+            })->execute($input, $context, $resolveInfo, $client);
     }
 
     /**

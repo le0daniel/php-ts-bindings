@@ -7,7 +7,6 @@ use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
-use Throwable;
 
 final class LocalMetadataMiddleware
 {
@@ -26,7 +25,6 @@ final class LocalMetadataMiddleware
         }
 
         $startTime = microtime(true);
-        /** @var RpcSuccess|Throwable $result */
         $result = $next($input);
         $durationMs = (int)ceil((microtime(true) - $startTime) * 1000);
 
