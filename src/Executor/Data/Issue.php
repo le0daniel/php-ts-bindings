@@ -27,4 +27,12 @@ final readonly class Issue
             default => $messageOrLocalizationKey,
         };
     }
+
+    public static function fromThrowable(Throwable $throwable): self
+    {
+        return new self(
+            IssueMessage::INTERNAL_ERROR,
+            exception: $throwable,
+        );
+    }
 }

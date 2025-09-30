@@ -39,16 +39,16 @@ final class StructHandler implements Handler
                 if ($propertyNode->isOptional) {
                     $context->leavePath();
                     continue;
-                } else {
-                    $context->addIssue(new Issue(
-                        'validation.missing_property',
-                        [
-                            'message' => "Missing property: {$propertyNode->name}",
-                        ]
-                    ));
-                    $context->leavePath();
-                    return Value::INVALID;
                 }
+
+                $context->addIssue(new Issue(
+                    'validation.missing_property',
+                    [
+                        'message' => "Missing property: {$propertyNode->name}",
+                    ]
+                ));
+                $context->leavePath();
+                return Value::INVALID;
             }
 
             $result = $executor->executeSerialize(

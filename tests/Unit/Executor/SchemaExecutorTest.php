@@ -205,3 +205,17 @@ test('serialization with partial failures', function () {
         ])->and($result->isPartial())->toBeTrue();
 });
 
+test('test error messages', function () {
+    /** @var Success $result */
+    $result = executeSerialize('array{name: string|null, other: string}', [
+        'other' => 'my value',
+    ]);
+
+    expect($result)->toBeFailureAt('name');
+    expect($result->issues->serializeToFieldsArray())->toEqual([
+        'name' => [
+            'validation.missing_property'
+        ],
+    ]);
+});
+
