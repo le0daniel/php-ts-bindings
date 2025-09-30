@@ -28,6 +28,11 @@ final readonly class Issue
         };
     }
 
+    /**
+     * @param Throwable $throwable
+     * @param array<string, mixed> $debugInfo
+     * @return self
+     */
     public static function fromThrowable(Throwable $throwable, array $debugInfo = []): self
     {
         return new self(
@@ -37,6 +42,10 @@ final readonly class Issue
         );
     }
 
+    /**
+     * @param array<string, mixed> $debugInfo
+     * @return self
+     */
     public static function internalError(array $debugInfo = []): self
     {
         return new self(
