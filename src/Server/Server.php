@@ -28,22 +28,24 @@ use Throwable;
 
 final readonly class Server
 {
+    public SchemaExecutor $executor;
+
     /**
      * @param OperationRegistry $registry
-     * @param SchemaExecutor $executor
      * @param list<ExceptionPresenter> $exceptionPresenters
      * @param ExceptionPresenter $defaultPresenter
      * @param ContainerInterface|null $container
+     * @param ServerConfiguration $configuration
      */
     public function __construct(
         public OperationRegistry        $registry,
-        public SchemaExecutor           $executor,
         public array                    $exceptionPresenters,
         public ExceptionPresenter       $defaultPresenter = new CatchAllPresenter(),
         private null|ContainerInterface $container = null,
         public ServerConfiguration      $configuration = new ServerConfiguration(),
     )
     {
+        $this->executor = new SchemaExecutor();
     }
 
     public function query(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
@@ -87,9 +89,16 @@ final readonly class Server
             );
         }
 
-        $middlewares = array_map(fn(string $className) => $this->container
-            ? $this->container->get($className)
-            : new $className, $operation->definition->middleware);
+        $middlewares = array_map(
+            fn(string $className) => $this->container
+                ? $this->container->get($className)
+                : new $className,
+            [
+                ... $this->configuration->middleware,
+                ... $operation->definition->middleware,
+            ]
+        );
+
         $controllerClass = $this->container
             ? $this->container->get($operation->definition->fullyQualifiedClassName)
             : new $operation->definition->fullyQualifiedClassName;

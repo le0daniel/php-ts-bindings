@@ -12,8 +12,8 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
@@ -80,7 +80,6 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
             return new Server(
                 $repository,
-                new SchemaExecutor(),
                 [
                     new InvalidInputPresenter(),
                     new UnauthorizedPresenter($config->get('operations.exceptions.unauthorized', [])),
@@ -90,6 +89,8 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
                 ],
                 new CatchAllPresenter(),
                 $app,
+                new ServerConfiguration()
+                    ->withMiddlewares(config('operations.middleware', [])),
             );
         });
 

@@ -69,7 +69,6 @@ test('handle successful http query request', function () {
 
     $server = new Server(
         $operationRegistry,
-        new SchemaExecutor(),
         [],
         new CatchAllPresenter(),
         $app,
@@ -143,7 +142,6 @@ test('handle invalid input http query request', function () {
 
     $server = new Server(
         $operationRegistry,
-        new SchemaExecutor(),
         [new InvalidInputPresenter()],
         new CatchAllPresenter(),
         $app,

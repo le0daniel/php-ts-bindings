@@ -47,6 +47,23 @@ return [
     ],
 
     /**
+     * A list of global middleware class names run on every single Operation (Query and Command)
+     * Must implement:
+     * - public handle(mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
+     *
+     * Usage:
+     * ```php
+     *   public function handle(mixed $input, Closure $next) {
+     *       // (...)
+     *       $result = $next($input);
+     *       // (...)
+     *       return $result;
+     *   }
+     * ```
+     */
+    "middleware" => [],
+
+    /**
      * Map your exceptions to framework-specific exceptions.
      */
     "exceptions" => [
