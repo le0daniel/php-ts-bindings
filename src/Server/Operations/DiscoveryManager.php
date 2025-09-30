@@ -28,7 +28,7 @@ final readonly class DiscoveryManager
 
         /** @var SplFileInfo $file */
         foreach ($iterator as $file) {
-            if (!$file->isFile() || $file->getExtension() !== 'php') {
+            if (!$file->isFile() || $file->getExtension() !== 'php' || !$file->getRealPath()) {
                 continue;
             }
 

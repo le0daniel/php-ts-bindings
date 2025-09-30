@@ -9,7 +9,8 @@
     "pestphp/pest": "4.x-dev",
     "phpstan/phpstan": "2.1.x-dev",
     "laravel/framework": "^11|^12",
-    "mockery/mockery": "^1.6"
+    "mockery/mockery": "^1.6",
+    "phpstan/phpstan-strict-rules": "^2.0"
   },
   "autoload": {
     "psr-4": {

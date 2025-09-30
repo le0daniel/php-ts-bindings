@@ -1,0 +1,5 @@
+services:
+	-
+		class: Le0daniel\PhpTsBindings\PHPStan\UtilitiesNodeResolver
+		tags:
+			- phpstan.phpDoc.typeNodeResolverExtension

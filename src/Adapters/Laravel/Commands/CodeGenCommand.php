@@ -278,7 +278,9 @@ DESCRIPTION;
                 continue;
             }
 
-            unlink($file->getRealPath());
+            if ($file->getRealPath()) {
+                unlink($file->getRealPath());
+            }
         }
     }
 }

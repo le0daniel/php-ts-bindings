@@ -25,9 +25,10 @@ final class Arrays
     }
 
     /**
-     * @template T of array
-     * @param T $array
-     * @return T
+     * @template TKey
+     * @template TValue
+     * @param array<TKey, TValue|null> $array
+     * @return array<TKey, TValue>
      */
     public static function filterNullValues(array $array): array
     {

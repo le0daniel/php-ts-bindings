@@ -5,13 +5,13 @@ namespace Le0daniel\PhpTsBindings\Parser\Data;
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 
-final class GlobalTypeAliases
+final readonly class GlobalTypeAliases
 {
     /**
      * @param array<string, NodeInterface|Closure(): NodeInterface> $aliases
      */
     public function __construct(
-        public readonly array $aliases = [],
+        public array $aliases = [],
     ) {
     }
 

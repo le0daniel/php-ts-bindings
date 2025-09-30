@@ -4,13 +4,13 @@ namespace Tests\Unit\Parser;
 
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
@@ -32,6 +32,7 @@ use Tests\Unit\Parser\Data\Stubs\FullAccount;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 use Tests\Unit\Parser\Data\Stubs\ReadonlyOutputFields;
 use Tests\Unit\Parser\Data\Stubs\UncastableClass;
+use Tests\Unit\Parser\Data\UserMock;
 
 
 test('test simple union', function () {
@@ -619,3 +620,90 @@ test('fails on missing or too many generics', function () {
         ->and(fn() => $parser->parse(Paginated::class))
         ->toThrow('Number of generics does not match. Expected 1 <I>, got 0.');
 });
+
+test('Test Pick Node simple case', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var StructNode $node */
+    $node = $parser->parse("Pick<array{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('id'))->toBeTrue()
+        ->and($node->getProperty('id')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::ARRAY);
+
+    /** @var StructNode $node */
+    $node = $parser->parse("Pick<object{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('id'))->toBeTrue()
+        ->and($node->getProperty('id')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
+    ;
+    compareToOptimizedAst($node);
+});
+
+test('Test Omit Node simple case', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    /** @var StructNode $node */
+    $node = $parser->parse("Omit<array{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('name'))->toBeTrue()
+        ->and($node->getProperty('name')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::ARRAY);
+
+    /** @var StructNode $node */
+    $node = $parser->parse("Omit<object{id: string, name: string}, 'id'>");
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('name'))->toBeTrue()
+        ->and($node->getProperty('name')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
+
+    compareToOptimizedAst($node);
+});
+
+test('Test Pick and Omit Node with custom class', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+
+    /** @var StructNode $node */
+    $node = $parser->parse("Pick<" . UserMock::class . ", 'username'>");
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(1)
+        ->and($node->hasProperty('username'))->toBeTrue()
+        ->and($node->getProperty('username')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
+
+    compareToOptimizedAst($node);
+
+    /** @var StructNode $node */
+    $node = $parser->parse("Omit<" . UserMock::class . ", 'username'>");
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->properties)->toHaveCount(2)
+        ->and($node->getProperty('age')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->getProperty('email')->propertyType)->toEqual(PropertyType::BOTH)
+        ->and($node->phpType)->toEqual(StructPhpType::OBJECT);
+
+    compareToOptimizedAst($node);
+});
+
+test('Pick and Omit Typescript definitions', function (string $expectedDefinition, string $type) {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse($type);
+    compareToOptimizedAst($node);
+
+    $outputDef = typescriptDefinition($node, DefinitionTarget::OUTPUT);
+    expect($outputDef)->toBe($expectedDefinition);
+
+})->with([
+    'Simple Pick' => ['{name:string;}', 'Pick<array{id: string, name: string}, "name">'],
+    'Simple Omit' => ['{id:string;}', 'Omit<array{id: string, name: string}, "name">'],
+    'Pick multiple' => ['{age:number;name:string;}', 'Pick<array{id: string, name: string, age: int}, "name"|"age">'],
+    'Omit multiple' => ['{email:string;id:string;}', 'Omit<array{id: string, name: string, email: string, age: int}, "name"|"age">'],
+    'Pick from object' => ['{name:string;}', 'Pick<object{id: string, name: string}, "name">'],
+    'Omit from object' => ['{id:string;}', 'Omit<object{id: string, name: string}, "name">'],
+    'Pick from class' => ['{username:string;}', 'Pick<' . UserMock::class . ', "username">'],
+    'Omit from class' => ['{email:string;username:string;}', 'Omit<' . UserMock::class . ', "age">'],
+    'Simple Pick with optional' => ['{name?:string|null;}', 'Pick<array{id?: string, name?: string|null}, "name">'],
+    'Simple Omit with optional' => ['{id?:string;}', 'Omit<array{id?: string, name: string}, "name">'],
+]);

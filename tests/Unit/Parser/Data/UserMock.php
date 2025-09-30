@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Tests\Mocks\Users;
+namespace Tests\Unit\Parser\Data;
 
 final class UserMock
 {
