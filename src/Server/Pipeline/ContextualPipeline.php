@@ -47,7 +47,11 @@ final class ContextualPipeline
         return function ($stack, object $instance) use ($context) {
             return function (mixed $input) use ($stack, $instance, $context) {
                 try {
-                    return $instance->handle($input, $stack, ...$context);
+                    $result = $instance->handle($input, $stack, ...$context);
+                    if ($result instanceof Throwable) {
+                        return $this->catchErrorsWith ? ($this->catchErrorsWith)($result) : $result;
+                    }
+                    return $result;
                 } catch (Throwable $exception) {
                     if ($this->catchErrorsWith) {
                         return ($this->catchErrorsWith)($exception);
