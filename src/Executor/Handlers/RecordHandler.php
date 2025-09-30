@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use stdClass;
 
@@ -28,7 +29,7 @@ final class RecordHandler implements Handler
         foreach ($value as $key => $item) {
             if (!is_string($key)) {
                 $context->addIssue(new Issue(
-                    'validation.invalid_key_type',
+                    IssueMessage::INVALID_KEY_TYPE,
                     [
                         'message' => 'Record keys must be strings, got: ' . gettype($key),
                         'keyValue' => $key,
@@ -63,7 +64,7 @@ final class RecordHandler implements Handler
         foreach ($value as $key => $item) {
             if (!is_string($key)) {
                 $context->addIssue(new Issue(
-                    'validation.invalid_key_type',
+                    IssueMessage::INVALID_KEY_TYPE,
                     [
                         'message' => 'Record keys must be strings, got: ' . gettype($key),
                         'keyValue' => $key,

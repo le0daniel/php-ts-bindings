@@ -57,7 +57,7 @@ final readonly class EnumNode implements NodeInterface, LeafNode
         }
 
         $context->addIssue(new Issue(
-            \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
+            IssueMessage::INVALID_TYPE,
             [
                 "message" => "Expected string name of enum {$this->enumClassName}, got: '{$value}'",
                 "value" => $value,

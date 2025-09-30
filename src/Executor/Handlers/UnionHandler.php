@@ -45,6 +45,11 @@ final class UnionHandler implements Handler
             if ($discriminatedType) {
                 return $executor->executeSerialize($discriminatedType, $value, $context);
             }
+
+            $context->addIssue(Issue::internalError([
+                'message' => 'Failed to find discriminated type for union.',
+            ]));
+
             return Value::INVALID;
         }
 
@@ -96,7 +101,7 @@ final class UnionHandler implements Handler
         }
 
         $context->addIssue(new Issue(
-            'validation.invalid_union',
+            IssueMessage::INVALID_TYPE,
             [
                 'message' => 'No valid union type found.',
             ]

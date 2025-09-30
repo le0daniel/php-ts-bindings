@@ -6,6 +6,7 @@ use Attribute;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
@@ -15,7 +16,7 @@ final class NonEmptyString implements Constraint
     {
         if (!is_string($value)) {
             $context->addIssue(new Issue(
-                \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
+                IssueMessage::INVALID_TYPE,
                 [
                     "message" => "Expected string, got: " . gettype($value),
                 ]

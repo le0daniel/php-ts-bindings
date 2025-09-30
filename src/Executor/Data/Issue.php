@@ -28,11 +28,21 @@ final readonly class Issue
         };
     }
 
-    public static function fromThrowable(Throwable $throwable): self
+    public static function fromThrowable(Throwable $throwable, array $debugInfo = []): self
     {
         return new self(
             IssueMessage::INTERNAL_ERROR,
+            $debugInfo,
             exception: $throwable,
+        );
+    }
+
+    public static function internalError(array $debugInfo = []): self
+    {
+        return new self(
+            IssueMessage::INTERNAL_ERROR,
+            $debugInfo,
+            exception: null,
         );
     }
 }

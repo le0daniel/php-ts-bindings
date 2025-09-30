@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use UnitEnum;
@@ -53,7 +54,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coersable
         if ($this->type !== LiteralType::ENUM_CASE) {
             if ($value !== $this->value) {
                 $context->addIssue(new Issue(
-                    'Invalid literal value',
+                    IssueMessage::INVALID_TYPE,
                     [
                         'message' => "Expected literal value: {$this->value}, got: {$value}",
                     ]

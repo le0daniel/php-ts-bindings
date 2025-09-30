@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use stdClass;
 
@@ -42,7 +43,7 @@ final class StructHandler implements Handler
                 }
 
                 $context->addIssue(new Issue(
-                    'validation.missing_property',
+                    IssueMessage::MISSING_PROPERTY,
                     [
                         'message' => "Missing property: {$propertyNode->name}",
                     ]
@@ -74,7 +75,7 @@ final class StructHandler implements Handler
     {
         if (!is_array($value) && !$value instanceof stdClass) {
             $context->addIssue(new Issue(
-                'validation.invalid_struct',
+                IssueMessage::INVALID_TYPE,
                 [
                     'message' => 'Structs must be of type object, and not empty.',
                     'value' => $value,
@@ -97,7 +98,7 @@ final class StructHandler implements Handler
 
             if ($propertyValue === Value::INVALID) {
                 $context->addIssue(new Issue(
-                    'validation.invalid_property',
+                    IssueMessage::INVALID_TYPE,
                     [
                         'message' => "Invalid property: {$propertyNode->name}",
                     ]
@@ -113,7 +114,7 @@ final class StructHandler implements Handler
                 } else {
                     $context->leavePath();
                     $context->addIssue(new Issue(
-                        'validation.missing_property',
+                        IssueMessage::MISSING_PROPERTY,
                         [
                             'message' => "Missing property: {$propertyNode->name}",
                         ]

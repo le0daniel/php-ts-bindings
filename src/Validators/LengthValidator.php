@@ -6,6 +6,7 @@ use Attribute;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER | Attribute::IS_REPEATABLE)]
@@ -39,7 +40,7 @@ final readonly class LengthValidator implements Constraint
 
         if (is_null($valueToValidate)) {
             $context->addIssue(new Issue(
-                \Le0daniel\PhpTsBindings\Executor\Data\IssueMessage::INVALID_TYPE,
+                IssueMessage::INVALID_TYPE,
                 [
                     'message' => "Wrong type for length validation. Expected string, array or integer, got: " . gettype($value),
                     'value' => $value,
@@ -50,7 +51,7 @@ final readonly class LengthValidator implements Constraint
 
         if (!$this->validateMin($valueToValidate)) {
             $context->addIssue(new Issue(
-                'validation.invalid_min',
+                IssueMessage::INVALID_MIN,
                 [
                     'message' => "Expected value to be at least {$this->min} characters long, got: {$valueToValidate}.",
                     'including' => $this->including,
@@ -63,7 +64,7 @@ final readonly class LengthValidator implements Constraint
 
         if (!$this->validateMax($valueToValidate)) {
             $context->addIssue(new Issue(
-                'validation.invalid_max',
+                IssueMessage::INVALID_MAX,
                 [
                     'message' => "Expected value to be at most {$this->max} characters long, got: {$valueToValidate}.",
                     'including' => $this->including,

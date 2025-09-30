@@ -59,13 +59,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
                 DateTimeImmutable::createFromFormat($this->format, $value)
             );
         } catch (Throwable $exception) {
-            $context->addIssue(new Issue(
-                IssueMessage::INVALID_TYPE,
-                [
-                    'message' => "Failed to parse date correctly. Expected format: {$this->format}, got: '{$value}'",
-                ],
-                $exception
-            ));
+            $context->addIssue(Issue::fromThrowable($exception));
             return Value::INVALID;
         }
     }

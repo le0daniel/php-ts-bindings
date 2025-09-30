@@ -92,13 +92,11 @@ readonly class BuiltInNode implements NodeInterface, LeafNode, Coersable
             }
             return $value;
         } catch (Throwable $throwable) {
-            $context->addIssue(new Issue(
-                IssueMessage::INVALID_TYPE,
-                [
-                    'message' => "Expected value of type {$this->type->value}, got: " . gettype($value),
-                    'exception' => $throwable,
-                ],
-            ));
+            $context->addIssue(Issue::fromThrowable($throwable, [
+                'node' => self::class,
+                'message' => "Failed to serialize value of type: " . gettype($value),
+                'value' => $value,
+            ]));
             return Value::INVALID;
         }
     }

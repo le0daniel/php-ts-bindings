@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use stdClass;
@@ -37,14 +38,15 @@ final class CustomClassHandler implements Handler
 
         if (!$object instanceof stdClass) {
             $objectClass = get_class($object);
-            $context->addIssue(new Issue(
-                'validation.invalid_cast',
-                [
-                    "message" => "Failed to serialize object($objectClass) to standard class.",
-                    "value" => $value,
-                    "serializedValue" => $object,
-                ]
-            ));
+            $context->addIssue(
+                Issue::internalError(
+                    [
+                        "message" => "Failed to serialize object($objectClass) to standard class.",
+                        "value" => $value,
+                        "serializedValue" => $object,
+                    ]
+                )
+            );
             return Value::INVALID;
         }
 
@@ -78,14 +80,10 @@ final class CustomClassHandler implements Handler
             }
             return $instance;
         } catch (Throwable $exception) {
-            $context->addIssue(new Issue(
-                'Internal error: ' . $exception->getMessage(),
-                [
-                    'message' => "Failed to cast value to {$node->fullyQualifiedCastingClass}: {$exception->getMessage()}",
-                    'value' => $value,
-                ],
-                $exception,
-            ));
+            $context->addIssue(Issue::fromThrowable($exception, [
+                'message' => "Failed to cast value to {$node->fullyQualifiedCastingClass}: {$exception->getMessage()}",
+                'value' => $value,
+            ]));
 
             return Value::INVALID;
         }
