@@ -38,8 +38,8 @@ final class Definition implements ExportableToPhpCode
         $type = PHPExport::export($this->type);
         $fullyQualifiedClassName = PHPExport::export($this->fullyQualifiedClassName);
         $methodName = PHPExport::export($this->methodName);
-        $namespace = PHPExport::export($this->namespace);
         $name = PHPExport::export($this->name);
+        $namespace = PHPExport::export($this->namespace);
         $middleware = PHPExport::exportArray($this->middleware);
 
         // Descriptions are ignored when caching.

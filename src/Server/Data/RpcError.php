@@ -22,6 +22,7 @@ final readonly class RpcError
     }
 
     /**
+     * @api
      * @param array<string, mixed> $metadata
      * @return self
      */
@@ -31,6 +32,7 @@ final readonly class RpcError
     }
 
     /**
+     * @api
      * @param array<string, mixed> $metadata
      * @return self
      */

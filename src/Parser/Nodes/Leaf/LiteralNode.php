@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use Le0daniel\PhpTsBindings\Contracts\Coersable;
+use Le0daniel\PhpTsBindings\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -13,7 +13,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use UnitEnum;
 
-final readonly class LiteralNode implements NodeInterface, LeafNode, Coersable
+final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
 {
     /**
      * @param string|bool|int|float|null|UnitEnum $value

@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use Le0daniel\PhpTsBindings\Contracts\Coersable;
+use Le0daniel\PhpTsBindings\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -14,7 +14,7 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Stringable;
 use Throwable;
 
-readonly class BuiltInNode implements NodeInterface, LeafNode, Coersable
+readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible
 {
 
     public function __construct(public BuiltInType $type)

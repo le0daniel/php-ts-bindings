@@ -4,7 +4,6 @@ namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Optional;
-use Le0daniel\PhpTsBindings\Contracts\Attributes\OutputOnly;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
@@ -60,10 +59,6 @@ final class UserDefinedObjectConsumer implements TypeConsumer
     private function determineCastingStrategy(ReflectionClass $class): ObjectCastStrategy
     {
         $attributes = new AttributesReflector($class->getAttributes());
-
-        if ($attributes->has(OutputOnly::class)) {
-            return ObjectCastStrategy::NEVER;
-        }
 
         if ($attributes->has(Castable::class)) {
             $instance = $attributes->getSingleInstance(Castable::class);

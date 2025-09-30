@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Executor;
 
-use Le0daniel\PhpTsBindings\Contracts\Coersable;
+use Le0daniel\PhpTsBindings\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
@@ -124,7 +124,7 @@ final readonly class SchemaExecutor implements Executor
         return match (true) {
             array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
             $node instanceof NamedNode => $this->executeParse($node->node, $data, $context),
-            $node instanceof LeafNode => $context->coercePrimitives && $node instanceof Coersable
+            $node instanceof LeafNode => $context->coercePrimitives && $node instanceof Coercible
                 ? $node->parseValue($node->coerce($data), $context)
                 : $node->parseValue($data, $context),
             default => Value::INVALID,

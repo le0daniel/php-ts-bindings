@@ -23,6 +23,7 @@ final readonly class RpcSuccess
      * Overwrite all existing metadata
      * @param array<string, mixed> $metadata
      * @return self
+     * @api
      */
     public function withMetadata(array $metadata): self
     {
@@ -33,6 +34,7 @@ final readonly class RpcSuccess
      * Append metadata to the result
      * @param array<string, mixed> $metadata
      * @return self
+     * @api
      */
     public function appendMetadata(array $metadata): self
     {

@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
-interface Coersable
+interface Coercible
 {
     public function coerce(mixed $value): mixed;
 }
