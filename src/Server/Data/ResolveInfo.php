@@ -14,6 +14,7 @@ final class ResolveInfo
      * @param OperationType $operationType
      * @param class-string<object> $className
      * @param string $methodName
+     * @param list<class-string> $middleware
      */
     public function __construct(
         public readonly string $namespace,
@@ -21,6 +22,7 @@ final class ResolveInfo
         public readonly OperationType $operationType,
         public readonly string $className,
         public readonly string $methodName,
+        public readonly array $middleware,
     )
     {
     }

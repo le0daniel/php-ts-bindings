@@ -7,14 +7,12 @@ use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
-use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\OperationNotFoundException;
-use Le0daniel\PhpTsBindings\Server\Data\Exceptions\UnknownResultTypeException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
@@ -89,14 +87,15 @@ final readonly class Server
             );
         }
 
+        $middlewareClassNames = [
+            ... $this->configuration->middleware,
+            ... $operation->definition->middleware,
+        ];
         $middlewares = array_map(
             fn(string $className) => $this->container
                 ? $this->container->get($className)
                 : new $className,
-            [
-                ... $this->configuration->middleware,
-                ... $operation->definition->middleware,
-            ]
+            $middlewareClassNames
         );
 
         $controllerClass = $this->container
@@ -109,11 +108,12 @@ final readonly class Server
             $operation->definition->type,
             $operation->definition->fullyQualifiedClassName,
             $operation->definition->methodName,
+            $middlewareClassNames,
         );
 
-        $result = new ContextualPipeline($middlewares)
-            ->catchErrorsWith(fn(Throwable $throwable) => $throwable)
-            ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context): Success|Throwable {
+        return new ContextualPipeline($middlewares)
+            ->catchErrorsWith(fn(Throwable $throwable) => new RpcError(ErrorType::INTERNAL_ERROR, $throwable, []))
+            ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context): RpcSuccess|RpcError {
                 try {
                     $serializedResult = $this->executor
                         ->serialize(
@@ -122,24 +122,18 @@ final readonly class Server
                         );
 
                     if ($serializedResult instanceof Failure) {
-                        return new InvalidOutputException($serializedResult);
+                        return $this->produceError(
+                            new InvalidOutputException($serializedResult),
+                            $operation->definition
+                        );
                     }
 
-                    return $serializedResult;
+                    return new RpcSuccess($serializedResult->value, $client);
                 } catch (Throwable $exception) {
-                    return $exception;
+                    return new RpcError(ErrorType::INTERNAL_ERROR, $exception, []);
                 }
             })
             ->execute($validatedInput->value, $context, $resolveInfo, $client);
-
-        if ($result instanceof Success) {
-            return new RpcSuccess($result->value, $client);
-        }
-
-        return $this->produceError(
-            $result instanceof Throwable ? $result : UnknownResultTypeException::fromResult($result),
-            $operation->definition
-        );
     }
 
     /**

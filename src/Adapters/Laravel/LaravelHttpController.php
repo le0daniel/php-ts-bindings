@@ -142,13 +142,16 @@ readonly class LaravelHttpController
     private function produceJsonResponse(RpcSuccess|RpcError $result, Client $client): JsonResponse
     {
         if ($result instanceof RpcSuccess) {
-            return new JsonResponse(
-                $this->appendClientDirectives([
-                    'success' => true,
-                    'data' => $result->data,
-                ], $client),
-                200
-            );
+            $data = $this->appendClientDirectives([
+                'success' => true,
+                'data' => $result->data,
+            ], $client);
+
+            if (!empty($result->metadata)) {
+                $data['__metadata'] = $result->metadata;
+            }
+
+            return new JsonResponse($data, 200);
         }
 
         $this->exceptionHandler->report($result->cause);
@@ -157,6 +160,10 @@ readonly class LaravelHttpController
             'code' => $result->type->value,
             'details' => $result->details
         ], $client);
+
+        if (!empty($result->metadata)) {
+            $content['__metadata'] = $result->metadata;
+        }
 
         if ($this->debug) {
             $exception = $result->cause;
