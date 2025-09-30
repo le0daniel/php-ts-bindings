@@ -16,10 +16,14 @@ use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
+use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
+use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\AstSorter;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
+use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 pest()->extend(Tests\TestCase::class)->in('Feature');
 
@@ -132,6 +136,72 @@ function typescriptDefinition(NodeInterface $node, DefinitionTarget $target): st
     }
 
     return $tsGenerator->toDefinition($sortedNode, $target);
+}
+
+function executeParse(NodeInterface|string $node, mixed $data, ParsingOptions $options = new ParsingOptions()): Success|Failure
+{
+    $node = AstSorter::sort(
+        is_string($node) ? new TypeParser()->parse($node) : $node,
+    );
+    $optimizer = new ASTOptimizer();
+    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
+
+    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
+    $registry = eval("return {$optimizedCode};");
+    $optimizedAst = $registry->get('node');
+
+    $executor = new SchemaExecutor();
+    $normalResult = $executor->parse($node, $data, $options);
+    $optimizedResult = $executor->parse($optimizedAst, $data, $options);
+
+    expect($normalResult::class)->toEqual($optimizedResult::class);
+    AstValidator::validate($node);
+    AstValidator::validate($optimizedAst);
+
+    if ($normalResult instanceof Success) {
+        $serializedResult = json_encode($normalResult->value, JSON_THROW_ON_ERROR);
+        $serializedOptimizedResult = json_encode($optimizedResult->value, JSON_THROW_ON_ERROR);
+        expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
+        return $normalResult;
+    }
+
+    $serializedResult = json_encode($normalResult->issues->serializeToFieldsArray(), JSON_THROW_ON_ERROR);
+    $serializedOptimizedResult = json_encode($optimizedResult->issues->serializeToFieldsArray(), JSON_THROW_ON_ERROR);
+    expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
+    return $normalResult;
+}
+
+function executeSerialize(NodeInterface|string $node, mixed $data, SerializationOptions $options = new SerializationOptions()): Success|Failure
+{
+    $node = AstSorter::sort(
+        is_string($node) ? new TypeParser()->parse($node) : $node,
+    );
+    $optimizer = new ASTOptimizer();
+    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
+
+    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
+    $registry = eval("return {$optimizedCode};");
+    $optimizedAst = $registry->get('node');
+
+    $executor = new SchemaExecutor();
+    $normalResult = $executor->serialize($node, $data, $options);
+    $optimizedResult = $executor->serialize($optimizedAst, $data, $options);
+
+    expect($normalResult::class)->toEqual($optimizedResult::class);
+    AstValidator::validate($node);
+    AstValidator::validate($optimizedAst);
+
+    if ($normalResult instanceof Success) {
+        $serializedResult = json_encode($normalResult->value, JSON_THROW_ON_ERROR);
+        $serializedOptimizedResult = json_encode($optimizedResult->value, JSON_THROW_ON_ERROR);
+        expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
+        return $normalResult;
+    }
+
+    $serializedResult = json_encode($normalResult->issues->serializeToFieldsArray(), JSON_THROW_ON_ERROR);
+    $serializedOptimizedResult = json_encode($optimizedResult->issues->serializeToFieldsArray(), JSON_THROW_ON_ERROR);
+    expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
+    return $normalResult;
 }
 
 function validateAst(NodeInterface $node): void

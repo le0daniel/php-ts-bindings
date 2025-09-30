@@ -16,62 +16,6 @@ use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 use Stringable;
 use Tests\Unit\Executor\Mocks\UserSchema;
 
-/**
- * @template T
- * @param NodeInterface $node
- * @param Closure(NodeInterface): T $executor
- * @return T
- * @throws JsonException
- */
-function executeNodeOnOptimizedToo(NodeInterface $node, Closure $executor): mixed
-{
-    $code = new ASTOptimizer()->generateOptimizedCode(['node' => $node]);
-
-    /** @var NodeInterface $optimizedAst */
-    $optimizedAst = eval("return ({$code})->get('node');");
-
-    $normalResult = $executor($node);
-    $optimizedResult = $executor($optimizedAst);
-
-    expect($normalResult::class)->toEqual($optimizedResult::class);
-    AstValidator::validate($node);
-    AstValidator::validate($optimizedAst);
-
-    if ($normalResult instanceof Success) {
-        $serializedResult = serialize($normalResult->value);
-        $serializedOptimizedResult = serialize($optimizedResult->value);
-        expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
-    }
-
-    return $normalResult;
-}
-
-;
-
-/**
- * @throws \Throwable
- * @throws JsonException
- */
-function executeParse(string $typeString, mixed $value): Success|Failure
-{
-    $parser = new TypeParser(new TypeStringTokenizer());
-    $node = $parser->parse($typeString);
-    $executor = new SchemaExecutor();
-    return executeNodeOnOptimizedToo($node, fn(NodeInterface $node) => $executor->parse($node, $value));
-}
-
-/**
- * @throws \Throwable
- * @throws JsonException
- */
-function executeSerialize(string $typeString, mixed $value): Success|Failure
-{
-    $parser = new TypeParser(new TypeStringTokenizer());
-    $node = $parser->parse($typeString);
-    $executor = new SchemaExecutor();
-    return executeNodeOnOptimizedToo($node, fn(NodeInterface $node) => $executor->serialize($node, $value));
-}
-
 test('parse success', function (string $type, mixed $value, mixed $expected) {
     $result = executeParse($type, $value);
     expect($result)->toBeSuccess();
