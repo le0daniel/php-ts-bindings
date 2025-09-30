@@ -3,19 +3,15 @@
 namespace Le0daniel\PhpTsBindings\CodeGen\Utils;
 
 use JsonException;
+use Le0daniel\PhpTsBindings\Utils\Regexes;
 
 final class Typescript
 {
-    /**
-     * @throws JsonException
-     */
-    public static function literalUnion(string|int|bool|null ...$values): string
+    public static function objectKey(string $key, bool $optional = false): string
     {
-        return implode('|', array_map( fn(string|int|bool|null $value): string => match (true) {
-            is_string($value) => json_encode($value, JSON_THROW_ON_ERROR),
-            is_int($value) => (string) $value,
-            is_bool($value) => $value ? 'true' : 'false',
-            is_null($value) => 'null',
-        }, $values));
+        if (preg_match('/^[a-zA-Z_][a-zA-Z\d_]*$/', $key)) {
+            return $optional ? "{$key}?" : $key;
+        }
+        return json_encode($key, JSON_THROW_ON_ERROR) . ($optional ? '?' : '');
     }
 }

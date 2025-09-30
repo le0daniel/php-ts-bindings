@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen;
 
+use Le0daniel\PhpTsBindings\CodeGen\Utils\Typescript;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
@@ -58,8 +59,7 @@ final class TypescriptDefinitionGenerator
 
         $properties = array_map(
             function (PropertyNode $property) use ($target): string {
-                $optional = $property->isOptional ? '?' : '';
-                return "{$property->name}{$optional}:{$this->toDefinition($property->node, $target)};";
+                return Typescript::objectKey($property->name, $property->isOptional) . ":{$this->toDefinition($property->node, $target)};";
             },
             $filteredProperties,
         );
