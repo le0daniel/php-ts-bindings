@@ -63,10 +63,11 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         if ($operation->inputDefinition === 'null') {
             return new TypescriptCodeBlock(
                 <<<TypeScript
+
 type {$resultTypeName} = {$operation->outputDefinition};
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
-export function {$queryName}(queryOptions?: Partial<{enabled: boolean}>) {
+export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {
     return useQuery({
         queryKey: queryKey('{$definition->namespace}', '{$definition->name}'),
         queryFn: async ({signal}): Promise<{$resultTypeName}> => {
@@ -82,6 +83,7 @@ TypeScript, $imports);
 
         return new TypescriptCodeBlock(
             <<<TypeScript
+
 type {$resultTypeName} = {$operation->outputDefinition};
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
