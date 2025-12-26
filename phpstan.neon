@@ -17,8 +17,8 @@ parameters:
 #    typeAliases:
 #        Email: 'non-empty-string'
 
-    ignoreErrors:
-        - '#class-string<operations.default_server>#'
+#    ignoreErrors:
+#        - '#class-string<operations.default_server>#'
 
 #
 #    excludePaths:

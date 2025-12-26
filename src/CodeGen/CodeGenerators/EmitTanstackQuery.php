@@ -38,11 +38,15 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         }
 
         $name = $this->generateName($operation);
-        $upperCaseName = ucfirst($name);
+
+        $queryName = "use" . ucfirst($name) . "Query";
+        $resultTypeName = ucfirst($name) . "Result";
+        $optionsTypeName = ucfirst($name) . "Options";
+
         $imports = [
             new TypescriptImportStatement(
                 from: "@tanstack/react-query",
-                imports: ['useQuery'],
+                imports: ['useQuery', 'UseQueryOptions'],
             ),
             new TypescriptImportStatement(
                 from: Paths::libImport("utils"),
@@ -54,13 +58,18 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
             )
         ];
 
+
+
         if ($operation->inputDefinition === 'null') {
             return new TypescriptCodeBlock(
                 <<<TypeScript
-export function use{$upperCaseName}Query(queryOptions?: Partial<{enabled: boolean}>) {
+type {$resultTypeName} = {$operation->outputDefinition};
+type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
+
+export function {$queryName}(queryOptions?: Partial<{enabled: boolean}>) {
     return useQuery({
         queryKey: queryKey('{$definition->namespace}', '{$definition->name}'),
-        queryFn: async ({signal}): Promise<{$operation->outputDefinition}> => {
+        queryFn: async ({signal}): Promise<{$resultTypeName}> => {
             const result = await {$name}({signal});
             throwOnFailure(result);
             return result.data;
@@ -73,10 +82,13 @@ TypeScript, $imports);
 
         return new TypescriptCodeBlock(
             <<<TypeScript
-export function use{$upperCaseName}Query(input: {$operation->inputDefinition}, queryOptions?: Partial<{enabled: boolean}>) {
+type {$resultTypeName} = {$operation->outputDefinition};
+type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
+
+export function {$queryName}(input: {$operation->inputDefinition}, queryOptions?: Partial<{$optionsTypeName}>) {
     return useQuery({
         queryKey: queryKey('{$definition->namespace}', '{$definition->name}', input),
-        queryFn: async ({signal}): Promise<{$operation->outputDefinition}> => {
+        queryFn: async ({signal}): Promise<{$resultTypeName}> => {
             const result = await {$name}(input, {signal});
             throwOnFailure(result);
             return result.data;
