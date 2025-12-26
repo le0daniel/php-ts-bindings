@@ -33,7 +33,7 @@ final readonly class Preloader
      * This is really useful if you want to preload data on the server on a page load and make it instantly available on the
      * client side.
      *
-     * @return array{result: mixed, key: list<mixed>}
+     * @return array{response: mixed, queryKey: list<mixed>}
      */
     public function preload(string|UnitEnum $namespace, string $name, mixed $input, mixed $context): array
     {
@@ -46,15 +46,15 @@ final readonly class Preloader
         }
 
         return [
-            'result' => $result->data,
-            'key' => [$namespaceAsString, $name, $input]
+            'queryKey' => $result->data,
+            'response' => $input === null ? [$namespaceAsString, $name] : [$namespaceAsString, $name, $input]
         ];
     }
 
     /**
      * @param list<array{namespace: string|UnitEnum, name: string, input: mixed}> $preloads
      * @param mixed $context
-     * @return list<array{result: mixed, key: list<mixed>}>
+     * @return list<array{response: mixed, queryKey: list<mixed>}>
      */
     public function preloadMany(array $preloads, mixed $context): array
     {
