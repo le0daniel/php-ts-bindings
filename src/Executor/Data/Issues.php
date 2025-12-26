@@ -15,6 +15,20 @@ final class Issues
     {
     }
 
+    /**
+     * @param array<string, string|string[]> $issuesMap
+     * @return self
+     */
+    public static function fromMessages(array $issuesMap): self
+    {
+        return new self(
+            array_map(
+                fn(string|array $issues) => Issue::fromMessageArray(is_array($issues) ? $issues : [$issues]),
+                $issuesMap
+            )
+        );
+    }
+
     public function isEmpty(): bool
     {
         return empty($this->issuesMap);

@@ -105,7 +105,7 @@ final readonly class Server
         );
 
         return new ContextualPipeline($middlewares)
-            ->catchErrorsWith(fn(Throwable $throwable) => new RpcError(ErrorType::INTERNAL_ERROR, $throwable, []))
+            ->catchErrorsWith(fn(Throwable $throwable) => $this->produceError($throwable, $operation->definition))
             ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context): RpcSuccess|RpcError {
                 try {
                     $inputValidationResult = $this
@@ -137,8 +137,8 @@ final readonly class Server
                     }
 
                     return new RpcSuccess($serializedResult->value, $client);
-                } catch (Throwable $exception) {
-                    return new RpcError(ErrorType::INTERNAL_ERROR, $exception, []);
+                } catch (Throwable $throwable) {
+                    return $this->produceError($throwable, $operation->definition);
                 }
             })->execute($input, $context, $resolveInfo, $client);
     }

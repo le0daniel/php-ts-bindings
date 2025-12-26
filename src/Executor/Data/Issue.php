@@ -29,6 +29,15 @@ final readonly class Issue
     }
 
     /**
+     * @param list<string> $messages
+     * @return list<Issue>
+     */
+    public static function fromMessageArray(array $messages): array
+    {
+        return array_map(fn(string $message) => new self($message), $messages);
+    }
+
+    /**
      * @param Throwable $throwable
      * @param array<string, mixed> $debugInfo
      * @return self
