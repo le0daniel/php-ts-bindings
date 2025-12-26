@@ -47,7 +47,7 @@ final readonly class Preloader
 
         return [
             'response' => $result->data,
-            'queryKey' => $input === null ? [$namespaceAsString, $name] : [$namespaceAsString, $name, $input]
+            'queryKey' => $input === null ? [$namespaceAsString, $name] : [$namespaceAsString, $name, $input],
         ];
     }
 
