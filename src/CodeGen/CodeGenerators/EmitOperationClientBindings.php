@@ -25,7 +25,7 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
             "OperationClient" => <<<TypeScript
 import type {Result, WithClientDirectives} from "./types";
 
-export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number;};
+export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client?: OperationClient};
 
 export interface OperationClient {
     execute<O, E extends {code: number}>(
