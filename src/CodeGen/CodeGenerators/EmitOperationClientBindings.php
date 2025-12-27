@@ -126,7 +126,6 @@ export class DefaultClient implements OperationClient {
             return await this.callHooks({...json, success: true} as WithClientDirectives<Success<O>>);
         }
 
-        console.error('Request failed', response, json);
         return await this.callHooks({
             ...json,
             success: false,
@@ -149,6 +148,15 @@ import type {Failure} from "./types";
 
 export class OperationException extends Error {
     public readonly cause: Failure<any>;
+
+    get code(): number {
+        const code = this.cause.code;
+        if (!code || typeof code !== 'number' || Number.isNaN(code)) {
+            return 500;
+        }
+        
+        return code;
+    }
 
     constructor(cause: Failure<any>) {
         super(`Operation failed with code \${cause.code}`);
