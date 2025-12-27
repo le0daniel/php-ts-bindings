@@ -56,12 +56,11 @@ readonly class LaravelHttpController
     public function handleHttpQueryRequest(string $fqn, Http\Request $request): JsonResponse
     {
         $client = $this->createClient($request);
-        $context = $this->createContext($request);
 
         $result = $this->server->query(
             $fqn,
             $this->gatherInputFromRequest(OperationType::QUERY, $request),
-            $context,
+            $this->contextFactory?->createContextFromHttpRequest($request),
             $client,
         );
 
@@ -74,12 +73,11 @@ readonly class LaravelHttpController
     public function handleHttpCommandRequest(string $fqn, Http\Request $request): JsonResponse
     {
         $client = $this->createClient($request);
-        $context = $this->createContext($request);
 
         $result = $this->server->command(
             $fqn,
             $this->gatherInputFromRequest(OperationType::COMMAND, $request),
-            $context,
+            $this->contextFactory?->createContextFromHttpRequest($request),
             $client,
         );
 
@@ -114,11 +112,6 @@ readonly class LaravelHttpController
         return empty($inputData) ? null : $inputData;
     }
 
-    private function createContext(Http\Request $request): mixed
-    {
-        return $this->contextFactory?->createContextFromHttpRequest($request);
-    }
-
     /**
      * @param array<string, mixed> $response
      * @param Client $client
@@ -151,6 +144,15 @@ readonly class LaravelHttpController
                 $data['__metadata'] = $result->metadata;
             }
 
+            if ($this->debug) {
+                $data['__info'] = [
+                    "handler" => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
+                    "middleware" => $result->resolveInfo->middleware,
+                    "fqn" => $result->resolveInfo->fullyQualifiedName,
+                    "type" => $result->resolveInfo->operationType->name,
+                ];
+            }
+
             return new JsonResponse($data, 200);
         }
 
@@ -176,6 +178,15 @@ readonly class LaravelHttpController
                 'trace' => $exception->getTrace(),
                 'issues' => $exception instanceof InvalidOutputException ? $exception->issues->serializeToDebugFields() : null,
             ]);
+
+            $content['__info'] = $result->resolveInfo ? [
+                "handler" => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
+                "middleware" => $result->resolveInfo->middleware,
+                "fqn" => $result->resolveInfo->fullyQualifiedName,
+                "type" => $result->resolveInfo->operationType->name,
+            ] : [
+                "message" => "No handler found for operation.",
+            ];
         }
 
         return new JsonResponse(

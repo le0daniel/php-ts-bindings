@@ -54,7 +54,8 @@ final readonly class Server
             return new RpcError(
                 ErrorType::NOT_FOUND,
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
-                ['type' => 'NOT_FOUND']
+                ['type' => 'NOT_FOUND'],
+                null,
             );
         }
 
@@ -67,7 +68,8 @@ final readonly class Server
             return new RpcError(
                 ErrorType::NOT_FOUND,
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
-                ['type' => 'NOT_FOUND']
+                ['type' => 'NOT_FOUND'],
+                null,
             );
         }
 
@@ -105,8 +107,8 @@ final readonly class Server
         );
 
         return new ContextualPipeline($middlewares)
-            ->catchErrorsWith(fn(Throwable $throwable) => $this->produceError($throwable, $operation->definition))
-            ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context): RpcSuccess|RpcError {
+            ->catchErrorsWith(fn(Throwable $throwable) => $this->produceError($throwable, $operation->definition, $resolveInfo))
+            ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context, $resolveInfo): RpcSuccess|RpcError {
                 try {
                     $inputValidationResult = $this
                         ->executor
@@ -119,7 +121,8 @@ final readonly class Server
                     if ($inputValidationResult instanceof Failure) {
                         return $this->produceError(
                             new InvalidInputException($inputValidationResult),
-                            $operation->definition
+                            $operation->definition,
+                            $resolveInfo,
                         );
                     }
 
@@ -132,13 +135,14 @@ final readonly class Server
                     if ($serializedResult instanceof Failure) {
                         return $this->produceError(
                             new InvalidOutputException($serializedResult),
-                            $operation->definition
+                            $operation->definition,
+                            $resolveInfo,
                         );
                     }
 
-                    return new RpcSuccess($serializedResult->value, $client);
+                    return new RpcSuccess($serializedResult->value, $client, $resolveInfo);
                 } catch (Throwable $throwable) {
-                    return $this->produceError($throwable, $operation->definition);
+                    return $this->produceError($throwable, $operation->definition, $resolveInfo);
                 }
             })->execute($input, $context, $resolveInfo, $client);
     }
@@ -148,14 +152,15 @@ final readonly class Server
      * @param Definition $definition
      * @return RpcError
      */
-    private function produceError(Throwable $exception, Definition $definition): RpcError
+    private function produceError(Throwable $exception, Definition $definition, ?ResolveInfo $info): RpcError
     {
         foreach ($this->exceptionPresenters as $presenter) {
             if ($presenter->matches($exception, $definition)) {
                 return new RpcError(
                     $presenter::errorType(),
                     $exception,
-                    $presenter->details($exception)
+                    $presenter->details($exception),
+                    $info
                 );
             }
         }
@@ -163,7 +168,8 @@ final readonly class Server
         return new RpcError(
             $this->defaultPresenter::errorType(),
             $exception,
-            $this->defaultPresenter->details($exception)
+            $this->defaultPresenter->details($exception),
+            $info
         );
     }
 }

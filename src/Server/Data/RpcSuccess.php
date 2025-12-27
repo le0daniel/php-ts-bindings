@@ -7,14 +7,13 @@ use Le0daniel\PhpTsBindings\Contracts\Client;
 final readonly class RpcSuccess
 {
     /**
-     * @param mixed $data
-     * @param Client $client
      * @param array<string, mixed> $metadata
      */
     public function __construct(
-        public mixed $data,
-        public Client $client,
-        public array $metadata = [],
+        public mixed       $data,
+        public Client      $client,
+        public ResolveInfo $resolveInfo,
+        public array       $metadata = [],
     )
     {
     }
@@ -27,7 +26,7 @@ final readonly class RpcSuccess
      */
     public function withMetadata(array $metadata): self
     {
-        return new self($this->data, $this->client, $metadata);
+        return new self($this->data, $this->client, $this->resolveInfo, $metadata);
     }
 
     /**
@@ -38,7 +37,7 @@ final readonly class RpcSuccess
      */
     public function appendMetadata(array $metadata): self
     {
-        return new self($this->data, $this->client, [
+        return new self($this->data, $this->client, $this->resolveInfo, [
             ...$this->metadata,
             ...$metadata,
         ]);
