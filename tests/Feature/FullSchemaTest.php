@@ -11,16 +11,31 @@ use Tests\Feature\Mocks\CreateObjectInput;
 use Tests\Feature\Mocks\CreateUserInput;
 use Tests\Feature\Mocks\CreateUserWithOptionalEmail;
 use Tests\Feature\Mocks\Paginated;
+use Tests\Feature\Mocks\SortByInput;
 
-function prepare(string $type, string $mode = 'parse'): Closure
+/**
+ * @param list<string> $noise
+ */
+function prepare(string $type, string $mode = 'parse', array $noise = []): Closure
 {
-    return static function (mixed $value) use ($type, $mode) {
+    return static function (mixed $value) use ($type, $mode, $noise) {
         $optimizer = new ASTOptimizer();
 
-        $ast = new TypeParser(
+        $parser = new TypeParser(
             consumers: TypeParser::defaultConsumers(collectionClasses: [Collection::class])
-        )->parse($type);
-        $registryCode = $optimizer->generateOptimizedCode(['node' => $ast]);
+        );
+
+        $ast = $parser->parse($type);
+
+        $namedNoisePatterns = [];
+        foreach ($noise as $pattern) {
+            $namedNoisePatterns[sha1($pattern)] = $parser->parse($pattern);
+        }
+
+        $registryCode = $optimizer->generateOptimizedCode([
+            ... $namedNoisePatterns,
+            'node' => $ast,
+        ]);
 
         /** @var CachedTypeRegistry $registry */
         $registry = eval("return {$registryCode};");
@@ -190,4 +205,19 @@ test('serialization with null boundires', function () {
         ])
         ->and($executor("string"))->toBeFailure();
 
+});
+
+test("failing optimized case", function () {
+    $executor = prepare('array{other?: string, sortBy?: ' . SortByInput::class . '<"name"|"id"|"email">}', noise: [
+        'array{other?: string, sortBy?: ' . SortByInput::class . '<"random"|"other">}',
+    ]);
+
+    $result = $executor(['sortBy' => ['by' => 'name', 'direction' => 'asc']]);
+    expect($result)->toBeSuccess();
+
+    $result = $executor(['sortBy' => ['by' => 'other', 'direction' => 'asc']]);
+    expect($result)->toBeFailure();
+
+    $result = $executor(['other' => "wow"]);
+    expect($result)->toBeSuccess();
 });

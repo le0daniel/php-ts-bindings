@@ -22,7 +22,7 @@ final readonly class CustomCastingNode implements NodeInterface
 
     public function __toString(): string
     {
-        return $this->fullyQualifiedCastingClass;
+        return "{$this->fullyQualifiedCastingClass}@{$this->strategy->name}({$this->node})";
     }
 
     public function exportPhpCode(): string
