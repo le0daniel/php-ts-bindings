@@ -24,6 +24,18 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
     {
         $reflection = new ReflectionMethod($definition->fullyQualifiedClassName, $definition->methodName);
         $attributes = $reflection->getAttributes(Throws::class);
+
+        // We go through all middleware and extract their throws attributes
+        if (count($definition->middleware) > 0) {
+            foreach ($definition->middleware as $middlewareClassName) {
+                $reflection = new ReflectionMethod($middlewareClassName, 'handle');
+                $middlewareAttributes = $reflection->getAttributes(Throws::class);
+                if (count($middlewareAttributes) > 0) {
+                    array_push($attributes, ...$middlewareAttributes);
+                }
+            }
+        }
+
         return array_map(function (ReflectionAttribute $attribute) {
             /** @var Throws $instance */
             $instance = $attribute->newInstance();
