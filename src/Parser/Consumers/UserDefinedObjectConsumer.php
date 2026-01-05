@@ -47,17 +47,22 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 
         $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
 
-        if (!class_exists($fullyQualifiedClassName)) {
+        try {
+            $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
+        } catch (ReflectionException) {
             return false;
         }
 
-        $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
-        return new ReflectionClass($fullyQualifiedClassName)->isUserDefined() && $reflectionClass->isInstantiable();
+        return $reflectionClass->isUserDefined();
     }
 
     /** @param ReflectionClass<object> $class */
     private function determineCastingStrategy(ReflectionClass $class): ObjectCastStrategy
     {
+        if ($class->isAbstract()) {
+            return ObjectCastStrategy::NEVER;
+        }
+
         $attributes = new AttributesReflector($class->getAttributes());
 
         if ($attributes->has(Castable::class)) {

@@ -31,6 +31,8 @@ use Tests\Unit\Parser\Data\Stubs\Address;
 use Tests\Unit\Parser\Data\Stubs\FullAccount;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 use Tests\Unit\Parser\Data\Stubs\ReadonlyOutputFields;
+use Tests\Unit\Parser\Data\Stubs\SomeAbstractClass;
+use Tests\Unit\Parser\Data\Stubs\SomeFileInterface;
 use Tests\Unit\Parser\Data\Stubs\UncastableClass;
 use Tests\Unit\Parser\Data\UserMock;
 
@@ -694,7 +696,6 @@ test('Pick and Omit Typescript definitions', function (string $expectedDefinitio
 
     $outputDef = typescriptDefinition($node, DefinitionTarget::OUTPUT);
     expect($outputDef)->toBe($expectedDefinition);
-
 })->with([
     'Simple Pick' => ['{name:string;}', 'Pick<array{id: string, name: string}, "name">'],
     'Simple Omit' => ['{id:string;}', 'Omit<array{id: string, name: string}, "name">'],
@@ -707,3 +708,27 @@ test('Pick and Omit Typescript definitions', function (string $expectedDefinitio
     'Simple Pick with optional' => ['{name?:string|null;}', 'Pick<array{id?: string, name?: string|null}, "name">'],
     'Simple Omit with optional' => ['{id?:string;}', 'Omit<array{id?: string, name: string}, "name">'],
 ]);
+
+test("parse interface properties", function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse(SomeFileInterface::class);
+    compareToOptimizedAst($node);
+
+    $outputDef = typescriptDefinition($node, DefinitionTarget::OUTPUT);
+    expect($outputDef)->toBe('{id:number;url:string;}');
+
+    $inputDef = typescriptDefinition($node, DefinitionTarget::INPUT);
+    expect($inputDef)->toBe('never');
+});
+
+test("parse abstract class properties", function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse(SomeAbstractClass::class);
+    compareToOptimizedAst($node);
+
+    $outputDef = typescriptDefinition($node, DefinitionTarget::OUTPUT);
+    expect($outputDef)->toBe('{email:string;id:number;}');
+
+    $inputDef = typescriptDefinition($node, DefinitionTarget::INPUT);
+    expect($inputDef)->toBe('never');
+});
