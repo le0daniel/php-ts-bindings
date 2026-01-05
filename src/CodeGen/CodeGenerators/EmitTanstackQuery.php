@@ -63,8 +63,6 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         if ($operation->inputDefinition === 'null') {
             return new TypescriptCodeBlock(
                 <<<TypeScript
-
-type {$resultTypeName} = {$operation->outputDefinition};
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
 export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {

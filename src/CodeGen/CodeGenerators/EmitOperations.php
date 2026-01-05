@@ -36,6 +36,7 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
     {
         $definition = $operation->operation->definition;
         $name = $this->generateName($operation);
+        $resultTypeName = ucfirst($name) . "Result";
 
         $imports = [
             new TypescriptImportStatement(
@@ -59,9 +60,11 @@ TypeScript;
         if ($operation->inputDefinition === 'null') {
             return new TypescriptCodeBlock(
                 <<<TypeScript
+export type {$resultTypeName} = {$operation->outputDefinition};
+
 {$docBlock}
 export async function {$name}(options?: OperationOptions) {
-    return await executeOperation<{$operation->inputDefinition}, {$operation->outputDefinition}, {$operation->errorDefinition}>(
+    return await executeOperation<{$operation->inputDefinition}, {$resultTypeName}, {$operation->errorDefinition}>(
         '{$definition->type->lowerCase()}', 
         '{$operation->key}', 
         null, 
@@ -74,9 +77,11 @@ TypeScript, $imports,
 
         return new TypescriptCodeBlock(
             <<<TypeScript
+export type {$resultTypeName} = {$operation->outputDefinition};
+
 {$docBlock}
 export async function {$name}(input: {$operation->inputDefinition}, options?: OperationOptions) {
-    return await executeOperation<{$operation->inputDefinition}, {$operation->outputDefinition}, {$operation->errorDefinition}>(
+    return await executeOperation<{$operation->inputDefinition}, {$resultTypeName}, {$operation->errorDefinition}>(
         '{$definition->type->lowerCase()}', 
         '{$operation->key}', 
         input, 
