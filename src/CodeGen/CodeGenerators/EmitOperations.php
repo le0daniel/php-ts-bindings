@@ -36,7 +36,11 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
     {
         $definition = $operation->operation->definition;
         $name = $this->generateName($operation);
-        $resultTypeName = ucfirst($name) . "Result";
+
+        $operationBaseTypeName = ucfirst($name);
+        $resultTypeName = $operationBaseTypeName . "Result";
+        $resultInputTypeName = $operationBaseTypeName . "Input";
+        $errorTypeName = $operationBaseTypeName . "Error";
 
         $imports = [
             new TypescriptImportStatement(
@@ -61,10 +65,12 @@ TypeScript;
             return new TypescriptCodeBlock(
                 <<<TypeScript
 export type {$resultTypeName} = {$operation->outputDefinition};
+export type {$resultInputTypeName} = null;
+export type {$errorTypeName} = {$operation->errorDefinition};
 
 {$docBlock}
 export async function {$name}(options?: OperationOptions) {
-    return await executeOperation<{$operation->inputDefinition}, {$resultTypeName}, {$operation->errorDefinition}>(
+    return await executeOperation<{$resultInputTypeName}, {$resultTypeName}, {$errorTypeName}>(
         '{$definition->type->lowerCase()}', 
         '{$operation->key}', 
         null, 
@@ -78,10 +84,12 @@ TypeScript, $imports,
         return new TypescriptCodeBlock(
             <<<TypeScript
 export type {$resultTypeName} = {$operation->outputDefinition};
+export type {$resultInputTypeName} = {$operation->inputDefinition};
+export type {$errorTypeName} = {$operation->errorDefinition};
 
 {$docBlock}
-export async function {$name}(input: {$operation->inputDefinition}, options?: OperationOptions) {
-    return await executeOperation<{$operation->inputDefinition}, {$resultTypeName}, {$operation->errorDefinition}>(
+export async function {$name}(input: {$resultInputTypeName}, options?: OperationOptions) {
+    return await executeOperation<{$resultInputTypeName}, {$resultTypeName}, {$errorTypeName}>(
         '{$definition->type->lowerCase()}', 
         '{$operation->key}', 
         input, 

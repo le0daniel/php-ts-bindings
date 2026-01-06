@@ -38,10 +38,11 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         }
 
         $name = $this->generateName($operation);
-
-        $queryName = "use" . ucfirst($name) . "Query";
-        $resultTypeName = ucfirst($name) . "Result";
-        $optionsTypeName = ucfirst($name) . "Options";
+        $operationBaseTypeName = ucfirst($name);
+        $resultTypeName = $operationBaseTypeName . "Result";
+        $resultInputTypeName = $operationBaseTypeName . "Input";
+        $queryName = "use" . $operationBaseTypeName . "Query";
+        $optionsTypeName = $operationBaseTypeName . "Options";
 
         $imports = [
             new TypescriptImportStatement(
@@ -85,7 +86,7 @@ TypeScript, $imports);
 
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
-export function {$queryName}(input: {$operation->inputDefinition}, queryOptions?: Partial<{$optionsTypeName}>) {
+export function {$queryName}(input: {$resultInputTypeName}, queryOptions?: Partial<{$optionsTypeName}>) {
     return useQuery({
         queryKey: queryKey('{$definition->namespace}', '{$definition->name}', input),
         queryFn: async ({signal}): Promise<{$resultTypeName}> => {
