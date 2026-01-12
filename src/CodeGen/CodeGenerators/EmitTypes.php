@@ -97,7 +97,7 @@ TypeScript,
         $typeName = ucfirst($brandValue);
         $encodedBrandValue = json_encode($brandValue, JSON_THROW_ON_ERROR);
 
-        return "export {$typeName} = Branded<{$type}, {$encodedBrandValue}>;";
+        return "export type {$typeName} = Branded<{$type}, {$encodedBrandValue}>;";
     }
 
     /**
@@ -145,7 +145,6 @@ TypeScript,
         $brandedInts = [];
         $brandedStrings = [];
 
-        /** @var BuiltInNode $brandedNode */
         foreach ($brandedNodes as $brandedNode) {
             $brandedNode->assertBranded();
             if ($brandedNode->type === BuiltInType::STRING) {
