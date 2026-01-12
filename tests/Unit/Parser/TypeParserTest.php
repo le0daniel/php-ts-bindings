@@ -739,25 +739,39 @@ test("parse BrandedInt correctly", function () {
     $node = $parser->parse("BrandedInt<'wow'>");
     compareToOptimizedAst($node);
 
-    $tsGenerator = new TypescriptDefinitionGenerator();
+    $tsGenerator = new TypescriptDefinitionGenerator(true);
     $outputDef = $tsGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('number & {__brand: "wow"}');
+    expect($outputDef)->toBe('Branded<number,"wow">');
 
     $inputDef = $tsGenerator->toDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('number & {__brand: "wow"}');
+    expect($inputDef)->toBe('Branded<number,"wow">');
+
+    $tsGeneratorWithoutBrand = new TypescriptDefinitionGenerator(false);
+    $outputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::OUTPUT);
+    expect($outputDef)->toBe('number');
+
+    $inputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::INPUT);
+    expect($inputDef)->toBe('number');
 });
 
 test("parse BrandedString correctly", function () {
     // Branded types are optimized away. They have no runtime Impact
     $parser = new TypeParser(new TypeStringTokenizer());
-    $node = $parser->parse("BrandedInt<'wow'>");
+    $node = $parser->parse("BrandedString<'wow'>");
     compareToOptimizedAst($node);
 
-    $tsGenerator = new TypescriptDefinitionGenerator();
+    $tsGenerator = new TypescriptDefinitionGenerator(true);
 
     $outputDef = $tsGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('number & {__brand: "wow"}');
+    expect($outputDef)->toBe('Branded<string,"wow">');
 
     $inputDef = $tsGenerator->toDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('number & {__brand: "wow"}');
+    expect($inputDef)->toBe('Branded<string,"wow">');
+
+    $tsGeneratorWithoutBrand = new TypescriptDefinitionGenerator(false);
+    $outputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::OUTPUT);
+    expect($outputDef)->toBe('string');
+
+    $inputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::INPUT);
+    expect($inputDef)->toBe('string');
 });

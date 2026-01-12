@@ -20,6 +20,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use RuntimeException;
 
 final class EmitTypes implements GeneratesLibFiles
 {
@@ -79,7 +80,11 @@ export type SPAClientDirectives<T> = T & {
         invalidations?: [string, string, ...unknown[]][]
     }
 };
-export type Branded<T, TBrand extends string> = T & {__brand: TBrand};
+
+declare const __brand: unique symbol;
+export type Branded<T, TBrand extends string> = T & {readonly [__brand]: TBrand;};
+
+/* All Branded types exported */
 {$brandedIntTypes}
 {$brandedStringType}
 
@@ -96,7 +101,6 @@ TypeScript,
     {
         $typeName = ucfirst($brandValue);
         $encodedBrandValue = json_encode($brandValue, JSON_THROW_ON_ERROR);
-
         return "export type {$typeName} = Branded<{$type}, {$encodedBrandValue}>;";
     }
 
@@ -138,7 +142,7 @@ TypeScript,
                 ConstraintNode::class, CustomCastingNode::class, ListNode::class, NamedNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
                 TupleNode::class, IntersectionNode::class, UnionNode::class => array_push($stack, ...$current->types),
                 StructNode::class => array_push($stack, ... $current->properties),
-                default => throw new \RuntimeException("Unexpected node: " . $current::class),
+                default => throw new RuntimeException("Unexpected node: " . $current::class),
             };
         }
 
@@ -157,7 +161,7 @@ TypeScript,
                 continue;
             }
 
-            throw new \RuntimeException("Unexpected branded node type: " . $brandedNode->type->name);
+            throw new RuntimeException("Unexpected branded node type: " . $brandedNode->type->name);
         }
 
         return [

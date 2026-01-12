@@ -40,6 +40,7 @@ final class CodeGenCommand extends Command
     . '{--without=* : tanstack-query | type-map} '
     . '{--ignore=* : Ignored namespaces (namespace) or specific operations by specifying namespace.name} '
     . '{--naming=name : Naming mode to use. Modes: name, fqn, operation-prefix, namespace-postfix or classname::methodName for custom function}'
+    . '{--no-branded-types}'
     . '{--verify} ';
 
     protected $description = 'Generate the typescript bindings for all operations';
@@ -78,7 +79,6 @@ DESCRIPTION;
         #[Give(LaravelServiceProvider::DEFAULT_SERVER)] Server $server,
         Router                                                 $router,
         Application                                            $application,
-        TypescriptDefinitionGenerator                          $typescriptGenerator
     ): int
     {
         try {
@@ -89,7 +89,9 @@ DESCRIPTION;
 
             $codeGenerator = new TypescriptServerCodeGenerator(
                 $this->getGeneratorsFromInput($application),
-                $typescriptGenerator
+                new TypescriptDefinitionGenerator(
+                    emitBrandedTypes: $this->option('no-branded-types') === false
+                ),
             );
 
             $files = $codeGenerator->generate(

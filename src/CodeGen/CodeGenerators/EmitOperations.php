@@ -50,6 +50,10 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
             new TypescriptImportStatement(
                 from: Paths::libImport("OperationClient"),
                 imports: ["OperationOptions"]
+            ),
+            new TypescriptImportStatement(
+                from: Paths::libImport("types"),
+                imports: ["type Branded"],
             )
         ];
         $docBlock = <<<TypeScript

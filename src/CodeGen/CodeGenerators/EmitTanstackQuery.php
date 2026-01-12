@@ -56,7 +56,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
             new TypescriptImportStatement(
                 from: Paths::libImport("bindings"),
                 imports: ['throwOnFailure'],
-            )
+            ),
         ];
 
 
