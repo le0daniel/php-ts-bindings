@@ -40,6 +40,8 @@ export type SPAClientDirectives<T> = T & {
         invalidations?: [string, string, ...unknown[]][]
     }
 };
+export type Branded<T, TBrand extends string> = T & {__brand: TBrand};
+
 TypeScript,
         ];
     }

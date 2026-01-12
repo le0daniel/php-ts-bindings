@@ -17,7 +17,10 @@ use Throwable;
 readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible
 {
 
-    public function __construct(public BuiltInType $type)
+    public function __construct(
+        public BuiltInType $type,
+        public ?string $brand = null,
+    )
     {
     }
 
@@ -103,13 +106,20 @@ readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible
 
     public function inputDefinition(): string
     {
-        return match ($this->type) {
+        $type = match ($this->type) {
             BuiltInType::STRING => 'string',
             BuiltInType::INT, BuiltInType::FLOAT => 'number',
             BuiltInType::BOOL => 'boolean',
             BuiltInType::NULL => 'null',
             BuiltInType::MIXED => 'unknown',
         };
+
+        if ($this->brand === null) {
+            return $type;
+        }
+
+        $encodedBrand = json_encode($this->brand, JSON_THROW_ON_ERROR);
+        return "{$type} & {__brand: {$encodedBrand}}";
     }
 
     public function outputDefinition(): string

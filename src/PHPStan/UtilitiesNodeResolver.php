@@ -43,10 +43,36 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         }
 
         $typeName = $typeNode->type;
-        if (!in_array($typeName->name, ['Pick', 'Omit'], true)) {
+        return match ($typeName->name) {
+            'BrandedString', 'BrandedInt' => $this->resolveBrandedTypes($typeName->name, $typeNode, $nameScope),
+            'Pick', 'Omit' => $this->resolvePickAndOmitUtil($typeName->name, $typeNode, $nameScope),
+            default => null,
+        };
+    }
+
+    private function resolveBrandedTypes(string $typeName, GenericTypeNode $typeNode, NameScope $nameScope): ?Type
+    {
+        $arguments = $typeNode->genericTypes;
+        if (count($arguments) !== 1) {
             return null;
         }
 
+        $literalType = $this->typeNodeResolver->resolve($arguments[0], $nameScope);
+
+        $constStrings = $literalType->getConstantStrings();
+        if (count($constStrings) !== 1) {
+            return null;
+        }
+
+        return match ($typeName) {
+            'BrandedString' => new \PHPStan\Type\StringType(),
+            'BrandedInt' => new \PHPStan\Type\IntegerType(),
+            default => null,
+        };
+    }
+
+    private function resolvePickAndOmitUtil(string $typeName, GenericTypeNode $typeNode, NameScope $nameScope): ?Type
+    {
         $arguments = $typeNode->genericTypes;
         if (count($arguments) !== 2) {
             return null;
@@ -57,15 +83,15 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
 
         if ($structType->isObject()->yes()) {
             return match ($structType::class) {
-                ObjectType::class => $this->resolveObjectType($typeName->name, $structType, $keysType),
-                ObjectShapeType::class => $this->resolveObjectShapeType($typeName->name, $structType, $keysType),
+                ObjectType::class => $this->resolveObjectType($typeName, $structType, $keysType),
+                ObjectShapeType::class => $this->resolveObjectShapeType($typeName, $structType, $keysType),
                 default => null,
             };
         }
 
         if ($structType->isConstantArray()->yes()) {
             /** @phpstan-ignore-next-line argument.type */
-            return $this->resolveConstArrayType($typeName->name, $structType, $keysType);
+            return $this->resolveConstArrayType($typeName, $structType, $keysType);
         }
 
         return null;

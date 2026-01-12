@@ -120,7 +120,6 @@ function compareToOptimizedAst(NodeInterface $node) {
 function typescriptDefinition(NodeInterface $node, DefinitionTarget $target): string
 {
     $sortedNode = AstSorter::sort($node);
-
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $sortedNode]);
 

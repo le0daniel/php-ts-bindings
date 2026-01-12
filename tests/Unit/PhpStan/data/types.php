@@ -73,3 +73,19 @@ function omitArrayWithOptional($s) {
 function omitObject(object $s) {
     assertType("object{other: string}", $s);
 }
+
+/**
+ * @param BrandedInt<"personId"> $i
+ */
+function brandedInt(int $i): int {
+    assertType("int", $i);
+    return $i;
+}
+
+/**
+ * @param BrandedString<"accountId"> $i
+ */
+function brandedString(string $i): string {
+    assertType("string", $i);
+    return $i;
+}

@@ -7,9 +7,11 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -22,13 +24,33 @@ final class UtilsConsumer implements TypeConsumer
 
     public function canConsume(ParserState $state): bool
     {
-        return in_array($state->current()->value, ['Pick', 'Omit'], true);
+        return in_array($state->current()->value, ['Pick', 'Omit', 'BrandedString', 'BrandedInt'], true);
     }
 
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $type = $state->current()->value;
         $state->advance();
+
+        if ($type === 'BrandedString' || $type === 'BrandedInt') {
+            [$literalNode] = $this->consumeGenerics($state, $parser, 1, 1);
+            if (!$literalNode instanceof LiteralNode || $literalNode->type !== LiteralType::STRING) {
+                $state->produceSyntaxError("Expected literal string value for branded type, got: " . $literalNode::class);
+            }
+
+            $literalValue = $literalNode->value;
+            if (!is_string($literalValue)) {
+                $state->produceSyntaxError("Expected literal string value for branded type, got: " . gettype($literalValue));
+            }
+
+            return new BuiltInNode(
+                match ($type) {
+                    'BrandedString' => BuiltInType::STRING,
+                    'BrandedInt' => BuiltInType::INT,
+                },
+                brand: $literalValue
+            );
+        }
 
         [$nodeToPickFrom, $pick] = $this->consumeGenerics($state, $parser, 2, 2);
 

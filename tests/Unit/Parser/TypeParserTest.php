@@ -732,3 +732,32 @@ test("parse abstract class properties", function () {
     $inputDef = typescriptDefinition($node, DefinitionTarget::INPUT);
     expect($inputDef)->toBe('never');
 });
+
+test("parse BrandedInt correctly", function () {
+    // Branded types are optimized away. They have no runtime Impact
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse("BrandedInt<'wow'>");
+    compareToOptimizedAst($node);
+
+    $tsGenerator = new TypescriptDefinitionGenerator();
+    $outputDef = $tsGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
+    expect($outputDef)->toBe('number & {__brand: "wow"}');
+
+    $inputDef = $tsGenerator->toDefinition($node, DefinitionTarget::INPUT);
+    expect($inputDef)->toBe('number & {__brand: "wow"}');
+});
+
+test("parse BrandedString correctly", function () {
+    // Branded types are optimized away. They have no runtime Impact
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse("BrandedInt<'wow'>");
+    compareToOptimizedAst($node);
+
+    $tsGenerator = new TypescriptDefinitionGenerator();
+
+    $outputDef = $tsGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
+    expect($outputDef)->toBe('number & {__brand: "wow"}');
+
+    $inputDef = $tsGenerator->toDefinition($node, DefinitionTarget::INPUT);
+    expect($inputDef)->toBe('number & {__brand: "wow"}');
+});
