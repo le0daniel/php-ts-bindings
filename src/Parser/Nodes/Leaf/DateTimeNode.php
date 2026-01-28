@@ -45,6 +45,11 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode, Validatabl
 
     public function parseValue(mixed $value, ExecutionContext $context): DateTimeInterface|Value
     {
+        if ($value instanceof DateTimeInterface) {
+            // @phpstan-ignore-next-line
+            return $this->dateTimeClass::createFromInterface($value);
+        }
+
         if (!is_string($value)) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
