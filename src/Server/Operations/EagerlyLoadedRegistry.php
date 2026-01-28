@@ -81,6 +81,7 @@ final class EagerlyLoadedRegistry implements OperationRegistry
 
     /**
      * @param list<class-string> $classes
+     * @throws ReflectionException
      */
     public static function withClasses(
         array                 $classes,
