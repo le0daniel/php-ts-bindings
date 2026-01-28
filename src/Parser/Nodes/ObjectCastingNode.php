@@ -10,12 +10,12 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 
-final readonly class CustomCastingNode implements NodeInterface
+final readonly class ObjectCastingNode implements NodeInterface
 {
     public function __construct(
-        public StructNode|ListNode|RecordNode|ReferencedNode $node,
-        public string                                        $fullyQualifiedCastingClass,
-        public ObjectCastStrategy                            $strategy,
+        public StructNode|ReferencedNode $node,
+        public string                    $fullyQualifiedCastingClass,
+        public ObjectCastStrategy        $strategy,
     )
     {
     }

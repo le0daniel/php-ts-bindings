@@ -11,7 +11,6 @@ use PHPStan\PhpDoc\TypeNodeResolverAwareExtension;
 use PHPStan\PhpDoc\TypeNodeResolverExtension;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Type;
-use PHPStan\Type\TypeCombinator;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\ObjectShape;
 use PHPStan\Type\ObjectShapeType;
@@ -44,6 +43,7 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
 
         $typeName = $typeNode->type;
         return match ($typeName->name) {
+            'DateTimeString' => new ObjectType(\DateTimeImmutable::class),
             'BrandedString', 'BrandedInt' => $this->resolveBrandedTypes($typeName->name, $typeNode, $nameScope),
             'Pick', 'Omit' => $this->resolvePickAndOmitUtil($typeName->name, $typeNode, $nameScope),
             default => null,

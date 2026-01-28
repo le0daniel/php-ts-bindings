@@ -19,4 +19,17 @@ final class TestClass
             'message' => "Hello {$data['name']}",
         ];
     }
+
+    /**
+     * @param array{dueDate: DateTimeString<"Y-m-d">} $data
+     * @return array{message: string, date: DateTimeString<"d.m.Y">}
+     */
+    #[Command("test")]
+    public function someDateStuff(array $data): array
+    {
+        return [
+            'message' => "Date Is {$data['dueDate']->format("d.m.Y")}",
+            'date' => $data['dueDate']
+        ];
+    }
 }

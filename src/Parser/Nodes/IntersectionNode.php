@@ -22,7 +22,7 @@ final readonly class IntersectionNode implements NodeInterface, ValidatableNode
     public function __toString(): string
     {
         return implode(
-            ',',
+            '&',
             $this->types
         );
     }

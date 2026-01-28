@@ -94,9 +94,4 @@ final readonly class EnumNode implements NodeInterface, LeafNode
     {
         return $this->inputDefinition();
     }
-
-    public function name(): string
-    {
-        return str_replace('\\', '_', $this->enumClassName);
-    }
 }

@@ -8,32 +8,29 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
-use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ObjectCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use stdClass;
 use Throwable;
 
 /**
- * @implements Handler<CustomCastingNode>
+ * @implements Handler<ObjectCastingNode>
  */
-final class CustomClassHandler implements Handler
+final class ObjectCastingHandler implements Handler
 {
-
-
-    /** @param CustomCastingNode $node
-     * @return  stdClass|array<int, mixed>|Value
+    /**
+     * @param ObjectCastingNode $node
+     * @param mixed $value
+     * @param Context $context
+     * @param Executor $executor
+     * @return  stdClass|Value
      */
-    public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|array|Value
+    public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|Value
     {
         $object = $executor->executeSerialize($node->node, $value, $context);
 
         if ($object === Value::INVALID) {
             return Value::INVALID;
-        }
-
-        if ($node->strategy === ObjectCastStrategy::COLLECTION && is_array($object)) {
-            return $object;
         }
 
         if (!$object instanceof stdClass) {
@@ -53,23 +50,31 @@ final class CustomClassHandler implements Handler
         return $object;
     }
 
-    /** @param CustomCastingNode $node */
+    /** @param ObjectCastingNode $node */
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
         if ($node->strategy === ObjectCastStrategy::NEVER) {
+            $context->addIssue(Issue::internalError([
+                'message' => "Cannot parse value to {$node->fullyQualifiedCastingClass} because strategy is set to NEVER.",
+                'className' => $node->fullyQualifiedCastingClass,
+            ]));
             return Value::INVALID;
         }
 
         $arrayValue = $executor->executeParse($node->node, $value, $context);
-        if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
+        if ($arrayValue === Value::INVALID) {
+            return Value::INVALID;
+        }
+
+        if (!is_array($arrayValue)) {
+            $context->addIssue(Issue::internalError([
+                'message' => "The parsed value is not an array, expected an array for {$node->fullyQualifiedCastingClass}",
+                'value' => $value,
+            ]));
             return Value::INVALID;
         }
 
         try {
-            if ($node->strategy === ObjectCastStrategy::COLLECTION) {
-                return new ($node->fullyQualifiedCastingClass)($arrayValue);
-            }
-
             if ($node->strategy === ObjectCastStrategy::CONSTRUCTOR) {
                 return new ($node->fullyQualifiedCastingClass)(...$arrayValue);
             }

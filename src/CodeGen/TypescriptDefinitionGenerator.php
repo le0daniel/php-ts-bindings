@@ -6,8 +6,9 @@ use Le0daniel\PhpTsBindings\CodeGen\Utils\Typescript;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
+use Le0daniel\PhpTsBindings\Parser\Nodes\BrandedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ObjectCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
@@ -31,14 +32,18 @@ final readonly class TypescriptDefinitionGenerator
     public function toDefinition(NodeInterface $node, DefinitionTarget $target): string
     {
         if ($node instanceof LeafNode) {
-            if ($this->emitBrandedTypes && $node instanceof BuiltInNode && $node->brand) {
-                $encodedBrand = json_encode($node->brand, JSON_THROW_ON_ERROR);
-                return $target === DefinitionTarget::INPUT
-                    ? "Branded<{$node->inputDefinition()},{$encodedBrand}>"
-                    : "Branded<{$node->outputDefinition()},{$encodedBrand}>";
+            return $target === DefinitionTarget::INPUT ? $node->inputDefinition() : $node->outputDefinition();
+        }
+
+        if ($node instanceof BrandedNode) {
+            if (!$this->emitBrandedTypes) {
+                return $this->toDefinition($node->node, $target);
             }
 
-            return $target === DefinitionTarget::INPUT ? $node->inputDefinition() : $node->outputDefinition();
+            $encodedBrand = json_encode($node->brand, JSON_THROW_ON_ERROR);
+            $typeDefinition = $this->toDefinition($node->node, $target);
+
+            return "Branded<{$typeDefinition},{$encodedBrand}>";
         }
 
         return match ($node::class) {
@@ -49,12 +54,12 @@ final readonly class TypescriptDefinitionGenerator
             RecordNode::class => "Record<string,{$this->toDefinition($node->node, $target)}>",
             TupleNode::class => '[' . implode(',', array_map(fn(NodeInterface $node) => $this->toDefinition($node, $target), $node->types)) . ']',
             ConstraintNode::class => $this->toDefinition($node->node, $target),
-            CustomCastingNode::class => $this->printCustomCastingNode($node, $target),
+            ObjectCastingNode::class => $this->printCustomCastingNode($node, $target),
             default => throw new RuntimeException("Not implemented: " . $node::class),
         };
     }
 
-    private function printCustomCastingNode(CustomCastingNode $node, DefinitionTarget $target): string
+    private function printCustomCastingNode(ObjectCastingNode $node, DefinitionTarget $target): string
     {
         // Returns if an object can ever be targeted for input.
         return $target === DefinitionTarget::INPUT && $node->strategy === ObjectCastStrategy::NEVER

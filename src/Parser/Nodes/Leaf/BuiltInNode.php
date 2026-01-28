@@ -20,7 +20,6 @@ readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible
 
     public function __construct(
         public BuiltInType $type,
-        public ?string $brand = null,
     )
     {
     }
@@ -28,16 +27,6 @@ readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible
     public function __toString(): string
     {
         return $this->type->value;
-    }
-
-    /**
-     * @phpstan-assert string $this->brand
-     */
-    public function assertBranded(): void
-    {
-        if ($this->brand === null) {
-            throw new LogicException('Cannot assert branded type without brand');
-        }
     }
 
     public function exportPhpCode(): string

@@ -6,11 +6,11 @@ use Closure;
 use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Nodes\BrandedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ObjectCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
@@ -89,7 +89,7 @@ PHP) === false) {
      */
     private function dedupeNode(NodeInterface $node): NodeInterface
     {
-        if ($node instanceof NamedNode) {
+        if ($node instanceof BrandedNode) {
             return $this->dedupeNode($node->node);
         }
 
@@ -130,7 +130,7 @@ PHP) === false) {
         //       more intelligent node determination for better runtime performance.
         return match ($node::class) {
             ConstraintNode::class => $this->flattenConstraintNode($node),
-            CustomCastingNode::class => new CustomCastingNode(
+            ObjectCastingNode::class => new ObjectCastingNode(
                 $this->dedupeNode($node->node),
                 $node->fullyQualifiedCastingClass,
                 $node->strategy,

@@ -4,8 +4,10 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
 use DateTimeImmutable;
 use DateTimeInterface;
+use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
@@ -13,7 +15,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 
-final readonly class DateTimeNode implements NodeInterface, LeafNode
+final readonly class DateTimeNode implements NodeInterface, LeafNode, ValidatableNode
 {
     /**
      * @param class-string<DateTimeInterface> $dateTimeClass
@@ -54,10 +56,20 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
         }
 
         try {
+            $parsed = DateTimeImmutable::createFromFormat($this->format, $value);
+            if ($parsed->format($this->format) !== $value) {
+                $context->addIssue(new Issue(
+                    IssueMessage::INVALID_DATE_FORMAT,
+                    [
+                        'format' => $this->format,
+                        'value' => $value,
+                    ],
+                ));
+                return Value::INVALID;
+            }
+
             // @phpstan-ignore-next-line
-            return $this->dateTimeClass::createFromInterface(
-                DateTimeImmutable::createFromFormat($this->format, $value)
-            );
+            return $this->dateTimeClass::createFromInterface($parsed);
         } catch (Throwable $exception) {
             $context->addIssue(Issue::fromThrowable($exception));
             return Value::INVALID;
@@ -89,5 +101,12 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
     public function outputDefinition(): string
     {
         return "string";
+    }
+
+    public function validate(): void
+    {
+        if (!method_exists($this->dateTimeClass, 'createFromInterface')) {
+            throw new InvalidArgumentException("DateTime class {$this->dateTimeClass} does not have a createFromInterface method");
+        }
     }
 }

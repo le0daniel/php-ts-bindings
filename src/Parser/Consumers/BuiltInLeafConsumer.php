@@ -26,6 +26,7 @@ final class BuiltInLeafConsumer implements TypeConsumer
         }
 
         return in_array($state->current()->value, [
+            'int',
             'string',
             'bool',
             'null',
@@ -40,7 +41,7 @@ final class BuiltInLeafConsumer implements TypeConsumer
             "non-negative-int",
             'non-positive-int',
             'numeric',
-        ]);
+        ], true);
     }
 
     /**
@@ -52,6 +53,7 @@ final class BuiltInLeafConsumer implements TypeConsumer
         $state->advance();
 
         return match ($token->value) {
+            'int' => $this->consumeIntWithGenerics($state, $parser),
             'string',
             'bool',
             'null',
@@ -94,5 +96,43 @@ final class BuiltInLeafConsumer implements TypeConsumer
             ]),
             default => $state->produceSyntaxError('Expected valid built-in type, got ' . $token->value),
         };
+    }
+
+    private function consumeIntWithGenerics(ParserState $state, TypeParser $parser): NodeInterface
+    {
+        if (!$state->currentTokenIs(TokenType::LT)) {
+            return new BuiltInNode(BuiltInType::INT);
+        }
+
+        $state->advance();
+        $min = match (true) {
+            $state->currentTokenIs(TokenType::INT) => (int)$state->current()->value,
+            $state->currentTokenIs(TokenType::IDENTIFIER, 'min') => PHP_INT_MIN,
+            default => $state->produceSyntaxError('Expected int or min'),
+        };
+
+        $state->advance();
+        if (!$state->currentTokenIs(TokenType::COMMA)) {
+            $state->produceSyntaxError("Expected comma");
+        }
+        $state->advance();
+
+        $max = match (true) {
+            $state->currentTokenIs(TokenType::INT) => (int)$state->current()->value,
+            $state->currentTokenIs(TokenType::IDENTIFIER, 'max') => PHP_INT_MAX,
+            default => $state->produceSyntaxError('Expected int or max'),
+        };
+
+        $state->advance();
+        if (!$state->current()->is(TokenType::GT)) {
+            $state->produceSyntaxError("Expected >");
+        }
+
+        $state->advance();
+
+        return new ConstraintNode(
+            new BuiltInNode(BuiltInType::INT),
+            [new LengthValidator(min: $min, max: $max, including: true)]
+        );
     }
 }

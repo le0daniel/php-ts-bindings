@@ -36,6 +36,29 @@ test("Exceptions are exposed through middleware", function () {
         ]);
 });
 
+test("Test DateTime string", function () {
+    $server = new Server(
+        EagerlyLoadedRegistry::eagerlyDiscover(
+            __DIR__ . '/Operations',
+            keyGenerator: new PlainlyExposedKeyGenerator
+        ),
+        [
+            new ClientAwareExceptionPresenter(),
+        ],
+    );
+
+    $result = $server->command('test.someDateStuff', ['dueDate' => '2023-01-19'], null, new NullClient());
+
+    expect($result)->toBeInstanceOf(RpcSuccess::class)
+        ->and($result->data)
+        ->toEqual((object) ['message' => 'Date Is 19.01.2023', 'date' => '19.01.2023']);
+
+    $invalidInputResult = $server->command('test.someDateStuff', ['dueDate' => 'invalid'], null, new NullClient());
+    expect($invalidInputResult)->toBeInstanceOf(RpcError::class)
+        ->and($invalidInputResult->type)->toBe(ErrorType::INTERNAL_ERROR)
+        ->and($invalidInputResult->cause->getMessage())->toBe("Input validation failed");
+});
+
 test("Middleware emits typescript middleware", function () {
     $server = new Server(
         EagerlyLoadedRegistry::eagerlyDiscover(

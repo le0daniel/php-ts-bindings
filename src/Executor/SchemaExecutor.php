@@ -14,18 +14,18 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
-use Le0daniel\PhpTsBindings\Executor\Handlers\CustomClassHandler;
+use Le0daniel\PhpTsBindings\Executor\Handlers\ObjectCastingHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\IntersectionHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\ListHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\RecordHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\StructHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\TupleHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\UnionHandler;
+use Le0daniel\PhpTsBindings\Parser\Nodes\BrandedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ObjectCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -44,7 +44,7 @@ final readonly class SchemaExecutor implements Executor
             StructNode::class => new StructHandler(),
             UnionNode::class => new UnionHandler(),
             RecordNode::class => new RecordHandler(),
-            CustomCastingNode::class => new CustomClassHandler(),
+            ObjectCastingNode::class => new ObjectCastingHandler(),
             IntersectionNode::class => new IntersectionHandler(),
             TupleNode::class => new TupleHandler(),
             ListNode::class => new ListHandler(),
@@ -95,7 +95,7 @@ final readonly class SchemaExecutor implements Executor
 
         $serializedValue = match (true) {
             array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->serialize($node, $data, $context, $this),
-            $node instanceof NamedNode => $this->executeSerialize($node->node, $data, $context),
+            $node instanceof BrandedNode => $this->executeSerialize($node->node, $data, $context),
             $node instanceof LeafNode => $node->serializeValue($data, $context),
             default => Value::INVALID,
         };
@@ -123,7 +123,7 @@ final readonly class SchemaExecutor implements Executor
 
         return match (true) {
             array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
-            $node instanceof NamedNode => $this->executeParse($node->node, $data, $context),
+            $node instanceof BrandedNode => $this->executeParse($node->node, $data, $context),
             $node instanceof LeafNode => $context->coercePrimitives && $node instanceof Coercible
                 ? $node->parseValue($node->coerce($data), $context)
                 : $node->parseValue($data, $context),

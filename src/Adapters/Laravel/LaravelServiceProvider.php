@@ -52,11 +52,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     public function register(): void
     {
         $this->app->bind(TypeParser::class, function () {
-            return new TypeParser(
-                consumers: TypeParser::defaultConsumers(
-                    collectionClasses: [Collection::class]
-                ),
-            );
+            return new TypeParser();
         });
 
         $this->app->singleton(self::DEFAULT_SERVER, function (Application $app): Server {

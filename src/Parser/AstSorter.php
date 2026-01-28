@@ -5,10 +5,9 @@ namespace Le0daniel\PhpTsBindings\Parser;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ObjectCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -34,7 +33,7 @@ final class AstSorter
             ConstraintNode::class => new ConstraintNode(
                 self::sort($node->node), $node->constraints,
             ),
-            CustomCastingNode::class => new CustomCastingNode(
+            ObjectCastingNode::class => new ObjectCastingNode(
                 self::sort($node->node),
                 $node->fullyQualifiedCastingClass,
                 $node->strategy,
@@ -43,7 +42,6 @@ final class AstSorter
                 array_map(self::sort(...), $node->types),
             ),
             ListNode::class => new ListNode(self::sort($node->node)),
-            NamedNode::class => new NamedNode(self::sort($node->node), $node->name),
             PropertyNode::class => new PropertyNode($node->name, self::sort($node->node), $node->isOptional, $node->propertyType),
             RecordNode::class => new RecordNode(self::sort($node->node)),
             StructNode::class => new StructNode($node->phpType, array_map(self::sort(...), $node->sortedProperties())),

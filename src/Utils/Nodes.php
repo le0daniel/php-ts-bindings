@@ -3,9 +3,9 @@
 namespace Le0daniel\PhpTsBindings\Utils;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Nodes\BrandedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 
@@ -13,7 +13,7 @@ final class Nodes
 {
     public static function getDeclaringNode(NodeInterface $node): NodeInterface
     {
-        while ($node instanceof ConstraintNode || $node instanceof NamedNode) {
+        while ($node instanceof ConstraintNode || $node instanceof BrandedNode) {
             $node = $node->node;
         }
         return $node;

@@ -8,13 +8,13 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\BrandedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ObjectCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -118,7 +118,7 @@ TypeScript,
      */
     private function collectBrandedTypes(NodeInterface $ast): array
     {
-        /** @var BuiltInNode[] $brandedNodes */
+        /** @var BrandedNode[] $brandedNodes */
         $brandedNodes = [];
 
         $stack = [
@@ -130,16 +130,13 @@ TypeScript,
                 $current->validate();
             }
 
-            if ($current instanceof LeafNode) {
-                if ($current instanceof BuiltInNode && $current->brand !== null) {
-                    $brandedNodes[] = $current;
-                }
-
+            if ($current instanceof BrandedNode) {
+                $brandedNodes[] = $current;
                 continue;
             }
 
             match ($current::class) {
-                ConstraintNode::class, CustomCastingNode::class, ListNode::class, NamedNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
+                ConstraintNode::class, ObjectCastingNode::class, ListNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
                 TupleNode::class, IntersectionNode::class, UnionNode::class => array_push($stack, ...$current->types),
                 StructNode::class => array_push($stack, ... $current->properties),
                 default => throw new RuntimeException("Unexpected node: " . $current::class),
@@ -150,18 +147,22 @@ TypeScript,
         $brandedStrings = [];
 
         foreach ($brandedNodes as $brandedNode) {
-            $brandedNode->assertBranded();
-            if ($brandedNode->type === BuiltInType::STRING) {
+            $type = $brandedNode->node;
+            if (!$type instanceof BuiltInNode) {
+                throw new RuntimeException("Unexpected BuiltInNode for a Branded Node: " . $type::class);
+            }
+
+            if ($type->type === BuiltInType::STRING) {
                 $brandedStrings[] = $brandedNode->brand;
                 continue;
             }
 
-            if ($brandedNode->type === BuiltInType::INT) {
+            if ($type->type === BuiltInType::INT) {
                 $brandedInts[] = $brandedNode->brand;
                 continue;
             }
 
-            throw new RuntimeException("Unexpected branded node type: " . $brandedNode->type->name);
+            throw new RuntimeException("Unexpected branded node type: " . $type->type->name);
         }
 
         return [

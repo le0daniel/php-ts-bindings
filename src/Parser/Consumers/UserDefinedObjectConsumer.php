@@ -12,7 +12,7 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ObjectCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
@@ -33,9 +33,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
 
-    public function __construct(
-        public readonly bool $allowAllObjectCasting = false
-    )
+    public function __construct()
     {
     }
 
@@ -70,11 +68,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             return $instance->strategy ?? $this->findCastingStrategy($class);
         }
 
-        if (!$this->allowAllObjectCasting) {
-            return ObjectCastStrategy::NEVER;
-        }
-
-        return $this->findCastingStrategy($class);
+        return ObjectCastStrategy::NEVER;
     }
 
     /**
@@ -109,7 +103,6 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             ObjectCastStrategy::NEVER => $this->parseNeverStrategy($reflectionClass, $parser, $context),
             ObjectCastStrategy::ASSIGN_PROPERTIES => $this->parseSetPropertiesStrategy($reflectionClass, $parser, $context),
             ObjectCastStrategy::CONSTRUCTOR => $this->parseConstructorStrategy($reflectionClass, $parser, $context),
-            default => throw new RuntimeException("Casting strategy {$castingStrategy->name} is not supported"),
         };
     }
 
@@ -137,9 +130,9 @@ final class UserDefinedObjectConsumer implements TypeConsumer
     }
 
     /** @param ReflectionClass<object> $reflectionClass */
-    private function parseNeverStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
+    private function parseNeverStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): ObjectCastingNode
     {
-        return new CustomCastingNode(
+        return new ObjectCastingNode(
             new StructNode(
                 StructPhpType::ARRAY,
                 array_map(
@@ -164,7 +157,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
     }
 
     /** @param ReflectionClass<object> $reflectionClass */
-    private function parseSetPropertiesStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
+    private function parseSetPropertiesStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): ObjectCastingNode
     {
         $properties = [];
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
@@ -186,7 +179,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             );
         }
 
-        return new CustomCastingNode(
+        return new ObjectCastingNode(
             new StructNode(StructPhpType::ARRAY, $properties),
             $reflectionClass->getName(),
             ObjectCastStrategy::ASSIGN_PROPERTIES,
@@ -215,7 +208,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
      * @param ReflectionClass<object> $reflectionClass
      * @throws InvalidSyntaxException
      */
-    private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
+    private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): ObjectCastingNode
     {
         /** @var array<PropertyNode> $structProperties */
         $structProperties = [];
@@ -256,7 +249,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             );
         }
 
-        return new CustomCastingNode(
+        return new ObjectCastingNode(
             new StructNode(StructPhpType::ARRAY, $structProperties),
             $reflectionClass->getName(),
             ObjectCastStrategy::CONSTRUCTOR,

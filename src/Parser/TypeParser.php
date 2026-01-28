@@ -7,8 +7,6 @@ use Le0daniel\PhpTsBindings\Contracts\Parser;
 use Le0daniel\PhpTsBindings\Parser\Consumers\AliasConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\ArrayConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\BuiltInLeafConsumer;
-use Le0daniel\PhpTsBindings\Parser\Consumers\ClassConstConsumer;
-use Le0daniel\PhpTsBindings\Parser\Consumers\IntConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\LiteralConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\StructConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedObjectConsumer;
@@ -60,29 +58,25 @@ final readonly class TypeParser
 
     /**
      * @param GlobalTypeAliases $globalTypeAliases
-     * @param list<class-string> $collectionClasses
      * @param list<Parser>|null $parsers
-     * @param bool $allowAllObjectCasting
      * @return TypeConsumer[]
      */
     public static function defaultConsumers(
         GlobalTypeAliases $globalTypeAliases = new GlobalTypeAliases(),
-        array $collectionClasses = [],
         ?array $parsers = null,
-        bool $allowAllObjectCasting = false,
     ): array
     {
         return [
-            new LiteralConsumer(),
-            new ClassConstConsumer(),
-            new AliasConsumer($globalTypeAliases),
-            new IntConsumer(),
-            new BuiltInLeafConsumer(),
-            new StructConsumer(),
-            new ArrayConsumer($collectionClasses),
+            new LiteralConsumer(), // Consums all literal values: "string"|1|123.76|(...)
+            new AliasConsumer($globalTypeAliases), // Defined aliases (@phpstan-type)
+            new BuiltInLeafConsumer(), // int, float, bool, string, null, (...)
+            new StructConsumer(), // array{key:value} | object{key:value}
+            new ArrayConsumer(), // array<...> | array{int, float}
+            // DateTime objects
+            // EnumCases objects
             new UserDefinedParsers($parsers ?? self::getDefaultParsers()),
-            new UserDefinedObjectConsumer($allowAllObjectCasting),
-            new UtilsConsumer(),
+            new UserDefinedObjectConsumer(),
+            new UtilsConsumer(), // Pick, Omit, BrandedString, BrandedInt, (...)
         ];
     }
 

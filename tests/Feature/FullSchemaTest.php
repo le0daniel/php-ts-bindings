@@ -21,9 +21,7 @@ function prepare(string $type, string $mode = 'parse', array $noise = []): Closu
     return static function (mixed $value) use ($type, $mode, $noise) {
         $optimizer = new ASTOptimizer();
 
-        $parser = new TypeParser(
-            consumers: TypeParser::defaultConsumers(collectionClasses: [Collection::class])
-        );
+        $parser = new TypeParser();
 
         $ast = $parser->parse($type);
 
@@ -137,48 +135,6 @@ test("Create user input schema", function () {
         ->and($result->value->name)->toBe('my name')
         ->and($result->value->options['type'])->toBe('circle')
         ->and($result->value->options['radius'])->toBe(10);
-});
-
-test('Execute parsing with custom collection class', function () {
-    $collectionClass = Collection::class;
-    $executor = prepare("\Illuminate\Support\Collection<int, array{id: string}>", 'parse');
-
-    $validResult = $executor([
-        ['id' => 'test'],
-    ]);
-
-    expect($validResult)->toBeSuccess()
-        ->and($validResult->value)->toBeInstanceOf($collectionClass)
-        ->and($validResult->value->first())->toEqual(['id' => 'test']);
-});
-
-test('Execute parsing with custom collection class as record', function () {
-    $executor = prepare("\Illuminate\Support\Collection<string, int>", 'parse');
-
-    $validResult = $executor(['id' => 123]);
-
-    expect($validResult)->toBeSuccess()
-        ->and($validResult->value)->toBeInstanceOf(Collection::class)
-        ->and($validResult->value->toArray())->toEqual(['id' => 123]);
-});
-
-test('Execute serialization with custom record class', function () {
-    $executor = prepare("\Illuminate\Support\Collection<string, int>", 'serialize');
-
-    $validResult = $executor(['id' => 123]);
-
-    expect($validResult)->toBeSuccess()
-        ->and($validResult->value)->toBeInstanceOf(stdClass::class)
-        ->and($validResult->value)->toEqual((object)['id' => 123]);
-});
-
-test('serialization with custom collection class', function () {
-    $executor = prepare("\Illuminate\Support\Collection<int, array{id: string}>", 'serialize');
-
-    $validResult = $executor(new Collection([
-        ['id' => 'test'],
-    ]));
-    expect($validResult)->toBeSuccess();
 });
 
 test('serialization with null boundires', function () {
