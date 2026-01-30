@@ -50,7 +50,7 @@ final class CachedOperationRegistry implements OperationRegistry
         return $this->instances;
     }
 
-    public static function writeToCache(OperationRegistry $registry, string $filePath): void
+    public static function toPhpCode(OperationRegistry $registry): string
     {
         $endpointClass = PHPExport::absolute(Operation::class);
 
@@ -81,13 +81,22 @@ final class CachedOperationRegistry implements OperationRegistry
 
         $endpointsCode = implode(',', $endpoints);
 
+        return <<<PHP
+\$typeRegistry = {$optimizer->generateOptimizedCode($asts)};    
+return new {$operationRegistryClass}([{$endpointsCode}]);
+PHP;
+    }
+
+    public static function writeToCache(OperationRegistry $registry, string $filePath): void
+    {
+        $code = self::toPhpCode($registry);
+
         // The cached code binds both the Asts and operations together and creates a file
         // that can be required with fully compiled types.
         file_put_contents($filePath, <<<PHP
 <?php declare(strict_types=1);
 
-\$typeRegistry = {$optimizer->generateOptimizedCode($asts)};    
-return new {$operationRegistryClass}([{$endpointsCode}]);
+{$code}
 PHP
         );
     }

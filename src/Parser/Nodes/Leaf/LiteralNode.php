@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
+use JsonException;
 use Le0daniel\PhpTsBindings\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
@@ -22,14 +23,16 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
         public LiteralType $type,
         public mixed       $value,
     )
-    {}
+    {
+    }
 
     public function __toString(): string
     {
         return match ($this->type) {
             LiteralType::BOOL => $this->value ? 'literal<true>' : 'literal<false>',
             LiteralType::STRING => "literal<'{$this->value}'>",
-            LiteralType::ENUM_CASE => "enum-value<{$this->value->name}>",
+            // @phpstan-ignore-next-line classConstant.nonObject
+            LiteralType::ENUM_CASE => "enum-value<{$this->value->name}@" . $this->value::class . ">",
             LiteralType::NULL => 'literal<null>',
             LiteralType::INT, LiteralType::FLOAT => "literal<{$this->value}>",
         };
@@ -79,7 +82,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
     }
 
     /**
-     * @throws \JsonException
+     * @throws JsonException
      */
     public function inputDefinition(): string
     {
@@ -91,7 +94,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
     }
 
     /**
-     * @throws \JsonException
+     * @throws JsonException
      */
     public function outputDefinition(): string
     {
@@ -107,9 +110,9 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
                 default => $value,
             },
             LiteralType::INT => filter_var($value, FILTER_VALIDATE_INT) !== false
-                ? (int) $value : $value,
+                ? (int)$value : $value,
             LiteralType::FLOAT => filter_var($value, FILTER_VALIDATE_INT) !== false || filter_var($value, FILTER_VALIDATE_FLOAT) !== false
-                ? (float) $value : $value,
+                ? (float)$value : $value,
             default => $value,
         };
     }

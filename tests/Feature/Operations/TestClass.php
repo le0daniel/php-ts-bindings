@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Operations;
 
+use App\Data\PreviewableFileData;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 

@@ -6,28 +6,43 @@ use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
+use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
 use Le0daniel\PhpTsBindings\Server\Presenter\ClientAwareExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
 
-test("Exceptions are exposed through middleware", function () {
-    $server = new Server(
-        EagerlyLoadedRegistry::eagerlyDiscover(
-            __DIR__ . '/Operations',
-            keyGenerator: new PlainlyExposedKeyGenerator
-        ),
-        [
-            new ClientAwareExceptionPresenter(),
-        ],
-    );
+function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
+    $registry = EagerlyLoadedRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
+    $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($registry));
 
-    $result = $server->command('test.run', ['name' => 'Leo'], null, new NullClient());
+    $server = new Server($registry, [new ClientAwareExceptionPresenter(),],);
+    $cachedServer = new Server($cachedRegistry, [new ClientAwareExceptionPresenter(),],);
+
+    $regularResponse = $server->command($name, $input, null, new NullClient());
+    $cachedResponse = $cachedServer->command($name, $input, null, new NullClient());
+
+    expect($regularResponse::class)->toEqual($cachedResponse::class);
+
+    if ($regularResponse instanceof RpcSuccess) {
+        $serializedRegularResponse = json_encode($regularResponse->data, JSON_THROW_ON_ERROR);
+        $serializedCachedResponse = json_encode($cachedResponse->data, JSON_THROW_ON_ERROR);
+        expect($serializedRegularResponse)->toEqual($serializedCachedResponse);
+    } else {
+        expect($regularResponse->type)->toEqual($cachedResponse->type);
+    }
+
+
+    return $regularResponse;
+}
+
+test("Exceptions are exposed through middleware", function () {
+    $result = executeOperation( 'test.run', ['name' => 'Leo']);
 
     expect($result)->toBeInstanceOf(RpcSuccess::class)
         ->and($result->data)
         ->toEqual((object) ['message' => 'Hello Leo']);
 
-    $error = $server->command('test.run', ['name' => 'invalid'], null, new NullClient());
+    $error = executeOperation('test.run', ['name' => 'invalid']);
 
     expect($error)->toBeInstanceOf(RpcError::class)
         ->and($error->type)->toBe(ErrorType::DOMAIN_ERROR)
