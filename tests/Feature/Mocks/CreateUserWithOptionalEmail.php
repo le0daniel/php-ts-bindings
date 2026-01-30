@@ -4,8 +4,9 @@ namespace Tests\Feature\Mocks;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Optional;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 
-#[Castable]
+#[Castable(ObjectCastStrategy::CONSTRUCTOR)]
 final readonly class CreateUserWithOptionalEmail
 {
     public function __construct(

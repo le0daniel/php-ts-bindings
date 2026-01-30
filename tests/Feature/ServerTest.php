@@ -11,15 +11,16 @@ use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
 use Le0daniel\PhpTsBindings\Server\Presenter\ClientAwareExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
 
-function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
-    $registry = EagerlyLoadedRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
-    $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($registry));
+function executeOperation(OperationType $type, string $name, mixed $input): RpcSuccess|RpcError {
+    $eagerlyLoadedRegistry = EagerlyLoadedRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
+    $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($eagerlyLoadedRegistry));
+    $registry = $eagerlyLoadedRegistry->toSortedRegistry();
 
     $server = new Server($registry, [new ClientAwareExceptionPresenter(),],);
     $cachedServer = new Server($cachedRegistry, [new ClientAwareExceptionPresenter(),],);
 
-    $regularResponse = $server->command($name, $input, null, new NullClient());
-    $cachedResponse = $cachedServer->command($name, $input, null, new NullClient());
+    $regularResponse = $server->run($type, $name, $input, null, new NullClient());
+    $cachedResponse = $cachedServer->run($type, $name, $input, null, new NullClient());
 
     expect($regularResponse::class)->toEqual($cachedResponse::class);
 
@@ -36,13 +37,13 @@ function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
 }
 
 test("Exceptions are exposed through middleware", function () {
-    $result = executeOperation( 'test.run', ['name' => 'Leo']);
+    $result = executeOperation(OperationType::COMMAND, 'test.run', ['name' => 'Leo']);
 
     expect($result)->toBeInstanceOf(RpcSuccess::class)
         ->and($result->data)
         ->toEqual((object) ['message' => 'Hello Leo']);
 
-    $error = executeOperation('test.run', ['name' => 'invalid']);
+    $error = executeOperation(OperationType::COMMAND,'test.run', ['name' => 'invalid']);
 
     expect($error)->toBeInstanceOf(RpcError::class)
         ->and($error->type)->toBe(ErrorType::DOMAIN_ERROR)
@@ -62,13 +63,13 @@ test("Test DateTime string", function () {
         ],
     );
 
-    $result = $server->command('test.someDateStuff', ['dueDate' => '2023-01-19'], null, new NullClient());
+    $result = executeOperation(OperationType::COMMAND, 'test.someDateStuff', ['dueDate' => '2023-01-19']);
 
     expect($result)->toBeInstanceOf(RpcSuccess::class)
         ->and($result->data)
         ->toEqual((object) ['message' => 'Date Is 19.01.2023', 'date' => '19.01.2023']);
 
-    $invalidInputResult = $server->command('test.someDateStuff', ['dueDate' => 'invalid'], null, new NullClient());
+    $invalidInputResult = executeOperation(OperationType::COMMAND, 'test.someDateStuff', ['dueDate' => 'invalid'], null, new NullClient());
     expect($invalidInputResult)->toBeInstanceOf(RpcError::class)
         ->and($invalidInputResult->type)->toBe(ErrorType::INTERNAL_ERROR)
         ->and($invalidInputResult->cause->getMessage())->toBe("Input validation failed");

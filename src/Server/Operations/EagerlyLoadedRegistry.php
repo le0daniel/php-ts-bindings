@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\Server\Operations;
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Parser\AstSorter;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
@@ -50,6 +51,19 @@ final class EagerlyLoadedRegistry implements OperationRegistry
         }
 
         return self::readDiscoverer($parser, $keyGenerator, $discovery);
+    }
+
+    public function toSortedRegistry(): EagerlyLoadedRegistry
+    {
+        return new self(array_map(static function(Closure $factory): Closure {
+            $operation = $factory();
+            return static fn() => new Operation(
+                $operation->key,
+                $operation->definition,
+                static fn() => AstSorter::sort($operation->inputNode()),
+                static fn() => AstSorter::sort($operation->outputNode()),
+            );
+        }, $this->factories));
     }
 
     private static function readDiscoverer(
