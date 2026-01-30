@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
+use Stringable;
 use UnitEnum;
 
 final class Strings
@@ -16,7 +17,7 @@ final class Strings
         return end($parts);
     }
 
-    public static function toString(UnitEnum|string|\Stringable $value): string
+    public static function toString(UnitEnum|string|Stringable $value): string
     {
         if ($value instanceof UnitEnum) {
             return match(true) {

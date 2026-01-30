@@ -12,7 +12,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 
-final class EmitQueryKey implements DependsOn, GeneratesOperationCode
+final readonly class EmitQueryKey implements DependsOn, GeneratesOperationCode
 {
     public function dependsOnGenerator(): array
     {
@@ -21,7 +21,7 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
         ];
     }
 
-    public function __construct(private readonly ?Closure $nameGenerator = null)
+    public function __construct(private ?Closure $nameGenerator = null)
     {
     }
 
