@@ -94,7 +94,7 @@ export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {
             return result.data;
         },
         meta: {
-            namespaces: [{$readsNamespaces}]
+            ns: [{$readsNamespaces}]
         },
         ... queryOptions,
     })
@@ -116,7 +116,7 @@ export function {$queryName}(input: {$resultInputTypeName}, queryOptions?: Parti
             return result.data;
         },
         meta: {
-            namespaces: [{$readsNamespaces}]
+            ns: [{$readsNamespaces}]
         },
         ... queryOptions,
     })
