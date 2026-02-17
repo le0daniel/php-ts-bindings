@@ -49,6 +49,15 @@ final class EagerlyLoadedRegistry implements OperationRegistry
             $discoverer->discover($directory);
         }
 
+        return self::readDiscoverer($parser, $keyGenerator, $discovery);
+    }
+
+    private static function readDiscoverer(
+        TypeParser            $parser,
+        OperationKeyGenerator $keyGenerator,
+        OperationDiscovery    $discovery,
+    ): self
+    {
         $factories = [];
         foreach ($discovery->operations as $definition) {
             $key = $keyGenerator->generateKey($definition->namespace, $definition->name);
@@ -70,7 +79,25 @@ final class EagerlyLoadedRegistry implements OperationRegistry
         return new self($factories);
     }
 
-    private static function key(OperationType $type, string $fullyQualifiedKey): string {
+    /**
+     * @param list<class-string> $classes
+     * @throws ReflectionException
+     */
+    public static function withClasses(
+        array                 $classes,
+        TypeParser            $parser = new TypeParser(),
+        OperationKeyGenerator $keyGenerator = new HashSha256KeyGenerator('default', 8, 24),
+        OperationDiscovery    $discovery = new OperationDiscovery(),
+    ): self
+    {
+        foreach ($classes as $className) {
+            $discovery->discover(new ReflectionClass($className));
+        }
+        return self::readDiscoverer($parser, $keyGenerator, $discovery);
+    }
+
+    private static function key(OperationType $type, string $fullyQualifiedKey): string
+    {
         return "{$type->name}@{$fullyQualifiedKey}";
     }
 
