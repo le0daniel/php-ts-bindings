@@ -10,6 +10,8 @@ final class Context implements ExecutionContext
         public bool $partialFailures = false,
         public bool $runConstraints = true,
         public bool $coercePrimitives = false,
+        public int  $maxDepth = 64,
+        public int  $maxItems = 10_000,
     )
     {
     }
@@ -26,6 +28,9 @@ final class Context implements ExecutionContext
 
     public function enterPath(int|string $path): void
     {
+        if (count($this->path) >= $this->maxDepth) {
+            throw new \OverflowException("Maximum nesting depth of {$this->maxDepth} exceeded");
+        }
         $this->path[] = $path;
     }
 

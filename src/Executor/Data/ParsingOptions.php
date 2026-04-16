@@ -7,6 +7,8 @@ final readonly class ParsingOptions
     public function __construct(
         public bool $partialFailures = false,
         public bool $coercePrimitives = false,
+        public int  $maxDepth = 64,
+        public int  $maxItems = 10_000,
     )
     {
     }

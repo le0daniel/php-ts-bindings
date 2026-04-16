@@ -33,7 +33,7 @@ final class IntersectionHandler implements Handler
             $intersectionValues[] = (array) $partialObject;
         }
 
-        return (object) array_merge(...$intersectionValues);
+        return (object) array_replace(...$intersectionValues);
     }
 
     /** @param IntersectionNode $node */
@@ -71,8 +71,8 @@ final class IntersectionHandler implements Handler
         }
 
         return match ($mode) {
-            'array' => array_merge(...$intersectionValues),
-            'object' => (object) array_merge(...$intersectionValues),
+            'array' => array_replace(...$intersectionValues),
+            'object' => (object) array_replace(...$intersectionValues),
             default => throw new RuntimeException("Invalid mode {$mode}"),
         };
     }

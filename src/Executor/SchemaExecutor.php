@@ -57,6 +57,8 @@ final readonly class SchemaExecutor implements Executor
             partialFailures: $options->partialFailures,
             runConstraints: true,
             coercePrimitives: $options->coercePrimitives,
+            maxDepth: $options->maxDepth,
+            maxItems: $options->maxItems,
         );
         $result = $this->executeParse($node, $input, $context);
 
@@ -72,6 +74,8 @@ final readonly class SchemaExecutor implements Executor
         $context = new Context(
             partialFailures: $options->partialFailures,
             runConstraints: $options->runConstraints,
+            maxDepth: $options->maxDepth,
+            maxItems: $options->maxItems,
         );
 
         $result = $this->executeSerialize($node, $output, $context);

@@ -34,7 +34,7 @@ final class Reflections
             return (string)$parameter->getType();
         }
 
-        return Regexes::findParamWithNameDeclaration($declaringFnDoc, $parameter->getName()) ?? (string)$parameter->getType();
+        return PhpDoc::findParamWithNameDeclaration($declaringFnDoc, $parameter->getName()) ?? (string)$parameter->getType();
     }
 
     private static function getPropertyTypeString(ReflectionProperty $property): string
@@ -44,7 +44,7 @@ final class Reflections
         }
 
         if ($property->getDocComment()) {
-            return Regexes::findFirstVarDeclaration($property->getDocComment()) ?? (string)$property->getType();
+            return PhpDoc::findFirstVarDeclaration($property->getDocComment()) ?? (string)$property->getType();
         }
 
         if (!$property->isPromoted()) {
@@ -56,7 +56,7 @@ final class Reflections
             return (string)$property->getType();
         }
 
-        return Regexes::findParamWithNameDeclaration($constructorDocBlock, $property->getName()) ?? (string)$property->getType();
+        return PhpDoc::findParamWithNameDeclaration($constructorDocBlock, $property->getName()) ?? (string)$property->getType();
     }
 
     public static function getReturnType(ReflectionMethod|ReflectionFunction $reflection): string
@@ -66,6 +66,6 @@ final class Reflections
             return (string)$reflection->getReturnType();
         }
 
-        return Regexes::findReturnTypeDeclaration($docBlock) ?? (string)$reflection->getReturnType();
+        return PhpDoc::findReturnTypeDeclaration($docBlock) ?? (string)$reflection->getReturnType();
     }
 }

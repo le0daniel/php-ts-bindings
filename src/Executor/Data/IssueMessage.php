@@ -12,4 +12,6 @@ enum IssueMessage: string
     case INTERNAL_ERROR = 'internal_error';
     case INVALID_MIN = 'validation.invalid_min';
     case INVALID_MAX = 'validation.invalid_max';
+    case MAX_DEPTH_EXCEEDED = 'validation.max_depth_exceeded';
+    case MAX_ITEMS_EXCEEDED = 'validation.max_items_exceeded';
 }

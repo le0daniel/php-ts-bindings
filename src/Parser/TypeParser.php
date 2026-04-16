@@ -286,29 +286,29 @@ final readonly class TypeParser
         }
 
         // Step 2: Iterate through candidates and verify with other types
+        $typeCount = count($types);
         foreach ($candidateFields as $fieldName => $value) {
             $isDiscriminator = true;
+            $seen = [$value => true];
             $values = [$value];
 
-            // Start from the second type
-            for ($i = 1; $i < count($types); $i++) {
+            for ($i = 1; $i < $typeCount; $i++) {
                 /** @var StructNode $otherType */
                 $otherType = $types[$i];
                 $otherProperty = $otherType->getProperty($fieldName);
 
-                // Check for presence, type, and uniqueness
                 if (
                     !$otherProperty?->node instanceof LiteralNode ||
-                    in_array($otherProperty->node->value, $values, true)
+                    isset($seen[$otherProperty->node->value])
                 ) {
                     $isDiscriminator = false;
-                    break; // This is not the discriminator field
+                    break;
                 }
+                $seen[$otherProperty->node->value] = true;
                 $values[] = $otherProperty->node->value;
             }
 
             if ($isDiscriminator) {
-                // We found it!
                 return new UnionNode($types, $fieldName, $values);
             }
         }

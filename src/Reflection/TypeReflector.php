@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
-use Le0daniel\PhpTsBindings\Utils\Regexes;
+use Le0daniel\PhpTsBindings\Utils\PhpDoc;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionParameter;
@@ -17,7 +17,7 @@ final readonly class TypeReflector
             throw new RuntimeException("No type defined.");
         }
 
-        if ($property->getDocComment() && $type = Regexes::findFirstVarDeclaration($property->getDocComment())) {
+        if ($property->getDocComment() && $type = PhpDoc::findFirstVarDeclaration($property->getDocComment())) {
             return trim($type);
         }
 
@@ -26,7 +26,7 @@ final readonly class TypeReflector
         }
 
         $constructorDocBlock = $property->getDeclaringClass()->getConstructor()?->getDocComment();
-        if ($constructorDocBlock && $type = Regexes::findParamWithNameDeclaration($constructorDocBlock, $property->getName())) {
+        if ($constructorDocBlock && $type = PhpDoc::findParamWithNameDeclaration($constructorDocBlock, $property->getName())) {
             return trim($type);
         }
 
@@ -45,7 +45,7 @@ final readonly class TypeReflector
         }
 
         return trim(
-            Regexes::findParamWithNameDeclaration($declaringDocBlock, $parameter->getName()) ?? (string)$parameter->getType()
+            PhpDoc::findParamWithNameDeclaration($declaringDocBlock, $parameter->getName()) ?? (string)$parameter->getType()
         );
     }
 
@@ -61,7 +61,7 @@ final readonly class TypeReflector
         }
 
         return trim(
-            Regexes::findReturnTypeDeclaration($docBlock) ?? (string) $returnable->getReturnType()
+            PhpDoc::findReturnTypeDeclaration($docBlock) ?? (string) $returnable->getReturnType()
         );
     }
 }

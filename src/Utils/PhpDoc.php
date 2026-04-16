@@ -74,6 +74,51 @@ final class PhpDoc
         return array_map(fn(array $match): string => $match['genericName'], $matches);
     }
 
+    public static function findFirstVarDeclaration(null|false|string $docBlock): ?string
+    {
+        if (empty($docBlock)) {
+            return null;
+        }
+
+        if (preg_match('#@var\s+(?<type>(?:(?!\n@).)+?)(?:\s*\$|\n@|\z)#s', self::normalize($docBlock), $matches) !== 1) {
+            return null;
+        }
+
+        return self::collapseType($matches['type']);
+    }
+
+    public static function findReturnTypeDeclaration(null|false|string $docBlock): ?string
+    {
+        if (empty($docBlock)) {
+            return null;
+        }
+
+        if (preg_match('#@return\s+(?<type>(?:(?!\n@).)+)#s', self::normalize($docBlock), $matches) !== 1) {
+            return null;
+        }
+
+        return self::collapseType($matches['type']);
+    }
+
+    public static function findParamWithNameDeclaration(null|false|string $docBlock, string $paramName): ?string
+    {
+        if (empty($docBlock)) {
+            return null;
+        }
+
+        $escapedParamName = preg_quote($paramName, '#');
+        if (preg_match("#@param\s+(?<type>(?:(?!\n@).)+?)\s+\\\${$escapedParamName}(?:\s|\z)#s", self::normalize($docBlock), $matches) !== 1) {
+            return null;
+        }
+
+        return self::collapseType($matches['type']);
+    }
+
+    private static function collapseType(string $type): string
+    {
+        return trim(preg_replace('/\s+/', ' ', $type));
+    }
+
     /** @return array<string,string> */
     public static function findLocallyDefinedTypes(null|false|string $docBlock): array
     {

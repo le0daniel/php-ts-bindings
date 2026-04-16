@@ -26,7 +26,12 @@ final class RecordHandler implements Handler
         }
 
         $values = [];
+        $count = 0;
         foreach ($value as $key => $item) {
+            if (++$count > $context->maxItems) {
+                $context->addIssue(new Issue(IssueMessage::MAX_ITEMS_EXCEEDED, ['limit' => $context->maxItems]));
+                return Value::INVALID;
+            }
             if (!is_string($key)) {
                 $context->addIssue(new Issue(
                     IssueMessage::INVALID_KEY_TYPE,
@@ -57,6 +62,11 @@ final class RecordHandler implements Handler
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): array|Value
     {
         if (!is_array($value)) {
+            return Value::INVALID;
+        }
+
+        if (count($value) > $context->maxItems) {
+            $context->addIssue(new Issue(IssueMessage::MAX_ITEMS_EXCEEDED, ['limit' => $context->maxItems]));
             return Value::INVALID;
         }
 

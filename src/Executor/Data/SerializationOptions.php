@@ -7,6 +7,8 @@ final readonly class SerializationOptions
     public function __construct(
         public bool $partialFailures = true,
         public bool $runConstraints = false,
+        public int  $maxDepth = 64,
+        public int  $maxItems = 10_000,
     )
     {
     }

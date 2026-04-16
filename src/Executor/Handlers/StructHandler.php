@@ -22,6 +22,8 @@ final class StructHandler implements Handler
     /** @param StructNode $node */
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): Value|stdClass
     {
+        $hasMagicAccess = is_object($value) && method_exists($value, '__get') && method_exists($value, '__isset');
+
         $struct = [];
         foreach ($node->properties as $propertyNode) {
             if (!$propertyNode->propertyType->isOutput()) {
@@ -29,7 +31,7 @@ final class StructHandler implements Handler
             }
 
             $context->enterPath($propertyNode->name);
-            $propertyValue = $this->extractKeyedValue($propertyNode->name, $value);
+            $propertyValue = $this->extractKeyedValue($propertyNode->name, $value, $hasMagicAccess);
 
             if ($propertyValue === Value::INVALID) {
                 $context->leavePath();
@@ -140,7 +142,7 @@ final class StructHandler implements Handler
         return $node->phpType->coerceFromArray($struct);
     }
 
-    private function extractKeyedValue(string $key, mixed $input): mixed
+    private function extractKeyedValue(string $key, mixed $input, bool $hasMagicAccess): mixed
     {
         if (is_array($input)) {
             return array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED;
@@ -154,10 +156,14 @@ final class StructHandler implements Handler
             return Value::INVALID;
         }
 
-        return match (true) {
-            property_exists($input, $key) => $input->{$key},
-            method_exists($input, '__get') && method_exists($input, '__isset') => $input->__isset($key) ? $input->__get($key) : Value::UNDEFINED,
-            default => Value::INVALID,
-        };
+        if (property_exists($input, $key)) {
+            return $input->{$key};
+        }
+
+        if ($hasMagicAccess) {
+            return $input->__isset($key) ? $input->__get($key) : Value::UNDEFINED;
+        }
+
+        return Value::INVALID;
     }
 }

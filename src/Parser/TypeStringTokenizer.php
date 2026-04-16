@@ -30,7 +30,7 @@ final class TypeStringTokenizer
             $char = $typeString[$currentOffset];
 
             if ($blockType === TokenType::CLASS_CONST) {
-                if (preg_match('/^[a-zA-Z0-9_]+$/', $char) === 1) {
+                if (ctype_alnum($char) || $char === '_') {
                     $buffer .= $char;
                     $currentOffset++;
                     continue;

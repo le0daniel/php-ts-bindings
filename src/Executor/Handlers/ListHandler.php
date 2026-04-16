@@ -7,6 +7,8 @@ use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 
 /**
@@ -29,6 +31,11 @@ final class ListHandler implements Handler
         $index = 0;
 
         foreach ($value as $item) {
+            if ($index >= $context->maxItems) {
+                $context->addIssue(new Issue(IssueMessage::MAX_ITEMS_EXCEEDED, ['limit' => $context->maxItems]));
+                return Value::INVALID;
+            }
+
             $context->enterPath($index);
             $result = $executor->executeSerialize($node->node, $item, $context);
 
@@ -52,6 +59,11 @@ final class ListHandler implements Handler
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): array|Value
     {
         if (!is_array($value) || !array_is_list($value)) {
+            return Value::INVALID;
+        }
+
+        if (count($value) > $context->maxItems) {
+            $context->addIssue(new Issue(IssueMessage::MAX_ITEMS_EXCEEDED, ['limit' => $context->maxItems]));
             return Value::INVALID;
         }
 

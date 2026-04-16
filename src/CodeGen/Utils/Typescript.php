@@ -3,7 +3,6 @@
 namespace Le0daniel\PhpTsBindings\CodeGen\Utils;
 
 use JsonException;
-use Le0daniel\PhpTsBindings\Utils\Regexes;
 
 final class Typescript
 {
