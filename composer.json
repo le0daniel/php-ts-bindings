@@ -3,7 +3,7 @@
   "description": "Library to create type bindings between PHP8 and TS, supporting parsing, serialization and emitting of  TS types for PHP objects/input strongly typed",
   "type": "library",
   "require": {
-    "php": "^8.4"
+    "php": "^8.5"
   },
   "require-dev": {
     "pestphp/pest": "4.x-dev",

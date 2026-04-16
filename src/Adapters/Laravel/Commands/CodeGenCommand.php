@@ -217,7 +217,7 @@ DESCRIPTION;
         $this->clearDirectory($directory);
 
         if (!file_exists("{$directory}/lib") && is_dir("{$directory}/lib") === false) {
-            mkdir("{$directory}/lib", 0777, true);
+            mkdir("{$directory}/lib", 0755, true);
         }
 
         foreach ($this->iterateFiles($directory, $files) as $filePath => $file) {
