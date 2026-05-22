@@ -38,9 +38,9 @@ final readonly class UserDefinedParsers implements TypeConsumer
         $fqcn = $state->context->toFullyQualifiedClassName($token->value);
         $state->advance();
 
-        foreach ($this->parsers as $parser) {
-            if ($parser->canParse($fqcn, $token)) {
-                return $parser->parse($fqcn, $token);
+        foreach ($this->parsers as $userParser) {
+            if ($userParser->canParse($fqcn, $token)) {
+                return $userParser->parse($fqcn, $token);
             }
         }
 
