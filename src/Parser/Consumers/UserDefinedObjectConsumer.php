@@ -47,13 +47,11 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 
         $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
 
-        try {
-            $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
-        } catch (ReflectionException) {
+        if (!class_exists($fullyQualifiedClassName) && !interface_exists($fullyQualifiedClassName)) {
             return false;
         }
 
-        return $reflectionClass->isUserDefined();
+        return new ReflectionClass($fullyQualifiedClassName)->isUserDefined();
     }
 
     /** @param ReflectionClass<object> $class */
