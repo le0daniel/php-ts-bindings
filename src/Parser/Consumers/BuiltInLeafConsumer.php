@@ -18,6 +18,22 @@ use Le0daniel\PhpTsBindings\Validators\NonFalsyStringValidator;
 
 final class BuiltInLeafConsumer implements TypeConsumer
 {
+    private const array BUILT_IN_TYPES = [
+        'string' => true,
+        'bool' => true,
+        'null' => true,
+        'float' => true,
+        'mixed' => true,
+        'truthy-string' => true,
+        'non-falsy-string' => true,
+        'non-empty-string' => true,
+        'scalar' => true,
+        'positive-int' => true,
+        'negative-int' => true,
+        'non-negative-int' => true,
+        'non-positive-int' => true,
+        'numeric' => true,
+    ];
 
     public function canConsume(ParserState $state): bool
     {
@@ -25,22 +41,7 @@ final class BuiltInLeafConsumer implements TypeConsumer
             return false;
         }
 
-        return in_array($state->current()->value, [
-            'string',
-            'bool',
-            'null',
-            'float',
-            'mixed',
-            'truthy-string',
-            'non-falsy-string',
-            'non-empty-string',
-            'scalar',
-            'positive-int',
-            'negative-int',
-            "non-negative-int",
-            'non-positive-int',
-            'numeric',
-        ]);
+        return isset(self::BUILT_IN_TYPES[$state->current()->value]);
     }
 
     /**
