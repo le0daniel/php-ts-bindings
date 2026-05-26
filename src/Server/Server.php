@@ -5,9 +5,11 @@ namespace Le0daniel\PhpTsBindings\Server;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Contracts\ServerExecutionAdapter;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Le0daniel\PhpTsBindings\Server\Adapters\NewInstanceAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
@@ -22,7 +24,6 @@ use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\Pipeline\ContextualPipeline;
 use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
 use Psr\Container\ContainerExceptionInterface;
-use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
 use Throwable;
 
@@ -31,18 +32,14 @@ final readonly class Server
     public SchemaExecutor $executor;
 
     /**
-     * @param OperationRegistry $registry
      * @param list<ExceptionPresenter> $exceptionPresenters
-     * @param ExceptionPresenter $defaultPresenter
-     * @param ContainerInterface|null $container
-     * @param ServerConfiguration $configuration
      */
     public function __construct(
-        public OperationRegistry        $registry,
-        public array                    $exceptionPresenters,
-        public ExceptionPresenter       $defaultPresenter = new CatchAllPresenter(),
-        private null|ContainerInterface $container = null,
-        public ServerConfiguration      $configuration = new ServerConfiguration(),
+        public OperationRegistry      $registry,
+        public array                  $exceptionPresenters,
+        public ExceptionPresenter     $defaultPresenter = new CatchAllPresenter(),
+        public ServerExecutionAdapter $adapter = new NewInstanceAdapter(),
+        public ServerConfiguration    $configuration = new ServerConfiguration(),
     )
     {
         $this->executor = new SchemaExecutor();
@@ -86,16 +83,8 @@ final readonly class Server
             ... $operation->definition->middleware,
         ];
 
-        $middlewares = array_map(
-            fn(string $className) => $this->container
-                ? $this->container->get($className)
-                : new $className,
-            $middlewareClassNames
-        );
-
-        $controllerClass = $this->container
-            ? $this->container->get($operation->definition->fullyQualifiedClassName)
-            : new $operation->definition->fullyQualifiedClassName;
+        $middlewareInstances = array_map($this->adapter->createMiddleware(...), $middlewareClassNames);
+        $operationClassInstance = $this->adapter->createOperationClass($operation->definition->fullyQualifiedClassName);
 
         $resolveInfo = new ResolveInfo(
             $operation->definition->namespace,
@@ -106,9 +95,9 @@ final readonly class Server
             $middlewareClassNames,
         );
 
-        return new ContextualPipeline($middlewares)
+        return new ContextualPipeline($middlewareInstances)
             ->catchErrorsWith(fn(Throwable $throwable) => $this->produceError($throwable, $operation->definition, $resolveInfo))
-            ->then(function (mixed $input) use ($controllerClass, $client, $operation, $context, $resolveInfo): RpcSuccess|RpcError {
+            ->then(function (mixed $input) use ($operationClassInstance, $client, $operation, $context, $resolveInfo): RpcSuccess|RpcError {
                 try {
                     $inputValidationResult = $this
                         ->executor
@@ -129,7 +118,7 @@ final readonly class Server
                     $serializedResult = $this->executor
                         ->serialize(
                             $operation->outputNode(),
-                            $controllerClass->{$operation->definition->methodName}($inputValidationResult->value, $context, $client)
+                            $operationClassInstance->{$operation->definition->methodName}($inputValidationResult->value, $context, $client)
                         );
 
                     if ($serializedResult instanceof Failure) {

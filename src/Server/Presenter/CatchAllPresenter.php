@@ -21,7 +21,7 @@ final class CatchAllPresenter implements ExceptionPresenter
     }
 
     /*
-     * @return array{status: 500, type: "INTERNAL_SERVER_ERROR"}
+     * @return array{type: "INTERNAL_SERVER_ERROR"}
      */
     public function details(Throwable $throwable): array
     {

@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
@@ -52,11 +53,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     public function register(): void
     {
         $this->app->bind(TypeParser::class, function () {
-            return new TypeParser(
-                consumers: TypeParser::defaultConsumers(
-                    collectionClasses: [Collection::class]
-                ),
-            );
+            return new TypeParser();
         });
 
         $this->app->singleton(self::DEFAULT_SERVER, function (Application $app): Server {
@@ -80,17 +77,16 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
             return new Server(
                 $repository,
-                [
+                exceptionPresenters: [
                     new InvalidInputPresenter(),
                     new UnauthorizedPresenter($config->get('operations.exceptions.unauthorized', [])),
                     new UnauthenticatedPresenter($config->get('operations.exceptions.unauthenticated', [])),
                     new NotFoundPresenter($config->get('operations.exceptions.not_found', [])),
                     new ClientAwareExceptionPresenter(),
                 ],
-                new CatchAllPresenter(),
-                $app,
-                new ServerConfiguration()
-                    ->withMiddlewares(...config('operations.middleware', [])),
+                defaultPresenter: new CatchAllPresenter(),
+                adapter: new PsrContainerAdapter($this->app),
+                configuration: new ServerConfiguration()->withMiddlewares(...config('operations.middleware', [])),
             );
         });
 
