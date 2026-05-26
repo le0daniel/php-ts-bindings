@@ -5,6 +5,7 @@ namespace Tests\Unit\Parser\Consumers;
 use Le0daniel\PhpTsBindings\Parser\Consumers\DateTimeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
@@ -56,3 +57,43 @@ test('DateTimeConsumer consume preserves the class name through the namespace fa
         ->toBeInstanceOf(DateTimeNode::class)
         ->and($node->dateTimeClass)->toBe(\DateTime::class);
 });
+
+test('DateTimeConsumer canConsume returns true for bare DateTimeString', function () {
+    $state = dateTimeConsumerStateFor('DateTimeString');
+    expect((new DateTimeConsumer())->canConsume($state))->toBeTrue();
+});
+
+test('DateTimeConsumer canConsume returns true for DateTimeString with a format', function () {
+    $state = dateTimeConsumerStateFor("DateTimeString<'Y-m-d'>");
+    expect((new DateTimeConsumer())->canConsume($state))->toBeTrue();
+});
+
+test('DateTimeConsumer consume of bare DateTimeString returns DateTimeImmutable node with ATOM format', function () {
+    $state = dateTimeConsumerStateFor('DateTimeString');
+    $node = (new DateTimeConsumer())->consume($state, new TypeParser());
+
+    expect($node)
+        ->toBeInstanceOf(DateTimeNode::class)
+        ->and($node->dateTimeClass)->toBe(\DateTimeImmutable::class)
+        ->and($node->format)->toBe(\DateTimeInterface::ATOM);
+});
+
+test('DateTimeConsumer consume of DateTimeString with a string literal format uses that format', function () {
+    $state = dateTimeConsumerStateFor("DateTimeString<'Y-m-d'>");
+    $node = (new DateTimeConsumer())->consume($state, new TypeParser());
+
+    expect($node)
+        ->toBeInstanceOf(DateTimeNode::class)
+        ->and($node->dateTimeClass)->toBe(\DateTimeImmutable::class)
+        ->and($node->format)->toBe('Y-m-d');
+});
+
+test('DateTimeConsumer consume of DateTimeString with non-string literal raises a syntax error', function () {
+    $state = dateTimeConsumerStateFor('DateTimeString<123>');
+    (new DateTimeConsumer())->consume($state, new TypeParser());
+})->throws(InvalidSyntaxException::class);
+
+test('DateTimeConsumer consume of DateTimeString with too many generics raises a syntax error', function () {
+    $state = dateTimeConsumerStateFor("DateTimeString<'Y-m-d', 'extra'>");
+    (new DateTimeConsumer())->consume($state, new TypeParser());
+})->throws(InvalidSyntaxException::class);

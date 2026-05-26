@@ -497,6 +497,36 @@ test('Test date time with a namespace', function () {
     compareToOptimizedAst($node);
 });
 
+test('Bare DateTimeString resolves to a DateTimeImmutable node with ATOM format', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse('DateTimeString');
+
+    expect($node)
+        ->toBeInstanceOf(DateTimeNode::class)
+        ->and($node->dateTimeClass)->toBe(\DateTimeImmutable::class)
+        ->and($node->format)->toBe(\DateTimeInterface::ATOM);
+
+    compareToOptimizedAst($node);
+
+    expect(typescriptDefinition($node, DefinitionTarget::OUTPUT))->toBe('string');
+    expect(typescriptDefinition($node, DefinitionTarget::INPUT))->toBe('string');
+});
+
+test('DateTimeString with a string-literal format uses that format', function () {
+    $parser = new TypeParser(new TypeStringTokenizer());
+    $node = $parser->parse("DateTimeString<'Y-m-d'>");
+
+    expect($node)
+        ->toBeInstanceOf(DateTimeNode::class)
+        ->and($node->dateTimeClass)->toBe(\DateTimeImmutable::class)
+        ->and($node->format)->toBe('Y-m-d');
+
+    compareToOptimizedAst($node);
+
+    expect(typescriptDefinition($node, DefinitionTarget::OUTPUT))->toBe('string');
+    expect(typescriptDefinition($node, DefinitionTarget::INPUT))->toBe('string');
+});
+
 test('Test EnumCase and class const literal', function () {
     $parser = new TypeParser(new TypeStringTokenizer());
     /** @var UnionNode $node */

@@ -89,3 +89,17 @@ function brandedString(string $i): string {
     assertType("string", $i);
     return $i;
 }
+
+/**
+ * @param DateTimeString $d
+ */
+function bareDateTimeString($d): void {
+    assertType('DateTimeImmutable', $d);
+}
+
+/**
+ * @param DateTimeString<"Y-m-d"> $d
+ */
+function formattedDateTimeString($d): void {
+    assertType('DateTimeImmutable', $d);
+}

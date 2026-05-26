@@ -3,7 +3,9 @@
 namespace Le0daniel\PhpTsBindings\PHPStan;
 
 
+use DateTimeImmutable;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use PHPStan\Analyser\NameScope;
 use PHPStan\PhpDoc\TypeNodeResolver;
@@ -37,6 +39,10 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
 
     public function resolve(TypeNode $typeNode, NameScope $nameScope): ?Type
     {
+        if ($typeNode instanceof IdentifierTypeNode && $typeNode->name === 'DateTimeString') {
+            return new ObjectType(DateTimeImmutable::class);
+        }
+
         if (!$typeNode instanceof GenericTypeNode) {
             // returning null means this extension is not interested in this node
             return null;
@@ -46,6 +52,7 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         return match ($typeName->name) {
             'BrandedString', 'BrandedInt' => $this->resolveBrandedTypes($typeName->name, $typeNode, $nameScope),
             'Pick', 'Omit' => $this->resolvePickAndOmitUtil($typeName->name, $typeNode, $nameScope),
+            'DateTimeString' => new ObjectType(DateTimeImmutable::class),
             default => null,
         };
     }
