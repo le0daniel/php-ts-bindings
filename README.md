@@ -160,46 +160,60 @@ $otherAst = $registry->get('MyClass@methodname@output');
 
 ## Extending the Parser
 
-The parser is quite simple and can be extended to support more specific types with custom parsers.
+The parser can be extended by adding your own `TypeConsumer` to the consumer chain.
 
-Ordering matters. The first parser that can parse the type will be used. Therefore, be careful if you prepend or append
-parsers to the default parsers. For example, the datetime parser parses any DateTime interface. If you need custom logic
-you need to prepend your custom parser.
+Ordering matters. The first consumer that can consume the type will be used. Therefore, be careful where you place your
+custom consumer. For example, `DateTimeConsumer` matches any `DateTimeInterface` implementation. If you need custom
+logic for a specific subclass (e.g. `Carbon`), place your consumer before it.
 
 ```php
-use Le0daniel\PhpTsBindings\Contracts\Parser;
-use Le0daniel\PhpTsBindings\Parser\Definition\Token;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Carbon\Carbon;
+use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
+use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
-class CarbonDateTimeParser implements Parser {
-    
-    public function canParse(string $fullyQualifiedClassName, Token $token): bool {
-        return is_a($fullyQualifiedClassName, Carbon::class, true);
+final readonly class CarbonConsumer implements TypeConsumer {
+
+    public function canConsume(ParserState $state): bool {
+        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
+            return false;
+        }
+        $fqcn = $state->context->toFullyQualifiedClassName($state->current()->value);
+        return is_a($fqcn, Carbon::class, true);
     }
-    
-    public function parse(string $fullyQualifiedClassName, Token $token, TypeParser $parser): NodeInterface {
+
+    public function consume(ParserState $state, TypeParser $parser): CarbonLeafNode {
+        $state->advance();
         return new CarbonLeafNode();
     }
 }
 
 $parser = new TypeParser(
-    parsers: TypeParser::getDefaultParsers(
-        prepend: [
-            new CarbonDateTimeParser(),
-        ];    
-    ),
+    consumers: [
+        new CarbonConsumer(),
+        ...TypeParser::defaultConsumers(),
+    ],
 );
 ```
 
-By default, the parser uses the following parsers:
+By default, the parser uses the following consumers (in order):
 
-- new EnumCasesParser(): Takes an EnumClass and expects a string literal as input
-- new DateTimeParser(): Takes a DateTime string, parses it as a DateTime object and serializes it as a string
-- new CustomClassParser(): Takes a custom class and creates an object struct for input/output.
+- `LiteralConsumer`, `ClassConstConsumer`, `AliasConsumer`, `IntConsumer`, `BuiltInLeafConsumer`,
+  `StructConsumer`, `ArrayConsumer`
+- `EnumConsumer`: matches enum classes and produces an `EnumNode`
+- `DateTimeConsumer`: matches `DateTimeInterface` implementations and produces a `DateTimeNode`
+- `UserDefinedObjectConsumer`: matches user-defined classes/interfaces and creates an object struct for input/output
+- `UtilsConsumer`: handles utility types like `Pick<T, K>`, `Omit<T, K>`, `BrandedString`, `BrandedInt`
 
-If you don't want to use any of the default parsers, you can pass an empty array to the constructor of TypeParser.
+If you don't want to use any of the default consumers, you can pass an empty array to the constructor of TypeParser.
 
 ```php
-new TypeParser(parsers: []);
+new TypeParser(consumers: []);
 ```
+
+### Deprecated: the `Parser` extension API
+
+The `Parser` interface (and its in-tree implementations `EnumCasesParser` / `DateTimeParser`) along with the
+`UserDefinedParsers` consumer that wrapped them are deprecated. To migrate, implement `TypeConsumer` directly and place
+your consumer in the chain via the `consumers:` constructor argument as shown above.

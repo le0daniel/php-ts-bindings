@@ -3,16 +3,16 @@
 namespace Le0daniel\PhpTsBindings\Parser;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Contracts\Parser;
 use Le0daniel\PhpTsBindings\Parser\Consumers\AliasConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\ArrayConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\BuiltInLeafConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\ClassConstConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\DateTimeConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\EnumConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\IntConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\LiteralConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\StructConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedObjectConsumer;
-use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedParsers;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UtilsConsumer;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
@@ -27,8 +27,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
-use Le0daniel\PhpTsBindings\Parser\Parsers\DateTimeParser;
-use Le0daniel\PhpTsBindings\Parser\Parsers\EnumCasesParser;
 
 final readonly class TypeParser
 {
@@ -61,14 +59,12 @@ final readonly class TypeParser
     /**
      * @param GlobalTypeAliases $globalTypeAliases
      * @param list<class-string> $collectionClasses
-     * @param list<Parser>|null $parsers
      * @param bool $allowAllObjectCasting
      * @return TypeConsumer[]
      */
     public static function defaultConsumers(
         GlobalTypeAliases $globalTypeAliases = new GlobalTypeAliases(),
         array $collectionClasses = [],
-        ?array $parsers = null,
         bool $allowAllObjectCasting = false,
     ): array
     {
@@ -80,24 +76,10 @@ final readonly class TypeParser
             new BuiltInLeafConsumer(),
             new StructConsumer(),
             new ArrayConsumer($collectionClasses),
-            new UserDefinedParsers($parsers ?? self::getDefaultParsers()),
+            new EnumConsumer(),
+            new DateTimeConsumer(),
             new UserDefinedObjectConsumer($allowAllObjectCasting),
             new UtilsConsumer(),
-        ];
-    }
-
-    /**
-     * @param list<Parser> $prepend
-     * @param list<Parser> $append
-     * @return list<Parser>
-     */
-    public static function getDefaultParsers(array $prepend = [], array $append = []): array
-    {
-        return [
-            ...$prepend,
-            new EnumCasesParser(),
-            new DateTimeParser(),
-            ...$append,
         ];
     }
 
