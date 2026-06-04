@@ -59,6 +59,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         $resultTypeName = $operationBaseTypeName . "Result";
         $resultInputTypeName = $operationBaseTypeName . "Input";
         $queryName = "use" . $operationBaseTypeName . "Query";
+        $queryOptionsName = lcfirst($operationBaseTypeName) . "QueryOptions";
         $optionsTypeName = $operationBaseTypeName . "Options";
         $readsNamespaces = array_map(
                 fn(string $namespace): string => json_encode($namespace, JSON_THROW_ON_ERROR), $this->getNamespaceReads($operation->operation)
@@ -67,7 +68,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         $imports = [
             new TypescriptImportStatement(
                 from: "@tanstack/react-query",
-                imports: ['useQuery', 'UseQueryOptions'],
+                imports: ['useQuery', 'UseQueryOptions', 'queryOptions'],
             ),
             new TypescriptImportStatement(
                 from: Paths::libImport("utils"),
@@ -85,8 +86,8 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
 
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
-export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {
-    return useQuery({
+export function {$queryOptionsName}(options?: {$optionsTypeName}) {
+    return queryOptions({
         queryKey: queryKey('{$definition->namespace}', '{$definition->name}'),
         queryFn: async ({signal}): Promise<{$resultTypeName}> => {
             const result = await {$name}({signal});
@@ -96,8 +97,12 @@ export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {
         meta: {
             ns: [{$readsNamespaces}]
         },
-        ... queryOptions,
-    })
+        ... options,
+    });
+}
+
+export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {
+    return useQuery({$queryOptionsName}(queryOptions));
 }
 TypeScript, $imports);
         }
@@ -107,8 +112,8 @@ TypeScript, $imports);
 
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
-export function {$queryName}(input: {$resultInputTypeName}, queryOptions?: Partial<{$optionsTypeName}>) {
-    return useQuery({
+export function {$queryOptionsName}(input: {$resultInputTypeName}, options?: {$optionsTypeName}) {
+    return queryOptions({
         queryKey: queryKey('{$definition->namespace}', '{$definition->name}', input),
         queryFn: async ({signal}): Promise<{$resultTypeName}> => {
             const result = await {$name}(input, {signal});
@@ -118,8 +123,12 @@ export function {$queryName}(input: {$resultInputTypeName}, queryOptions?: Parti
         meta: {
             ns: [{$readsNamespaces}]
         },
-        ... queryOptions,
-    })
+        ... options,
+    });
+}
+
+export function {$queryName}(input: {$resultInputTypeName}, queryOptions?: Partial<{$optionsTypeName}>) {
+    return useQuery({$queryOptionsName}(input, queryOptions));
 }
 TypeScript, $imports);
     }
