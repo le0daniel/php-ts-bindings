@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
+use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
@@ -10,7 +11,6 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
@@ -20,6 +20,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use Le0daniel\PhpTsBindings\Utils\Arrays;
 use RuntimeException;
 
 final class EmitTypes implements GeneratesLibFiles
@@ -40,29 +41,21 @@ final class EmitTypes implements GeneratesLibFiles
             return $carry;
         }, []);
 
-        [$brandedInts, $brandedStrings] = array_reduce($operations, function (array $carry, TypedOperation $operation) {
-            [$brandedInts, $brandedStrings] = $carry;
-            [$inputBrandedInts, $inputBrandedStrings] = $this->collectBrandedTypes($operation->operation->inputNode());
-            [$outputBrandedInts, $outputBrandedStrings] = $this->collectBrandedTypes($operation->operation->outputNode());
+        $brands = array_reduce($operations, function (array $carry, TypedOperation $operation) {
+            $inputBrands = $this->collectBrandedTypes($operation->operation->inputNode(), DefinitionTarget::INPUT);
+            $outputBrands = $this->collectBrandedTypes($operation->operation->outputNode(), DefinitionTarget::OUTPUT);
+            return $this->mergeBrandedTypes($carry, $inputBrands, $outputBrands);
+        }, []);
 
-            return [
-                [... $brandedInts, ...$inputBrandedInts, ...$outputBrandedInts],
-                [... $brandedStrings, ...$inputBrandedStrings, ...$outputBrandedStrings],
-            ];
-        }, [[], []]);
+        $brandedTypeStrings = Arrays::mapWithKeys(
+            $brands,
+            function (string $brandName, string $type): string {
+                $capitalizedBrandName = ucfirst($brandName);
+                $encodedBrandName = json_encode($brandName, JSON_THROW_ON_ERROR);
+                return "export type {$capitalizedBrandName} = {$type} & Brand<{$encodedBrandName}>";
+            });
 
-        $uniqueBrandedInts = array_values(array_unique($brandedInts));
-        $uniqueBrandedStrings = array_values(array_unique($brandedStrings));
-
-        $brandedIntTypes = implode(
-            PHP_EOL,
-            array_map(fn(string $brandValue) => $this->toBrandedType($brandValue, "number"), $uniqueBrandedInts)
-        );
-
-        $brandedStringType = implode(
-            PHP_EOL,
-            array_map(fn(string $brandValue) => $this->toBrandedType($brandValue, "string"), $uniqueBrandedStrings)
-        );
+        $brandedTypeString = implode("\n", $brandedTypeStrings);
 
         return [
             "types" => <<<TypeScript
@@ -82,26 +75,13 @@ export type SPAClientDirectives<T> = T & {
 };
 
 declare const __brand: unique symbol;
-export type Branded<T, TBrand extends string> = T & {readonly [__brand]: TBrand;};
+export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};
 
 /* All Branded types exported */
-{$brandedIntTypes}
-{$brandedStringType}
+{$brandedTypeString}
 
 TypeScript,
         ];
-    }
-
-    /**
-     * @param string $brandValue
-     * @param "string"|"number" $type
-     * @return string
-     */
-    private function toBrandedType(string $brandValue, string $type): string
-    {
-        $typeName = ucfirst($brandValue);
-        $encodedBrandValue = json_encode($brandValue, JSON_THROW_ON_ERROR);
-        return "export type {$typeName} = Branded<{$type}, {$encodedBrandValue}>;";
     }
 
     /**
@@ -114,9 +94,9 @@ TypeScript,
     }
 
     /**
-     * @return array{list<string>, list<string>}
+     * @return array<string, string>
      */
-    private function collectBrandedTypes(NodeInterface $ast): array
+    private function collectBrandedTypes(NodeInterface $ast, DefinitionTarget $target): array
     {
         /** @var BuiltInNode[] $brandedNodes */
         $brandedNodes = [];
@@ -146,27 +126,43 @@ TypeScript,
             };
         }
 
-        $brandedInts = [];
-        $brandedStrings = [];
+        $brandedTypes = [];
+        foreach ($brandedNodes as $node) {
+            $typeDefinition = $target === DefinitionTarget::INPUT
+                ? $node->inputDefinition()
+                : $node->outputDefinition();
 
-        foreach ($brandedNodes as $brandedNode) {
-            $brandedNode->assertBranded();
-            if ($brandedNode->type === BuiltInType::STRING) {
-                $brandedStrings[] = $brandedNode->brand;
+            if (!isset($brandedTypes[$node->brand])) {
+                $brandedTypes[$node->brand] = $typeDefinition;
                 continue;
             }
 
-            if ($brandedNode->type === BuiltInType::INT) {
-                $brandedInts[] = $brandedNode->brand;
-                continue;
+            if ($typeDefinition !== $brandedTypes[$node->brand]) {
+                throw new RuntimeException("Branded type {$node->brand} has different definitions");
             }
-
-            throw new RuntimeException("Unexpected branded node type: " . $brandedNode->type->name);
         }
 
-        return [
-            $brandedInts,
-            $brandedStrings
-        ];
+        return $brandedTypes;
+    }
+
+    /**
+     * @param array<string, string> $brands
+     * @param array<string, string> ...$otherTypes
+     * @return array<string, string>
+     */
+    private function mergeBrandedTypes(array $brands, array ... $otherTypes): array
+    {
+        foreach ($otherTypes as $keyValuePairs) {
+            foreach ($keyValuePairs as $key => $value) {
+                if (!isset($brands[$key])) {
+                    $brands[$key] = $value;
+                    continue;
+                }
+                if ($brands[$key] !== $value) {
+                    throw new RuntimeException("Branded type {$key} has different definitions");
+                }
+            }
+        }
+        return $brands;
     }
 }

@@ -34,8 +34,8 @@ final readonly class TypescriptDefinitionGenerator
             if ($this->emitBrandedTypes && $node instanceof BuiltInNode && $node->brand) {
                 $encodedBrand = json_encode($node->brand, JSON_THROW_ON_ERROR);
                 return $target === DefinitionTarget::INPUT
-                    ? "Branded<{$node->inputDefinition()},{$encodedBrand}>"
-                    : "Branded<{$node->outputDefinition()},{$encodedBrand}>";
+                    ? "{$node->inputDefinition()} & Brand<{$encodedBrand}>"
+                    : "{$node->outputDefinition()} & Brand<{$encodedBrand}>";
             }
 
             return $target === DefinitionTarget::INPUT ? $node->inputDefinition() : $node->outputDefinition();

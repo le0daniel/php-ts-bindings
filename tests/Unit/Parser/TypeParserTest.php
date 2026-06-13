@@ -741,10 +741,10 @@ test("parse BrandedInt correctly", function () {
 
     $tsGenerator = new TypescriptDefinitionGenerator(true);
     $outputDef = $tsGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('Branded<number,"wow">');
+    expect($outputDef)->toBe('number & Brand<"wow">');
 
     $inputDef = $tsGenerator->toDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('Branded<number,"wow">');
+    expect($inputDef)->toBe('number & Brand<"wow">');
 
     $tsGeneratorWithoutBrand = new TypescriptDefinitionGenerator(false);
     $outputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::OUTPUT);
@@ -763,10 +763,10 @@ test("parse BrandedString correctly", function () {
     $tsGenerator = new TypescriptDefinitionGenerator(true);
 
     $outputDef = $tsGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('Branded<string,"wow">');
+    expect($outputDef)->toBe('string & Brand<"wow">');
 
     $inputDef = $tsGenerator->toDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('Branded<string,"wow">');
+    expect($inputDef)->toBe('string & Brand<"wow">');
 
     $tsGeneratorWithoutBrand = new TypescriptDefinitionGenerator(false);
     $outputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::OUTPUT);
