@@ -53,7 +53,7 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
             ),
             new TypescriptImportStatement(
                 from: Paths::libImport("types"),
-                imports: ["type Branded"],
+                imports: ["type Brand"],
             )
         ];
         $docBlock = <<<TypeScript
