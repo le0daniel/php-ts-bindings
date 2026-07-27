@@ -11,7 +11,6 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
-use LogicException;
 use Stringable;
 use Throwable;
 
@@ -30,24 +29,11 @@ readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible
         return $this->type->value;
     }
 
-    /**
-     * @phpstan-assert string $this->brand
-     */
-    public function assertBranded(): void
-    {
-        if ($this->brand === null) {
-            throw new LogicException('Cannot assert branded type without brand');
-        }
-    }
-
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(BuiltInNode::class);
         $type = PHPExport::exportEnumCase($this->type);
-
-        return implode('', [
-            "new {$className}($type)"
-        ]);
+        return "new {$className}($type)";
     }
 
     public function parseValue(mixed $value, ExecutionContext $context): mixed

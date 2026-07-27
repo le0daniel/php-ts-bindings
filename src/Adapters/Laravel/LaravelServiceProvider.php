@@ -53,9 +53,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     {
         $this->app->bind(TypeParser::class, function () {
             return new TypeParser(
-                consumers: TypeParser::defaultConsumers(
-                    collectionClasses: [Collection::class]
-                ),
+                consumers: TypeParser::defaultConsumers(),
             );
         });
 

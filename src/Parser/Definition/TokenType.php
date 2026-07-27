@@ -17,7 +17,10 @@ enum TokenType: string
     case LBRACKET = "[";
     case RBRACKET = "]";
     case QUESTION_MARK = '?';
+
+    /** @deprecated */
     case CLASS_CONST = "name::CONST";
+
     case COLON = ":";
     case DOUBLE_COLON = '::';
     case CLOSED_BRACKETS = '[]';

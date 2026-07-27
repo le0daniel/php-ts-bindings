@@ -22,7 +22,7 @@ function prepare(string $type, string $mode = 'parse', array $noise = []): Closu
         $optimizer = new ASTOptimizer();
 
         $parser = new TypeParser(
-            consumers: TypeParser::defaultConsumers(collectionClasses: [Collection::class])
+            consumers: TypeParser::defaultConsumers()
         );
 
         $ast = $parser->parse($type);
@@ -141,34 +141,32 @@ test("Create user input schema", function () {
 
 test('Execute parsing with custom collection class', function () {
     $collectionClass = Collection::class;
-    $executor = prepare("\Illuminate\Support\Collection<int, array{id: string}>", 'parse');
+    $executor = prepare("array<int, array{id: string}>", 'parse');
 
     $validResult = $executor([
         ['id' => 'test'],
     ]);
 
     expect($validResult)->toBeSuccess()
-        ->and($validResult->value)->toBeInstanceOf($collectionClass)
-        ->and($validResult->value->first())->toEqual(['id' => 'test']);
+        ->and($validResult->value)
+        ->and($validResult->value[0])->toEqual(['id' => 'test']);
 });
 
 test('Execute parsing with custom collection class as record', function () {
-    $executor = prepare("\Illuminate\Support\Collection<string, int>", 'parse');
+    $executor = prepare("array<string, int>", 'parse');
 
     $validResult = $executor(['id' => 123]);
 
     expect($validResult)->toBeSuccess()
-        ->and($validResult->value)->toBeInstanceOf(Collection::class)
-        ->and($validResult->value->toArray())->toEqual(['id' => 123]);
+        ->and($validResult->value)->toEqual(['id' => 123]);
 });
 
 test('Execute serialization with custom record class', function () {
-    $executor = prepare("\Illuminate\Support\Collection<string, int>", 'serialize');
+    $executor = prepare("array<string, int>", 'serialize');
 
     $validResult = $executor(['id' => 123]);
 
     expect($validResult)->toBeSuccess()
-        ->and($validResult->value)->toBeInstanceOf(stdClass::class)
         ->and($validResult->value)->toEqual((object)['id' => 123]);
 });
 

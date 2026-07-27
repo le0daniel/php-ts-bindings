@@ -16,7 +16,7 @@ final readonly class NamedNode implements NodeInterface
 
     public function __toString(): string
     {
-        return (string)$this->node;
+        return "{$this->node} & Brand<{$this->name}>";
     }
 
     public function exportPhpCode(): string

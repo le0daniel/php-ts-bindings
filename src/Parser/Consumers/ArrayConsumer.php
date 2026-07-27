@@ -26,19 +26,7 @@ final readonly class ArrayConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
 
-    /**
-     * Add classes which are Collection classes. A collection class is a generic class
-     * which is iterable and supports 1 (list) or 2 (list|record) generics. A collection class constructor
-     * is expected to accept exactly one argument, a PHP array.
-     *
-     * Example for it is laravel collections:
-     * - Collection<int, array{id: string}> => Array<{id: string}>
-     * - Collection<string, array{id: string}> => Record<string>
-     * @param array<class-string> $collectionLikeClasses
-     */
-    public function __construct(
-        public array $collectionLikeClasses = [],
-    )
+    public function __construct()
     {
     }
 
@@ -48,8 +36,7 @@ final readonly class ArrayConsumer implements TypeConsumer
             return false;
         }
 
-        return in_array($state->current()->value, ['list', 'non-empty-list', 'array', 'non-empty-array'], true)
-            || in_array($state->context->toFullyQualifiedClassName($state->current()->value), $this->collectionLikeClasses, true);
+        return in_array($state->current()->value, ['list', 'non-empty-list', 'array', 'non-empty-array'], true);
     }
 
     /**
@@ -97,10 +84,7 @@ final readonly class ArrayConsumer implements TypeConsumer
         $generics = $this->consumeGenerics($state, $parser, min: 1, max: $maxGenerics);
 
         if (count($generics) === 1) {
-            $node = new ListNode($generics[0]);
-            return $customType
-                ? new CustomCastingNode($node, $customType, ObjectCastStrategy::COLLECTION)
-                : $node;
+            return new ListNode($generics[0]);
         }
 
         $keyType = $generics[0];
