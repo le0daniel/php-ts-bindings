@@ -18,7 +18,9 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
-use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
+use Le0daniel\PhpTsBindings\Parser\Lexer\Exceptions\UnexpectedCharacterException;
+use Le0daniel\PhpTsBindings\Parser\Lexer\Lexer;
+use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
@@ -45,11 +47,9 @@ final readonly class TypeParser
      * It's best to run the parser in your build step to create a static file including all the definitions you need
      * at runtime.
      *
-     * @param TypeStringTokenizer $tokenizer
      * @param TypeConsumer[]|null $consumers
      */
     public function __construct(
-        private TypeStringTokenizer $tokenizer = new TypeStringTokenizer(),
         ?array $consumers = null,
     )
     {
@@ -89,19 +89,29 @@ final readonly class TypeParser
      */
     public function parse(string $typeString, ParsingContext $context = new ParsingContext()): NodeInterface
     {
-        $tokens = new ParserState(
-            $typeString,
-            $this->tokenizer->tokenize($typeString),
-            $context,
-        );
+        try {
+            $tokens = new Lexer()->tokenize($typeString);
+        } catch (UnexpectedCharacterException $exception) {
+            // A character that cannot start a token is still a syntax error to everyone
+            // outside the parser. InvalidSyntaxException is final and cannot be extended,
+            // so the lexical failure is wrapped rather than allowed to escape.
+            throw new InvalidSyntaxException(
+                "Syntax Error: {$exception->getMessage()}",
+                previous: $exception,
+            );
+        }
 
-        return $this->consume($tokens);
+        return $this->consume(new ParserState($typeString, $tokens, $context));
     }
 
+    /**
+     * The lexer no longer merges `[` and `]`, so both are matched here. The pair is required:
+     * a lone `[` is left for the caller to fail on.
+     */
     private function consumeTypeModifiers(ParserState $state, NodeInterface $type): NodeInterface
     {
-        while ($state->current()->is(TokenType::CLOSED_BRACKETS)) {
-            $state->advance();
+        while ($state->current()->is(TokenType::LBRACKET) && $state->nextTokenIs(TokenType::RBRACKET)) {
+            $state->advance(2);
             $type = new ListNode($type);
         }
         return $type;
@@ -165,7 +175,7 @@ final readonly class TypeParser
                 continue;
             }
 
-            if ($token->is(TokenType::AND)) {
+            if ($token->is(TokenType::AMPERSAND)) {
                 $mode ??= 'intersection';
                 if ($expectsType) {
                     $state->produceSyntaxError("Expected Type Identifier, got &");

@@ -10,6 +10,7 @@ enum ObjectCastStrategy
     /**
      * Collection classes expect an array of this type.
      * Best is to not use it at all. And rely on native PHP types like list or array.
+     * @deprecated No longer supported. Use native PHP types like list or array instead.
      */
     case COLLECTION;
     case NEVER;

@@ -4,17 +4,29 @@ namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
+use Le0daniel\PhpTsBindings\Parser\Definition\Lexemes;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
-use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
+use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 final class LiteralConsumer implements TypeConsumer
 {
+    private const array BOOLEANS = ['true', 'false'];
+
     public function canConsume(ParserState $state): bool
     {
-        return $state->current()->isAnyTypeOf(TokenType::BOOL, TokenType::STRING, TokenType::FLOAT, TokenType::INT);
+        $token = $state->current();
+
+        // The lexer no longer decides that `true` is a boolean, so a boolean literal
+        // arrives as a plain identifier. This consumer runs first, ahead of
+        // BuiltInLeafConsumer, which owns `null`.
+        if ($token->is(TokenType::IDENTIFIER)) {
+            return in_array($token->value, self::BOOLEANS, true);
+        }
+
+        return $token->isAnyTypeOf(TokenType::STRING, TokenType::FLOAT, TokenType::INT);
     }
 
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
@@ -22,9 +34,16 @@ final class LiteralConsumer implements TypeConsumer
         $token = $state->current();
         $state->advance();
 
+        $value = match ($token->type) {
+            TokenType::STRING => Lexemes::decodeString($token->value),
+            TokenType::INT => Lexemes::decodeInt($token->value),
+            TokenType::FLOAT => Lexemes::decodeFloat($token->value),
+            default => $token->value === 'true',
+        };
+
         return new LiteralNode(
-            LiteralType::identifyPrimitiveTypeValue($token->coercedValue()),
-            $token->coercedValue(),
+            LiteralType::identifyPrimitiveTypeValue($value),
+            $value,
         );
     }
 }

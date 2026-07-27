@@ -4,8 +4,9 @@ namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
+use Le0daniel\PhpTsBindings\Parser\Definition\Lexemes;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
-use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
+use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
@@ -33,7 +34,7 @@ final class IntConsumer implements TypeConsumer
 
         $state->advance();
         $min = match (true) {
-            $state->currentTokenIs(TokenType::INT) => (int)$state->current()->value,
+            $state->currentTokenIs(TokenType::INT) => Lexemes::decodeInt($state->current()->value),
             $state->currentTokenIs(TokenType::IDENTIFIER, 'min') => PHP_INT_MIN,
             default => $state->produceSyntaxError('Expected int or min'),
         };
@@ -45,7 +46,7 @@ final class IntConsumer implements TypeConsumer
         $state->advance();
 
         $max = match (true) {
-            $state->currentTokenIs(TokenType::INT) => (int)$state->current()->value,
+            $state->currentTokenIs(TokenType::INT) => Lexemes::decodeInt($state->current()->value),
             $state->currentTokenIs(TokenType::IDENTIFIER, 'max') => PHP_INT_MAX,
             default => $state->produceSyntaxError('Expected int or max'),
         };

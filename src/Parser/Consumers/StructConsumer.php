@@ -4,8 +4,9 @@ namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
+use Le0daniel\PhpTsBindings\Parser\Definition\Lexemes;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
-use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
+use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
@@ -21,10 +22,11 @@ final class StructConsumer implements TypeConsumer
             return true;
         }
         
+        // The peeks are null safe: a truncated `array{` used to crash here.
         return $state->currentTokenIs(TokenType::IDENTIFIER, 'array')
-            && $state->peek(1)->is(TokenType::LBRACE)
-            && !$state->peek(2)->is(TokenType::INT) // Do not match array{0: string}
-            && $state->peek(3)->isAnyTypeOf(TokenType::COLON, TokenType::QUESTION_MARK);
+            && $state->peek(1)?->is(TokenType::LBRACE) === true
+            && $state->peek(2)?->is(TokenType::INT) === false // Do not match array{0: string}
+            && $state->peek(3)?->isAnyTypeOf(TokenType::COLON, TokenType::QUESTION_MARK) === true;
     }
 
     /**
@@ -44,11 +46,15 @@ final class StructConsumer implements TypeConsumer
         $properties = [];
 
         while ($state->canAdvance()) {
-            if (!$state->current()->is(TokenType::IDENTIFIER)) {
-                $state->produceSyntaxError("Expected identifier");
-            }
+            $key = $state->current();
 
-            $name = $state->current()->value;
+            // Shape keys may be quoted, which is the only way to express a key containing
+            // spaces or punctuation: array{"key something else": string}.
+            $name = match (true) {
+                $key->is(TokenType::IDENTIFIER) => $key->value,
+                $key->is(TokenType::STRING) => Lexemes::decodeString($key->value),
+                default => $state->produceSyntaxError("Expected identifier"),
+            };
             $state->advance();
             $isOptional = $this->consumeOptionalObjectKey($state);
 

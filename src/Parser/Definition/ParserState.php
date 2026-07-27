@@ -2,33 +2,55 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
-use Closure;
 use Iterator;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Lexer\SourceLocation;
+use Le0daniel\PhpTsBindings\Parser\Lexer\Token;
+use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use RuntimeException;
 use Throwable;
 
 /**
+ * A cursor over the token stream produced by the Lexer.
+ *
+ * The Lexer emits a lossless stream, whitespace included. This is the boundary where trivia
+ * stops mattering: whitespace is dropped once, here, so that every lookahead below counts
+ * meaningful tokens only. Tokens keep their absolute byte offsets into $input, so dropping
+ * whitespace does not disturb error rendering.
+ *
  * @implements Iterator<int, Token>
  */
 final class ParserState implements Iterator
 {
     private int $currentIndex = 0;
-    private int $count;
+    private readonly int $count;
+
+    /** @var non-empty-list<Token> */
+    private readonly array $tokens;
 
     /**
      * @param string $input
-     * @param list<Token> $tokens
+     * @param non-empty-list<Token> $tokens The raw, lossless token stream.
      * @param ParsingContext $context
      */
     public function __construct(
         public readonly string $input,
-        private readonly array $tokens,
+        array                  $tokens,
         public readonly ParsingContext $context,
     )
     {
-        $this->count = count($this->tokens);
+        $significant = array_values(
+            array_filter($tokens, static fn(Token $token): bool => $token->type !== TokenType::WHITESPACE)
+        );
+
+        // The Lexer always terminates the stream with EOF, which is never whitespace.
+        if ($significant === []) {
+            throw new RuntimeException('The token stream must contain at least one significant token.');
+        }
+
+        $this->tokens = $significant;
+        $this->count = count($significant);
     }
 
     private function getTokenAtIndex(int $index): ?Token
@@ -36,14 +58,18 @@ final class ParserState implements Iterator
         return $this->tokens[$index] ?? null;
     }
 
+    /**
+     * The cursor never moves past EOF, so this always resolves. The final token is returned
+     * as a fallback rather than null so that the declared return type is honest.
+     */
     public function current(): Token
     {
-        return $this->getTokenAtIndex($this->currentIndex);
+        return $this->getTokenAtIndex($this->currentIndex) ?? $this->tokens[$this->count - 1];
     }
 
     public function peek(int $offset = 1): ?Token
     {
-        return $this->getTokenAtIndex(($this->currentIndex + $offset));
+        return $this->getTokenAtIndex($this->currentIndex + $offset);
     }
 
     public function at(int $index): ?Token
@@ -53,16 +79,7 @@ final class ParserState implements Iterator
 
     public function currentTokenIs(TokenType $type, ?string $value = null): bool
     {
-        if ($this->current()->type !== $type) {
-            return false;
-        }
-
-        return is_null($value) || $this->current()->value === $value;
-    }
-
-    public function currentValueIn(string ... $values): bool
-    {
-        return in_array($this->current()->value, $values, true);
+        return $this->current()->is($type, $value);
     }
 
     public function nextTokenIs(TokenType $type): bool
@@ -106,24 +123,21 @@ final class ParserState implements Iterator
     public function highlightCurrentToken(): string
     {
         $token = $this->current();
-        $length = $token->end->offset - $token->start->offset;
+        $location = SourceLocation::fromOffset($this->input, $token->offset);
 
         return implode(PHP_EOL, [
-            "Type: {$token->type->name} ({$token->__toString()})",
-            $this->input,
-            str_pad("", $token->start->offset, ' ') . (
-            $length > 0 ? str_pad("", $length, '^') : '|'
-            )
+            "Type: {$token->type->name} ({$token->value})",
+            $location->highlight($this->input, strlen($token->value)),
         ]);
     }
 
     public function produceSyntaxError(string $message, ?Throwable $throwable = null): never
     {
         throw new InvalidSyntaxException(
-            implode(PHP_EOL, array_filter([
+            implode(PHP_EOL, [
                 "Syntax Error: {$message}",
                 $this->highlightCurrentToken(),
-            ])),
+            ]),
             previous: $throwable,
         );
     }

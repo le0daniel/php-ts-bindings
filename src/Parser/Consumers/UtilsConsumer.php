@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
@@ -24,7 +25,8 @@ final class UtilsConsumer implements TypeConsumer
 
     public function canConsume(ParserState $state): bool
     {
-        return in_array($state->current()->value, ['Pick', 'Omit', 'BrandedString', 'BrandedInt'], true);
+        return $state->currentTokenIs(TokenType::IDENTIFIER)
+            && in_array($state->current()->value, ['Pick', 'Omit', 'BrandedString', 'BrandedInt'], true);
     }
 
     public function consume(ParserState $state, TypeParser $parser): NodeInterface

@@ -7,6 +7,8 @@ use Le0daniel\PhpTsBindings\Reflection\FileReflector;
 use Le0daniel\PhpTsBindings\Utils;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionParameter;
+use ReflectionProperty;
 use RuntimeException;
 
 /**
@@ -82,7 +84,7 @@ final readonly class ParsingContext
         return $this->importedTypes[$typeName];
     }
 
-    public function descendIntoDeclaringClass(\ReflectionProperty|\ReflectionParameter $property): self
+    public function descendIntoDeclaringClass(ReflectionProperty|ReflectionParameter $property): self
     {
         // Declaration is in the same class file.
         if ($this->declaredInClass === $property->getDeclaringClass()->getName()) {

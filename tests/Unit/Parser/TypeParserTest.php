@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
@@ -23,7 +24,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 use Le0daniel\PhpTsBindings\Validators\Email;
 use Tests\Feature\Mocks\Paginated;
 use Tests\Mocks\ResultEnum;
@@ -38,7 +38,7 @@ use Tests\Unit\Parser\Data\UserMock;
 
 
 test('test simple union', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     expect($node = $parser->parse("string | int"))
         ->toBeInstanceOf(UnionNode::class);
@@ -47,7 +47,7 @@ test('test simple union', function () {
 });
 
 test('test literal union', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     /** @var UnionNode $node */
     expect($node = $parser->parse("7|'18'|true"))
@@ -75,7 +75,7 @@ test('test literal union', function () {
 });
 
 test('Complex inheritance', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     $node = $parser->parse(FullAccount::class);
 
@@ -95,7 +95,7 @@ test('Complex inheritance', function () {
 });
 
 test('test scalar', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     /** @var UnionNode $node */
     $node = $parser->parse("scalar");
@@ -118,7 +118,7 @@ test('test scalar', function () {
 });
 
 test('test questionmark nullability support', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var UnionNode $node */
     $node = $parser->parse("?float");
 
@@ -134,14 +134,14 @@ test('test questionmark nullability support', function () {
 });
 
 test('test failure on question mark union', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     expect(fn() => $parser->parse("?float|null"))
         ->toThrow("Cannot mix union with intersection or nullable types. Use brackets to do so. Example: (A&B)|C or null|A|B");
 });
 
 test('test group support of question mark nullability and flattened result', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var UnionNode $node */
     $node = $parser->parse("(?float)|string");
 
@@ -158,7 +158,7 @@ test('test group support of question mark nullability and flattened result', fun
 });
 
 test('float', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var BuiltInNode $node */
     $node = $parser->parse("float");
 
@@ -169,7 +169,7 @@ test('float', function () {
 });
 
 test('int', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var BuiltInNode $node */
     $node = $parser->parse("int");
 
@@ -180,7 +180,7 @@ test('int', function () {
 });
 
 test('Generic Int', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     $node = $parser->parse("int<0, 100>");
 
@@ -195,7 +195,7 @@ test('Generic Int', function () {
 });
 
 test('Generic Int Min', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     $node = $parser->parse("int<min, 100>");
 
@@ -210,7 +210,7 @@ test('Generic Int Min', function () {
 });
 
 test('Generic Int Max', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     $node = $parser->parse("int<-1, max>");
 
@@ -225,7 +225,7 @@ test('Generic Int Max', function () {
 });
 
 test('Generic Int Negative Values', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     $node = $parser->parse("int<-100, -3>");
 
@@ -240,7 +240,7 @@ test('Generic Int Negative Values', function () {
 });
 
 test('numeric', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var UnionNode $node */
     $node = $parser->parse("numeric");
 
@@ -260,7 +260,6 @@ test('numeric', function () {
 
 test('Global aliases', function () {
     $parser = new TypeParser(
-        new TypeStringTokenizer(),
         TypeParser::defaultConsumers(new GlobalTypeAliases([
             'Email' => fn() => new ConstraintNode(
                 new BuiltInNode(BuiltInType::STRING),
@@ -279,7 +278,7 @@ test('Global aliases', function () {
 });
 
 test('positive-int', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ConstraintNode $node */
     $node = $parser->parse("positive-int");
 
@@ -291,7 +290,7 @@ test('positive-int', function () {
 });
 
 test('Local type resolution', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ConstraintNode $node */
     $node = $parser->parse("AddressInput", ParsingContext::fromClassString(Address::class));
     compareToOptimizedAst($node);
@@ -301,7 +300,7 @@ test('Local type resolution', function () {
 });
 
 test('Local imported resolution', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ConstraintNode $node */
     $node = $parser->parse("AddressInputData", ParsingContext::fromClassString(MyUserClass::class));
     compareToOptimizedAst($node);
@@ -311,7 +310,7 @@ test('Local imported resolution', function () {
 });
 
 test('non-negative-int', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ConstraintNode $node */
     $node = $parser->parse("non-negative-int");
 
@@ -323,7 +322,7 @@ test('non-negative-int', function () {
 });
 
 test('non-positive-int', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ConstraintNode $node */
     $node = $parser->parse("non-positive-int");
 
@@ -335,7 +334,7 @@ test('non-positive-int', function () {
 });
 
 test('negative-int', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ConstraintNode $node */
     $node = $parser->parse("negative-int");
 
@@ -347,7 +346,7 @@ test('negative-int', function () {
 });
 
 test('object struct', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var StructNode $node */
     $node = $parser->parse("object{a: string, b: int}");
     expect($node)->toBeInstanceOf(StructNode::class);
@@ -363,7 +362,7 @@ test('object struct', function () {
 });
 
 test('array struct', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var StructNode $node */
     $node = $parser->parse("array{a: string, b: int}");
     expect($node)->toBeInstanceOf(StructNode::class);
@@ -379,7 +378,7 @@ test('array struct', function () {
 });
 
 test('simplified tuple struct', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var TupleNode $node */
     $node = $parser->parse("array{string, int}");
     expect($node)->toBeInstanceOf(TupleNode::class);
@@ -394,7 +393,7 @@ test('simplified tuple struct', function () {
 });
 
 test('classic tuple struct', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var TupleNode $node */
     $node = $parser->parse("array{0:string, 1: int}");
     expect($node)->toBeInstanceOf(TupleNode::class);
@@ -409,7 +408,7 @@ test('classic tuple struct', function () {
 });
 
 test('List struct', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ListNode $node */
     $node = $parser->parse("array<string>");
     expect($node)->toBeInstanceOf(ListNode::class);
@@ -421,7 +420,7 @@ test('List struct', function () {
 });
 
 test('List by modifier', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ListNode $node */
     $node = $parser->parse("string[]");
     expect($node)->toBeInstanceOf(ListNode::class);
@@ -433,7 +432,7 @@ test('List by modifier', function () {
 });
 
 test('Grouped Modifier', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var ListNode $node */
     $node = $parser->parse("(string|int)[]");
     expect($node)->toBeInstanceOf(ListNode::class);
@@ -450,7 +449,7 @@ test('Grouped Modifier', function () {
 });
 
 test('Record struct', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var RecordNode $node */
     $node = $parser->parse("array<string, int>");
     expect($node)->toBeInstanceOf(RecordNode::class);
@@ -462,7 +461,7 @@ test('Record struct', function () {
 });
 
 test('Test simple literals', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var UnionNode $node */
     $node = $parser->parse("1|-2|true|false|'string'");
     expect($node)->toBeInstanceOf(UnionNode::class);
@@ -482,7 +481,7 @@ test('Test simple literals', function () {
 });
 
 test('Test date time literals', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var UnionNode $node */
     $node = $parser->parse(\DateTime::class);
     expect($node)->toBeInstanceOf(DateTimeNode::class);
@@ -490,7 +489,7 @@ test('Test date time literals', function () {
 });
 
 test('Test date time with a namespace', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var UnionNode $node */
     $node = $parser->parse(\DateTime::class, new ParsingContext('SomeName\\Space'));
     expect($node)->toBeInstanceOf(DateTimeNode::class);
@@ -498,7 +497,7 @@ test('Test date time with a namespace', function () {
 });
 
 test('Test EnumCase and class const literal', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var UnionNode $node */
     $node = $parser->parse(
         "ResultEnumBase::SUCCESS|ResultEnumBase::FAILURE|ResultEnum::OTHER",
@@ -522,7 +521,7 @@ test('Test EnumCase and class const literal', function () {
 });
 
 test('Simple intersection', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var IntersectionNode $node */
     $node = $parser->parse('array{id:string}&array{reason:string}');
     expect($node)->toBeInstanceOf(IntersectionNode::class);
@@ -531,7 +530,7 @@ test('Simple intersection', function () {
 });
 
 test('Tailing comma', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var IntersectionNode $node */
     $node = $parser->parse('array{id:string,}');
     expect($node)->toBeInstanceOf(StructNode::class);
@@ -540,7 +539,7 @@ test('Tailing comma', function () {
 });
 
 test('Tailing comma on object struct', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var IntersectionNode $node */
     $node = $parser->parse('object{id:string,}');
     expect($node)->toBeInstanceOf(StructNode::class);
@@ -549,7 +548,7 @@ test('Tailing comma on object struct', function () {
 });
 
 test('Tailing comma tuple', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var IntersectionNode $node */
     $node = $parser->parse('array{string, string,}');
     expect($node)->toBeInstanceOf(TupleNode::class);
@@ -558,7 +557,7 @@ test('Tailing comma tuple', function () {
 });
 
 test('Tailing comma tuple with integer keys', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var IntersectionNode $node */
     $node = $parser->parse('array{0:string, 1:string,}');
     expect($node)->toBeInstanceOf(TupleNode::class);
@@ -567,7 +566,7 @@ test('Tailing comma tuple with integer keys', function () {
 });
 
 test('Complex intersection', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var IntersectionNode $node */
     $node = $parser->parse('(array{id:string}|array{token:string})&array{reason:string}');
     expect($node)->toBeInstanceOf(IntersectionNode::class);
@@ -576,7 +575,7 @@ test('Complex intersection', function () {
 });
 
 test('Generics parsing', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     $node = $parser->parse(Paginated::class . '<array{id:string}>');
     expect($node)->toBeInstanceOf(CustomCastingNode::class);
     compareToOptimizedAst($node);
@@ -588,7 +587,7 @@ test('Generics parsing', function () {
 });
 
 test('Generics parsing with readonly output properties', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     $node = $parser->parse(ReadonlyOutputFields::class);
     expect($node)->toBeInstanceOf(CustomCastingNode::class);
     compareToOptimizedAst($node);
@@ -600,7 +599,7 @@ test('Generics parsing with readonly output properties', function () {
 });
 
 test('Do not cast in default mode', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     $node = $parser->parse(UncastableClass::class);
     expect($node)->toBeInstanceOf(CustomCastingNode::class);
     compareToOptimizedAst($node);
@@ -615,7 +614,7 @@ test('Do not cast in default mode', function () {
 });
 
 test('fails on missing or too many generics', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     expect(fn() => $parser->parse(Paginated::class . '<array{id:string}, array{id:string}>'))
         ->toThrow('Number of generics does not match. Expected 1 <I>, got 2.')
@@ -624,7 +623,7 @@ test('fails on missing or too many generics', function () {
 });
 
 test('Test Pick Node simple case', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var StructNode $node */
     $node = $parser->parse("Pick<array{id: string, name: string}, 'id'>");
     expect($node)->toBeInstanceOf(StructNode::class)
@@ -645,7 +644,7 @@ test('Test Pick Node simple case', function () {
 });
 
 test('Test Omit Node simple case', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     /** @var StructNode $node */
     $node = $parser->parse("Omit<array{id: string, name: string}, 'id'>");
     expect($node)->toBeInstanceOf(StructNode::class)
@@ -666,7 +665,7 @@ test('Test Omit Node simple case', function () {
 });
 
 test('Test Pick and Omit Node with custom class', function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
 
     /** @var StructNode $node */
     $node = $parser->parse("Pick<" . UserMock::class . ", 'username'>");
@@ -690,7 +689,7 @@ test('Test Pick and Omit Node with custom class', function () {
 });
 
 test('Pick and Omit Typescript definitions', function (string $expectedDefinition, string $type) {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     $node = $parser->parse($type);
     compareToOptimizedAst($node);
 
@@ -710,7 +709,7 @@ test('Pick and Omit Typescript definitions', function (string $expectedDefinitio
 ]);
 
 test("parse interface properties", function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     $node = $parser->parse(SomeFileInterface::class);
     compareToOptimizedAst($node);
 
@@ -722,7 +721,7 @@ test("parse interface properties", function () {
 });
 
 test("parse abstract class properties", function () {
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     $node = $parser->parse(SomeAbstractClass::class);
     compareToOptimizedAst($node);
 
@@ -735,7 +734,7 @@ test("parse abstract class properties", function () {
 
 test("parse BrandedInt correctly", function () {
     // Branded types are optimized away. They have no runtime Impact
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     $node = $parser->parse("BrandedInt<'wow'>");
     compareToOptimizedAst($node);
 
@@ -756,7 +755,7 @@ test("parse BrandedInt correctly", function () {
 
 test("parse BrandedString correctly", function () {
     // Branded types are optimized away. They have no runtime Impact
-    $parser = new TypeParser(new TypeStringTokenizer());
+    $parser = new TypeParser();
     $node = $parser->parse("BrandedString<'wow'>");
     compareToOptimizedAst($node);
 
@@ -774,4 +773,179 @@ test("parse BrandedString correctly", function () {
 
     $inputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::INPUT);
     expect($inputDef)->toBe('string');
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * Lexer migration: new functionality
+ *
+ * These constructs are unreachable through the old TypeStringTokenizer and
+ * become parseable once TypeParser runs on Parser\Lexer\Lexer.
+ * ---------------------------------------------------------------------------
+ */
+
+test('Array shape keys may be double quoted', function () {
+    /** @var StructNode $node */
+    $node = new TypeParser()->parse('array{"key something else": string, b: int}');
+
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->phpType)->toBe(StructPhpType::ARRAY)
+        ->and($node->hasProperty('key something else'))->toBeTrue()
+        ->and($node->getProperty('key something else')?->node)->toBeInstanceOf(BuiltInNode::class)
+        ->and($node->getProperty('key something else')?->node->type)->toBe(BuiltInType::STRING)
+        ->and($node->hasProperty('b'))->toBeTrue()
+        ->and($node->getProperty('b')?->node->type)->toBe(BuiltInType::INT);
+
+    compareToOptimizedAst($node);
+    validateAst($node);
+});
+
+test('Array shape keys may be single quoted and optional', function () {
+    /** @var StructNode $node */
+    $node = new TypeParser()->parse("object{'k': int, 'two words'?: string}");
+
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->phpType)->toBe(StructPhpType::OBJECT)
+        ->and($node->getProperty('k')?->isOptional)->toBeFalse()
+        ->and($node->getProperty('two words')?->isOptional)->toBeTrue();
+
+    compareToOptimizedAst($node);
+});
+
+test('Quoted keys with spaces emit valid Typescript', function () {
+    $node = new TypeParser()->parse('array{"key something else": string}');
+
+    expect(typescriptDefinition($node, DefinitionTarget::OUTPUT))
+        ->toBe('{"key something else":string;}');
+});
+
+test('Quoted key escapes are resolved', function () {
+    /** @var StructNode $node */
+    $node = new TypeParser()->parse("array{'it\\'s': string}");
+
+    expect($node->hasProperty("it's"))->toBeTrue();
+});
+
+test('String literals honour escapes', function () {
+    // The old tokenizer threw RuntimeException('Unclosed block type') on both of these.
+    /** @var UnionNode $node */
+    $node = new TypeParser()->parse("'it\\'s'|\"say \\\"hi\\\"\"");
+
+    expect($node)->toBeInstanceOf(UnionNode::class)
+        ->and($node->types[0])->toBeInstanceOf(LiteralNode::class)
+        ->and($node->types[0]->type)->toBe(LiteralType::STRING)
+        ->and($node->types[0]->value)->toBe("it's")
+        ->and($node->types[1]->value)->toBe('say "hi"');
+});
+
+test('Whitespace between brackets is allowed', function () {
+    // The old tokenizer merged [ and ] with a one character lookahead.
+    expect(new TypeParser()->parse('string[ ]'))->toBeInstanceOf(ListNode::class)
+        ->and(new TypeParser()->parse('string[]'))->toBeInstanceOf(ListNode::class);
+});
+
+test('A trailing double colon is a syntax error and raises no PHP warning', function () {
+    // The old tokenizer read $typeString[$currentOffset + 2] unguarded, which emitted
+    // "PHP Warning: Uninitialized string offset 5".
+    $warnings = [];
+    set_error_handler(function (int $severity, string $message) use (&$warnings): bool {
+        $warnings[] = $message;
+        return true;
+    });
+
+    try {
+        expect(fn() => new TypeParser()->parse('Foo::'))
+            ->toThrow(InvalidSyntaxException::class);
+    } finally {
+        restore_error_handler();
+    }
+
+    expect($warnings)->toBe([]);
+});
+
+test('Illegal characters raise InvalidSyntaxException, not a lexer exception', function () {
+    // Regexes::findFirstVarDeclaration() leaks the closing */ out of single line
+    // docblocks, so this exact string reaches the parser in the wild.
+    expect(fn() => new TypeParser()->parse('array{id: string} */'))
+        ->toThrow(InvalidSyntaxException::class)
+        ->and(fn() => new TypeParser()->parse('a#b'))
+        ->toThrow(InvalidSyntaxException::class)
+        ->and(fn() => new TypeParser()->parse('%'))
+        ->toThrow(InvalidSyntaxException::class)
+        ->and(fn() => new TypeParser()->parse("array{'unterminated: int}"))
+        ->toThrow(InvalidSyntaxException::class);
+});
+
+test('A truncated array shape is a syntax error, not a PHP Error', function () {
+    // Before the migration this crashed with:
+    // "Call to a member function isAnyTypeOf() on null".
+    expect(fn() => new TypeParser()->parse('array{'))
+        ->toThrow(InvalidSyntaxException::class)
+        ->and(fn() => new TypeParser()->parse('array{a'))
+        ->toThrow(InvalidSyntaxException::class);
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * Lexer migration: gap locks
+ *
+ * The new lexer happily tokenizes all of these. The parser deliberately does
+ * not support them, and this test pins that boundary.
+ * ---------------------------------------------------------------------------
+ */
+
+test('Constructs the lexer accepts but the parser does not support', function () {
+    $unsupported = [
+        'array{foo: int, ...}',
+        'array{...}',
+        'array{}',
+        'callable(int): void',
+        'Closure(int, ...): void',
+        '$this',
+        'Foo::*',
+        'Foo<T = int>',
+        '($x is int ? string : bool)',
+    ];
+
+    foreach ($unsupported as $type) {
+        expect(fn() => new TypeParser()->parse($type))
+            ->toThrow(InvalidSyntaxException::class, message: "Should reject: {$type}");
+    }
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * Lexer migration: regression guards
+ * ---------------------------------------------------------------------------
+ */
+
+test('Literal booleans stay literals and null stays a built in', function () {
+    // true/false used to be their own TokenType::BOOL; they are plain IDENTIFIERs now.
+    /** @var UnionNode $node */
+    $node = new TypeParser()->parse('true|false');
+
+    expect($node->types[0])->toBeInstanceOf(LiteralNode::class)
+        ->and($node->types[0]->type)->toBe(LiteralType::BOOL)
+        ->and($node->types[0]->value)->toBeTrue()
+        ->and($node->types[1]->type)->toBe(LiteralType::BOOL)
+        ->and($node->types[1]->value)->toBeFalse()
+        ->and(new TypeParser()->parse('null'))->toBeInstanceOf(BuiltInNode::class);
+});
+
+test('Numeric literal forms decode correctly', function () {
+    // 1e5 already worked by accident via filter_var; 1_000 and 0x1F used to die
+    // with "No parser found." because they fell through to IDENTIFIER.
+    /** @var LiteralNode $exponent */
+    $exponent = new TypeParser()->parse('1e5');
+    /** @var LiteralNode $separated */
+    $separated = new TypeParser()->parse('1_000');
+    /** @var LiteralNode $hex */
+    $hex = new TypeParser()->parse('0x1F');
+
+    expect($exponent->type)->toBe(LiteralType::FLOAT)
+        ->and($exponent->value)->toBe(100000.0)
+        ->and($separated->type)->toBe(LiteralType::INT)
+        ->and($separated->value)->toBe(1000)
+        ->and($hex->type)->toBe(LiteralType::INT)
+        ->and($hex->value)->toBe(31);
 });

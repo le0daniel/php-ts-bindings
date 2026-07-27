@@ -2,17 +2,8 @@
 
 namespace Tests\Unit\Executor;
 
-use Closure;
 use DateTimeImmutable;
-use JsonException;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
-use Le0daniel\PhpTsBindings\Parser\AstValidator;
-use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Parser\TypeStringTokenizer;
 use Stringable;
 use Tests\Unit\Executor\Mocks\UserSchema;
 

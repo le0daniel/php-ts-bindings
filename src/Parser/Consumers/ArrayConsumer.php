@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
-use Le0daniel\PhpTsBindings\Parser\Definition\TokenType;
+use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
@@ -134,6 +134,8 @@ final readonly class ArrayConsumer implements TypeConsumer
                 continue;
             }
 
+            // Compares the raw lexeme, so exotic spellings such as array{+0: string}
+            // are intentionally not accepted here.
             if (!$state->currentTokenIs(TokenType::INT, (string)count($types))) {
                 $state->produceSyntaxError("Expected int with value " . count($types));
             }
