@@ -18,7 +18,7 @@ final readonly class EnumNode implements NodeInterface, LeafNode
      * @param class-string<UnitEnum> $enumClassName
      */
     public function __construct(
-        private string $enumClassName,
+        public string $enumClassName,
     )
     {
     }
