@@ -5,7 +5,6 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Container\Attributes\Give;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider;
-use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
