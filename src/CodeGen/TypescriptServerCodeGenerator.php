@@ -15,6 +15,7 @@ use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Utils\Lists;
 use RuntimeException;
 
 final readonly class TypescriptServerCodeGenerator
@@ -108,7 +109,7 @@ final readonly class TypescriptServerCodeGenerator
 
     private function generateAllErrorTypes(Server $server, Definition $operation): string
     {
-        $possibleTypes = Arrays::filterNullValues(array_map(function (ExceptionPresenter $presenter) use ($operation): null|string {
+        $possibleTypes = Lists::filterNullValues(array_map(function (ExceptionPresenter $presenter) use ($operation): null|string {
             $code = $presenter::errorType();
             $details = $presenter->toTypeScriptDefinition($operation);
             return $details === null ? null : "{code: {$code->value}, details: {$details}}";

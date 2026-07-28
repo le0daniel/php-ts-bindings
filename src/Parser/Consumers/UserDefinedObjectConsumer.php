@@ -22,6 +22,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Utils\Lists;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
@@ -195,7 +196,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 
     private function applyConstraints(ReflectionProperty|ReflectionParameter $reflection, NodeInterface $node): NodeInterface
     {
-        $constraints = Arrays::filterNullValues(
+        $constraints = Lists::filterNullValues(
             array_map(
                 static function (ReflectionAttribute $attribute): null|Constraint {
                     $instance = $attribute->newInstance();

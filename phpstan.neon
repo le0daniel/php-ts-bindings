@@ -7,7 +7,7 @@ parameters:
 
     # ToDo: Enable this in the future
     reportPossiblyNonexistentGeneralArrayOffset: false
-    checkMissingCallableSignature: false
+    checkMissingCallableSignature: true
     checkBenevolentUnionTypes: true
     reportPossiblyNonexistentConstantArrayOffset: true
 

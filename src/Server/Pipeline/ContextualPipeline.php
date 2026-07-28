@@ -7,7 +7,14 @@ use Throwable;
 
 final class ContextualPipeline
 {
+    /**
+     * @var (Closure(Throwable): mixed)|null
+     */
     private Closure|null $catchErrorsWith = null;
+
+    /**
+     * @var (Closure(mixed, mixed...): mixed)|null
+     */
     private Closure|null $then = null;
 
     /**
@@ -41,6 +48,7 @@ final class ContextualPipeline
 
     /**
      * @param list<mixed> $context
+     * @return Closure(mixed, object): mixed
      */
     private function reducer(array $context): Closure
     {

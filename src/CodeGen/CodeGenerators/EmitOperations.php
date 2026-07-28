@@ -13,7 +13,9 @@ use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 
 final class EmitOperations implements GeneratesOperationCode, DependsOn
 {
-
+    /**
+     * @param (Closure(TypedOperation):string)|null $nameGenerator
+     */
     public function __construct(
         private readonly ?Closure $nameGenerator = null,
     )

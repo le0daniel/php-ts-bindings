@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\Server\Client;
 use JsonSerializable;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Utils\Dicts;
 use Le0daniel\PhpTsBindings\Utils\Strings;
 use UnitEnum;
 
@@ -62,7 +63,7 @@ final class OperationSPAClient implements Client, JsonSerializable
      */
     public function jsonSerialize(): array|null
     {
-        $data = Arrays::filterNullValues([
+        $data = Dicts::filterNullValues([
             'redirect' => $this->redirect,
             'toasts' => $this->toasts,
             'invalidations' => $this->invalidations,

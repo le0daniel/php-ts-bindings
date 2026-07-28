@@ -21,6 +21,7 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Utils\Dicts;
 use Throwable;
 
 readonly class LaravelHttpController
@@ -169,7 +170,7 @@ readonly class LaravelHttpController
 
         if ($this->debug) {
             $exception = $result->cause;
-            $content['__debug'] = Arrays::filterNullValues([
+            $content['__debug'] = Dicts::filterNullValues([
                 'class' => $exception::class,
                 'message' => $exception->getMessage(),
                 'code' => $exception->getCode(),

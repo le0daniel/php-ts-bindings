@@ -21,6 +21,9 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         ];
     }
 
+    /**
+     * @param (Closure(TypedOperation):string)|null $nameGenerator
+     */
     public function __construct(private ?Closure $nameGenerator = null)
     {
     }

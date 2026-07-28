@@ -21,6 +21,9 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
         ];
     }
 
+    /**
+     * @param (Closure(TypedOperation):string)|null $nameGenerator
+     */
     public function __construct(private readonly ?Closure $nameGenerator = null)
     {
     }

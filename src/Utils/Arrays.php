@@ -23,19 +23,4 @@ final class Arrays
         }
         return $mapped;
     }
-
-    /**
-     * @template TKey
-     * @template TValue
-     * @param array<TKey, TValue|null> $array
-     * @return array<TKey, TValue>
-     */
-    public static function filterNullValues(array $array): array
-    {
-        $result = array_filter($array, fn($value) => $value !== null);
-        if (array_is_list($array)) {
-            return array_values($result);
-        }
-        return $result;
-    }
 }
