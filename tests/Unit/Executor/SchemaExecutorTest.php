@@ -3,8 +3,18 @@
 namespace Tests\Unit\Executor;
 
 use DateTimeImmutable;
+use InvalidArgumentException;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
+use LogicException;
 use Stringable;
+use ValueError;
+use Tests\Mocks\ValueObjects\CreateAccountInput;
+use Tests\Mocks\ValueObjects\Email;
+use Tests\Mocks\ValueObjects\ExplodingValueObject;
+use Tests\Mocks\ValueObjects\StatusEnum;
+use Tests\Mocks\ValueObjects\UserId;
 use Tests\Unit\Executor\Mocks\UserSchema;
 
 test('parse success', function (string $type, mixed $value, mixed $expected) {
@@ -82,7 +92,13 @@ test('parse success', function (string $type, mixed $value, mixed $expected) {
         'Omit<array{id:positive-int, name: string}, "id">',
         ['id' => 1, "name" => "my name"],
         ["name" => "my name"],
-    ]
+    ],
+
+    // Value objects
+    [Email::class, 'ada@example.test', Email::fromStringValue('ada@example.test')],
+    [UserId::class, 42, UserId::fromIntValue(42)],
+    ['?\\' . Email::class, null, null],
+    [StatusEnum::class, 'active', StatusEnum::ACTIVE],
 ]);
 
 test('serialize success', function (string $type, mixed $value, mixed $expected) {
@@ -178,7 +194,20 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
         'Pick< \\' . UserSchema::class . ', "age">',
         new UserSchema(12, 'email', 'username'),
         (object)['age' => 12],
-    ]
+    ],
+
+    // Value objects
+    [Email::class, Email::fromStringValue('ada@example.test'), 'ada@example.test'],
+    [UserId::class, UserId::fromIntValue(42), 42],
+    ['?\\' . Email::class, null, null],
+    // Serializes by backing value, NOT by the enum case name
+    [StatusEnum::class, StatusEnum::INACTIVE, 'inactive'],
+    ['\\' . Email::class . '[]', [Email::fromStringValue('a@b.test')], ['a@b.test']],
+    [
+        'array{id: \\' . UserId::class . ', email: \\' . Email::class . '}',
+        ['id' => UserId::fromIntValue(7), 'email' => Email::fromStringValue('ada@example.test')],
+        (object)['id' => 7, 'email' => 'ada@example.test'],
+    ],
 ]);
 
 
@@ -208,5 +237,140 @@ test('test error messages', function () {
             'validation.missing_property'
         ],
     ]);
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * Value objects
+ * ---------------------------------------------------------------------------
+ */
+
+test('value object rejects the wrong primitive type', function () {
+    expect(executeParse(UserId::class, '42'))->toBeFailure('validation.invalid_type');
+    expect(executeParse(Email::class, 123))->toBeFailure('validation.invalid_type');
+    expect(executeParse(Email::class, ['a' => 'b']))->toBeFailure('validation.invalid_type');
+    expect(executeParse(Email::class, null))->toBeFailure('validation.invalid_type');
+});
+
+test('value object reports a throwing factory as a validation issue, not an internal error', function () {
+    expect(executeParse(Email::class, 'not-an-email'))->toBeFailure('validation.invalid_type');
+    expect(executeParse(UserId::class, 0))->toBeFailure('validation.invalid_type');
+    expect(executeParse(UserId::class, -1))->toBeFailure('validation.invalid_type');
+
+    $result = executeParse(Email::class, 'not-an-email');
+    $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $result->issues->allFlat());
+    expect($messages)->not->toContain('internal_error');
+});
+
+test('the original exception is attached to the issue for debugging', function () {
+    $result = executeParse(Email::class, 'not-an-email');
+    $issue = $result->issues->allFlat()[0];
+
+    expect($issue->messageOrLocalizationKey)->toBe('validation.invalid_type')
+        ->and($issue->exception)->toBeInstanceOf(InvalidArgumentException::class)
+        ->and($issue->exception->getMessage())->toBe('Invalid email: not-an-email');
+});
+
+test('an Error thrown by the factory is caught, not just an Exception', function () {
+    // StatusEnum::fromStringValue() delegates to self::from(), which throws \ValueError.
+    // \ValueError extends Error, NOT Exception, so catching Exception would let it escape.
+    $result = executeParse(StatusEnum::class, 'not-a-case');
+
+    expect($result)->toBeFailure('validation.invalid_type')
+        ->and($result->issues->allFlat()[0]->exception)->toBeInstanceOf(ValueError::class);
+});
+
+test('a throwing accessor on the serialize path is an internal error, not a validation issue', function () {
+    $result = executeSerialize(ExplodingValueObject::class, ExplodingValueObject::fromStringValue('x'));
+
+    expect($result)->toBeFailure('internal_error')
+        ->and($result->issues->allFlat()[0]->exception)->toBeInstanceOf(LogicException::class);
+});
+
+test('a throwing accessor never escapes the executor', function () {
+    expect(fn() => executeSerialize(
+        'array{a: \\' . ExplodingValueObject::class . '}',
+        ['a' => ExplodingValueObject::fromStringValue('x')],
+    ))->not->toThrow(LogicException::class);
+});
+
+test('a throwing accessor degrades to null at a nullable boundary', function () {
+    /** @var Success $result */
+    $result = executeSerialize(
+        'array{a: ?\\' . ExplodingValueObject::class . '}',
+        ['a' => ExplodingValueObject::fromStringValue('x')],
+    );
+
+    expect($result)->toBeSuccess()
+        ->and($result->value)->toEqual((object)['a' => null])
+        ->and($result->isPartial())->toBeTrue();
+});
+
+test('value objects nested in structs and lists hydrate correctly', function () {
+    // Not in the 'parse success' dataset: that helper compares with toBe(), which is identity
+    // based for objects nested inside an array.
+    $struct = executeParse(
+        'array{id: \\' . UserId::class . ', email: \\' . Email::class . '}',
+        ['id' => 1, 'email' => 'ada@example.test'],
+    );
+
+    expect($struct)->toBeSuccess()
+        ->and($struct->value)->toEqual([
+            'email' => Email::fromStringValue('ada@example.test'),
+            'id' => UserId::fromIntValue(1),
+        ]);
+
+    $list = executeParse('\\' . Email::class . '[]', ['a@b.test', 'c@d.test']);
+
+    expect($list)->toBeSuccess()
+        ->and($list->value)->toEqual([
+            Email::fromStringValue('a@b.test'),
+            Email::fromStringValue('c@d.test'),
+        ]);
+});
+
+test('value object issues are reported at the right field path', function () {
+    $result = executeParse('array{email: \\' . Email::class . '}', ['email' => 'nope']);
+
+    expect($result)->toBeFailureAt('email', 'validation.invalid_type');
+});
+
+test('value object coerces primitives when coercion is enabled', function () {
+    $result = executeParse(UserId::class, '42', new ParsingOptions(coercePrimitives: true));
+    expect($result)->toBeSuccess()
+        ->and($result->value)->toEqual(UserId::fromIntValue(42));
+
+    $result = executeParse(Email::class, 'ada@example.test', new ParsingOptions(coercePrimitives: true));
+    expect($result)->toBeSuccess()
+        ->and($result->value)->toEqual(Email::fromStringValue('ada@example.test'));
+});
+
+test('serializing something that is not the value object fails', function () {
+    expect(executeSerialize(Email::class, 'ada@example.test'))->toBeFailure('validation.invalid_type');
+    expect(executeSerialize(Email::class, UserId::fromIntValue(1)))->toBeFailure('validation.invalid_type');
+    expect(executeSerialize(UserId::class, null))->toBeFailure('validation.invalid_type');
+    expect(executeSerialize(UserId::class, 42))->toBeFailure('validation.invalid_type');
+});
+
+test('nullable value objects tolerate null at the union boundary', function () {
+    expect(executeSerialize('?\\' . Email::class, null))->toBeSuccess();
+    expect(executeParse('?\\' . Email::class, null))->toBeSuccess();
+});
+
+test('a castable class hydrates and serializes its value object properties', function () {
+    $parsed = executeParse(CreateAccountInput::class, [
+        'email' => 'ada@example.test',
+        'ownerId' => 7,
+    ]);
+
+    expect($parsed)->toBeSuccess()
+        ->and($parsed->value)->toBeInstanceOf(CreateAccountInput::class)
+        ->and($parsed->value->email)->toEqual(Email::fromStringValue('ada@example.test'))
+        ->and($parsed->value->ownerId)->toEqual(UserId::fromIntValue(7));
+
+    $serialized = executeSerialize(CreateAccountInput::class, $parsed->value);
+
+    expect($serialized)->toBeSuccess()
+        ->and($serialized->value)->toEqual((object)['email' => 'ada@example.test', 'ownerId' => 7]);
 });
 

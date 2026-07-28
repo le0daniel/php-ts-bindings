@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\CodeGen;
 
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Typescript;
+use Le0daniel\PhpTsBindings\Contracts\Branded;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
@@ -10,7 +11,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
@@ -31,8 +31,10 @@ final readonly class TypescriptDefinitionGenerator
     public function toDefinition(NodeInterface $node, DefinitionTarget $target): string
     {
         if ($node instanceof LeafNode) {
-            if ($this->emitBrandedTypes && $node instanceof BuiltInNode && $node->brand) {
-                $encodedBrand = json_encode($node->brand, JSON_THROW_ON_ERROR);
+            $brand = $node instanceof Branded ? $node->brandName() : null;
+
+            if ($this->emitBrandedTypes && $brand !== null) {
+                $encodedBrand = json_encode($brand, JSON_THROW_ON_ERROR);
                 return $target === DefinitionTarget::INPUT
                     ? "{$node->inputDefinition()} & Brand<{$encodedBrand}>"
                     : "{$node->outputDefinition()} & Brand<{$encodedBrand}>";

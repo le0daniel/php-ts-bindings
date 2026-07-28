@@ -14,6 +14,7 @@ use Le0daniel\PhpTsBindings\Parser\Consumers\LiteralConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\StructConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedObjectConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UtilsConsumer;
+use Le0daniel\PhpTsBindings\Parser\Consumers\ValueObjectConsumer;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
@@ -47,7 +48,7 @@ final readonly class TypeParser
      * It's best to run the parser in your build step to create a static file including all the definitions you need
      * at runtime.
      *
-     * @param TypeConsumer[]|null $consumers
+     * @param list<TypeConsumer>|null $consumers
      */
     public function __construct(
         ?array $consumers = null,
@@ -74,6 +75,12 @@ final readonly class TypeParser
             new BuiltInLeafConsumer(),
             new StructConsumer(),
             new ArrayConsumer(),
+
+            // Must precede the three consumers below, each of which would otherwise claim the class
+            // first. Implementing StringValueObject/IntValueObject cannot happen by accident, so the
+            // explicit opt-in wins. A backed enum can therefore opt into serializing by backing
+            // value instead of EnumConsumer's case-name default.
+            new ValueObjectConsumer(),
             new EnumConsumer(),
             new DateTimeConsumer(),
             new UserDefinedObjectConsumer($allowAllObjectCasting),

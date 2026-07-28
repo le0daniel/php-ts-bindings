@@ -1,0 +1,207 @@
+<?php declare(strict_types=1);
+
+namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
+
+use InvalidArgumentException;
+use Le0daniel\PhpTsBindings\Contracts\Branded;
+use Le0daniel\PhpTsBindings\Contracts\Coercible;
+use Le0daniel\PhpTsBindings\Contracts\LeafNode;
+use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Contracts\ValueObjects\IntValueObject;
+use Le0daniel\PhpTsBindings\Contracts\ValueObjects\StringValueObject;
+use Le0daniel\PhpTsBindings\Data\Value;
+use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Throwable;
+
+/**
+ * A user defined value object backed by a single string or int.
+ *
+ * The class opts in by implementing StringValueObject or IntValueObject. On the wire it is
+ * indistinguishable from its backing primitive; the brand is what keeps the two apart on the
+ * TypeScript side.
+ */
+final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercible, Branded
+{
+    /**
+     * @param class-string<StringValueObject|IntValueObject> $className
+     * @param BuiltInType $backingType Must be BuiltInType::STRING or BuiltInType::INT.
+     */
+    public function __construct(
+        public string      $className,
+        public BuiltInType $backingType,
+        public ?string     $brand = null,
+    )
+    {
+        if ($this->backingType !== BuiltInType::STRING && $this->backingType !== BuiltInType::INT) {
+            throw new InvalidArgumentException(
+                "Value objects can only be backed by string or int, got: {$this->backingType->value}"
+            );
+        }
+    }
+
+    /**
+     * The brand is deliberately excluded here, exactly as in BuiltInNode. It is code generation
+     * metadata with no runtime impact, and the class name alone already identifies this node
+     * uniquely for the ASTOptimizer dedupe hash.
+     */
+    public function __toString(): string
+    {
+        return "valueObject<{$this->className},{$this->backingType->value}>";
+    }
+
+    public function exportPhpCode(): string
+    {
+        $className = PHPExport::absolute(self::class);
+        $valueObjectClass = PHPExport::absolute($this->className);
+        $backingType = PHPExport::exportEnumCase($this->backingType);
+
+        // The brand is not exported: see __toString().
+        return "new {$className}({$valueObjectClass}::class, {$backingType})";
+    }
+
+    public function parseValue(mixed $value, ExecutionContext $context): mixed
+    {
+        if ($this->backingType === BuiltInType::STRING) {
+            if (!is_string($value)) {
+                $context->addIssue($this->invalidBackingTypeIssue($value));
+                return Value::INVALID;
+            }
+
+            try {
+                /** @var class-string<StringValueObject> $className */
+                $className = $this->className;
+                return $className::fromStringValue($value);
+            } catch (Throwable $throwable) {
+                $context->addIssue($this->rejectedByFactoryIssue($value, $throwable));
+                return Value::INVALID;
+            }
+        }
+
+        if (!is_int($value)) {
+            $context->addIssue($this->invalidBackingTypeIssue($value));
+            return Value::INVALID;
+        }
+
+        try {
+            /** @var class-string<IntValueObject> $className */
+            $className = $this->className;
+            return $className::fromIntValue($value);
+        } catch (Throwable $throwable) {
+            $context->addIssue($this->rejectedByFactoryIssue($value, $throwable));
+            return Value::INVALID;
+        }
+    }
+
+    public function serializeValue(mixed $value, ExecutionContext $context): mixed
+    {
+        if ($this->backingType === BuiltInType::STRING) {
+            if (!$value instanceof StringValueObject || !is_a($value, $this->className)) {
+                $context->addIssue($this->notAnInstanceIssue($value));
+                return Value::INVALID;
+            }
+
+            try {
+                return $value->toStringValue();
+            } catch (Throwable $throwable) {
+                $context->addIssue($this->failedToSerializeIssue($throwable));
+                return Value::INVALID;
+            }
+        }
+
+        if (!$value instanceof IntValueObject || !is_a($value, $this->className)) {
+            $context->addIssue($this->notAnInstanceIssue($value));
+            return Value::INVALID;
+        }
+
+        try {
+            return $value->toIntValue();
+        } catch (Throwable $throwable) {
+            $context->addIssue($this->failedToSerializeIssue($throwable));
+            return Value::INVALID;
+        }
+    }
+
+    public function inputDefinition(): string
+    {
+        return $this->backingType === BuiltInType::STRING ? 'string' : 'number';
+    }
+
+    public function outputDefinition(): string
+    {
+        return $this->inputDefinition();
+    }
+
+    public function brandName(): ?string
+    {
+        return $this->brand;
+    }
+
+    public function coerce(mixed $value): mixed
+    {
+        if ($this->backingType === BuiltInType::STRING) {
+            // Unlike BuiltInNode, only scalars are cast: (string) on an array or a non
+            // Stringable object throws, and coerce() runs outside the executor's try/catch.
+            return is_scalar($value) ? (string)$value : $value;
+        }
+
+        return filter_var($value, FILTER_VALIDATE_INT) !== false
+            ? (int)$value
+            : $value;
+    }
+
+    private function invalidBackingTypeIssue(mixed $value): Issue
+    {
+        return new Issue(
+            IssueMessage::INVALID_TYPE,
+            [
+                'message' => "Expected value of type {$this->backingType->value} for {$this->className}, got: " . get_debug_type($value),
+                'node' => self::class,
+            ],
+        );
+    }
+
+    /**
+     * A throwing factory means the incoming value was rejected, which is a validation failure and
+     * not a server fault. Issue::fromThrowable() is deliberately not used here: it maps to
+     * IssueMessage::INTERNAL_ERROR, which would present bad user input as a server error.
+     */
+    private function rejectedByFactoryIssue(mixed $value, Throwable $throwable): Issue
+    {
+        return new Issue(
+            IssueMessage::INVALID_TYPE,
+            [
+                'message' => "Value rejected by {$this->className}: {$throwable->getMessage()}",
+                'node' => self::class,
+                'value' => $value,
+            ],
+            exception: $throwable,
+        );
+    }
+
+    private function notAnInstanceIssue(mixed $value): Issue
+    {
+        return new Issue(
+            IssueMessage::INVALID_TYPE,
+            [
+                'message' => "Expected instance of {$this->className}, got: " . get_debug_type($value),
+                'node' => self::class,
+            ],
+        );
+    }
+
+    /**
+     * On the serialize path the value came from the server, so a throwing accessor is a genuine
+     * internal error. This mirrors BuiltInNode::serializeValue().
+     */
+    private function failedToSerializeIssue(Throwable $throwable): Issue
+    {
+        return Issue::fromThrowable($throwable, [
+            'message' => "Failed to serialize {$this->className}",
+            'node' => self::class,
+        ]);
+    }
+}

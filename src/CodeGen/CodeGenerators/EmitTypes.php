@@ -6,13 +6,13 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\Contracts\Branded;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
@@ -98,7 +98,7 @@ TypeScript,
      */
     private function collectBrandedTypes(NodeInterface $ast, DefinitionTarget $target): array
     {
-        /** @var BuiltInNode[] $brandedNodes */
+        /** @var list<LeafNode&Branded> $brandedNodes */
         $brandedNodes = [];
 
         $stack = [
@@ -111,7 +111,7 @@ TypeScript,
             }
 
             if ($current instanceof LeafNode) {
-                if ($current instanceof BuiltInNode && $current->brand !== null) {
+                if ($current instanceof Branded && $current->brandName() !== null) {
                     $brandedNodes[] = $current;
                 }
 
@@ -128,17 +128,22 @@ TypeScript,
 
         $brandedTypes = [];
         foreach ($brandedNodes as $node) {
+            $brand = $node->brandName();
+            if ($brand === null) {
+                continue;
+            }
+
             $typeDefinition = $target === DefinitionTarget::INPUT
                 ? $node->inputDefinition()
                 : $node->outputDefinition();
 
-            if (!isset($brandedTypes[$node->brand])) {
-                $brandedTypes[$node->brand] = $typeDefinition;
+            if (!isset($brandedTypes[$brand])) {
+                $brandedTypes[$brand] = $typeDefinition;
                 continue;
             }
 
-            if ($typeDefinition !== $brandedTypes[$node->brand]) {
-                throw new RuntimeException("Branded type {$node->brand} has different definitions");
+            if ($typeDefinition !== $brandedTypes[$brand]) {
+                throw new RuntimeException("Branded type {$brand} has different definitions");
             }
         }
 

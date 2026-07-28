@@ -120,6 +120,81 @@ $parsed = $executor->parse($node, ['key' => 'value']);
 $serialized = $executor->serialize($node, "my string");
 ```
 
+## Value Objects
+
+Wrapping an id or an email in its own class usually costs you the type on the wire: a plain class is
+reflected property by property, so `UserId` would show up in TypeScript as `{value: number}`. Value
+objects avoid that. A class implementing `StringValueObject` or `IntValueObject` is treated as its
+backing primitive — a bare `string` or `number` in JSON — and hydrated back into the class on input.
+
+```php
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Brand;
+use Le0daniel\PhpTsBindings\Contracts\ValueObjects\IntValueObject;
+
+#[Brand]
+final readonly class UserId implements IntValueObject
+{
+    private function __construct(public int $value) {}
+
+    public static function fromIntValue(int $value): static
+    {
+        if ($value < 1) {
+            throw new InvalidArgumentException("UserId must be positive, got {$value}");
+        }
+        return new self($value);
+    }
+
+    public function toIntValue(): int
+    {
+        return $this->value;
+    }
+}
+```
+
+The two interfaces are:
+
+| Interface | Methods | JSON type |
+|---|---|---|
+| `StringValueObject` | `static fromStringValue(string): static`, `toStringValue(): string` | `string` |
+| `IntValueObject` | `static fromIntValue(int): static`, `toIntValue(): int` | `number` |
+
+The methods carry the `...Value` suffix so the interfaces stay safe to add to a class that already
+implements `Stringable` or declares its own `toString()`.
+
+Implementing the interface *is* the opt-in: unlike a plain class, a value object needs no `#[Castable]`
+attribute and works for both input and output. Use it anywhere a type is parsed:
+
+```php
+/** @return object{id: UserId, email: Email, tags: list<Slug>} */
+```
+
+**Rejecting values.** `fromStringValue()` / `fromIntValue()` may throw to reject input. The exception is
+caught and reported as a validation issue on that field, with the original exception attached for
+debugging — it never reaches the client as an internal error, and never escapes the executor.
+
+### Branded types
+
+Without a brand, `UserId` and any other int are interchangeable in TypeScript. Add `#[Brand]` and the
+generated type becomes opaque:
+
+```php
+#[Brand]                    // brand name defaults to lcfirst('UserId') => "userId"
+#[Brand('customerId')]      // or name it yourself
+```
+
+```typescript
+declare const __brand: unique symbol;
+export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};
+
+export type UserId = number & Brand<"userId">;
+
+declare function getUser(id: UserId): void;
+getUser(1);                 // Type error: number is not assignable to UserId
+```
+
+Value objects without `#[Brand]` stay plain `string` / `number`. Brands are code generation metadata
+only — they have no runtime impact, and `php artisan operations:codegen --no-branded-types` strips them.
+
 ## Validating AST
 
 By default, the parsed AST is not validated. This means, the AST itself can be invalid. For example Intersection types

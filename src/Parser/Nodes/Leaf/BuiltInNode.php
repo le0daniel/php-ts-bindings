@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
+use Le0daniel\PhpTsBindings\Contracts\Branded;
 use Le0daniel\PhpTsBindings\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
@@ -14,7 +15,7 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Stringable;
 use Throwable;
 
-readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible
+readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible, Branded
 {
 
     public function __construct(
@@ -115,6 +116,11 @@ readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible
     public function outputDefinition(): string
     {
         return $this->inputDefinition();
+    }
+
+    public function brandName(): ?string
+    {
+        return $this->brand;
     }
 
     public function coerce(mixed $value): mixed
