@@ -102,22 +102,6 @@ readonly class BuiltInNode implements NodeInterface, LeafNode, Coercible, Brande
         }
     }
 
-    public function inputDefinition(): string
-    {
-        return match ($this->type) {
-            BuiltInType::STRING => 'string',
-            BuiltInType::INT, BuiltInType::FLOAT => 'number',
-            BuiltInType::BOOL => 'boolean',
-            BuiltInType::NULL => 'null',
-            BuiltInType::MIXED => 'unknown',
-        };
-    }
-
-    public function outputDefinition(): string
-    {
-        return $this->inputDefinition();
-    }
-
     public function brandName(): ?string
     {
         return $this->brand;

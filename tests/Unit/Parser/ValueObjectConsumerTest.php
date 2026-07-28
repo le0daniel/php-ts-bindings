@@ -1,7 +1,5 @@
 <?php declare(strict_types=1);
 
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
@@ -11,6 +9,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Typescript\Data\Options;
 use Tests\Mocks\ValueObjects\AbstractValueObject;
 use Tests\Mocks\ValueObjects\AmbiguousValueObject;
 use Tests\Mocks\ValueObjects\CreateAccountInput;
@@ -25,9 +25,7 @@ test('parses a string value object', function () {
     expect($node)->toBeInstanceOf(ValueObjectNode::class)
         ->and($node->className)->toBe(Email::class)
         ->and($node->backingType)->toBe(BuiltInType::STRING)
-        ->and($node->brand)->toBe('email')
-        ->and($node->inputDefinition())->toBe('string')
-        ->and($node->outputDefinition())->toBe('string');
+        ->and($node->brand)->toBe('email');
 
     compareToOptimizedAst($node);
     validateAst($node);
@@ -39,9 +37,7 @@ test('parses an int value object with an explicit brand name', function () {
     expect($node)->toBeInstanceOf(ValueObjectNode::class)
         ->and($node->className)->toBe(UserId::class)
         ->and($node->backingType)->toBe(BuiltInType::INT)
-        ->and($node->brand)->toBe('customerId')
-        ->and($node->inputDefinition())->toBe('number')
-        ->and($node->outputDefinition())->toBe('number');
+        ->and($node->brand)->toBe('customerId');
 
     compareToOptimizedAst($node);
     validateAst($node);
@@ -133,29 +129,37 @@ test('a value object is never treated as a castable object', function () {
 
 test('value objects emit their backing primitive when brands are disabled', function () {
     $node = new TypeParser()->parse(Email::class);
+    $options = new Options(ignoreBrandedTypes: true);
 
-    expect(typescriptDefinition($node, DefinitionTarget::OUTPUT))->toBe('string');
-    expect(typescriptDefinition($node, DefinitionTarget::INPUT))->toBe('string');
+    expect(typescriptFor($node, IO::OUTPUT, $options)->type)->toBe('string');
+    expect(typescriptFor($node, IO::INPUT, $options)->type)->toBe('string');
 });
 
-test('value objects emit branded types when brands are enabled', function (string $type, string $expected) {
+test('value objects emit branded types when brands are enabled', function (string $type, string $alias, string $expected) {
     $node = new TypeParser()->parse($type);
-    $generator = new TypescriptDefinitionGenerator(true);
 
-    expect($generator->toDefinition($node, DefinitionTarget::INPUT))->toBe($expected);
-    expect($generator->toDefinition($node, DefinitionTarget::OUTPUT))->toBe($expected);
+    foreach ([IO::INPUT, IO::OUTPUT] as $io) {
+        // The use site carries the alias, the definition travels in the registry, and inlining the
+        // one into the other reproduces the full branded type.
+        expect(typescriptFor($node, $io)->type)->toBe($alias);
+        expect(typescriptFor($node, $io)->toStandaloneType())->toBe($expected);
+    }
 })->with([
-    'string vo' => [Email::class, 'string & Brand<"email">'],
-    'int vo renamed' => [UserId::class, 'number & Brand<"customerId">'],
-    'unbranded vo' => [Slug::class, 'string'],
+    'string vo' => [Email::class, 'Email', 'string & Brand<"email">'],
+    'int vo renamed' => [UserId::class, 'CustomerId', 'number & Brand<"customerId">'],
+    'unbranded vo' => [Slug::class, 'string', 'string'],
 ]);
 
 test('a castable class carrying value object properties', function () {
     $node = new TypeParser()->parse(CreateAccountInput::class);
 
     expect($node)->toBeInstanceOf(CustomCastingNode::class);
-    expect(typescriptDefinition($node, DefinitionTarget::INPUT))->toBe('{email:string;ownerId:number;}');
-    expect(typescriptDefinition($node, DefinitionTarget::OUTPUT))->toBe('{email:string;ownerId:number;}');
+
+    foreach ([IO::INPUT, IO::OUTPUT] as $io) {
+        expect(typescriptFor($node, $io)->type)->toBe('{email:Email;ownerId:CustomerId;}');
+        expect(typescriptFor($node, $io, new Options(ignoreBrandedTypes: true))->type)
+            ->toBe('{email:string;ownerId:number;}');
+    }
 
     compareToOptimizedAst($node);
 });

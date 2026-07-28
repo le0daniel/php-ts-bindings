@@ -124,6 +124,10 @@ final readonly class TypescriptGenerator
      */
     private function brand(string $baseType, Branded $node, EmissionContext $context): string
     {
+        if ($context->options->ignoreBrandedTypes) {
+            return $baseType;
+        }
+
         $brandName = $node->brandName();
         if ($brandName === null || $brandName === '') {
             return $baseType;

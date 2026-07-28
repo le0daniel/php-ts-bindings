@@ -9,10 +9,18 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
+use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Mocks\ValueObjects\Email;
 use Tests\Mocks\ValueObjects\Slug;
 use Tests\Mocks\ValueObjects\UserId;
 
+/**
+ * Mirrors how TypescriptServerCodeGenerator builds a TypedOperation: both directions collect their
+ * aliases into one registry, which is what EmitTypes reads.
+ */
 function emitTypesFor(string $inputType, string $outputType): string
 {
     $parser = new TypeParser();
@@ -23,8 +31,12 @@ function emitTypesFor(string $inputType, string $outputType): string
         output: $parser->parse($outputType),
     );
 
+    $generator = new TypescriptGenerator();
+    $input = $generator->toTypescript($operation->inputNode(), IO::INPUT, new Options(registry: new TypeRegistry()));
+    $output = $generator->toTypescript($operation->outputNode(), IO::OUTPUT, new Options(registry: $input->registry));
+
     $files = new EmitTypes()->emitFiles(
-        [new TypedOperation('', '', '', $operation)],
+        [new TypedOperation($input->type, $output->type, '', $operation, $output->registry)],
         new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
     );
 

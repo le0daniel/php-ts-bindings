@@ -11,8 +11,6 @@
 |
 */
 
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
@@ -24,6 +22,10 @@ use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\AstSorter;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
 pest()->extend(Tests\TestCase::class)->in('Feature');
 
@@ -117,7 +119,18 @@ function compareToOptimizedAst(NodeInterface $node) {
     )->toEqual((string) $sortedNode);
 }
 
-function typescriptDefinition(NodeInterface $node, DefinitionTarget $target): string
+/**
+ * Generates TypeScript for a node and asserts the optimized AST generates exactly the same thing.
+ *
+ * Only the requested direction is checked: a schema can legitimately be unrepresentable one way
+ * round, and generating the other way would then throw instead of asserting.
+ *
+ * The parity check runs with brands ignored. Brands are code generation metadata with no runtime
+ * impact, so BuiltInNode and ValueObjectNode deliberately leave them out of exportPhpCode() — an
+ * optimized AST genuinely knows less about brands than the one the parser produced, and comparing
+ * them branded would assert something the optimizer never promised.
+ */
+function typescriptFor(NodeInterface $node, IO $io, Options $options = new Options()): TypeScript
 {
     $sortedNode = AstSorter::sort($node);
     $optimizer = new ASTOptimizer();
@@ -126,15 +139,13 @@ function typescriptDefinition(NodeInterface $node, DefinitionTarget $target): st
     /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
-    $tsGenerator = new TypescriptDefinitionGenerator();
+    $generator = new TypescriptGenerator();
+    $unbranded = new Options(pretty: $options->pretty, ignoreBrandedTypes: true);
 
-    foreach (DefinitionTarget::cases() as $case) {
-        $expected = $tsGenerator->toDefinition($sortedNode, $case);
-        $optimized = $tsGenerator->toDefinition($registry->get('node'), $case);
-        expect($expected)->toEqual($optimized);
-    }
+    expect($generator->toTypescript($registry->get('node'), $io, $unbranded)->type)
+        ->toEqual($generator->toTypescript($sortedNode, $io, $unbranded)->type);
 
-    return $tsGenerator->toDefinition($sortedNode, $target);
+    return $generator->toTypescript($sortedNode, $io, $options);
 }
 
 function executeParse(NodeInterface|string $node, mixed $data, ParsingOptions $options = new ParsingOptions()): Success|Failure

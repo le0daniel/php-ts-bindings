@@ -25,9 +25,4 @@ interface LeafNode extends NodeInterface
      * @return mixed
      */
     public function serializeValue(mixed $value, ExecutionContext $context): mixed;
-
-    /** @deprecated DO not use anymore */
-    public function inputDefinition(): string;
-    /** @deprecated DO not use anymore */
-    public function outputDefinition(): string;
 }

@@ -89,12 +89,13 @@ customizations, including writing your very own code generation plugin.
 ## Type Parsing
 
 ```php
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
 $typeString = TypeReflector::reflectParameter(
   new ReflectionParameter()
@@ -107,11 +108,24 @@ $ast = $parser->parse(
     ParsingContext::fromClassString(MyClassDeclaringThisParameter::class)
 );
 
-$inputDefinition = new TypescriptDefinitionGenerator()->toDefinition($ast, DefinitionTarget::INPUT);
-// => string|Record<string>|{name: string;}
+$generator = new TypescriptGenerator();
 
-$outputDefinition = new TypescriptDefinitionGenerator()->toDefinition($ast, DefinitionTarget::OUTPUT);
-// => string|Record<string>|{name: string;}
+$input = $generator->toTypescript($ast, IO::INPUT);
+$input->type;     // => string|Record<string,string>|{name:string;}
+
+$output = $generator->toTypescript($ast, IO::OUTPUT);
+$output->type;    // => string|Record<string,string>|{name:string;}
+
+// Branded leaves are referenced by an alias; its definition comes back in the registry, so you can
+// emit `export type Email = string & Brand<"email">` once and reference it everywhere.
+$branded = $generator->toTypescript($parser->parse(Email::class), IO::INPUT);
+$branded->type;                        // => Email
+$branded->registry->toArray();         // => ['Email' => 'string & Brand<"email">']
+$branded->toStandaloneType();          // => string & Brand<"email">
+
+// Options: pretty prints object literals across lines, ignoreBrandedTypes drops the brands and
+// emits the backing primitive instead.
+$generator->toTypescript($ast, IO::INPUT, new Options(pretty: true, ignoreBrandedTypes: true));
 
 $executor = new SchemaExecutor()
 
@@ -129,8 +143,8 @@ resolved by the bundled PHPStan extension too, so static analysis agrees with th
 | --- | --- | --- |
 | `Pick<T, 'a'\|'b'>` | struct with only those properties | `{a: …; b: …;}` |
 | `Omit<T, 'a'\|'b'>` | struct without those properties | `{…}` |
-| `BrandedString<'name'>` | `string` | `string & Brand<"name">` |
-| `BrandedInt<'name'>` | `int` | `number & Brand<"name">` |
+| `BrandedString<'name'>` | `string` | `Name`, declared as `string & Brand<"name">` |
+| `BrandedInt<'name'>` | `int` | `Name`, declared as `number & Brand<"name">` |
 | `DateTimeString<'format'>` | `DateTimeImmutable` | `string` |
 
 ### DateTimeString
@@ -252,8 +266,11 @@ declare function getUser(id: UserId): void;
 getUser(1);                 // Type error: number is not assignable to UserId
 ```
 
-Value objects without `#[Brand]` stay plain `string` / `number`. Brands are code generation metadata
-only — they have no runtime impact, and `php artisan operations:codegen --no-branded-types` strips them.
+Each brand is declared once, in the generated types file, and every operation that uses it references
+it by that name (`{id: UserId}`) and imports it. Value objects without `#[Brand]` stay plain
+`string` / `number`. Brands are code generation metadata only — they have no runtime impact, and
+`php artisan operations:codegen --no-branded-types` strips them, emitting the backing primitive at
+every use site and declaring nothing.
 
 ## Validating AST
 

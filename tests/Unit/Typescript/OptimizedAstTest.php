@@ -1,16 +1,20 @@
-<?php
+<?php declare(strict_types=1);
 
-namespace Tests\Unit\Definition;
+namespace Tests\Unit\Typescript;
 
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Unit\Executor\Mocks\UserSchema;
 
-function toDefinition(string $typeString, ?DefinitionTarget $mode = null): string
+/**
+ * An AST that went through the optimizer must generate exactly the same TypeScript as the one the
+ * parser produced, otherwise a cached schema would emit a different client than a fresh one.
+ */
+function toDefinition(string $typeString, ?IO $io = null): string
 {
-    $modes = $mode ? [$mode] : [DefinitionTarget::INPUT, DefinitionTarget::OUTPUT];
+    $directions = $io ? [$io] : [IO::INPUT, IO::OUTPUT];
     $parser = new TypeParser();
     $ast = $parser->parse($typeString);
 
@@ -20,13 +24,13 @@ function toDefinition(string $typeString, ?DefinitionTarget $mode = null): strin
     /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
-    $definitionWriter = new TypescriptDefinitionGenerator();
+    $generator = new TypescriptGenerator();
 
     /** @var string|null $definition */
     $definition = null;
-    foreach ($modes as $mode) {
-        $realDef = $definitionWriter->toDefinition($ast, $mode);
-        $optimizedDef = $definitionWriter->toDefinition($registry->get('node'), $mode);
+    foreach ($directions as $direction) {
+        $realDef = $generator->toTypescript($ast, $direction)->type;
+        $optimizedDef = $generator->toTypescript($registry->get('node'), $direction)->type;
         expect($realDef)->toEqual($optimizedDef);
         $definition ??= $realDef;
         expect($definition)->toEqual($realDef);
@@ -58,12 +62,12 @@ describe('Test to definition', function () {
     });
 
     test('Custom class type input', function () {
-        expect(toDefinition(UserSchema::class, DefinitionTarget::INPUT))
+        expect(toDefinition(UserSchema::class, IO::INPUT))
             ->toBe("{age:number;email:string;username:string;}");
     });
 
     test('Custom class type output', function () {
-        expect(toDefinition(UserSchema::class, DefinitionTarget::OUTPUT))
+        expect(toDefinition(UserSchema::class, IO::OUTPUT))
             ->toBe("{age:number;username:string;}");
     });
 
@@ -78,8 +82,7 @@ describe('Test to definition', function () {
     });
 
     test('Complex union intersection', function () {
-        expect(toDefinition('((array{id: positive-int}|array{token: string})&array{reason: string})|' . UserSchema::class, DefinitionTarget::INPUT))
+        expect(toDefinition('((array{id: positive-int}|array{token: string})&array{reason: string})|' . UserSchema::class, IO::INPUT))
             ->toBe("(({id:number;}|{token:string;})&{reason:string;})|{age:number;email:string;username:string;}");
     });
 });
-

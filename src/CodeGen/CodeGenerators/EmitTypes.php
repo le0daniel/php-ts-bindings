@@ -3,25 +3,10 @@
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\Contracts\Branded;
-use Le0daniel\PhpTsBindings\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
-use RuntimeException;
 
 final class EmitTypes implements GeneratesLibFiles
 {
@@ -41,21 +26,10 @@ final class EmitTypes implements GeneratesLibFiles
             return $carry;
         }, []);
 
-        $brands = array_reduce($operations, function (array $carry, TypedOperation $operation) {
-            $inputBrands = $this->collectBrandedTypes($operation->operation->inputNode(), DefinitionTarget::INPUT);
-            $outputBrands = $this->collectBrandedTypes($operation->operation->outputNode(), DefinitionTarget::OUTPUT);
-            return $this->mergeBrandedTypes($carry, $inputBrands, $outputBrands);
-        }, []);
-
-        $brandedTypeStrings = Arrays::mapWithKeys(
-            $brands,
-            function (string $brandName, string $type): string {
-                $capitalizedBrandName = ucfirst($brandName);
-                $encodedBrandName = json_encode($brandName, JSON_THROW_ON_ERROR);
-                return "export type {$capitalizedBrandName} = {$type} & Brand<{$encodedBrandName}>";
-            });
-
-        $brandedTypeString = implode("\n", $brandedTypeStrings);
+        $brandedTypeString = implode("\n", Arrays::mapWithKeys(
+            $this->collectAliases($operations),
+            fn(string $alias, string $definition): string => "export type {$alias} = {$definition}",
+        ));
 
         return [
             "types" => <<<TypeScript
@@ -94,80 +68,23 @@ TypeScript,
     }
 
     /**
+     * Every alias referenced anywhere in the server, sorted by name. Each operation brings the
+     * aliases its own types refer to; the same alias standing for two different types across
+     * operations would generate contradicting declarations and is rejected by the registry.
+     *
+     * @param list<TypedOperation> $operations
      * @return array<string, string>
      */
-    private function collectBrandedTypes(NodeInterface $ast, DefinitionTarget $target): array
+    private function collectAliases(array $operations): array
     {
-        /** @var list<LeafNode&Branded> $brandedNodes */
-        $brandedNodes = [];
+        $registry = new TypeRegistry();
 
-        $stack = [
-            $ast,
-        ];
-
-        while ($current = array_pop($stack)) {
-            if ($current instanceof ValidatableNode) {
-                $current->validate();
-            }
-
-            if ($current instanceof LeafNode) {
-                if ($current instanceof Branded && $current->brandName() !== null) {
-                    $brandedNodes[] = $current;
-                }
-
-                continue;
-            }
-
-            match ($current::class) {
-                ConstraintNode::class, CustomCastingNode::class, ListNode::class, NamedNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
-                TupleNode::class, IntersectionNode::class, UnionNode::class => array_push($stack, ...$current->types),
-                StructNode::class => array_push($stack, ... $current->properties),
-                default => throw new RuntimeException("Unexpected node: " . $current::class),
-            };
-        }
-
-        $brandedTypes = [];
-        foreach ($brandedNodes as $node) {
-            $brand = $node->brandName();
-            if ($brand === null) {
-                continue;
-            }
-
-            $typeDefinition = $target === DefinitionTarget::INPUT
-                ? $node->inputDefinition()
-                : $node->outputDefinition();
-
-            if (!isset($brandedTypes[$brand])) {
-                $brandedTypes[$brand] = $typeDefinition;
-                continue;
-            }
-
-            if ($typeDefinition !== $brandedTypes[$brand]) {
-                throw new RuntimeException("Branded type {$brand} has different definitions");
+        foreach ($operations as $operation) {
+            foreach ($operation->registry->toArray() as $alias => $definition) {
+                $registry->set($alias, $definition);
             }
         }
 
-        return $brandedTypes;
-    }
-
-    /**
-     * @param array<string, string> $brands
-     * @param array<string, string> ...$otherTypes
-     * @return array<string, string>
-     */
-    private function mergeBrandedTypes(array $brands, array ... $otherTypes): array
-    {
-        foreach ($otherTypes as $keyValuePairs) {
-            foreach ($keyValuePairs as $key => $value) {
-                if (!isset($brands[$key])) {
-                    $brands[$key] = $value;
-                    continue;
-                }
-                if ($brands[$key] !== $value) {
-                    throw new RuntimeException("Branded type {$key} has different definitions");
-                }
-            }
-        }
-        return $brands;
+        return $registry->toArray();
     }
 }

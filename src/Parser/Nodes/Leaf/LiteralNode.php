@@ -81,26 +81,6 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
         return $value === $this->value ? $this->value : Value::INVALID;
     }
 
-    /**
-     * @throws JsonException
-     */
-    public function inputDefinition(): string
-    {
-        return match ($this->type) {
-            LiteralType::BOOL => $this->value ? 'true' : 'false',
-            LiteralType::ENUM_CASE => json_encode($this->value->name, JSON_THROW_ON_ERROR),
-            default => json_encode($this->value, JSON_THROW_ON_ERROR),
-        };
-    }
-
-    /**
-     * @throws JsonException
-     */
-    public function outputDefinition(): string
-    {
-        return $this->inputDefinition();
-    }
-
     public function coerce(mixed $value): mixed
     {
         return match ($this->type) {

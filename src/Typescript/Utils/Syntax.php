@@ -5,9 +5,8 @@ namespace Le0daniel\PhpTsBindings\Typescript\Utils;
 /**
  * TypeScript syntax primitives.
  *
- * Deliberately a copy of what CodeGen\Utils\Typescript does rather than a reuse of it: this
- * package must not depend on CodeGen, and the old generator must stay byte-for-byte unchanged
- * while both exist.
+ * Everything the generator needs to write is spelled out here, so this package depends on nothing
+ * outside itself and CodeGen depends on it rather than the other way round.
  */
 final class Syntax
 {

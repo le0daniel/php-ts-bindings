@@ -2,8 +2,6 @@
 
 namespace Tests\Unit\Parser;
 
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
@@ -24,6 +22,10 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Le0daniel\PhpTsBindings\Validators\Email;
 use Tests\Feature\Mocks\Paginated;
 use Tests\Mocks\ResultEnum;
@@ -581,9 +583,7 @@ test('Generics parsing', function () {
     compareToOptimizedAst($node);
     validateAst($node);
 
-    $typescriptGenerator = new TypescriptDefinitionGenerator();
-    $definition = $typescriptGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($definition)->toBe('{items:Array<{id:string;}>;total:number;}');
+    expect(typescriptFor($node, IO::OUTPUT)->type)->toBe('{items:Array<{id:string;}>;total:number;}');
 });
 
 test('Generics parsing with readonly output properties', function () {
@@ -593,9 +593,9 @@ test('Generics parsing with readonly output properties', function () {
     compareToOptimizedAst($node);
     validateAst($node);
 
-    $typescriptGenerator = new TypescriptDefinitionGenerator();
-    $definition = $typescriptGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($definition)->toBe('{name:string;email:string;}');
+    // Generated from the node as parsed, so the assertion pins declaration order.
+    expect(new TypescriptGenerator()->toTypescript($node, IO::OUTPUT)->type)
+        ->toBe('{name:string;email:string;}');
 });
 
 test('Do not cast in default mode', function () {
@@ -605,12 +605,9 @@ test('Do not cast in default mode', function () {
     compareToOptimizedAst($node);
     validateAst($node);
 
-    $typescriptGenerator = new TypescriptDefinitionGenerator();
-    $inputDef = $typescriptGenerator->toDefinition($node, DefinitionTarget::INPUT);
-    $outputDef = $typescriptGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-
-    expect($inputDef)->toBe('never');
-    expect($outputDef)->toBe('{email:string;name:string;}');
+    expect(typescriptFor($node, IO::OUTPUT)->type)->toBe('{email:string;name:string;}')
+        ->and(fn() => typescriptFor($node, IO::INPUT))
+        ->toThrow(UnsupportedTypeException::class, UncastableClass::class);
 });
 
 test('fails on missing or too many generics', function () {
@@ -693,8 +690,7 @@ test('Pick and Omit Typescript definitions', function (string $expectedDefinitio
     $node = $parser->parse($type);
     compareToOptimizedAst($node);
 
-    $outputDef = typescriptDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe($expectedDefinition);
+    expect(typescriptFor($node, IO::OUTPUT)->type)->toBe($expectedDefinition);
 })->with([
     'Simple Pick' => ['{name:string;}', 'Pick<array{id: string, name: string}, "name">'],
     'Simple Omit' => ['{id:string;}', 'Omit<array{id: string, name: string}, "name">'],
@@ -713,11 +709,9 @@ test("parse interface properties", function () {
     $node = $parser->parse(SomeFileInterface::class);
     compareToOptimizedAst($node);
 
-    $outputDef = typescriptDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('{id:number;url:string;}');
-
-    $inputDef = typescriptDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('never');
+    expect(typescriptFor($node, IO::OUTPUT)->type)->toBe('{id:number;url:string;}')
+        ->and(fn() => typescriptFor($node, IO::INPUT))
+        ->toThrow(UnsupportedTypeException::class, SomeFileInterface::class);
 });
 
 test("parse abstract class properties", function () {
@@ -725,11 +719,9 @@ test("parse abstract class properties", function () {
     $node = $parser->parse(SomeAbstractClass::class);
     compareToOptimizedAst($node);
 
-    $outputDef = typescriptDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('{email:string;id:number;}');
-
-    $inputDef = typescriptDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('never');
+    expect(typescriptFor($node, IO::OUTPUT)->type)->toBe('{email:string;id:number;}')
+        ->and(fn() => typescriptFor($node, IO::INPUT))
+        ->toThrow(UnsupportedTypeException::class, SomeAbstractClass::class);
 });
 
 test("parse BrandedInt correctly", function () {
@@ -738,19 +730,16 @@ test("parse BrandedInt correctly", function () {
     $node = $parser->parse("BrandedInt<'wow'>");
     compareToOptimizedAst($node);
 
-    $tsGenerator = new TypescriptDefinitionGenerator(true);
-    $outputDef = $tsGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('number & Brand<"wow">');
+    foreach ([IO::INPUT, IO::OUTPUT] as $io) {
+        $branded = typescriptFor($node, $io);
+        expect($branded->type)->toBe('Wow')
+            ->and($branded->registry->toArray())->toBe(['Wow' => 'number & Brand<"wow">'])
+            ->and($branded->toStandaloneType())->toBe('number & Brand<"wow">');
 
-    $inputDef = $tsGenerator->toDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('number & Brand<"wow">');
-
-    $tsGeneratorWithoutBrand = new TypescriptDefinitionGenerator(false);
-    $outputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('number');
-
-    $inputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('number');
+        $unbranded = typescriptFor($node, $io, new Options(ignoreBrandedTypes: true));
+        expect($unbranded->type)->toBe('number')
+            ->and($unbranded->registry->isEmpty())->toBeTrue();
+    }
 });
 
 test("parse BrandedString correctly", function () {
@@ -759,20 +748,16 @@ test("parse BrandedString correctly", function () {
     $node = $parser->parse("BrandedString<'wow'>");
     compareToOptimizedAst($node);
 
-    $tsGenerator = new TypescriptDefinitionGenerator(true);
+    foreach ([IO::INPUT, IO::OUTPUT] as $io) {
+        $branded = typescriptFor($node, $io);
+        expect($branded->type)->toBe('Wow')
+            ->and($branded->registry->toArray())->toBe(['Wow' => 'string & Brand<"wow">'])
+            ->and($branded->toStandaloneType())->toBe('string & Brand<"wow">');
 
-    $outputDef = $tsGenerator->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('string & Brand<"wow">');
-
-    $inputDef = $tsGenerator->toDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('string & Brand<"wow">');
-
-    $tsGeneratorWithoutBrand = new TypescriptDefinitionGenerator(false);
-    $outputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::OUTPUT);
-    expect($outputDef)->toBe('string');
-
-    $inputDef = $tsGeneratorWithoutBrand->toDefinition($node, DefinitionTarget::INPUT);
-    expect($inputDef)->toBe('string');
+        $unbranded = typescriptFor($node, $io, new Options(ignoreBrandedTypes: true));
+        expect($unbranded->type)->toBe('string')
+            ->and($unbranded->registry->isEmpty())->toBeTrue();
+    }
 });
 
 test('DateTimeString without a format defaults to ATOM', function () {
@@ -831,8 +816,8 @@ test('DateTimeString is emitted as a string in Typescript', function () {
     $parser = new TypeParser();
     $node = $parser->parse("DateTimeString<'Y-m-d'>");
 
-    expect(typescriptDefinition($node, DefinitionTarget::INPUT))->toBe('string')
-        ->and(typescriptDefinition($node, DefinitionTarget::OUTPUT))->toBe('string');
+    expect(typescriptFor($node, IO::INPUT)->type)->toBe('string')
+        ->and(typescriptFor($node, IO::OUTPUT)->type)->toBe('string');
 });
 
 test('DateTimeString composes with other types', function (string $type, string $expectedDefinition) {
@@ -840,7 +825,7 @@ test('DateTimeString composes with other types', function (string $type, string 
     $node = $parser->parse($type);
 
     compareToOptimizedAst($node);
-    expect(typescriptDefinition($node, DefinitionTarget::OUTPUT))->toBe($expectedDefinition);
+    expect(typescriptFor($node, IO::OUTPUT)->type)->toBe($expectedDefinition);
 })->with([
     'nullable' => ["DateTimeString<'Y-m-d'>|null", 'string|null'],
     'questionmark nullable' => ["?DateTimeString<'Y-m-d'>", 'null|string'],
@@ -900,7 +885,7 @@ test('Array shape keys may be single quoted and optional', function () {
 test('Quoted keys with spaces emit valid Typescript', function () {
     $node = new TypeParser()->parse('array{"key something else": string}');
 
-    expect(typescriptDefinition($node, DefinitionTarget::OUTPUT))
+    expect(typescriptFor($node, IO::OUTPUT)->type)
         ->toBe('{"key something else":string;}');
 });
 

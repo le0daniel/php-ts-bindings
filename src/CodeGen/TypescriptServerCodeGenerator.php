@@ -5,16 +5,19 @@ namespace Le0daniel\PhpTsBindings\CodeGen;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
+use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
-use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
+use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Le0daniel\PhpTsBindings\Utils\Lists;
 use RuntimeException;
 
@@ -22,11 +25,14 @@ final readonly class TypescriptServerCodeGenerator
 {
     /**
      * @param array<GeneratesLibFiles|GeneratesOperationCode> $generators
+     * @param Options $options Applies to every type generated in this run. The registry it carries is
+     *        ignored: each operation collects its aliases into its own.
      * @throws InvalidGeneratorDependencies
      */
     public function __construct(
-        private array                         $generators,
-        private TypescriptDefinitionGenerator $definitionGenerator,
+        private array               $generators,
+        private TypescriptGenerator $typescriptGenerator = new TypescriptGenerator(),
+        private Options             $options = new Options(),
     )
     {
         $this->verifyGeneratorDependencies();
@@ -80,15 +86,24 @@ final readonly class TypescriptServerCodeGenerator
 
         $definitions = array_values(
             array_map(function (Operation $operation) use ($server): TypedOperation {
-                $inputType = $this->definitionGenerator->toDefinition($operation->inputNode(), DefinitionTarget::INPUT);
-                $successOutputType = $this->definitionGenerator->toDefinition($operation->outputNode(), DefinitionTarget::OUTPUT);
-                $possibleErrorType = $this->generateAllErrorTypes($server, $operation->definition);
+                AstValidator::validate($operation->inputNode());
+                AstValidator::validate($operation->outputNode());
+
+                // Both directions share one registry, so an operation hands its aliases on as a single
+                // set and a brand that means two different things across them is rejected right here.
+                $input = $this->typescriptGenerator->toTypescript(
+                    $operation->inputNode(), IO::INPUT, $this->optionsWith(new TypeRegistry()),
+                );
+                $output = $this->typescriptGenerator->toTypescript(
+                    $operation->outputNode(), IO::OUTPUT, $this->optionsWith($input->registry),
+                );
 
                 return new TypedOperation(
-                    $inputType,
-                    $successOutputType,
-                    $possibleErrorType,
+                    $input->type,
+                    $output->type,
+                    $this->generateAllErrorTypes($server, $operation->definition),
                     $operation,
+                    $output->registry,
                 );
             }, $filteredDefinitions)
         );
@@ -105,6 +120,18 @@ final readonly class TypescriptServerCodeGenerator
             ...$this->generateLibFiles($definitions, $metadata),
             ...$this->generateOperationDefinitions($definitions, $metadata),
         ];
+    }
+
+    /**
+     * The run wide options, aimed at the given registry.
+     */
+    private function optionsWith(TypeRegistry $registry): Options
+    {
+        return new Options(
+            pretty: $this->options->pretty,
+            ignoreBrandedTypes: $this->options->ignoreBrandedTypes,
+            registry: $registry,
+        );
     }
 
     private function generateAllErrorTypes(Server $server, Definition $operation): string

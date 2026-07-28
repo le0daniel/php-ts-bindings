@@ -266,6 +266,35 @@ test('throws when the incoming registry already binds an alias to something else
         ->toThrow(UnsupportedTypeException::class, 'Email');
 });
 
+test('emits the backing primitive when brands are ignored', function (string $type, string $expectedType) {
+    $result = typescriptOf($type, IO::INPUT, new Options(ignoreBrandedTypes: true));
+
+    expect($result->type)->toBe($expectedType)
+        ->and($result->registry->isEmpty())->toBeTrue();
+})->with([
+    'string value object' => ['\\' . Email::class, 'string'],
+    'int value object' => ['\\' . UserId::class, 'number'],
+    'unbranded value object' => ['\\' . Slug::class, 'string'],
+    'BrandedString' => ["BrandedString<'token'>", 'string'],
+    'BrandedInt' => ["BrandedInt<'wow'>", 'number'],
+    'branded and unbranded mixed in a struct' => [
+        'array{email: \\' . Email::class . ', slug: \\' . Slug::class . ', id: \\' . UserId::class . '}',
+        '{email:string;slug:string;id:number;}',
+    ],
+]);
+
+test('ignoring brands neither reads nor extends an incoming registry', function () {
+    $shared = new TypeRegistry(['Email' => 'number & Brand<"email">']);
+
+    // The seeded definition contradicts what Email would otherwise register, so this would throw
+    // if the alias were still computed.
+    $result = typescriptOf('\\' . Email::class, IO::INPUT, new Options(ignoreBrandedTypes: true, registry: $shared));
+
+    expect($result->type)->toBe('string')
+        ->and($result->registry->toArray())->toBe(['Email' => 'number & Brand<"email">'])
+        ->and($shared->toArray())->toBe(['Email' => 'number & Brand<"email">']);
+});
+
 test('filters struct properties by direction', function () {
     $type = '\\' . UserSchema::class;
 

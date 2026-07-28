@@ -34,6 +34,27 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
         return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
     }
 
+    /**
+     * The types below reference branded leaves by their alias, which lives in the generated types
+     * file. An operation without a single branded leaf must not emit `import {} from …`.
+     *
+     * @return list<TypescriptImportStatement>
+     */
+    private function aliasImports(TypedOperation $operation): array
+    {
+        $aliases = array_keys($operation->registry->toArray());
+        if ($aliases === []) {
+            return [];
+        }
+
+        return [
+            new TypescriptImportStatement(
+                from: Paths::libImport("types"),
+                imports: array_map(fn(string $alias): string => "type {$alias}", $aliases),
+            ),
+        ];
+    }
+
     public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): TypescriptCodeBlock
     {
         $definition = $operation->operation->definition;
@@ -53,10 +74,7 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
                 from: Paths::libImport("OperationClient"),
                 imports: ["OperationOptions"]
             ),
-            new TypescriptImportStatement(
-                from: Paths::libImport("types"),
-                imports: ["type Brand"],
-            )
+            ...$this->aliasImports($operation),
         ];
         $docBlock = <<<TypeScript
 /**

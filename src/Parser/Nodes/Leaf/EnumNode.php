@@ -75,26 +75,6 @@ final readonly class EnumNode implements NodeInterface, LeafNode
         return $value->name;
     }
 
-    /**
-     * @throws JsonException
-     */
-    public function inputDefinition(): string
-    {
-        $enumStrings = array_map(
-            fn(UnitEnum $enum) => json_encode($enum->name, flags: JSON_THROW_ON_ERROR),
-            $this->enumClassName::cases()
-        );
-        return implode('|', $enumStrings);
-    }
-
-    /**
-     * @throws JsonException
-     */
-    public function outputDefinition(): string
-    {
-        return $this->inputDefinition();
-    }
-
     public function name(): string
     {
         return str_replace('\\', '_', $this->enumClassName);

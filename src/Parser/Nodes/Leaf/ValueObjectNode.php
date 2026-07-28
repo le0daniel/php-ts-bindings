@@ -125,16 +125,6 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
         }
     }
 
-    public function inputDefinition(): string
-    {
-        return $this->backingType === BuiltInType::STRING ? 'string' : 'number';
-    }
-
-    public function outputDefinition(): string
-    {
-        return $this->inputDefinition();
-    }
-
     public function brandName(): ?string
     {
         return $this->brand;

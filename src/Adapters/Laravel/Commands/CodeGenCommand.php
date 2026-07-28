@@ -25,9 +25,11 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptDefinitionGenerator;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Server\Server;
+use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -89,8 +91,9 @@ DESCRIPTION;
 
             $codeGenerator = new TypescriptServerCodeGenerator(
                 $this->getGeneratorsFromInput($application),
-                new TypescriptDefinitionGenerator(
-                    emitBrandedTypes: $this->option('no-branded-types') === false
+                new TypescriptGenerator(),
+                new Options(
+                    ignoreBrandedTypes: $this->option('no-branded-types') === true,
                 ),
             );
 
@@ -104,6 +107,11 @@ DESCRIPTION;
             foreach ($exception->messages as $message) {
                 $this->error($message);
             }
+            return 1;
+        } catch (UnsupportedTypeException $exception) {
+            // A schema that cannot be expressed in TypeScript is a bug worth surfacing here, rather
+            // than a placeholder type that fails later inside the generated client.
+            $this->error($exception->getMessage());
             return 1;
         }
 
