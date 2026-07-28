@@ -120,6 +120,66 @@ $parsed = $executor->parse($node, ['key' => 'value']);
 $serialized = $executor->serialize($node, "my string");
 ```
 
+## Utility types
+
+A handful of type names are understood in docblocks even though no such PHP class exists. They are
+resolved by the bundled PHPStan extension too, so static analysis agrees with the generated types.
+
+| Type | PHP / PHPStan | TypeScript |
+| --- | --- | --- |
+| `Pick<T, 'a'\|'b'>` | struct with only those properties | `{a: …; b: …;}` |
+| `Omit<T, 'a'\|'b'>` | struct without those properties | `{…}` |
+| `BrandedString<'name'>` | `string` | `string & Brand<"name">` |
+| `BrandedInt<'name'>` | `int` | `number & Brand<"name">` |
+| `DateTimeString<'format'>` | `DateTimeImmutable` | `string` |
+
+### DateTimeString
+
+`DateTimeString` is a date that travels as a string and arrives as a `DateTimeImmutable`. The
+optional generic is the [PHP date format](https://www.php.net/manual/en/datetime.format.php); it
+defaults to `DateTimeInterface::ATOM`.
+
+```php
+/**
+ * @param DateTimeString $createdAt          // 2025-09-10T12:09:01+00:00
+ * @param DateTimeString<'Y-m-d'> $birthday  // 2025-01-01
+ */
+public function __construct(
+    public DateTimeImmutable $createdAt,
+    public DateTimeImmutable $birthday,
+) {}
+```
+
+Both are `string` in TypeScript. On input the string is parsed with the format, on output the
+`DateTimeInterface` is formatted back with it.
+
+**Prefer single quotes for the format.** Date formats escape literal characters with a backslash,
+and the parser applies PHP's own string semantics: single quotes leave `\T` alone, while double
+quotes resolve the full escape set. `"H:i\t"` is a tab, `'H:i\t'` is an escaped `t`.
+
+**Parsing is strict.** The value has to match the format exactly — the parsed date is formatted
+again and compared to the input. Fields the format does not cover are zeroed rather than taken
+from the current clock, so `DateTimeString<'Y-m-d'>` gives you midnight, not "today at 14:32".
+
+```php
+DateTimeString<'Y-m-d'>
+  '2025-01-01'           // 2025-01-01 00:00:00
+  '2025-1-1'             // rejected, single digit month and day
+  '2025-02-30'           // rejected, would silently roll over to March 2nd
+  '2025-01-01T10:00:00'  // rejected, trailing data
+```
+
+This also applies to `DateTimeImmutable`, `DateTime` and any other `DateTimeInterface` written
+directly as a type.
+
+One consequence worth knowing: ATOM renders UTC as `+00:00`, so the `Z` suffix that
+`Date.toISOString()` produces is *not* accepted by the default. Use the lowercase `p` specifier,
+which renders UTC as `Z`:
+
+```php
+/** @param DateTimeString<'Y-m-d\TH:i:sp'> $when */   // accepts 2025-09-10T12:09:01Z
+```
+
 ## Value Objects
 
 Wrapping an id or an email in its own class usually costs you the type on the wire: a plain class is

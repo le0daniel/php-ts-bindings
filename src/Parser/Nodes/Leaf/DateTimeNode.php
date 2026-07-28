@@ -53,11 +53,26 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
             return Value::INVALID;
         }
 
+        // The trailing `|` resets every field the format did not parse to a zero-like value.
+        // Without it, `Y-m-d` inherits the current clock time and the result is not deterministic.
+        $parsed = DateTimeImmutable::createFromFormat("{$this->format}|", $value);
+
+        // createFromFormat() is lenient: it accepts `2025-1-1` for `Y-m-d` without so much as a
+        // warning, and rolls `2025-02-30` over into March. Re-formatting the result and comparing
+        // it to the input is the only check that holds the value to the format exactly.
+        if ($parsed === false || $parsed->format($this->format) !== $value) {
+            $context->addIssue(new Issue(
+                IssueMessage::INVALID_TYPE,
+                [
+                    'message' => "Expected a date string of format '{$this->format}', got: {$value}",
+                ]
+            ));
+            return Value::INVALID;
+        }
+
         try {
             // @phpstan-ignore-next-line
-            return $this->dateTimeClass::createFromInterface(
-                DateTimeImmutable::createFromFormat($this->format, $value)
-            );
+            return $this->dateTimeClass::createFromInterface($parsed);
         } catch (Throwable $exception) {
             $context->addIssue(Issue::fromThrowable($exception));
             return Value::INVALID;

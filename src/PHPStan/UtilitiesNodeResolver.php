@@ -3,7 +3,9 @@
 namespace Le0daniel\PhpTsBindings\PHPStan;
 
 
+use DateTimeImmutable;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use PHPStan\Analyser\NameScope;
 use PHPStan\PhpDoc\TypeNodeResolver;
@@ -11,7 +13,6 @@ use PHPStan\PhpDoc\TypeNodeResolverAwareExtension;
 use PHPStan\PhpDoc\TypeNodeResolverExtension;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Type;
-use PHPStan\Type\TypeCombinator;
 use PHPStan\Type\ObjectType;
 use PHPStan\Type\ObjectShape;
 use PHPStan\Type\ObjectShapeType;
@@ -37,6 +38,14 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
 
     public function resolve(TypeNode $typeNode, NameScope $nameScope): ?Type
     {
+        // DateTimeString is the one utility type usable without generics, so it is the only
+        // one that has to be caught before the GenericTypeNode guard.
+        if ($typeNode instanceof IdentifierTypeNode) {
+            return $typeNode->name === 'DateTimeString'
+                ? new ObjectType(DateTimeImmutable::class)
+                : null;
+        }
+
         if (!$typeNode instanceof GenericTypeNode) {
             // returning null means this extension is not interested in this node
             return null;
@@ -44,10 +53,30 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
 
         $typeName = $typeNode->type;
         return match ($typeName->name) {
+            'DateTimeString' => $this->resolveDateTimeString($typeNode, $nameScope),
             'BrandedString', 'BrandedInt' => $this->resolveBrandedTypes($typeName->name, $typeNode, $nameScope),
             'Pick', 'Omit' => $this->resolvePickAndOmitUtil($typeName->name, $typeNode, $nameScope),
             default => null,
         };
+    }
+
+    /**
+     * The generic argument is the date format. It carries no type information beyond having to
+     * be a single constant string, so only its shape is validated here.
+     */
+    private function resolveDateTimeString(GenericTypeNode $typeNode, NameScope $nameScope): ?Type
+    {
+        $arguments = $typeNode->genericTypes;
+        if (count($arguments) !== 1) {
+            return null;
+        }
+
+        $formatType = $this->typeNodeResolver->resolve($arguments[0], $nameScope);
+        if (count($formatType->getConstantStrings()) !== 1) {
+            return null;
+        }
+
+        return new ObjectType(DateTimeImmutable::class);
     }
 
     private function resolveBrandedTypes(string $typeName, GenericTypeNode $typeNode, NameScope $nameScope): ?Type

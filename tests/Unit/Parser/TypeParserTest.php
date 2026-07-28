@@ -775,6 +775,91 @@ test("parse BrandedString correctly", function () {
     expect($inputDef)->toBe('string');
 });
 
+test('DateTimeString without a format defaults to ATOM', function () {
+    $parser = new TypeParser();
+    $node = $parser->parse('DateTimeString');
+
+    expect($node)->toBeInstanceOf(DateTimeNode::class)
+        ->and($node->dateTimeClass)->toBe(\DateTimeImmutable::class)
+        ->and($node->format)->toBe(\DateTimeInterface::ATOM);
+
+    compareToOptimizedAst($node);
+});
+
+test('DateTimeString without a format is indistinguishable from DateTimeImmutable', function () {
+    // Both produce the same node, so they share a hash and dedupe into one registry entry.
+    $parser = new TypeParser();
+
+    expect((string)$parser->parse('DateTimeString'))
+        ->toBe((string)$parser->parse('\DateTimeImmutable'));
+});
+
+test('DateTimeString takes the format from its single generic', function (string $type, string $expectedFormat) {
+    $parser = new TypeParser();
+    $node = $parser->parse($type);
+
+    expect($node)->toBeInstanceOf(DateTimeNode::class)
+        ->and($node->dateTimeClass)->toBe(\DateTimeImmutable::class)
+        ->and($node->format)->toBe($expectedFormat);
+
+    compareToOptimizedAst($node);
+})->with([
+    'single quoted' => ["DateTimeString<'Y-m-d'>", 'Y-m-d'],
+    'double quoted' => ['DateTimeString<"Y-m-d">', 'Y-m-d'],
+    'spaces in the format' => ["DateTimeString<'d.m.Y H:i'>", 'd.m.Y H:i'],
+    'padded generic' => ["DateTimeString< 'Y-m-d' >", 'Y-m-d'],
+
+    // Date formats escape literal characters with a backslash. Single quotes only resolve
+    // \\ and \', so the escape survives untouched.
+    'single quoted escape' => ["DateTimeString<'Y-m-d\\TH:i:sP'>", 'Y-m-d\TH:i:sP'],
+
+    // Double quotes resolve the full PHP escape set, but only the lowercase ones, so an
+    // uppercase \T is still safe.
+    'double quoted uppercase escape' => ['DateTimeString<"Y-m-d\TH:i:sP">', 'Y-m-d\TH:i:sP'],
+]);
+
+test('a double quoted format resolves lowercase escape sequences', function () {
+    // Documented gotcha: "\t" is a TAB, not an escaped `t` day-count specifier. Single
+    // quotes are the safe choice for date formats.
+    $parser = new TypeParser();
+
+    expect($parser->parse('DateTimeString<"H:i\t">')->format)->toBe("H:i\t")
+        ->and($parser->parse("DateTimeString<'H:i\\t'>")->format)->toBe('H:i\t');
+});
+
+test('DateTimeString is emitted as a string in Typescript', function () {
+    $parser = new TypeParser();
+    $node = $parser->parse("DateTimeString<'Y-m-d'>");
+
+    expect(typescriptDefinition($node, DefinitionTarget::INPUT))->toBe('string')
+        ->and(typescriptDefinition($node, DefinitionTarget::OUTPUT))->toBe('string');
+});
+
+test('DateTimeString composes with other types', function (string $type, string $expectedDefinition) {
+    $parser = new TypeParser();
+    $node = $parser->parse($type);
+
+    compareToOptimizedAst($node);
+    expect(typescriptDefinition($node, DefinitionTarget::OUTPUT))->toBe($expectedDefinition);
+})->with([
+    'nullable' => ["DateTimeString<'Y-m-d'>|null", 'string|null'],
+    'questionmark nullable' => ["?DateTimeString<'Y-m-d'>", 'null|string'],
+    'in a struct' => ["array{createdAt: DateTimeString<'Y-m-d'>}", '{createdAt:string;}'],
+    'in a list' => ['list<DateTimeString>', 'Array<string>'],
+    'bracket list' => ["DateTimeString<'Y-m-d'>[]", 'Array<string>'],
+]);
+
+test('DateTimeString rejects invalid generics', function (string $type) {
+    expect(fn() => new TypeParser()->parse($type))->toThrow(InvalidSyntaxException::class);
+})->with([
+    'empty generics' => ['DateTimeString<>'],
+    'two generics' => ["DateTimeString<'Y-m-d','H:i'>"],
+    'unterminated generics' => ["DateTimeString<'Y-m-d'"],
+    'a type instead of a literal' => ['DateTimeString<int>'],
+    'an int literal' => ['DateTimeString<123>'],
+    'a union of literals' => ["DateTimeString<'Y-m-d'|'H:i'>"],
+]);
+
 /**
  * ---------------------------------------------------------------------------
  * Lexer migration: new functionality

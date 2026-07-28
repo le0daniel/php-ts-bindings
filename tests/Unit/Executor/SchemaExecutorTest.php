@@ -329,6 +329,96 @@ test('value objects nested in structs and lists hydrate correctly', function () 
         ]);
 });
 
+/**
+ * ---------------------------------------------------------------------------
+ * DateTimeString
+ * ---------------------------------------------------------------------------
+ */
+
+test('DateTimeString parses a string into a DateTimeImmutable', function (string $type, string $value, string $expected) {
+    $result = executeParse($type, $value);
+
+    expect($result)->toBeSuccess()
+        ->and($result->value)->toBeInstanceOf(DateTimeImmutable::class)
+        ->and($result->value->format('Y-m-d H:i:s.u P'))->toBe($expected);
+})->with([
+    'default ATOM format' => ['DateTimeString', '2025-09-10T12:09:01+00:00', '2025-09-10 12:09:01.000000 +00:00'],
+
+    // Fields the format does not parse are zeroed out rather than inherited from the
+    // current clock, so the result is deterministic.
+    'date only' => ["DateTimeString<'Y-m-d'>", '2025-01-01', '2025-01-01 00:00:00.000000 +00:00'],
+    'time only' => ["DateTimeString<'H:i'>", '08:30', '1970-01-01 08:30:00.000000 +00:00'],
+    'custom format' => ["DateTimeString<'d.m.Y H:i'>", '01.02.2025 08:30', '2025-02-01 08:30:00.000000 +00:00'],
+
+    // Lowercase p renders UTC as Z, which is the shape Date.toISOString() produces.
+    'lowercase p accepts Z' => ["DateTimeString<'Y-m-d\\TH:i:sp'>", '2025-09-10T12:09:01Z', '2025-09-10 12:09:01.000000 +00:00'],
+    'lowercase p accepts an offset' => ["DateTimeString<'Y-m-d\\TH:i:sp'>", '2025-09-10T12:09:01+02:00', '2025-09-10 12:09:01.000000 +02:00'],
+]);
+
+test('DateTimeString rejects input that does not match the format exactly', function (string $type, mixed $value) {
+    expect(executeParse($type, $value))->toBeFailure('validation.invalid_type');
+})->with([
+    // createFromFormat() silently accepts these, so only the re-format round trip catches them.
+    'single digit month and day' => ["DateTimeString<'Y-m-d'>", '2025-1-1'],
+    'day out of range' => ["DateTimeString<'Y-m-d'>", '2025-02-30'],
+    'month and day out of range' => ["DateTimeString<'Y-m-d'>", '2025-13-45'],
+
+    'trailing data' => ["DateTimeString<'Y-m-d'>", '2025-01-01T10:00:00'],
+    'not a date' => ["DateTimeString<'Y-m-d'>", 'not-a-date'],
+    'empty string' => ["DateTimeString<'Y-m-d'>", ''],
+    'whitespace' => ["DateTimeString<'Y-m-d'>", ' 2025-01-01'],
+    'wrong format' => ["DateTimeString<'Y-m-d'>", '01.02.2025'],
+
+    'int' => ["DateTimeString<'Y-m-d'>", 123],
+    'null' => ["DateTimeString<'Y-m-d'>", null],
+    'array' => ["DateTimeString<'Y-m-d'>", []],
+    'bool' => ["DateTimeString<'Y-m-d'>", true],
+    'an already hydrated date' => ["DateTimeString<'Y-m-d'>", new DateTimeImmutable('2025-01-01')],
+]);
+
+test('the ATOM default does not accept a Z suffix', function (string $type, string $value) {
+    // ATOM's P specifier renders UTC as +00:00, so a Z suffix no longer round trips.
+    // Clients sending Date.toISOString() output need DateTimeString<'Y-m-d\TH:i:sp'>.
+    expect(executeParse($type, $value))->toBeFailure('validation.invalid_type');
+})->with([
+    'utility type' => ['DateTimeString', '2025-09-10T12:09:01Z'],
+    'class name' => ['\DateTimeImmutable', '2025-09-10T12:09:01Z'],
+    'with milliseconds' => ['DateTimeString', '2025-09-10T12:09:01.000Z'],
+]);
+
+test('DateTimeString serializes a date back to its format', function (string $type, mixed $value, string $expected) {
+    $result = executeSerialize($type, $value);
+
+    expect($result)->toBeSuccess()->and($result->value)->toBe($expected);
+})->with([
+    'immutable' => ["DateTimeString<'Y-m-d'>", new DateTimeImmutable('2025-01-01 10:11:12'), '2025-01-01'],
+    'mutable' => ["DateTimeString<'Y-m-d'>", new \DateTime('2025-01-01 10:11:12'), '2025-01-01'],
+    'default ATOM format' => ['DateTimeString', new DateTimeImmutable('2025-09-10 12:09:01'), '2025-09-10T12:09:01+00:00'],
+    'custom format' => ["DateTimeString<'d.m.Y H:i'>", new DateTimeImmutable('2025-02-01 08:30:00'), '01.02.2025 08:30'],
+]);
+
+test('DateTimeString rejects a non date on serialization', function (mixed $value) {
+    expect(executeSerialize("DateTimeString<'Y-m-d'>", $value))->toBeFailure('validation.invalid_type');
+})->with([
+    'a formatted string' => ['2025-01-01'],
+    'an int' => [123],
+    'null' => [null],
+    'an array' => [[]],
+]);
+
+test('DateTimeString round trips through parse and serialize', function (string $type, string $value) {
+    $parsed = executeParse($type, $value);
+    expect($parsed)->toBeSuccess();
+
+    expect(executeSerialize($type, $parsed->value))->toBeSuccess()
+        ->and(executeSerialize($type, $parsed->value)->value)->toBe($value);
+})->with([
+    ['DateTimeString', '2025-09-10T12:09:01+00:00'],
+    ["DateTimeString<'Y-m-d'>", '2025-01-01'],
+    ["DateTimeString<'d.m.Y H:i'>", '01.02.2025 08:30'],
+    ["DateTimeString<'Y-m-d\\TH:i:sp'>", '2025-09-10T12:09:01Z'],
+]);
+
 test('value object issues are reported at the right field path', function () {
     $result = executeParse('array{email: \\' . Email::class . '}', ['email' => 'nope']);
 

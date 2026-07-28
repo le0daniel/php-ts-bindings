@@ -89,3 +89,45 @@ function brandedString(string $i): string {
     assertType("string", $i);
     return $i;
 }
+
+/**
+ * @param DateTimeString $d
+ */
+function dateTimeStringDefault(object $d): void {
+    assertType("DateTimeImmutable", $d);
+}
+
+/**
+ * @param DateTimeString<'Y-m-d'> $d
+ */
+function dateTimeStringWithFormat(object $d): void {
+    assertType("DateTimeImmutable", $d);
+}
+
+/**
+ * @param DateTimeString<'Y-m-d\TH:i:sP'> $d
+ */
+function dateTimeStringWithEscapedFormat(object $d): void {
+    assertType("DateTimeImmutable", $d);
+}
+
+/**
+ * @param DateTimeString|null $d
+ */
+function dateTimeStringNullable(?object $d): void {
+    assertType("DateTimeImmutable|null", $d);
+}
+
+/**
+ * @param list<DateTimeString<'Y-m-d'>> $d
+ */
+function dateTimeStringList(array $d): void {
+    assertType("list<DateTimeImmutable>", $d);
+}
+
+/**
+ * @param array{createdAt: DateTimeString<'Y-m-d'>} $d
+ */
+function dateTimeStringInStruct(array $d): void {
+    assertType("array{createdAt: DateTimeImmutable}", $d);
+}
