@@ -6,12 +6,12 @@ use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Utils\Hashs;
 
-final class HashSha256KeyGenerator implements OperationKeyGenerator
+final readonly class HashSha256KeyGenerator implements OperationKeyGenerator
 {
     public function __construct(
-        private readonly string $pepper,
-        private readonly int $namespaceLength = 8,
-        private readonly int $fnNameLength = 24,
+        private string $pepper,
+        private int    $namespaceLength = 8,
+        private int    $fnNameLength = 24,
     )
     {
     }
