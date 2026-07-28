@@ -52,7 +52,7 @@ final readonly class ArrayConsumer implements TypeConsumer
             ? null
             : $state->context->toFullyQualifiedClassName($state->current()->value);
 
-        if (!$state->current()->is(TokenType::IDENTIFIER) || !in_array($type, ['array', 'list'], true)) {
+        if (!$state->current()->is(TokenType::IDENTIFIER)) {
             $state->produceSyntaxError("Expected Array Type Identifier: array or list");
         }
 

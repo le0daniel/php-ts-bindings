@@ -6,9 +6,9 @@
     "php": "^8.5"
   },
   "require-dev": {
-    "pestphp/pest": "4.x-dev",
-    "phpstan/phpstan": "2.1.x-dev",
-    "laravel/framework": "^11|^12",
+    "pestphp/pest": "^v4.7.0",
+    "phpstan/phpstan": "^2.1",
+    "laravel/framework": "^13",
     "mockery/mockery": "^1.6",
     "phpstan/phpstan-strict-rules": "^2.0"
   },
