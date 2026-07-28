@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
-use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 

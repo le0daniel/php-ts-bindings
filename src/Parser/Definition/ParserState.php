@@ -35,8 +35,8 @@ final class ParserState implements Iterator
      * @param ParsingContext $context
      */
     public function __construct(
-        public readonly string $input,
-        array                  $tokens,
+        public readonly string         $input,
+        array                          $tokens,
         public readonly ParsingContext $context,
     )
     {

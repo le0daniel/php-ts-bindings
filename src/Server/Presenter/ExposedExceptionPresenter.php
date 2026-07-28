@@ -2,25 +2,26 @@
 
 namespace Le0daniel\PhpTsBindings\Server\Presenter;
 
+use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
-use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use ReflectionAttribute;
+use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
 use Throwable;
 
-final class ClientAwareExceptionPresenter implements ExceptionPresenter
+final class ExposedExceptionPresenter implements ExceptionPresenter
 {
 
     /**
      * @param Definition $definition
-     * @return list<class-string<ClientAwareException>>
+     * @return list<class-string<Throwable>>
      * @throws ReflectionException
      */
-    private function extractExposedExceptions(Definition $definition): array
+    private function extractDeclaredExceptions(Definition $definition): array
     {
         $reflection = new ReflectionMethod($definition->fullyQualifiedClassName, $definition->methodName);
         $attributes = $reflection->getAttributes(Throws::class);
@@ -44,24 +45,42 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
     }
 
     /**
+     * @param class-string $exceptionClass
+     */
+    private function exposedTypeOf(string $exceptionClass): ?string
+    {
+        $attributes = new ReflectionClass($exceptionClass)->getAttributes(ExposeAs::class);
+        if (count($attributes) === 0) {
+            return null;
+        }
+
+        return $attributes[0]->newInstance()->type;
+    }
+
+    /**
      * @throws ReflectionException
      */
     public function matches(Throwable $throwable, Definition $definition): bool
     {
-        return $throwable instanceof ClientAwareException && in_array($throwable::class, $this->extractExposedExceptions($definition), true);
+        return $this->exposedTypeOf($throwable::class) !== null
+            && in_array($throwable::class, $this->extractDeclaredExceptions($definition), true);
     }
 
     public function toTypeScriptDefinition(Definition $definition): ?string
     {
-        $exceptionClasses = $this->extractExposedExceptions($definition);
-        if (empty($exceptionClasses)) {
+        $exposedTypes = array_filter(array_map(
+            $this->exposedTypeOf(...),
+            $this->extractDeclaredExceptions($definition),
+        ));
+
+        if (empty($exposedTypes)) {
             return null;
         }
 
-        return implode('|', array_map(function (string $exceptionClass): string {
-            $type = json_encode($exceptionClass::type(), JSON_THROW_ON_ERROR);
+        return implode('|', array_map(function (string $exposedType): string {
+            $type = json_encode($exposedType, JSON_THROW_ON_ERROR);
             return "{type: {$type}}";
-        }, $exceptionClasses));
+        }, $exposedTypes));
     }
 
     /**
@@ -69,9 +88,8 @@ final class ClientAwareExceptionPresenter implements ExceptionPresenter
      */
     public function details(Throwable $throwable): array
     {
-        /** @var ClientAwareException $throwable */
         return [
-            'type' => $throwable::type(),
+            'type' => $this->exposedTypeOf($throwable::class),
         ];
     }
 

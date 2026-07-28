@@ -6,7 +6,6 @@ use Illuminate\Config\Repository;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
-use Illuminate\Support\Collection;
 use Illuminate\Support\ServiceProvider;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
@@ -18,7 +17,7 @@ use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
 use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
-use Le0daniel\PhpTsBindings\Server\Presenter\ClientAwareExceptionPresenter;
+use Le0daniel\PhpTsBindings\Server\Presenter\ExposedExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Presenter\InvalidInputPresenter;
 use Le0daniel\PhpTsBindings\Server\Presenter\NotFoundPresenter;
 use Le0daniel\PhpTsBindings\Server\Presenter\UnauthenticatedPresenter;
@@ -83,7 +82,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
                     new UnauthorizedPresenter($config->get('operations.exceptions.unauthorized', [])),
                     new UnauthenticatedPresenter($config->get('operations.exceptions.unauthenticated', [])),
                     new NotFoundPresenter($config->get('operations.exceptions.not_found', [])),
-                    new ClientAwareExceptionPresenter(),
+                    new ExposedExceptionPresenter(),
                 ],
                 new CatchAllPresenter(),
                 $app,

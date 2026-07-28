@@ -8,15 +8,15 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
-use Le0daniel\PhpTsBindings\Server\Presenter\ClientAwareExceptionPresenter;
+use Le0daniel\PhpTsBindings\Server\Presenter\ExposedExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
 
 function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
     $registry = EagerlyLoadedRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
     $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($registry));
 
-    $server = new Server($registry, [new ClientAwareExceptionPresenter(),],);
-    $cachedServer = new Server($cachedRegistry, [new ClientAwareExceptionPresenter(),],);
+    $server = new Server($registry, [new ExposedExceptionPresenter(),],);
+    $cachedServer = new Server($cachedRegistry, [new ExposedExceptionPresenter(),],);
 
     $regularResponse = $server->command($name, $input, null, new NullClient());
     $cachedResponse = $cachedServer->command($name, $input, null, new NullClient());
@@ -58,12 +58,12 @@ test("Middleware emits typescript middleware", function () {
             keyGenerator: new PlainlyExposedKeyGenerator
         ),
         [
-            new ClientAwareExceptionPresenter(),
+            new ExposedExceptionPresenter(),
         ],
     );
 
     $operation = $server->registry->get(OperationType::COMMAND, 'test.run');
-    $errorPresenter = new ClientAwareExceptionPresenter();
+    $errorPresenter = new ExposedExceptionPresenter();
     $definition = $errorPresenter->toTypeScriptDefinition($operation->definition);
     expect($definition)->toEqual('{type: "invalid_name"}');
 });

@@ -2,13 +2,9 @@
 
 namespace Tests\Feature\Operations;
 
-use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 
-final class InvalidNameException extends \Exception implements ClientAwareException
+#[ExposeAs('invalid_name')]
+final class InvalidNameException extends \Exception
 {
-
-    public static function type(): string
-    {
-        return 'invalid_name';
-    }
 }
