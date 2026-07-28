@@ -94,7 +94,7 @@ use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
 $typeString = TypeReflector::reflectParameter(
@@ -116,16 +116,22 @@ $input->type;     // => string|Record<string,string>|{name:string;}
 $output = $generator->toTypescript($ast, IO::OUTPUT);
 $output->type;    // => string|Record<string,string>|{name:string;}
 
-// Branded leaves are referenced by an alias; its definition comes back in the registry, so you can
-// emit `export type Email = string & Brand<"email">` once and reference it everywhere.
+// A #[Brand] renders inline at every use site, always parenthesised; it declares no alias.
 $branded = $generator->toTypescript($parser->parse(Email::class), IO::INPUT);
-$branded->type;                        // => Email
-$branded->registry->toArray();         // => ['Email' => 'string & Brand<"email">']
-$branded->toStandaloneType();          // => string & Brand<"email">
+$branded->type;                        // => (string & Brand<"email">)
 
-// Options: pretty prints object literals across lines, ignoreBrandedTypes drops the brands and
-// emits the backing primitive instead.
-$generator->toTypescript($ast, IO::INPUT, new Options(pretty: true, ignoreBrandedTypes: true));
+// Named types are referenced by their alias; each definition comes back in the registry, so you
+// can emit `export type Token = (string & Brand<"token">)` once and reference it everywhere.
+$named = $generator->toTypescript($parser->parse("BrandedString<'token'>"), IO::INPUT);
+$named->type;                          // => Token
+$named->registry->toArray();           // => ['Token' => '(string & Brand<"token">)']
+$named->registry->usedAliases();       // => ['Token'] — every alias in the registry counts as used
+
+// Each call emits into its own registry — the result always carries exactly the aliases that
+// schema produced. Pass an optional shared registry and every call registers its aliases into it
+// at the end of the pass; that hand-over is where an alias meaning two different things across
+// several schemas is rejected.
+$generator->toTypescript($ast, IO::INPUT, $shared = new TypeRegistry());
 
 $executor = new SchemaExecutor()
 
@@ -143,8 +149,8 @@ resolved by the bundled PHPStan extension too, so static analysis agrees with th
 | --- | --- | --- |
 | `Pick<T, 'a'\|'b'>` | struct with only those properties | `{a: …; b: …;}` |
 | `Omit<T, 'a'\|'b'>` | struct without those properties | `{…}` |
-| `BrandedString<'name'>` | `string` | `Name`, declared as `string & Brand<"name">` |
-| `BrandedInt<'name'>` | `int` | `Name`, declared as `number & Brand<"name">` |
+| `BrandedString<'name'>` | `string` | `Name`, declared as `(string & Brand<"name">)` |
+| `BrandedInt<'name'>` | `int` | `Name`, declared as `(number & Brand<"name">)` |
 | `DateTimeString<'format'>` | `DateTimeImmutable` | `string` |
 
 ### DateTimeString
@@ -249,7 +255,8 @@ debugging — it never reaches the client as an internal error, and never escape
 ### Branded types
 
 Without a brand, `UserId` and any other int are interchangeable in TypeScript. Add `#[Brand]` and the
-generated type becomes opaque:
+generated type becomes opaque. A brand is an **inline** intersection at every use site — it declares
+no alias of its own:
 
 ```php
 #[Brand]                    // brand name defaults to lcfirst('UserId') => "userId"
@@ -257,20 +264,62 @@ generated type becomes opaque:
 ```
 
 ```typescript
+// declared once in the generated types file:
 declare const __brand: unique symbol;
 export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};
 
-export type UserId = number & Brand<"userId">;
-
-declare function getUser(id: UserId): void;
-getUser(1);                 // Type error: number is not assignable to UserId
+// at every use site:
+declare function getUser(id: (number & Brand<"userId">)): void;
+getUser(1);                 // Type error: number is not assignable to the branded type
 ```
 
-Each brand is declared once, in the generated types file, and every operation that uses it references
-it by that name (`{id: UserId}`) and imports it. Value objects without `#[Brand]` stay plain
-`string` / `number`. Brands are code generation metadata only — they have no runtime impact, and
-`php artisan operations:codegen --no-branded-types` strips them, emitting the backing primitive at
-every use site and declaring nothing.
+`#[Brand]` works on any class, interface, enum or value object — an object shape simply becomes
+`({...} & Brand<"...">)`. Combine it with `#[Named]` to export the branded type once by name:
+
+```php
+#[Brand] #[Named(io: IO::BOTH)]
+final readonly class UserId implements IntValueObject { /* ... */ }
+```
+
+```typescript
+export type UserId = (number & Brand<"userId">);
+```
+
+### Named types
+
+`#[Named]` exports a class, interface, enum or value object as a named type alias: instead of
+inlining the structure at every use site, the generator declares it once and references it by name.
+
+```php
+#[Named]                    // alias defaults to the class base name: App\Data\Order => Order
+#[Named('CustomOrder')]     // or name it yourself
+#[Named(io: IO::BOTH)]      // name input and output alike (see below)
+final class Order
+{
+    public Customer $customer;  // Customer may itself be #[Named] — aliases nest recursively
+    public UserId $id;          // and mix freely with brands
+}
+```
+
+```typescript
+export type Customer = {email:(string & Brand<"email">);name:string;};
+export type Order = {customer:Customer;id:(number & Brand<"customerId">);};
+```
+
+Because a class can legitimately have a different input shape than output shape (constructor-only
+parameters, output-only properties), the name applies to **output only by default**; on input the
+structure is inlined as if the attribute were absent. Opt into `IO::BOTH` when both directions are
+identical — if they are not, generation fails hard with a conflicting alias error instead of
+emitting a lying type. The same error protects against two classes resolving to the same alias with
+different shapes anywhere in a run, and a handful of names the generated types file always declares
+(`Brand`, `Result`, `Success`, `Failure`, ...) are rejected outright.
+
+Brands and names are pure code generation metadata with zero runtime impact: values travel the wire
+in their plain shape, and the metadata is stripped from cached ASTs entirely — TypeScript
+generation always runs on freshly parsed schemas. The `BrandedString<'x'>` / `BrandedInt<'x'>`
+docblock utilities are the shorthand for brand + name in one, since docblocks cannot carry
+attributes: `BrandedString<'token'>` is referenced as `Token` and declared as
+`export type Token = (string & Brand<"token">)`.
 
 ## Validating AST
 

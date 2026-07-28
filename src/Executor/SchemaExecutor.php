@@ -25,7 +25,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -94,8 +94,9 @@ final readonly class SchemaExecutor implements Executor
         }
 
         $serializedValue = match (true) {
+            // Codegen metadata has no runtime effect.
+            $node instanceof MetadataNode => $this->executeSerialize($node->node, $data, $context),
             array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->serialize($node, $data, $context, $this),
-            $node instanceof NamedNode => $this->executeSerialize($node->node, $data, $context),
             $node instanceof LeafNode => $node->serializeValue($data, $context),
             default => Value::INVALID,
         };
@@ -122,8 +123,9 @@ final readonly class SchemaExecutor implements Executor
         }
 
         return match (true) {
+            // Codegen metadata has no runtime effect.
+            $node instanceof MetadataNode => $this->executeParse($node->node, $data, $context),
             array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
-            $node instanceof NamedNode => $this->executeParse($node->node, $data, $context),
             $node instanceof LeafNode => $context->coercePrimitives && $node instanceof Coercible
                 ? $node->parseValue($node->coerce($data), $context)
                 : $node->parseValue($data, $context),

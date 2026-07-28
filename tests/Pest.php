@@ -23,7 +23,7 @@ use Le0daniel\PhpTsBindings\Parser\AstSorter;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
@@ -120,32 +120,19 @@ function compareToOptimizedAst(NodeInterface $node) {
 }
 
 /**
- * Generates TypeScript for a node and asserts the optimized AST generates exactly the same thing.
+ * Generates TypeScript for a node, asserting the optimized AST stays structurally identical.
  *
- * Only the requested direction is checked: a schema can legitimately be unrepresentable one way
- * round, and generating the other way would then throw instead of asserting.
- *
- * The parity check runs with brands ignored. Brands are code generation metadata with no runtime
- * impact, so StringNode, IntNode and ValueObjectNode deliberately leave them out of
- * exportPhpCode() — an optimized AST genuinely knows less about brands than the one the parser
- * produced, and comparing them branded would assert something the optimizer never promised.
+ * Codegen metadata (brands, named types) is deliberately eliminated by the ASTOptimizer: cached
+ * ASTs are runtime only, and TypeScript generation always runs on freshly parsed schemas.
+ * MetadataNode is transparent in the string form, so the structural parity assertion holds for
+ * every schema, metadata or not.
  */
-function typescriptFor(NodeInterface $node, IO $io, Options $options = new Options()): TypeScript
+function typescriptFor(NodeInterface $node, IO $io, ?TypeRegistry $sharedRegistry = null): TypeScript
 {
     $sortedNode = AstSorter::sort($node);
-    $optimizer = new ASTOptimizer();
-    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $sortedNode]);
+    compareToOptimizedAst($sortedNode);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
-    $registry = eval("return {$optimizedCode};");
-
-    $generator = new TypescriptGenerator();
-    $unbranded = new Options(pretty: $options->pretty, ignoreBrandedTypes: true);
-
-    expect($generator->toTypescript($registry->get('node'), $io, $unbranded)->type)
-        ->toEqual($generator->toTypescript($sortedNode, $io, $unbranded)->type);
-
-    return $generator->toTypescript($sortedNode, $io, $options);
+    return new TypescriptGenerator()->toTypescript($sortedNode, $io, $sharedRegistry);
 }
 
 function executeParse(NodeInterface|string $node, mixed $data, ParsingOptions $options = new ParsingOptions()): Success|Failure

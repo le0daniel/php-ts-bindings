@@ -6,16 +6,37 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
+use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 
 final class EmitTypes implements GeneratesLibFiles
 {
+    /**
+     * Declarations this file always contains. An alias claiming one of these names would generate
+     * a second, conflicting declaration right next to them.
+     */
+    private const array RESERVED_ALIASES = [
+        'Brand',
+        'Success',
+        'Failure',
+        'Result',
+        'OperationNamespaces',
+        'WithClientDirectives',
+        'SPAClientDirectives',
+        'TYPE_MAP',
+    ];
 
     /**
      * @return array<string, string>
      */
-    public function emitFiles(array $operations, ServerMetadata $metadata): array
+    public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
     {
+        foreach ($registry->usedAliases() as $alias) {
+            if (in_array($alias, self::RESERVED_ALIASES, true)) {
+                throw UnsupportedTypeException::reservedAlias($alias);
+            }
+        }
+
         $uniqueNamespaces = array_reduce($operations, function (array $carry, TypedOperation $operation) {
             if (!in_array($operation->operation->definition->namespace, $carry, true)) {
                 return [
@@ -26,8 +47,10 @@ final class EmitTypes implements GeneratesLibFiles
             return $carry;
         }, []);
 
-        $brandedTypeString = implode("\n", Arrays::mapWithKeys(
-            $this->collectAliases($operations),
+        // The shared registry holds every alias any pass produced; the types file declares them
+        // all, so every operation file can import any key of its own definitions' registries.
+        $aliasTypeString = implode("\n", Arrays::mapWithKeys(
+            $registry->toArray(),
             fn(string $alias, string $definition): string => "export type {$alias} = {$definition}",
         ));
 
@@ -51,8 +74,8 @@ export type SPAClientDirectives<T> = T & {
 declare const __brand: unique symbol;
 export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};
 
-/* All Branded types exported */
-{$brandedTypeString}
+/* All branded and named types exported */
+{$aliasTypeString}
 
 TypeScript,
         ];
@@ -65,26 +88,5 @@ TypeScript,
     private function generateNamespaceUnion(array $namespaces): string
     {
         return implode("|", array_map(fn(string $namespace) => "'$namespace'", $namespaces));
-    }
-
-    /**
-     * Every alias referenced anywhere in the server, sorted by name. Each operation brings the
-     * aliases its own types refer to; the same alias standing for two different types across
-     * operations would generate contradicting declarations and is rejected by the registry.
-     *
-     * @param list<TypedOperation> $operations
-     * @return array<string, string>
-     */
-    private function collectAliases(array $operations): array
-    {
-        $registry = new TypeRegistry();
-
-        foreach ($operations as $operation) {
-            foreach ($operation->registry->toArray() as $alias => $definition) {
-                $registry->set($alias, $definition);
-            }
-        }
-
-        return $registry->toArray();
     }
 }

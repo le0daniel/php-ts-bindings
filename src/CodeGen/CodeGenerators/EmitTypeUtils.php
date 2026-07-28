@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 
 final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
 {
@@ -20,7 +21,7 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
     /**
      * @return array<string, string>
      */
-    public function emitFiles(array $operations, ServerMetadata $metadata): array
+    public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
     {
         $queryNamespaces = array_reduce($operations, function (array $carry, TypedOperation $operation) {
             if ($operation->operation->definition->type !== OperationType::QUERY) {

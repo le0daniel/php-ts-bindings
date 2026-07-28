@@ -10,7 +10,10 @@ namespace Le0daniel\PhpTsBindings\Typescript\Utils;
  */
 final class Syntax
 {
-    private const string INDENT = '    ';
+    public static function isValidIdentifier(string $name): bool
+    {
+        return preg_match('/^[A-Za-z_$][A-Za-z0-9_$]*$/', $name) === 1;
+    }
 
     /**
      * Bare identifiers stay bare; anything else is quoted so it survives as a key.
@@ -29,24 +32,16 @@ final class Syntax
         return json_encode($value, JSON_THROW_ON_ERROR);
     }
 
-    /**
-     * The alias a brand is exported under, e.g. `email` => `Email`.
-     */
-    public static function brandAlias(string $brandName): string
+    public static function wrapInParentheses(string $value): string
     {
-        return ucfirst($brandName);
+        return "({$value})";
     }
 
     /**
-     * The full definition of a branded type, e.g. `string & Brand<"email">`.
+     * A branded type, e.g. `string & Brand<"email">`.
      */
     public static function branded(string $baseType, string $brandName): string
     {
         return "{$baseType} & Brand<" . self::stringLiteral($brandName) . ">";
-    }
-
-    public static function indent(int $level): string
-    {
-        return str_repeat(self::INDENT, $level);
     }
 }

@@ -7,20 +7,21 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 
 final class EmitTypeMap implements GeneratesLibFiles
 {
 
-    public function emitFiles(array $operations, ServerMetadata $metadata): array
+    public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
     {
         /**
          * @var array<"query"|"command", array<string, array{input: string, output: string, errors: string}>> $map
          */
         $map = array_reduce($operations, function (array $carry, TypedOperation $operation): array {
             $carry[$operation->definition->type->lowerCase()][$operation->definition->fullyQualifiedName()] = [
-                'input' => $operation->inputDefinition,
-                'output' => $operation->outputDefinition,
-                'errors' => $operation->errorDefinition,
+                'input' => $operation->inputDef->type,
+                'output' => $operation->outputDef->type,
+                'errors' => $operation->errorDef->type,
             ];
             return $carry;
         }, []);

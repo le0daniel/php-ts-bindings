@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use Le0daniel\PhpTsBindings\Contracts\Branded;
 use Le0daniel\PhpTsBindings\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
@@ -13,20 +12,10 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Stringable;
 use Throwable;
 
-final readonly class StringNode implements NodeInterface, LeafNode, Coercible, Branded
+final readonly class StringNode implements NodeInterface, LeafNode, Coercible
 {
     use RejectsInvalidType;
 
-    public function __construct(
-        public ?string $brand = null,
-    )
-    {
-    }
-
-    /**
-     * The brand is deliberately excluded here and in exportPhpCode(): it is code generation
-     * metadata with no runtime impact, exactly as in ValueObjectNode.
-     */
     public function __toString(): string
     {
         return 'string';
@@ -56,11 +45,6 @@ final readonly class StringNode implements NodeInterface, LeafNode, Coercible, B
             ]));
             return Value::INVALID;
         }
-    }
-
-    public function brandName(): ?string
-    {
-        return $this->brand;
     }
 
     public function coerce(mixed $value): mixed

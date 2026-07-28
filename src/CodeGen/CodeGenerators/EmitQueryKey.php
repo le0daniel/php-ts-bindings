@@ -43,20 +43,32 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
 
         $name = $this->generateName($operation);
 
+        // The input definition is inlined verbatim, so the aliases its registry carries must be
+        // imported here as well — plus Brand, unconditionally, for inline brands. The file level
+        // import merge dedupes them with EmitOperations' imports.
+        $aliases = ['Brand', ...$operation->inputDef->registry->usedAliases()];
+        sort($aliases);
+
+        $imports = [
+            new TypescriptImportStatement(
+                from: Paths::libImport("utils"),
+                imports: ['queryKey'],
+            ),
+            new TypescriptImportStatement(
+                from: Paths::libImport("types"),
+                imports: array_map(fn(string $alias): string => "type {$alias}", $aliases),
+            ),
+        ];
+
         return new TypescriptCodeBlock(
             <<<TypeScript
 /** @pure */
-export function {$name}QueryKey(input: {$operation->inputDefinition}) {
+export function {$name}QueryKey(input: {$operation->inputDef->type}) {
     return queryKey('{$definition->namespace}', '{$definition->name}', input);
 }
 TypeScript
             ,
-            [
-                new TypescriptImportStatement(
-                    from: Paths::libImport("utils"),
-                    imports: ['queryKey'],
-                ),
-            ]
+            $imports,
         );
     }
 }

@@ -8,7 +8,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -43,7 +43,7 @@ final class AstSorter
                 array_map(self::sort(...), $node->types),
             ),
             ListNode::class => new ListNode(self::sort($node->node)),
-            NamedNode::class => new NamedNode(self::sort($node->node), $node->name),
+            MetadataNode::class => new MetadataNode(self::sort($node->node), $node->name, $node->brand),
             PropertyNode::class => new PropertyNode($node->name, self::sort($node->node), $node->isOptional, $node->propertyType),
             RecordNode::class => new RecordNode(self::sort($node->node)),
             StructNode::class => new StructNode($node->phpType, array_map(self::sort(...), $node->sortedProperties())),

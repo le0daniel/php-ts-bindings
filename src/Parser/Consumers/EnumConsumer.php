@@ -8,6 +8,9 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use ReflectionClass;
 use UnitEnum;
 
 final class EnumConsumer implements TypeConsumer
@@ -27,6 +30,10 @@ final class EnumConsumer implements TypeConsumer
         $state->advance();
 
         /** @var class-string<UnitEnum> $fullyQualifiedClassName */
-        return new EnumNode($fullyQualifiedClassName);
+        return MetadataAttributes::wrap(
+            new EnumNode($fullyQualifiedClassName),
+            new ReflectionClass($fullyQualifiedClassName),
+            defaultIo: IO::BOTH,
+        );
     }
 }

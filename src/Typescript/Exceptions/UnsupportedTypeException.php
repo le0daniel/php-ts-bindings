@@ -44,6 +44,15 @@ final class UnsupportedTypeException extends RuntimeException
     {
         return new self(
             "Type alias {$alias} has conflicting definitions: '{$existing}' and '{$conflicting}'."
+            . " If {$alias} comes from #[Named(io: IO::BOTH)], its input and output shapes differ:"
+            . " align the shapes or name only one direction."
+        );
+    }
+
+    public static function reservedAlias(string $alias): self
+    {
+        return new self(
+            "Type alias {$alias} collides with a declaration the generated types file always contains. Pick a different #[Named] or brand name."
         );
     }
 }

@@ -22,18 +22,14 @@ final class CustomClassHandler implements Handler
 
 
     /** @param CustomCastingNode $node
-     * @return  stdClass|array<int, mixed>|Value
+     * @return  stdClass|Value
      */
-    public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|array|Value
+    public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|Value
     {
         $object = $executor->executeSerialize($node->node, $value, $context);
 
         if ($object === Value::INVALID) {
             return Value::INVALID;
-        }
-
-        if ($node->strategy === ObjectCastStrategy::COLLECTION && is_array($object)) {
-            return $object;
         }
 
         if (!$object instanceof stdClass) {
@@ -66,10 +62,6 @@ final class CustomClassHandler implements Handler
         }
 
         try {
-            if ($node->strategy === ObjectCastStrategy::COLLECTION) {
-                return new ($node->fullyQualifiedCastingClass)($arrayValue);
-            }
-
             if ($node->strategy === ObjectCastStrategy::CONSTRUCTOR) {
                 return new ($node->fullyQualifiedCastingClass)(...$arrayValue);
             }

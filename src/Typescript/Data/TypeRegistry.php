@@ -8,7 +8,7 @@ use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 /**
  * The named TypeScript types a generated type refers to: alias => definition.
  *
- * Today every entry comes from a brand (`Email` => `string & Brand<"email">`), but nothing here is
+ * Today every entry comes from a brand (`Email` => `(string & Brand<"email">)`), but nothing here is
  * brand specific. Any future construct that wants to be emitted once and referenced by name — a
  * shared enum, a deduplicated object shape — belongs in the same registry.
  *
@@ -61,6 +61,19 @@ final class TypeRegistry
     public function isEmpty(): bool
     {
         return $this->definitions === [];
+    }
+
+    /**
+     * Every alias in here counts as used: the registry travels with the generated type and only
+     * ever contains what that type relies on.
+     *
+     * @return list<string> sorted, so import statements are deterministic
+     */
+    public function usedAliases(): array
+    {
+        $aliases = array_keys($this->definitions);
+        sort($aliases);
+        return $aliases;
     }
 
     /**

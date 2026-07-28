@@ -20,6 +20,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
+use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\Lists;
@@ -106,12 +107,13 @@ final class UserDefinedObjectConsumer implements TypeConsumer
 
         $context = ParsingContext::fromReflectionClass($reflectionClass, $this->consumeGenerics($state, $parser));
 
-        return match ($castingStrategy) {
+        $node = match ($castingStrategy) {
             ObjectCastStrategy::NEVER => $this->parseNeverStrategy($reflectionClass, $parser, $context),
             ObjectCastStrategy::ASSIGN_PROPERTIES => $this->parseSetPropertiesStrategy($reflectionClass, $parser, $context),
             ObjectCastStrategy::CONSTRUCTOR => $this->parseConstructorStrategy($reflectionClass, $parser, $context),
-            default => throw new RuntimeException("Casting strategy {$castingStrategy->name} is not supported"),
         };
+
+        return MetadataAttributes::wrap($node, $reflectionClass);
     }
 
     private function allowsOptional(ReflectionProperty|ReflectionParameter $param): bool

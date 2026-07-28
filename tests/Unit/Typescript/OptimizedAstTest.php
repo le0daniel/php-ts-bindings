@@ -43,12 +43,12 @@ describe('Test to definition', function () {
 
     test('Simple union type', function () {
         expect(toDefinition('array{name: string}|string'))
-            ->toBe("{name:string;}|string");
+            ->toBe("({name:string;}|string)");
     });
 
     test('Optional Fields', function () {
         expect(toDefinition('array{name?: string}|string'))
-            ->toBe("{name?:string;}|string");
+            ->toBe("({name?:string;}|string)");
     });
 
     test('Array type returns object', function () {
@@ -73,16 +73,16 @@ describe('Test to definition', function () {
 
     test('scalar', function () {
         expect(toDefinition('scalar'))
-            ->toBe("number|boolean|string");
+            ->toBe("(number|boolean|string)");
     });
 
     test('intersection type with union', function () {
         expect(toDefinition('(array{id: positive-int}|array{token: string})&array{reason: string}'))
-            ->toBe("({id:number;}|{token:string;})&{reason:string;}");
+            ->toBe("(({id:number;}|{token:string;})&{reason:string;})");
     });
 
     test('Complex union intersection', function () {
         expect(toDefinition('((array{id: positive-int}|array{token: string})&array{reason: string})|' . UserSchema::class, IO::INPUT))
-            ->toBe("(({id:number;}|{token:string;})&{reason:string;})|{age:number;email:string;username:string;}");
+            ->toBe("((({id:number;}|{token:string;})&{reason:string;})|{age:number;email:string;username:string;})");
     });
 });

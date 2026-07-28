@@ -59,9 +59,15 @@ final class TypeScriptFile implements Stringable
 
     public function toString(): string
     {
-        $imports = implode(PHP_EOL, array_map(fn(TypescriptImportStatement $import): string => $import->toString(), $this->imports));
+        $imports = [];
+        foreach ($this->imports as $import) {
+            array_push($imports, ...$import->toStatements());
+        }
+
+        $importLines = implode(PHP_EOL, $imports);
+
         $fullFile = <<<TypeScript
-{$imports}
+{$importLines}
 
 {$this->code}
 TypeScript;

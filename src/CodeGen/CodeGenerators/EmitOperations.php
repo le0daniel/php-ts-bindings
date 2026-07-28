@@ -35,17 +35,17 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
     }
 
     /**
-     * The types below reference branded leaves by their alias, which lives in the generated types
-     * file. An operation without a single branded leaf must not emit `import {} from …`.
+     * The types below reference named types by their alias, which lives in the generated types
+     * file: every alias the operation's registries carry is imported. Brand is imported
+     * unconditionally — inline brands reference it, yet it is never a registry key — and a linter
+     * drops it where unused.
      *
      * @return list<TypescriptImportStatement>
      */
     private function aliasImports(TypedOperation $operation): array
     {
-        $aliases = array_keys($operation->registry->toArray());
-        if ($aliases === []) {
-            return [];
-        }
+        $aliases = ['Brand', ...$operation->usedAliases()];
+        sort($aliases);
 
         return [
             new TypescriptImportStatement(
@@ -85,12 +85,12 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
  */
 TypeScript;
 
-        if ($operation->inputDefinition === 'null') {
+        if ($operation->inputDef->type === 'null') {
             return new TypescriptCodeBlock(
                 <<<TypeScript
-export type {$resultTypeName} = {$operation->outputDefinition};
+export type {$resultTypeName} = {$operation->outputDef->type};
 export type {$resultInputTypeName} = null;
-export type {$errorTypeName} = {$operation->errorDefinition};
+export type {$errorTypeName} = {$operation->errorDef->type};
 
 {$docBlock}
 export async function {$name}(options?: OperationOptions) {
@@ -107,9 +107,9 @@ TypeScript, $imports,
 
         return new TypescriptCodeBlock(
             <<<TypeScript
-export type {$resultTypeName} = {$operation->outputDefinition};
-export type {$resultInputTypeName} = {$operation->inputDefinition};
-export type {$errorTypeName} = {$operation->errorDefinition};
+export type {$resultTypeName} = {$operation->outputDef->type};
+export type {$resultInputTypeName} = {$operation->inputDef->type};
+export type {$errorTypeName} = {$operation->errorDef->type};
 
 {$docBlock}
 export async function {$name}(input: {$resultInputTypeName}, options?: OperationOptions) {

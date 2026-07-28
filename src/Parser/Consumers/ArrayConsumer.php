@@ -15,6 +15,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Utils\Nodes;
 
 /**
  * Most complex consumer. It consumes the php array type which is a bit of everything:
@@ -43,15 +44,12 @@ final readonly class ArrayConsumer implements TypeConsumer
     /**
      * @throws InvalidSyntaxException
      */
-    public function consume(ParserState $state, TypeParser $parser): RecordNode|ListNode|TupleNode|CustomCastingNode
+    public function consume(ParserState $state, TypeParser $parser): RecordNode|ListNode|TupleNode
     {
         $type = match ($state->current()->value) {
             'list', 'non-empty-list' => 'list',
             default => 'array',
         };
-        $customType = in_array($state->current()->value, ['list', 'non-empty-list', 'array', 'non-empty-array'], true)
-            ? null
-            : $state->context->toFullyQualifiedClassName($state->current()->value);
 
         if (!$state->current()->is(TokenType::IDENTIFIER)) {
             $state->produceSyntaxError("Expected Array Type Identifier: array or list");
@@ -88,16 +86,15 @@ final readonly class ArrayConsumer implements TypeConsumer
             return new ListNode($generics[0]);
         }
 
-        $keyType = $generics[0];
-        $node = match (true) {
+        // A branded key (array<BrandedString<'k'>, V>) is still a string key on the wire.
+        // Constraints are deliberately NOT unwrapped: a constrained key (array<non-empty-string, V>)
+        // could never be validated at runtime, so it is rejected instead of silently loosened.
+        $keyType = Nodes::unwrapMetadata($generics[0]);
+        return match (true) {
             $keyType instanceof StringNode => new RecordNode($generics[1]),
             $keyType instanceof IntNode => new ListNode($generics[1]),
             default => $state->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}"),
         };
-
-        return $customType
-            ? new CustomCastingNode($node, $customType, ObjectCastStrategy::COLLECTION)
-            : $node;
     }
 
     /**

@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use Le0daniel\PhpTsBindings\Contracts\Branded;
 use Le0daniel\PhpTsBindings\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
@@ -20,10 +19,10 @@ use Throwable;
  * A user defined value object backed by a single string or int.
  *
  * The class opts in by implementing StringValueObject or IntValueObject. On the wire it is
- * indistinguishable from its backing primitive; the brand is what keeps the two apart on the
- * TypeScript side.
+ * indistinguishable from its backing primitive; a #[Brand] (carried by a wrapping MetadataNode)
+ * is what keeps the two apart on the TypeScript side.
  */
-final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercible, Branded
+final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercible
 {
     /**
      * @param class-string<StringValueObject|IntValueObject> $className
@@ -31,16 +30,10 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
     public function __construct(
         public string      $className,
         public BackingType $backingType,
-        public ?string     $brand = null,
     )
     {
     }
 
-    /**
-     * The brand is deliberately excluded here, exactly as in StringNode and IntNode. It is code
-     * generation metadata with no runtime impact, and the class name alone already identifies
-     * this node uniquely for the ASTOptimizer dedupe hash.
-     */
     public function __toString(): string
     {
         return "valueObject<{$this->className},{$this->backingType->value}>";
@@ -52,7 +45,6 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
         $valueObjectClass = PHPExport::absolute($this->className);
         $backingType = PHPExport::exportEnumCase($this->backingType);
 
-        // The brand is not exported: see __toString().
         return "new {$className}({$valueObjectClass}::class, {$backingType})";
     }
 
@@ -116,11 +108,6 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
             $context->addIssue($this->failedToSerializeIssue($throwable));
             return Value::INVALID;
         }
-    }
-
-    public function brandName(): ?string
-    {
-        return $this->brand;
     }
 
     public function coerce(mixed $value): mixed

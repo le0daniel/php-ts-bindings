@@ -19,6 +19,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -26,7 +27,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\Options;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Le0daniel\PhpTsBindings\Validators\Email;
@@ -420,6 +420,25 @@ test('Record struct', function () {
     compareToOptimizedAst($node);
 });
 
+test('a constrained array key is rejected, the constraint would be silently unenforceable', function (string $type) {
+    expect(fn() => new TypeParser()->parse($type))
+        ->toThrow(InvalidSyntaxException::class, "Array key type must be 'string' or 'int'");
+})->with([
+    'non-empty-string key' => ['array<non-empty-string, int>'],
+    'positive-int key' => ['array<positive-int, string>'],
+]);
+
+test('a branded array key is still a plain string or int key on the wire', function (string $type, string $expected) {
+    $node = new TypeParser()->parse($type);
+
+    expect($node::class)->toBe($expected);
+
+    compareToOptimizedAst($node);
+})->with([
+    'branded string key' => ["array<BrandedString<'k'>, int>", RecordNode::class],
+    'branded int key' => ["array<BrandedInt<'k'>, string>", ListNode::class],
+]);
+
 test('Test simple literals', function () {
     $parser = new TypeParser();
     /** @var UnionNode $node */
@@ -658,7 +677,7 @@ test('Pick and Omit Typescript definitions', function (string $expectedDefinitio
     'Omit from object' => ['{id:string;}', 'Omit<object{id: string, name: string}, "name">'],
     'Pick from class' => ['{username:string;}', 'Pick<' . UserMock::class . ', "username">'],
     'Omit from class' => ['{email:string;username:string;}', 'Omit<' . UserMock::class . ', "age">'],
-    'Simple Pick with optional' => ['{name?:string|null;}', 'Pick<array{id?: string, name?: string|null}, "name">'],
+    'Simple Pick with optional' => ['{name?:(string|null);}', 'Pick<array{id?: string, name?: string|null}, "name">'],
     'Simple Omit with optional' => ['{id?:string;}', 'Omit<array{id?: string, name: string}, "name">'],
 ]);
 
@@ -683,7 +702,6 @@ test("parse abstract class properties", function () {
 });
 
 test("parse BrandedInt correctly", function () {
-    // Branded types are optimized away. They have no runtime Impact
     $parser = new TypeParser();
     $node = $parser->parse("BrandedInt<'wow'>");
     compareToOptimizedAst($node);
@@ -691,17 +709,11 @@ test("parse BrandedInt correctly", function () {
     foreach ([IO::INPUT, IO::OUTPUT] as $io) {
         $branded = typescriptFor($node, $io);
         expect($branded->type)->toBe('Wow')
-            ->and($branded->registry->toArray())->toBe(['Wow' => 'number & Brand<"wow">'])
-            ->and($branded->toStandaloneType())->toBe('number & Brand<"wow">');
-
-        $unbranded = typescriptFor($node, $io, new Options(ignoreBrandedTypes: true));
-        expect($unbranded->type)->toBe('number')
-            ->and($unbranded->registry->isEmpty())->toBeTrue();
+            ->and($branded->registry->toArray())->toBe(['Wow' => '(number & Brand<"wow">)']);
     }
 });
 
 test("parse BrandedString correctly", function () {
-    // Branded types are optimized away. They have no runtime Impact
     $parser = new TypeParser();
     $node = $parser->parse("BrandedString<'wow'>");
     compareToOptimizedAst($node);
@@ -709,26 +721,35 @@ test("parse BrandedString correctly", function () {
     foreach ([IO::INPUT, IO::OUTPUT] as $io) {
         $branded = typescriptFor($node, $io);
         expect($branded->type)->toBe('Wow')
-            ->and($branded->registry->toArray())->toBe(['Wow' => 'string & Brand<"wow">'])
-            ->and($branded->toStandaloneType())->toBe('string & Brand<"wow">');
-
-        $unbranded = typescriptFor($node, $io, new Options(ignoreBrandedTypes: true));
-        expect($unbranded->type)->toBe('string')
-            ->and($unbranded->registry->isEmpty())->toBeTrue();
+            ->and($branded->registry->toArray())->toBe(['Wow' => '(string & Brand<"wow">)']);
     }
 });
 
-test('brands are code generation metadata and stay out of the string form and exported php code', function () {
+test('rejects a branded utility tag that is not a valid TypeScript identifier', function (string $type) {
+    expect(fn() => new TypeParser()->parse($type))
+        ->toThrow(
+            \Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException::class,
+            'not a valid TypeScript identifier',
+        );
+})->with([
+    'BrandedString' => ["BrandedString<'not valid'>"],
+    'BrandedInt' => ["BrandedInt<'not valid'>"],
+]);
+
+test('codegen metadata is transparent in the string form and the exported php code', function () {
     $parser = new TypeParser();
     $string = $parser->parse("BrandedString<'wow'>");
     $int = $parser->parse("BrandedInt<'wow'>");
 
-    expect($string)->toBeInstanceOf(StringNode::class)
+    expect($string)->toBeInstanceOf(MetadataNode::class)
         ->and($string->brand)->toBe('wow')
+        ->and($string->name?->name)->toBe('Wow')
+        ->and($string->node)->toBeInstanceOf(StringNode::class)
         ->and((string)$string)->toBe('string')
         ->and($string->exportPhpCode())->not->toContain('wow')
-        ->and($int)->toBeInstanceOf(IntNode::class)
+        ->and($int)->toBeInstanceOf(MetadataNode::class)
         ->and($int->brand)->toBe('wow')
+        ->and($int->node)->toBeInstanceOf(IntNode::class)
         ->and((string)$int)->toBe('int')
         ->and($int->exportPhpCode())->not->toContain('wow');
 });
@@ -812,8 +833,8 @@ test('DateTimeString composes with other types', function (string $type, string 
     compareToOptimizedAst($node);
     expect(typescriptFor($node, IO::OUTPUT)->type)->toBe($expectedDefinition);
 })->with([
-    'nullable' => ["DateTimeString<'Y-m-d'>|null", 'string|null'],
-    'questionmark nullable' => ["?DateTimeString<'Y-m-d'>", 'null|string'],
+    'nullable' => ["DateTimeString<'Y-m-d'>|null", '(string|null)'],
+    'questionmark nullable' => ["?DateTimeString<'Y-m-d'>", '(null|string)'],
     'in a struct' => ["array{createdAt: DateTimeString<'Y-m-d'>}", '{createdAt:string;}'],
     'in a list' => ['list<DateTimeString>', 'Array<string>'],
     'bracket list' => ["DateTimeString<'Y-m-d'>[]", 'Array<string>'],

@@ -68,6 +68,15 @@ test('names no aliases when reading from an empty registry', function () {
         ->toThrow(UnknownAliasException::class, 'Known aliases: none.');
 });
 
+test('every stored alias counts as used, sorted', function () {
+    $registry = new TypeRegistry();
+    $registry->set('Zulu', 'string');
+    $registry->set('Alpha', 'number');
+
+    expect($registry->usedAliases())->toBe(['Alpha', 'Zulu'])
+        ->and(new TypeRegistry()->usedAliases())->toBe([]);
+});
+
 test('returns definitions sorted by alias', function () {
     $registry = new TypeRegistry();
     $registry->set('Zulu', 'string');

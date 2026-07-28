@@ -65,7 +65,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
 
 
 
-        if ($operation->inputDefinition === 'null') {
+        if ($operation->inputDef->type === 'null') {
             return new TypescriptCodeBlock(
                 <<<TypeScript
 

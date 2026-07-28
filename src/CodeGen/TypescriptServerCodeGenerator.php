@@ -15,8 +15,8 @@ use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\Options;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Le0daniel\PhpTsBindings\Utils\Lists;
 use RuntimeException;
@@ -25,14 +25,11 @@ final readonly class TypescriptServerCodeGenerator
 {
     /**
      * @param array<GeneratesLibFiles|GeneratesOperationCode> $generators
-     * @param Options $options Applies to every type generated in this run. The registry it carries is
-     *        ignored: each operation collects its aliases into its own.
      * @throws InvalidGeneratorDependencies
      */
     public function __construct(
         private array               $generators,
         private TypescriptGenerator $typescriptGenerator = new TypescriptGenerator(),
-        private Options             $options = new Options(),
     )
     {
         $this->verifyGeneratorDependencies();
@@ -84,26 +81,28 @@ final readonly class TypescriptServerCodeGenerator
             })
         );
 
+        // Cross-operation and cross-direction alias conflicts are only caught when every pass hands
+        // its aliases into one shared registry, so the run always has one. It is also what the
+        // generated types file declares.
+        $registry = new TypeRegistry();
+
         $definitions = array_values(
-            array_map(function (Operation $operation) use ($server): TypedOperation {
+            array_map(function (Operation $operation) use ($server, $registry): TypedOperation {
                 AstValidator::validate($operation->inputNode());
                 AstValidator::validate($operation->outputNode());
 
-                // Both directions share one registry, so an operation hands its aliases on as a single
-                // set and a brand that means two different things across them is rejected right here.
                 $input = $this->typescriptGenerator->toTypescript(
-                    $operation->inputNode(), IO::INPUT, $this->optionsWith(new TypeRegistry()),
+                    $operation->inputNode(), IO::INPUT, $registry,
                 );
                 $output = $this->typescriptGenerator->toTypescript(
-                    $operation->outputNode(), IO::OUTPUT, $this->optionsWith($input->registry),
+                    $operation->outputNode(), IO::OUTPUT, $registry,
                 );
 
                 return new TypedOperation(
-                    $input->type,
-                    $output->type,
-                    $this->generateAllErrorTypes($server, $operation->definition),
+                    $input,
+                    $output,
+                    TypeScript::fromRawString($this->generateAllErrorTypes($server, $operation->definition)),
                     $operation,
-                    $output->registry,
                 );
             }, $filteredDefinitions)
         );
@@ -117,21 +116,9 @@ final readonly class TypescriptServerCodeGenerator
         });
 
         return [
-            ...$this->generateLibFiles($definitions, $metadata),
+            ...$this->generateLibFiles($definitions, $metadata, $registry),
             ...$this->generateOperationDefinitions($definitions, $metadata),
         ];
-    }
-
-    /**
-     * The run wide options, aimed at the given registry.
-     */
-    private function optionsWith(TypeRegistry $registry): Options
-    {
-        return new Options(
-            pretty: $this->options->pretty,
-            ignoreBrandedTypes: $this->options->ignoreBrandedTypes,
-            registry: $registry,
-        );
     }
 
     private function generateAllErrorTypes(Server $server, Definition $operation): string
@@ -148,18 +135,19 @@ final readonly class TypescriptServerCodeGenerator
     /**
      * @param list<TypedOperation> $definitions
      * @param ServerMetadata $metadata
+     * @param TypeRegistry $registry The run's shared registry, holding every alias any pass produced.
      * @return array<string, TypeScriptFile>
      */
-    private function generateLibFiles(array $definitions, ServerMetadata $metadata): array
+    private function generateLibFiles(array $definitions, ServerMetadata $metadata, TypeRegistry $registry): array
     {
         return array_reduce(
             $this->generators,
-            function (array $carry, $codeGenerator) use ($definitions, $metadata): array {
+            function (array $carry, $codeGenerator) use ($definitions, $metadata, $registry): array {
                 if (!$codeGenerator instanceof GeneratesLibFiles) {
                     return $carry;
                 }
 
-                foreach ($codeGenerator->emitFiles($definitions, $metadata) as $fileName => $fileContent) {
+                foreach ($codeGenerator->emitFiles($definitions, $metadata, $registry) as $fileName => $fileContent) {
                     if (preg_match('/^[a-zA-Z0-9_\-]+$/', $fileName) !== 1) {
                         throw new RuntimeException("Invalid file name '{$fileName}' for lib file. File names must only contain a-z, A-Z, 0-9, - and _.");
                     }

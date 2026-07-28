@@ -5,13 +5,11 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\Options;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
@@ -31,11 +29,11 @@ use Tests\Unit\Typescript\Stubs\EmptyEnum;
 function typescriptOf(
     string|NodeInterface $type,
     IO                   $io = IO::INPUT,
-    Options              $options = new Options(),
+    ?TypeRegistry        $sharedRegistry = null,
 ): TypeScript
 {
     $node = is_string($type) ? new TypeParser()->parse($type) : $type;
-    return new TypescriptGenerator()->toTypescript($node, $io, $options);
+    return new TypescriptGenerator()->toTypescript($node, $io, $sharedRegistry);
 }
 
 /**
@@ -66,8 +64,8 @@ test('emits constrained and aliased built in types', function (string $type, str
 })->with([
     'positive-int is a constrained int' => ['positive-int', 'number'],
     'non-empty-string is a constrained string' => ['non-empty-string', 'string'],
-    'numeric collapses int|float to one number' => ['numeric', 'number'],
-    'scalar dedupes int|float' => ['scalar', 'number|boolean|string'],
+    'numeric collapses int|float to one number' => ['numeric', '(number)'],
+    'scalar dedupes int|float' => ['scalar', '(number|boolean|string)'],
 ]);
 
 test('emits literal types', function (string $type, string $expected) {
@@ -91,7 +89,7 @@ test('escapes string literals for typescript', function (string $type, string $e
 ]);
 
 test('emits an enum as a union of its case names', function () {
-    expect(typescriptOfBoth('\\' . ResultEnum::class))->toBe('"SUCCESS"|"FAILURE"');
+    expect(typescriptOfBoth('\\' . ResultEnum::class))->toBe('("SUCCESS"|"FAILURE")');
 });
 
 test('throws for an enum without cases', function () {
@@ -131,74 +129,60 @@ test('emits collection types', function (string $type, string $expected) {
     'explicitly keyed tuple' => ['array{0: string, 1: int}', '[string,number]'],
 ]);
 
-test('emits unions and intersections with correct precedence', function (string $type, string $expected) {
+test('emits unions and intersections fully parenthesised', function (string $type, string $expected) {
     expect(typescriptOfBoth($type))->toBe($expected);
 })->with([
-    'union' => ['array{name: string}|string', '{name:string;}|string'],
-    'nullable' => ['?string', 'null|string'],
-    'union dedupes rendered members' => ['int|string|int', 'number|string'],
-    'union dedupes equal literals' => ["'a'|'b'|'a'", '"a"|"b"'],
+    'union' => ['array{name: string}|string', '({name:string;}|string)'],
+    'nullable' => ['?string', '(null|string)'],
+    'union dedupes rendered members' => ['int|string|int', '(number|string)'],
+    'union dedupes equal literals' => ["'a'|'b'|'a'", '("a"|"b")'],
     'union member that is an intersection is parenthesised' => [
         'array{a: string}|(array{b: int}&array{c: bool})',
-        '{a:string;}|({b:number;}&{c:boolean;})',
+        '({a:string;}|({b:number;}&{c:boolean;}))',
     ],
     'intersection member that is a union is parenthesised' => [
         '(array{id: positive-int}|array{token: string})&array{reason: string}',
-        '({id:number;}|{token:string;})&{reason:string;}',
+        '(({id:number;}|{token:string;})&{reason:string;})',
     ],
 ]);
 
-test('references a branded alias at the use site and returns its definition', function (
+test('an attribute brand renders inline and declares no alias', function (string $type, string $expectedType) {
+    $result = typescriptOf($type);
+
+    expect($result->type)->toBe($expectedType)
+        ->and($result->registry->isEmpty())->toBeTrue();
+})->with([
+    'string value object' => ['\\' . Email::class, '(string & Brand<"email">)'],
+    'int value object with an explicit brand' => ['\\' . UserId::class, '(number & Brand<"customerId">)'],
+    'unbranded value object stays a plain string' => ['\\' . Slug::class, 'string'],
+    'inside a struct' => [
+        '\\' . CreateAccountInput::class,
+        '{email:(string & Brand<"email">);ownerId:(number & Brand<"customerId">);}',
+    ],
+    'inside a list' => ['list<\\' . Email::class . '>', 'Array<(string & Brand<"email">)>'],
+    'inside a union' => ['?\\' . Email::class, '(null|(string & Brand<"email">))'],
+    'inside a record' => [
+        'array<string, \\' . UserId::class . '>',
+        'Record<string,(number & Brand<"customerId">)>',
+    ],
+]);
+
+test('the BrandedString and BrandedInt utilities keep their implicit alias', function (
     string $type,
     string $expectedType,
-    array  $expectedBrands,
+    array  $expectedAliases,
 ) {
     $result = typescriptOf($type);
 
     expect($result->type)->toBe($expectedType)
-        ->and($result->registry->toArray())->toBe($expectedBrands);
+        ->and($result->registry->toArray())->toBe($expectedAliases);
 })->with([
-    'string value object' => ['\\' . Email::class, 'Email', ['Email' => 'string & Brand<"email">']],
-    'int value object aliased by its explicit brand' => [
-        '\\' . UserId::class,
-        'CustomerId',
-        ['CustomerId' => 'number & Brand<"customerId">'],
-    ],
-    'unbranded value object stays a plain string' => ['\\' . Slug::class, 'string', []],
-    'BrandedString' => ["BrandedString<'token'>", 'Token', ['Token' => 'string & Brand<"token">']],
-    'BrandedInt' => ["BrandedInt<'wow'>", 'Wow', ['Wow' => 'number & Brand<"wow">']],
-]);
-
-test('collects brands from any depth of the tree', function (string $type, string $expectedType, array $expectedBrands) {
-    $result = typescriptOf($type);
-
-    expect($result->type)->toBe($expectedType)
-        ->and($result->registry->toArray())->toBe($expectedBrands);
-})->with([
-    'inside a struct' => [
-        '\\' . CreateAccountInput::class,
-        '{email:Email;ownerId:CustomerId;}',
-        ['CustomerId' => 'number & Brand<"customerId">', 'Email' => 'string & Brand<"email">'],
-    ],
-    'inside a list' => [
-        'list<\\' . Email::class . '>',
-        'Array<Email>',
-        ['Email' => 'string & Brand<"email">'],
-    ],
-    'inside a union' => [
-        '?\\' . Email::class,
-        'null|Email',
-        ['Email' => 'string & Brand<"email">'],
-    ],
-    'inside a record' => [
-        'array<string, \\' . UserId::class . '>',
-        'Record<string,CustomerId>',
-        ['CustomerId' => 'number & Brand<"customerId">'],
-    ],
-    'the same brand used twice is collected once' => [
+    'BrandedString' => ["BrandedString<'token'>", 'Token', ['Token' => '(string & Brand<"token">)']],
+    'BrandedInt' => ["BrandedInt<'wow'>", 'Wow', ['Wow' => '(number & Brand<"wow">)']],
+    'the same alias used twice is collected once' => [
         "array{a: BrandedString<'token'>, b: BrandedString<'token'>}",
         '{a:Token;b:Token;}',
-        ['Token' => 'string & Brand<"token">'],
+        ['Token' => '(string & Brand<"token">)'],
     ],
 ]);
 
@@ -214,84 +198,47 @@ test('throws when one brand resolves to two different definitions', function () 
         ->toThrow(UnsupportedTypeException::class, 'Token');
 });
 
-test('toStandaloneType inlines every branded alias', function () {
-    $result = typescriptOf('\\' . CreateAccountInput::class);
-
-    expect($result->toStandaloneType())
-        ->toBe('{email:string & Brand<"email">;ownerId:number & Brand<"customerId">;}');
-});
-
-test('toStandaloneType does not let one alias corrupt another that starts with it', function () {
-    $result = typescriptOf("array{a: BrandedString<'user'>, b: BrandedInt<'userId'>}");
-
-    expect($result->type)->toBe('{a:User;b:UserId;}')
-        ->and($result->toStandaloneType())
-        ->toBe('{a:string & Brand<"user">;b:number & Brand<"userId">;}');
-});
-
-test('toStandaloneType equals the type when nothing is branded', function () {
-    $result = typescriptOf('array{name: string, tags: list<string>}');
-
-    expect($result->registry->isEmpty())->toBeTrue()
-        ->and($result->toStandaloneType())->toBe($result->type);
-});
-
 test('reads a collected alias back out of the registry', function () {
-    $registry = typescriptOf('\\' . CreateAccountInput::class)->registry;
+    $registry = typescriptOf("BrandedString<'email'>")->registry;
 
     expect($registry->isEmpty())->toBeFalse()
         ->and($registry->has('Email'))->toBeTrue()
-        ->and($registry->get('Email'))->toBe('string & Brand<"email">')
+        ->and($registry->get('Email'))->toBe('(string & Brand<"email">)')
         ->and($registry->has('Nope'))->toBeFalse();
 });
 
-test('generates against a registry passed in without mutating it', function () {
-    $shared = new TypeRegistry(['Existing' => 'string & Brand<"existing">']);
+test('registers into the passed registry but returns only what the emission needs', function () {
+    $shared = new TypeRegistry(['Existing' => '(string & Brand<"existing">)']);
 
-    $result = typescriptOf('\\' . Email::class, IO::INPUT, new Options(registry: $shared));
+    $result = typescriptOf("BrandedString<'email'>", IO::INPUT, $shared);
 
-    expect($result->registry->toArray())->toBe([
-        'Email' => 'string & Brand<"email">',
-        'Existing' => 'string & Brand<"existing">',
+    expect($shared->toArray())->toBe([
+        'Email' => '(string & Brand<"email">)',
+        'Existing' => '(string & Brand<"existing">)',
     ])
-        ->and($result->registry)->not->toBe($shared)
-        ->and($shared->toArray())->toBe(['Existing' => 'string & Brand<"existing">']);
+        ->and($result->registry->toArray())->toBe(['Email' => '(string & Brand<"email">)'])
+        ->and($result->registry->usedAliases())->toBe(['Email']);
+});
+
+test('one shared registry accumulates aliases across emissions', function () {
+    $shared = new TypeRegistry();
+
+    $first = typescriptOf("BrandedString<'email'>", IO::INPUT, $shared);
+    $second = typescriptOf("BrandedInt<'customerId'>", IO::INPUT, $shared);
+
+    expect($shared->toArray())->toBe([
+        'CustomerId' => '(number & Brand<"customerId">)',
+        'Email' => '(string & Brand<"email">)',
+    ])
+        ->and($first->registry->toArray())->toBe(['Email' => '(string & Brand<"email">)'])
+        ->and($second->registry->toArray())->toBe(['CustomerId' => '(number & Brand<"customerId">)']);
 });
 
 test('throws when the incoming registry already binds an alias to something else', function () {
-    $shared = new TypeRegistry(['Email' => 'number & Brand<"email">']);
+    $shared = new TypeRegistry(['Email' => '(number & Brand<"email">)']);
 
-    expect(fn() => typescriptOf('\\' . Email::class, IO::INPUT, new Options(registry: $shared)))
+    expect(fn() => typescriptOf("BrandedString<'email'>", IO::INPUT, $shared))
         ->toThrow(UnsupportedTypeException::class, 'Email');
-});
-
-test('emits the backing primitive when brands are ignored', function (string $type, string $expectedType) {
-    $result = typescriptOf($type, IO::INPUT, new Options(ignoreBrandedTypes: true));
-
-    expect($result->type)->toBe($expectedType)
-        ->and($result->registry->isEmpty())->toBeTrue();
-})->with([
-    'string value object' => ['\\' . Email::class, 'string'],
-    'int value object' => ['\\' . UserId::class, 'number'],
-    'unbranded value object' => ['\\' . Slug::class, 'string'],
-    'BrandedString' => ["BrandedString<'token'>", 'string'],
-    'BrandedInt' => ["BrandedInt<'wow'>", 'number'],
-    'branded and unbranded mixed in a struct' => [
-        'array{email: \\' . Email::class . ', slug: \\' . Slug::class . ', id: \\' . UserId::class . '}',
-        '{email:string;slug:string;id:number;}',
-    ],
-]);
-
-test('ignoring brands neither reads nor extends an incoming registry', function () {
-    $shared = new TypeRegistry(['Email' => 'number & Brand<"email">']);
-
-    // The seeded definition contradicts what Email would otherwise register, so this would throw
-    // if the alias were still computed.
-    $result = typescriptOf('\\' . Email::class, IO::INPUT, new Options(ignoreBrandedTypes: true, registry: $shared));
-
-    expect($result->type)->toBe('string')
-        ->and($result->registry->toArray())->toBe(['Email' => 'number & Brand<"email">'])
-        ->and($shared->toArray())->toBe(['Email' => 'number & Brand<"email">']);
 });
 
 test('filters struct properties by direction', function () {
@@ -327,7 +274,6 @@ test('throws for an uncastable class on input but emits it on output', function 
 test('throws for nodes it cannot represent', function (NodeInterface $node) {
     expect(fn() => typescriptOf($node))->toThrow(UnsupportedTypeException::class);
 })->with([
-    'NamedNode' => [new NamedNode(new StringNode(), 'Legacy')],
     'ReferencedNode' => [new ReferencedNode('#leaf_abc', 'string', 'registry')],
     'unknown node implementation' => [new class implements NodeInterface {
         public function __toString(): string
@@ -341,55 +287,3 @@ test('throws for nodes it cannot represent', function (NodeInterface $node) {
         }
     }],
 ]);
-
-test('pretty prints nested struct literals', function () {
-    $result = typescriptOf(
-        'array{items: list<array{id: string}>, total: int}',
-        IO::INPUT,
-        new Options(pretty: true),
-    );
-
-    expect($result->type)->toBe(<<<TS
-    {
-        items: Array<{
-            id: string;
-        }>;
-        total: number;
-    }
-    TS);
-});
-
-test('pretty printing spaces out the remaining separators', function (string $type, string $expected) {
-    expect(typescriptOf($type, IO::INPUT, new Options(pretty: true))->type)->toBe($expected);
-})->with([
-    'union' => ['int|string', 'number | string'],
-    'intersection' => ['array{a: int}&array{b: string}', "{\n    a: number;\n} & {\n    b: string;\n}"],
-    'tuple' => ['array{string, int}', '[string, number]'],
-    'record' => ['array<string, int>', 'Record<string, number>'],
-    'list' => ['list<string>', 'Array<string>'],
-    'optional key' => ['array{name?: string}', "{\n    name?: string;\n}"],
-    'quoted key' => ["array{'a b': string}", "{\n    \"a b\": string;\n}"],
-]);
-
-test('pretty printing keeps an empty object on one line', function () {
-    $node = new StructNode(StructPhpType::OBJECT, [
-        new PropertyNode('name', new StringNode(), false, PropertyType::OUTPUT),
-    ]);
-
-    expect(typescriptOf($node, IO::INPUT, new Options(pretty: true))->type)->toBe('{}');
-});
-
-test('pretty printing still references branded aliases', function () {
-    $result = typescriptOf('\\' . CreateAccountInput::class, IO::INPUT, new Options(pretty: true));
-
-    expect($result->type)->toBe(<<<TS
-    {
-        email: Email;
-        ownerId: CustomerId;
-    }
-    TS)
-        ->and($result->registry->toArray())->toBe([
-            'CustomerId' => 'number & Brand<"customerId">',
-            'Email' => 'string & Brand<"email">',
-        ]);
-});

@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\Data;
 
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 
 final class TypedOperation
 {
@@ -17,19 +17,31 @@ final class TypedOperation
     }
 
     /**
-     * @param string $inputDefinition The input type. Branded leaves appear as their alias name.
-     * @param string $outputDefinition The output type. Branded leaves appear as their alias name.
-     * @param TypeRegistry $registry The aliases the two types above refer to. A generator writing
-     *        into the file that declares them emits one `export type` per entry; a generator writing
-     *        into any other file imports them by name.
+     * Each definition carries its own registry with every alias it relies on: what the operation's
+     * file imports, and what the generated types file declares (via the run's shared registry).
      */
     public function __construct(
-        public readonly string       $inputDefinition,
-        public readonly string       $outputDefinition,
-        public readonly string       $errorDefinition,
-        public readonly Operation    $operation,
-        public readonly TypeRegistry $registry = new TypeRegistry(),
+        public readonly TypeScript $inputDef,
+        public readonly TypeScript $outputDef,
+        public readonly TypeScript $errorDef,
+        public readonly Operation  $operation,
     )
     {
+    }
+
+    /**
+     * The aliases the operation's own file references, ready to import.
+     *
+     * @return list<string> sorted
+     */
+    public function usedAliases(): array
+    {
+        $aliases = array_values(array_unique([
+            ...$this->inputDef->registry->usedAliases(),
+            ...$this->outputDef->registry->usedAliases(),
+            ...$this->errorDef->registry->usedAliases(),
+        ]));
+        sort($aliases);
+        return $aliases;
     }
 }

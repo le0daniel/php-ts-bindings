@@ -10,16 +10,22 @@ use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
+use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
+use Le0daniel\PhpTsBindings\Utils\Nodes;
 
 final class UtilsConsumer implements TypeConsumer
 {
@@ -55,12 +61,24 @@ final class UtilsConsumer implements TypeConsumer
             [$literalNode] = $this->consumeGenerics($state, $parser, 1, 1);
             $brand = $this->literalStringValue($state, $literalNode, 'branded type');
 
-            return $type === 'BrandedString'
-                ? new StringNode(brand: $brand)
-                : new IntNode(brand: $brand);
+            // Docblocks cannot carry #[Named], so the utility is the shorthand for brand + name:
+            // the use site references the alias (Token), which resolves to `(string & Brand<"token">)`.
+            if (!Syntax::isValidIdentifier($brand)) {
+                throw InvalidStringLiteralException::notAValidTypescriptIdentifier($brand, "{$type}<'{$brand}'>");
+            }
+
+            return new MetadataNode(
+                $type === 'BrandedString' ? new StringNode() : new IntNode(),
+                new NamedType(ucfirst($brand), IO::BOTH),
+                $brand,
+            );
         }
 
         [$nodeToPickFrom, $pick] = $this->consumeGenerics($state, $parser, 2, 2);
+
+        // Codegen metadata is irrelevant here: picking from a named or branded type produces a new
+        // shape, so the alias and brand are dropped along the way.
+        $nodeToPickFrom = Nodes::getDeclaringNode($nodeToPickFrom);
 
         if (!$nodeToPickFrom instanceof StructNode && !$nodeToPickFrom instanceof CustomCastingNode) {
             $state->produceSyntaxError("Expected struct or custom casting node for picking or omitting");

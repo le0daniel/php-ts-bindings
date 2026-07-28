@@ -23,8 +23,8 @@ final class CachedTypeRegistry implements TypeRegistry
     {
     }
 
-    public function get(string $fullyQualifiedClassName): NodeInterface
+    public function get(string $key): NodeInterface
     {
-        return $this->instantiatedNodes[$fullyQualifiedClassName] ??= ($this->registeredSchemas[$fullyQualifiedClassName])($this);
+        return $this->instantiatedNodes[$key] ??= ($this->registeredSchemas[$key])($this);
     }
 }

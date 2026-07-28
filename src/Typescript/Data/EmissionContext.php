@@ -11,7 +11,6 @@ final readonly class EmissionContext
 {
     public function __construct(
         public IO           $io,
-        public Options      $options,
         public TypeRegistry $registry,
     )
     {

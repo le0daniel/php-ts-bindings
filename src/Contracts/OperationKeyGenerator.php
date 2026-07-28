@@ -2,11 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
-use Le0daniel\PhpTsBindings\Server\Data\Definition;
-
 interface OperationKeyGenerator
 {
-
     public function generateKey(string $namespace, string $name): string;
 
 }

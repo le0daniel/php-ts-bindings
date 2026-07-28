@@ -27,9 +27,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Server\Server;
-use Le0daniel\PhpTsBindings\Typescript\Data\Options;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
-use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -42,7 +40,6 @@ final class CodeGenCommand extends Command
     . '{--without=* : tanstack-query | type-map} '
     . '{--ignore=* : Ignored namespaces (namespace) or specific operations by specifying namespace.name} '
     . '{--naming=name : Naming mode to use. Modes: name, fqn, operation-prefix, namespace-postfix or classname::methodName for custom function}'
-    . '{--no-branded-types}'
     . '{--verify} ';
 
     protected $description = 'Generate the typescript bindings for all operations';
@@ -91,10 +88,6 @@ DESCRIPTION;
 
             $codeGenerator = new TypescriptServerCodeGenerator(
                 $this->getGeneratorsFromInput($application),
-                new TypescriptGenerator(),
-                new Options(
-                    ignoreBrandedTypes: $this->option('no-branded-types') === true,
-                ),
             );
 
             $files = $codeGenerator->generate(

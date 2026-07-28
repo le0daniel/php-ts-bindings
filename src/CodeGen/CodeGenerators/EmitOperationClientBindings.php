@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 
 final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
 {
@@ -19,7 +20,7 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
     /**
      * @return array<string, string>
      */
-    public function emitFiles(array $operations, ServerMetadata $metadata): array
+    public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
     {
         return [
             "OperationClient" => <<<TypeScript

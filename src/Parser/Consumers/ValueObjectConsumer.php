@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
-use Le0daniel\PhpTsBindings\Contracts\Attributes\Brand;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\ValueObjects\IntValueObject;
 use Le0daniel\PhpTsBindings\Contracts\ValueObjects\StringValueObject;
@@ -12,7 +11,8 @@ use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
+use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
+use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use ReflectionClass;
 use ReflectionException;
 
@@ -63,25 +63,13 @@ final class ValueObjectConsumer implements TypeConsumer
         $state->advance();
 
         /** @var class-string<StringValueObject|IntValueObject> $fullyQualifiedClassName */
-        return new ValueObjectNode(
-            $fullyQualifiedClassName,
-            $isStringBacked ? BackingType::STRING : BackingType::INT,
-            $this->resolveBrand($reflectionClass),
+        return MetadataAttributes::wrap(
+            new ValueObjectNode(
+                $fullyQualifiedClassName,
+                $isStringBacked ? BackingType::STRING : BackingType::INT,
+            ),
+            $reflectionClass,
+            defaultIo: IO::BOTH,
         );
-    }
-
-    /**
-     * @param ReflectionClass<object> $reflectionClass
-     */
-    private function resolveBrand(ReflectionClass $reflectionClass): ?string
-    {
-        $attributes = new AttributesReflector($reflectionClass->getAttributes());
-        if (!$attributes->has(Brand::class)) {
-            return null;
-        }
-
-        // Without an explicit name, the brand is lcfirst of the base class name: UserId -> "userId".
-        return $attributes->getSingleInstance(Brand::class)->name
-            ?? lcfirst($reflectionClass->getShortName());
     }
 }

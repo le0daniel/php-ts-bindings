@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript;
 
-use Le0daniel\PhpTsBindings\Contracts\Branded;
+use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
@@ -21,6 +21,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -28,7 +29,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Typescript\Data\EmissionContext;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\Options;
+use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
@@ -44,53 +45,54 @@ use UnitEnum;
  */
 final readonly class TypescriptGenerator
 {
-    public function toTypescript(NodeInterface $node, IO $io, Options $options = new Options()): TypeScript
+    public function toTypescript(NodeInterface $node, IO $io, ?TypeRegistry $sharedRegistry = null): TypeScript
     {
-        // The caller's registry is never touched: aliases collected during the walk land in a copy,
-        // and that copy is what travels back out.
-        $registry = clone $options->registry;
-        $type = $this->emit($node, new EmissionContext($io, $options, $registry), 0);
+        if ($io === IO::BOTH) {
+            throw new InvalidArgumentException('Emit for IO::INPUT or IO::OUTPUT; IO::BOTH is only a #[Named] scope.');
+        }
 
-        return new TypeScript($type, $registry);
+        // Every pass emits into its own local registry, so the result always carries exactly the
+        // aliases this schema produced. When a shared registry is given, all of them are
+        // registered into it after the pass — that hand-over is where an alias meaning two
+        // different things across several schemas is rejected.
+        $localRegistry = new TypeRegistry();
+        $context = new EmissionContext($io, $localRegistry);
+        $type = $this->emit($node, $context);
+
+        foreach ($localRegistry->toArray() as $alias => $definition) {
+            $sharedRegistry?->set($alias, $definition);
+        }
+
+        return new TypeScript($type, $localRegistry);
     }
 
-    /**
-     * @param int $depth Nesting level of object literals, used for indentation when pretty printing.
-     */
-    private function emit(NodeInterface $node, EmissionContext $context, int $depth): string
+    private function emit(NodeInterface $node, EmissionContext $context): string
     {
         return match (true) {
-            $node instanceof StringNode => $this->brand('string', $node, $context),
-            $node instanceof IntNode => $this->brand('number', $node, $context),
-            $node instanceof FloatNode => 'number',
+            $node instanceof MetadataNode => $this->metadata($node, $context),
+            $node instanceof StringNode => 'string',
+            $node instanceof IntNode, $node instanceof FloatNode => 'number',
             $node instanceof BoolNode => 'boolean',
             $node instanceof NullNode => 'null',
             $node instanceof MixedNode => 'unknown',
-            $node instanceof ValueObjectNode => $this->brand(
-                match ($node->backingType) {
-                    BackingType::STRING => 'string',
-                    BackingType::INT => 'number',
-                },
-                $node,
-                $context,
-            ),
+            $node instanceof ValueObjectNode => match ($node->backingType) {
+                BackingType::STRING => 'string',
+                BackingType::INT => 'number',
+            },
             $node instanceof LiteralNode => self::literal($node),
-            $node instanceof EnumNode => self::enum($node, $context),
+            $node instanceof EnumNode => self::enum($node),
             $node instanceof DateTimeNode => 'string',
-            $node instanceof StructNode => $this->struct($node, $context, $depth),
-            $node instanceof UnionNode => $this->union($node, $context, $depth),
-            $node instanceof IntersectionNode => $this->intersection($node, $context, $depth),
-            $node instanceof TupleNode => $this->tuple($node, $context, $depth),
-            $node instanceof ListNode => "Array<{$this->emit($node->node, $context, $depth)}>",
-            $node instanceof RecordNode => $context->options->pretty
-                ? "Record<string, {$this->emit($node->node, $context, $depth)}>"
-                : "Record<string,{$this->emit($node->node, $context, $depth)}>",
-            $node instanceof ConstraintNode => $this->emit($node->node, $context, $depth),
-            $node instanceof CustomCastingNode => $this->customCasting($node, $context, $depth),
+            $node instanceof StructNode => $this->struct($node, $context),
+            $node instanceof UnionNode => $this->union($node, $context),
+            $node instanceof IntersectionNode => $this->intersection($node, $context),
+            $node instanceof TupleNode => $this->tuple($node, $context),
+            $node instanceof ListNode => "Array<{$this->emit($node->node, $context)}>",
+            $node instanceof RecordNode => "Record<string,{$this->emit($node->node, $context)}>",
+            $node instanceof ConstraintNode => $this->emit($node->node, $context),
+            $node instanceof CustomCastingNode => $this->customCasting($node, $context),
 
-            // NamedNode is the superseded branding path and is never constructed; ReferencedNode
-            // only exists inside optimizer generated PHP, where it resolves against a registry the
-            // generator does not have. Both are genuinely unrepresentable here.
+            // ReferencedNode only exists inside optimizer generated PHP, where it resolves against
+            // a registry the generator does not have. It is genuinely unrepresentable here.
             default => throw UnsupportedTypeException::forNode($node),
         };
     }
@@ -110,7 +112,7 @@ final readonly class TypescriptGenerator
         };
     }
 
-    private static function enum(EnumNode $node, EmissionContext $context): string
+    private static function enum(EnumNode $node): string
     {
         $cases = array_map(
             fn(UnitEnum $case): string => Syntax::stringLiteral($case->name),
@@ -121,31 +123,36 @@ final readonly class TypescriptGenerator
             throw UnsupportedTypeException::emptyEnum($node->enumClassName);
         }
 
-        return implode($context->options->pretty ? ' | ' : '|', $cases);
+        return implode('|', $cases) |> Syntax::wrapInParentheses(...);
     }
 
     /**
-     * A branded leaf is always referenced by its alias; the definition it stands for travels back
-     * in TypeScript::$registry.
+     * Codegen metadata never nests (MetadataNode::validate()), so emission is one fixed pipeline:
+     * emit the inner type, apply the brand, apply the name.
+     *
+     * A brand intersects the inner type with Brand<"..."> and is always parenthesised
+     * (`(string & Brand<"email">)`), so the result composes into any surrounding type unchanged.
+     * A name applying to the direction registers the result as an alias; the use site references
+     * the bare identifier. The registry accepts the identical re-registration a second use site
+     * produces and rejects a contradicting one.
      */
-    private function brand(string $baseType, Branded $node, EmissionContext $context): string
+    private function metadata(MetadataNode $node, EmissionContext $context): string
     {
-        if ($context->options->ignoreBrandedTypes) {
-            return $baseType;
+        $inner = $this->emit($node->node, $context);
+
+        if ($node->brand !== null) {
+            $inner = Syntax::branded($inner, $node->brand) |> Syntax::wrapInParentheses(...);
         }
 
-        $brandName = $node->brandName();
-        if ($brandName === null || $brandName === '') {
-            return $baseType;
+        if ($node->name?->appliesTo($context->io)) {
+            $context->registry->set($node->name->name, $inner);
+            return $node->name->name;
         }
 
-        $alias = Syntax::brandAlias($brandName);
-        $context->registry->set($alias, Syntax::branded($baseType, $brandName));
-
-        return $alias;
+        return $inner;
     }
 
-    private function customCasting(CustomCastingNode $node, EmissionContext $context, int $depth): string
+    private function customCasting(CustomCastingNode $node, EmissionContext $context): string
     {
         // The class exists on the wire in one direction only: it can be serialized, but there is
         // no way to build an instance from an incoming payload.
@@ -153,10 +160,10 @@ final readonly class TypescriptGenerator
             throw UnsupportedTypeException::uncastableInput($node);
         }
 
-        return $this->emit($node->node, $context, $depth);
+        return $this->emit($node->node, $context);
     }
 
-    private function struct(StructNode $node, EmissionContext $context, int $depth): string
+    private function struct(StructNode $node, EmissionContext $context): string
     {
         /** @var list<array{string, string}> $properties */
         $properties = [];
@@ -175,8 +182,8 @@ final readonly class TypescriptGenerator
             }
 
             $properties[] = [
-                Syntax::objectKey($property->name, $property->isOptional),
-                $this->emit($property->node, $context, $depth + 1),
+                Syntax::objectKey($property->name, optional: $property->isOptional),
+                $this->emit($property->node, $context),
             ];
         }
 
@@ -184,77 +191,43 @@ final readonly class TypescriptGenerator
             return '{}';
         }
 
-        if (!$context->options->pretty) {
-            return '{' . implode('', array_map(
-                    fn(array $property): string => "{$property[0]}:{$property[1]};",
-                    $properties,
-                )) . '}';
-        }
-
-        $indent = Syntax::indent($depth + 1);
-        $lines = array_map(
-            fn(array $property): string => "{$indent}{$property[0]}: {$property[1]};",
-            $properties,
-        );
-
-        return "{\n" . implode("\n", $lines) . "\n" . Syntax::indent($depth) . '}';
+        return '{' . implode('', array_map(
+                fn(array $property): string => "{$property[0]}:{$property[1]};",
+                $properties,
+            )) . '}';
     }
 
     /**
      * @param UnionNode<NodeInterface> $node
      */
-    private function union(UnionNode $node, EmissionContext $context, int $depth): string
+    private function union(UnionNode $node, EmissionContext $context): string
     {
         $members = array_map(
-            function (NodeInterface $member) use ($context, $depth): string {
-                $definition = $this->emit($member, $context, $depth);
-                $declaring = self::declaringNode($member);
-
-                return $declaring instanceof UnionNode || $declaring instanceof IntersectionNode
-                    ? "({$definition})"
-                    : $definition;
-            },
+            fn($member): string => $this->emit($member, $context),
             $node->types,
         );
 
         // Distinct schema nodes can render to the same type: `int|float` is one `number`.
-        return implode($context->options->pretty ? ' | ' : '|', array_unique($members));
+        return implode('|', array_unique($members)) |> Syntax::wrapInParentheses(...);
     }
 
-    private function intersection(IntersectionNode $node, EmissionContext $context, int $depth): string
+    private function intersection(IntersectionNode $node, EmissionContext $context): string
     {
         $members = array_map(
-            function (NodeInterface $member) use ($context, $depth): string {
-                $definition = $this->emit($member, $context, $depth);
-
-                return self::declaringNode($member) instanceof UnionNode
-                    ? "({$definition})"
-                    : $definition;
-            },
+            fn($member): string => $this->emit($member, $context),
             $node->types,
         );
 
-        return implode($context->options->pretty ? ' & ' : '&', $members);
+        return implode('&', $members) |> Syntax::wrapInParentheses(...);
     }
 
-    private function tuple(TupleNode $node, EmissionContext $context, int $depth): string
+    private function tuple(TupleNode $node, EmissionContext $context): string
     {
         $members = array_map(
-            fn(NodeInterface $member): string => $this->emit($member, $context, $depth),
+            fn(NodeInterface $member): string => $this->emit($member, $context),
             $node->types,
         );
 
-        return '[' . implode($context->options->pretty ? ', ' : ',', $members) . ']';
-    }
-
-    /**
-     * Constraints are invisible in TypeScript, so precedence is decided by what they wrap.
-     */
-    private static function declaringNode(NodeInterface $node): NodeInterface
-    {
-        while ($node instanceof ConstraintNode) {
-            $node = $node->node;
-        }
-        return $node;
+        return '[' . implode(',', $members) . ']';
     }
 }

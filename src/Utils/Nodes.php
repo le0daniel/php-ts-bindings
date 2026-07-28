@@ -5,7 +5,7 @@ namespace Le0daniel\PhpTsBindings\Utils;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 
@@ -13,7 +13,20 @@ final class Nodes
 {
     public static function getDeclaringNode(NodeInterface $node): NodeInterface
     {
-        while ($node instanceof ConstraintNode || $node instanceof NamedNode) {
+        while ($node instanceof ConstraintNode || $node instanceof MetadataNode) {
+            $node = $node->node;
+        }
+        return $node;
+    }
+
+    /**
+     * Strips codegen metadata only. Unlike getDeclaringNode(), constraints stay attached — use
+     * this where a ConstraintNode must remain visible, e.g. so a constrained array key is
+     * rejected instead of silently losing its runtime validation.
+     */
+    public static function unwrapMetadata(NodeInterface $node): NodeInterface
+    {
+        while ($node instanceof MetadataNode) {
             $node = $node->node;
         }
         return $node;

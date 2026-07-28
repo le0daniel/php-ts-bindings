@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
@@ -89,7 +89,9 @@ PHP) === false) {
      */
     private function dedupeNode(NodeInterface $node): NodeInterface
     {
-        if ($node instanceof NamedNode) {
+        // Codegen metadata (brands, named types) has no runtime effect and is eliminated from
+        // cached ASTs entirely: TypeScript generation runs on freshly parsed schemas.
+        if ($node instanceof MetadataNode) {
             return $this->dedupeNode($node->node);
         }
 

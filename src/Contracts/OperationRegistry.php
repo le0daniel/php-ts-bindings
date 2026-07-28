@@ -7,7 +7,6 @@ use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 
 interface OperationRegistry
 {
-
     /**
      * @param OperationType $type
      * @param string $fullyQualifiedKey

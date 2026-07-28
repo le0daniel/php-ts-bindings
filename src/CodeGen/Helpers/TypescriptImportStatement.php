@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\CodeGen\Helpers;
 
 use InvalidArgumentException;
+use Le0daniel\PhpTsBindings\Utils\Lists;
 
 final readonly class TypescriptImportStatement
 {
@@ -37,13 +38,41 @@ final readonly class TypescriptImportStatement
         return new TypescriptImportStatement($this->from, $uniqueImports);
     }
 
-    public function toString(): string
+    /** @return list<string> */
+    public function toStatements(): array
     {
-        $imports = $this->getImports();
+        $typeImports = [];
+        $valueImports = [];
+
+        foreach ($this->imports as $statement) {
+            if (str_starts_with($statement, 'type ')) {
+                $typeImports[] = substr($statement, 5);
+            } else {
+                $valueImports[] = $statement;
+            }
+        }
+
+        return Lists::filterNullValues([
+            $this->toImport(true, $typeImports),
+            $this->toImport(false, $valueImports)
+        ]);
+    }
+
+    /**
+     * @param bool $isTypeImport
+     * @param list<string> $imports
+     * @return string|null
+     */
+    private function toImport(bool $isTypeImport, array $imports): string|null
+    {
+        if (empty($imports)) {
+            return null;
+        }
+
         usort($imports, fn(string $a, string $b): int => strcmp($a, $b));
 
         $importedValues = implode(', ', $imports);
-        return "import {{$importedValues}} from '{$this->from}';";
+        return $isTypeImport ? "import type {{$importedValues}} from '{$this->from}';" : "import {{$importedValues}} from '{$this->from}';";
     }
 
     /**
