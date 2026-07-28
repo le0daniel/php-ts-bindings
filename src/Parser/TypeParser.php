@@ -23,10 +23,9 @@ use Le0daniel\PhpTsBindings\Parser\Lexer\Exceptions\UnexpectedCharacterException
 use Le0daniel\PhpTsBindings\Parser\Lexer\Lexer;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
@@ -155,7 +154,7 @@ final readonly class TypeParser
 
         if ($state->currentTokenIs(TokenType::QUESTION_MARK)) {
             $state->advance();
-            $types[] = new BuiltInNode(BuiltInType::NULL);
+            $types[] = new NullNode();
             $mode = 'questionmark-union';
         }
 

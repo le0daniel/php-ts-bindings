@@ -9,13 +9,13 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
@@ -53,14 +53,11 @@ final class UtilsConsumer implements TypeConsumer
 
         if ($type === 'BrandedString' || $type === 'BrandedInt') {
             [$literalNode] = $this->consumeGenerics($state, $parser, 1, 1);
+            $brand = $this->literalStringValue($state, $literalNode, 'branded type');
 
-            return new BuiltInNode(
-                match ($type) {
-                    'BrandedString' => BuiltInType::STRING,
-                    'BrandedInt' => BuiltInType::INT,
-                },
-                brand: $this->literalStringValue($state, $literalNode, 'branded type'),
-            );
+            return $type === 'BrandedString'
+                ? new StringNode(brand: $brand)
+                : new IntNode(brand: $brand);
         }
 
         [$nodeToPickFrom, $pick] = $this->consumeGenerics($state, $parser, 2, 2);

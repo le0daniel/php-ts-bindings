@@ -1,11 +1,10 @@
 <?php declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
@@ -304,7 +303,7 @@ test('filters struct properties by direction', function () {
 
 test('emits an empty object when no property survives the direction filter', function () {
     $node = new StructNode(StructPhpType::OBJECT, [
-        new PropertyNode('name', new BuiltInNode(BuiltInType::STRING), false, PropertyType::OUTPUT),
+        new PropertyNode('name', new StringNode(), false, PropertyType::OUTPUT),
     ]);
 
     expect(typescriptOf($node, IO::INPUT)->type)->toBe('{}')
@@ -328,7 +327,7 @@ test('throws for an uncastable class on input but emits it on output', function 
 test('throws for nodes it cannot represent', function (NodeInterface $node) {
     expect(fn() => typescriptOf($node))->toThrow(UnsupportedTypeException::class);
 })->with([
-    'NamedNode' => [new NamedNode(new BuiltInNode(BuiltInType::STRING), 'Legacy')],
+    'NamedNode' => [new NamedNode(new StringNode(), 'Legacy')],
     'ReferencedNode' => [new ReferencedNode('#leaf_abc', 'string', 'registry')],
     'unknown node implementation' => [new class implements NodeInterface {
         public function __toString(): string
@@ -374,7 +373,7 @@ test('pretty printing spaces out the remaining separators', function (string $ty
 
 test('pretty printing keeps an empty object on one line', function () {
     $node = new StructNode(StructPhpType::OBJECT, [
-        new PropertyNode('name', new BuiltInNode(BuiltInType::STRING), false, PropertyType::OUTPUT),
+        new PropertyNode('name', new StringNode(), false, PropertyType::OUTPUT),
     ]);
 
     expect(typescriptOf($node, IO::INPUT, new Options(pretty: true))->type)->toBe('{}');

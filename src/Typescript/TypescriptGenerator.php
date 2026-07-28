@@ -6,14 +6,19 @@ use Le0daniel\PhpTsBindings\Contracts\Branded;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BoolNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\FloatNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\MixedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
@@ -55,8 +60,20 @@ final readonly class TypescriptGenerator
     private function emit(NodeInterface $node, EmissionContext $context, int $depth): string
     {
         return match (true) {
-            $node instanceof BuiltInNode => $this->brand(self::builtIn($node->type), $node, $context),
-            $node instanceof ValueObjectNode => $this->brand(self::builtIn($node->backingType), $node, $context),
+            $node instanceof StringNode => $this->brand('string', $node, $context),
+            $node instanceof IntNode => $this->brand('number', $node, $context),
+            $node instanceof FloatNode => 'number',
+            $node instanceof BoolNode => 'boolean',
+            $node instanceof NullNode => 'null',
+            $node instanceof MixedNode => 'unknown',
+            $node instanceof ValueObjectNode => $this->brand(
+                match ($node->backingType) {
+                    BackingType::STRING => 'string',
+                    BackingType::INT => 'number',
+                },
+                $node,
+                $context,
+            ),
             $node instanceof LiteralNode => self::literal($node),
             $node instanceof EnumNode => self::enum($node, $context),
             $node instanceof DateTimeNode => 'string',
@@ -75,17 +92,6 @@ final readonly class TypescriptGenerator
             // only exists inside optimizer generated PHP, where it resolves against a registry the
             // generator does not have. Both are genuinely unrepresentable here.
             default => throw UnsupportedTypeException::forNode($node),
-        };
-    }
-
-    private static function builtIn(BuiltInType $type): string
-    {
-        return match ($type) {
-            BuiltInType::STRING => 'string',
-            BuiltInType::INT, BuiltInType::FLOAT => 'number',
-            BuiltInType::BOOL => 'boolean',
-            BuiltInType::NULL => 'null',
-            BuiltInType::MIXED => 'unknown',
         };
     }
 

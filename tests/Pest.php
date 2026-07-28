@@ -126,9 +126,9 @@ function compareToOptimizedAst(NodeInterface $node) {
  * round, and generating the other way would then throw instead of asserting.
  *
  * The parity check runs with brands ignored. Brands are code generation metadata with no runtime
- * impact, so BuiltInNode and ValueObjectNode deliberately leave them out of exportPhpCode() — an
- * optimized AST genuinely knows less about brands than the one the parser produced, and comparing
- * them branded would assert something the optimizer never promised.
+ * impact, so StringNode, IntNode and ValueObjectNode deliberately leave them out of
+ * exportPhpCode() — an optimized AST genuinely knows less about brands than the one the parser
+ * produced, and comparing them branded would assert something the optimizer never promised.
  */
 function typescriptFor(NodeInterface $node, IO $io, Options $options = new Options()): TypeScript
 {

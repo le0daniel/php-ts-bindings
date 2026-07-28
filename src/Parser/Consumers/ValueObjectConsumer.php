@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Contracts\ValueObjects\StringValueObject;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
@@ -65,7 +65,7 @@ final class ValueObjectConsumer implements TypeConsumer
         /** @var class-string<StringValueObject|IntValueObject> $fullyQualifiedClassName */
         return new ValueObjectNode(
             $fullyQualifiedClassName,
-            $isStringBacked ? BuiltInType::STRING : BuiltInType::INT,
+            $isStringBacked ? BackingType::STRING : BackingType::INT,
             $this->resolveBrand($reflectionClass),
         );
     }

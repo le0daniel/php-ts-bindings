@@ -2,7 +2,7 @@
 
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
@@ -24,7 +24,7 @@ test('parses a string value object', function () {
 
     expect($node)->toBeInstanceOf(ValueObjectNode::class)
         ->and($node->className)->toBe(Email::class)
-        ->and($node->backingType)->toBe(BuiltInType::STRING)
+        ->and($node->backingType)->toBe(BackingType::STRING)
         ->and($node->brand)->toBe('email');
 
     compareToOptimizedAst($node);
@@ -36,7 +36,7 @@ test('parses an int value object with an explicit brand name', function () {
 
     expect($node)->toBeInstanceOf(ValueObjectNode::class)
         ->and($node->className)->toBe(UserId::class)
-        ->and($node->backingType)->toBe(BuiltInType::INT)
+        ->and($node->backingType)->toBe(BackingType::INT)
         ->and($node->brand)->toBe('customerId');
 
     compareToOptimizedAst($node);
@@ -116,7 +116,7 @@ test('the value object interface wins over the enum consumer', function () {
     $node = new TypeParser()->parse(StatusEnum::class);
 
     expect($node)->toBeInstanceOf(ValueObjectNode::class)
-        ->and($node->backingType)->toBe(BuiltInType::STRING);
+        ->and($node->backingType)->toBe(BackingType::STRING);
 
     compareToOptimizedAst($node);
 });

@@ -9,8 +9,7 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Validators\LengthValidator;
 
@@ -29,7 +28,7 @@ final class IntConsumer implements TypeConsumer
         $state->advance();
 
         if (!$state->currentTokenIs(TokenType::LT)) {
-            return new BuiltInNode(BuiltInType::INT);
+            return new IntNode();
         }
 
         $state->advance();
@@ -59,7 +58,7 @@ final class IntConsumer implements TypeConsumer
         $state->advance();
 
         return new ConstraintNode(
-            new BuiltInNode(BuiltInType::INT),
+            new IntNode(),
             [new LengthValidator(min: $min, max: $max, including: true)]
         );
     }

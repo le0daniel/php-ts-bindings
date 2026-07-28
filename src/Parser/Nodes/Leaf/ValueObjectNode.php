@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\Branded;
 use Le0daniel\PhpTsBindings\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Contracts\LeafNode;
@@ -13,7 +12,7 @@ use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
 
@@ -28,25 +27,19 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
 {
     /**
      * @param class-string<StringValueObject|IntValueObject> $className
-     * @param BuiltInType $backingType Must be BuiltInType::STRING or BuiltInType::INT.
      */
     public function __construct(
         public string      $className,
-        public BuiltInType $backingType,
+        public BackingType $backingType,
         public ?string     $brand = null,
     )
     {
-        if ($this->backingType !== BuiltInType::STRING && $this->backingType !== BuiltInType::INT) {
-            throw new InvalidArgumentException(
-                "Value objects can only be backed by string or int, got: {$this->backingType->value}"
-            );
-        }
     }
 
     /**
-     * The brand is deliberately excluded here, exactly as in BuiltInNode. It is code generation
-     * metadata with no runtime impact, and the class name alone already identifies this node
-     * uniquely for the ASTOptimizer dedupe hash.
+     * The brand is deliberately excluded here, exactly as in StringNode and IntNode. It is code
+     * generation metadata with no runtime impact, and the class name alone already identifies
+     * this node uniquely for the ASTOptimizer dedupe hash.
      */
     public function __toString(): string
     {
@@ -65,7 +58,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
 
     public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
-        if ($this->backingType === BuiltInType::STRING) {
+        if ($this->backingType === BackingType::STRING) {
             if (!is_string($value)) {
                 $context->addIssue($this->invalidBackingTypeIssue($value));
                 return Value::INVALID;
@@ -98,7 +91,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
 
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
-        if ($this->backingType === BuiltInType::STRING) {
+        if ($this->backingType === BackingType::STRING) {
             if (!$value instanceof StringValueObject || !is_a($value, $this->className)) {
                 $context->addIssue($this->notAnInstanceIssue($value));
                 return Value::INVALID;
@@ -132,8 +125,8 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
 
     public function coerce(mixed $value): mixed
     {
-        if ($this->backingType === BuiltInType::STRING) {
-            // Unlike BuiltInNode, only scalars are cast: (string) on an array or a non
+        if ($this->backingType === BackingType::STRING) {
+            // Unlike StringNode, only scalars are cast: (string) on an array or a non
             // Stringable object throws, and coerce() runs outside the executor's try/catch.
             return is_scalar($value) ? (string)$value : $value;
         }
@@ -185,7 +178,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
 
     /**
      * On the serialize path the value came from the server, so a throwing accessor is a genuine
-     * internal error. This mirrors BuiltInNode::serializeValue().
+     * internal error. This mirrors StringNode::serializeValue().
      */
     private function failedToSerializeIssue(Throwable $throwable): Issue
     {

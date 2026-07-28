@@ -4,8 +4,7 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 /**
@@ -18,7 +17,7 @@ final class UnionNode implements NodeInterface
     // Improves the performance of nullable Unions.
     public function acceptsNull(): bool
     {
-        return $this->acceptsNull ??= array_any($this->types, fn(NodeInterface $type) => $type instanceof BuiltInNode && $type->type === BuiltInType::NULL);
+        return $this->acceptsNull ??= array_any($this->types, fn(NodeInterface $type) => $type instanceof NullNode);
     }
 
     /**

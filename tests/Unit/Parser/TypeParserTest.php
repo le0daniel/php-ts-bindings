@@ -7,15 +7,18 @@ use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BoolNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\FloatNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
@@ -88,8 +91,7 @@ test('Complex inheritance', function () {
 
     $node = $parser->parse('?'.FullAccount::class);
     expect($node)->toBeInstanceOf(UnionNode::class)
-        ->and($node->types[0])->toBeInstanceOf(BuiltInNode::class)
-        ->and($node->types[0]->type)->toEqual(BuiltInType::NULL)
+        ->and($node->types[0])->toBeInstanceOf(NullNode::class)
         ->and($node->types[1])->toBeInstanceOf(CustomCastingNode::class)
         ->and($node->types[1]->node)->toBeInstanceOf(StructNode::class)
         ->and($node->types[1]->node->phpType)->toEqual(StructPhpType::ARRAY)
@@ -103,16 +105,12 @@ test('test scalar', function () {
     $node = $parser->parse("scalar");
     expect($node)->toBeInstanceOf(UnionNode::class);
 
-    /**
-     * @var int $index
-     * @var BuiltInNode $type
-     */
     foreach ($node->types as $index => $type) {
         match ($index) {
-            0 => expect($type->type)->toEqual(BuiltInType::INT),
-            1 => expect($type->type)->toEqual(BuiltInType::FLOAT),
-            2 => expect($type->type)->toEqual(BuiltInType::BOOL),
-            3 => expect($type->type)->toEqual(BuiltInType::STRING),
+            0 => expect($type)->toBeInstanceOf(IntNode::class),
+            1 => expect($type)->toBeInstanceOf(FloatNode::class),
+            2 => expect($type)->toBeInstanceOf(BoolNode::class),
+            3 => expect($type)->toBeInstanceOf(StringNode::class),
         };
     }
 
@@ -126,11 +124,8 @@ test('test questionmark nullability support', function () {
 
     expect($node)->toBeInstanceOf(UnionNode::class);
 
-    expect($node->types[0])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[0]->type)->toBe(BuiltInType::NULL);
-
-    expect($node->types[1])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[1]->type)->toBe(BuiltInType::FLOAT);
+    expect($node->types[0])->toBeInstanceOf(NullNode::class);
+    expect($node->types[1])->toBeInstanceOf(FloatNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -149,34 +144,27 @@ test('test group support of question mark nullability and flattened result', fun
 
     expect($node)->toBeInstanceOf(UnionNode::class);
 
-    expect($node->types[0])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[0]->type)->toBe(BuiltInType::NULL);
-    expect($node->types[1])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[1]->type)->toBe(BuiltInType::FLOAT);
-    expect($node->types[2])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[2]->type)->toBe(BuiltInType::STRING);
+    expect($node->types[0])->toBeInstanceOf(NullNode::class);
+    expect($node->types[1])->toBeInstanceOf(FloatNode::class);
+    expect($node->types[2])->toBeInstanceOf(StringNode::class);
 
     compareToOptimizedAst($node);
 });
 
 test('float', function () {
     $parser = new TypeParser();
-    /** @var BuiltInNode $node */
     $node = $parser->parse("float");
 
-    expect($node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->type)->toEqual(BuiltInType::FLOAT);
+    expect($node)->toBeInstanceOf(FloatNode::class);
 
     compareToOptimizedAst($node);
 });
 
 test('int', function () {
     $parser = new TypeParser();
-    /** @var BuiltInNode $node */
     $node = $parser->parse("int");
 
-    expect($node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->type)->toEqual(BuiltInType::INT);
+    expect($node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -190,8 +178,7 @@ test('Generic Int', function () {
         ->and($node->constraints[0]->min)->toBe(0)
         ->and($node->constraints[0]->max)->toBe(100)
         ->and($node->constraints[0]->including)->toBe(true)
-        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
-        ->and($node->node->type)->toEqual(BuiltInType::INT);
+        ->and($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -205,8 +192,7 @@ test('Generic Int Min', function () {
         ->and($node->constraints[0]->min)->toBe(PHP_INT_MIN)
         ->and($node->constraints[0]->max)->toBe(100)
         ->and($node->constraints[0]->including)->toBe(true)
-        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
-        ->and($node->node->type)->toEqual(BuiltInType::INT);
+        ->and($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -220,8 +206,7 @@ test('Generic Int Max', function () {
         ->and($node->constraints[0]->min)->toBe(-1)
         ->and($node->constraints[0]->max)->toBe(PHP_INT_MAX)
         ->and($node->constraints[0]->including)->toBe(true)
-        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
-        ->and($node->node->type)->toEqual(BuiltInType::INT);
+        ->and($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -235,8 +220,7 @@ test('Generic Int Negative Values', function () {
         ->and($node->constraints[0]->min)->toBe(-100)
         ->and($node->constraints[0]->max)->toBe(-3)
         ->and($node->constraints[0]->including)->toBe(true)
-        ->and($node->node)->toBeInstanceOf(BuiltInNode::class)
-        ->and($node->node->type)->toEqual(BuiltInType::INT);
+        ->and($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -246,14 +230,10 @@ test('numeric', function () {
     /** @var UnionNode $node */
     $node = $parser->parse("numeric");
 
-    /**
-     * @var int $index
-     * @var BuiltInNode $type
-     */
     foreach ($node->types as $index => $type) {
         match ($index) {
-            0 => expect($type->type)->toEqual(BuiltInType::INT),
-            1 => expect($type->type)->toEqual(BuiltInType::FLOAT),
+            0 => expect($type)->toBeInstanceOf(IntNode::class),
+            1 => expect($type)->toBeInstanceOf(FloatNode::class),
         };
     }
 
@@ -264,7 +244,7 @@ test('Global aliases', function () {
     $parser = new TypeParser(
         TypeParser::defaultConsumers(new GlobalTypeAliases([
             'Email' => fn() => new ConstraintNode(
-                new BuiltInNode(BuiltInType::STRING),
+                new StringNode(),
                 [new Email()],
             ),
         ]))
@@ -285,8 +265,7 @@ test('positive-int', function () {
     $node = $parser->parse("positive-int");
 
     expect($node)->toBeInstanceOf(ConstraintNode::class);
-    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->type)->toEqual(BuiltInType::INT);
+    expect($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -317,8 +296,7 @@ test('non-negative-int', function () {
     $node = $parser->parse("non-negative-int");
 
     expect($node)->toBeInstanceOf(ConstraintNode::class);
-    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->type)->toEqual(BuiltInType::INT);
+    expect($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -329,8 +307,7 @@ test('non-positive-int', function () {
     $node = $parser->parse("non-positive-int");
 
     expect($node)->toBeInstanceOf(ConstraintNode::class);
-    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->type)->toEqual(BuiltInType::INT);
+    expect($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -341,8 +318,7 @@ test('negative-int', function () {
     $node = $parser->parse("negative-int");
 
     expect($node)->toBeInstanceOf(ConstraintNode::class);
-    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->type)->toEqual(BuiltInType::INT);
+    expect($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -354,11 +330,8 @@ test('object struct', function () {
     expect($node)->toBeInstanceOf(StructNode::class);
 
     expect($node->phpType)->toEqual(StructPhpType::OBJECT);
-    expect($node->getProperty('a')->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->getProperty('a')->node->type)->toEqual(BuiltInType::STRING);
-
-    expect($node->getProperty('b')->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->getProperty('b')->node->type)->toEqual(BuiltInType::INT);
+    expect($node->getProperty('a')->node)->toBeInstanceOf(StringNode::class);
+    expect($node->getProperty('b')->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -370,11 +343,8 @@ test('array struct', function () {
     expect($node)->toBeInstanceOf(StructNode::class);
 
     expect($node->phpType)->toEqual(StructPhpType::ARRAY);
-    expect($node->getProperty('a')->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->getProperty('a')->node->type)->toEqual(BuiltInType::STRING);
-
-    expect($node->getProperty('b')->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->getProperty('b')->node->type)->toEqual(BuiltInType::INT);
+    expect($node->getProperty('a')->node)->toBeInstanceOf(StringNode::class);
+    expect($node->getProperty('b')->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -385,11 +355,8 @@ test('simplified tuple struct', function () {
     $node = $parser->parse("array{string, int}");
     expect($node)->toBeInstanceOf(TupleNode::class);
 
-    expect($node->types[0])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[0]->type)->toEqual(BuiltInType::STRING);
-
-    expect($node->types[1])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[1]->type)->toEqual(BuiltInType::INT);
+    expect($node->types[0])->toBeInstanceOf(StringNode::class);
+    expect($node->types[1])->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -400,11 +367,8 @@ test('classic tuple struct', function () {
     $node = $parser->parse("array{0:string, 1: int}");
     expect($node)->toBeInstanceOf(TupleNode::class);
 
-    expect($node->types[0])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[0]->type)->toEqual(BuiltInType::STRING);
-
-    expect($node->types[1])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->types[1]->type)->toEqual(BuiltInType::INT);
+    expect($node->types[0])->toBeInstanceOf(StringNode::class);
+    expect($node->types[1])->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -415,8 +379,7 @@ test('List struct', function () {
     $node = $parser->parse("array<string>");
     expect($node)->toBeInstanceOf(ListNode::class);
 
-    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->type)->toEqual(BuiltInType::STRING);
+    expect($node->node)->toBeInstanceOf(StringNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -427,8 +390,7 @@ test('List by modifier', function () {
     $node = $parser->parse("string[]");
     expect($node)->toBeInstanceOf(ListNode::class);
 
-    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->type)->toEqual(BuiltInType::STRING);
+    expect($node->node)->toBeInstanceOf(StringNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -441,11 +403,8 @@ test('Grouped Modifier', function () {
 
     expect($node->node)->toBeInstanceOf(UnionNode::class);
 
-    expect($node->node->types[0])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->types[0]->type)->toBe(BuiltInType::STRING);
-
-    expect($node->node->types[1])->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->types[1]->type)->toBe(BuiltInType::INT);
+    expect($node->node->types[0])->toBeInstanceOf(StringNode::class);
+    expect($node->node->types[1])->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -456,8 +415,7 @@ test('Record struct', function () {
     $node = $parser->parse("array<string, int>");
     expect($node)->toBeInstanceOf(RecordNode::class);
 
-    expect($node->node)->toBeInstanceOf(BuiltInNode::class);
-    expect($node->node->type)->toEqual(BuiltInType::INT);
+    expect($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -760,6 +718,33 @@ test("parse BrandedString correctly", function () {
     }
 });
 
+test('brands are code generation metadata and stay out of the string form and exported php code', function () {
+    $parser = new TypeParser();
+    $string = $parser->parse("BrandedString<'wow'>");
+    $int = $parser->parse("BrandedInt<'wow'>");
+
+    expect($string)->toBeInstanceOf(StringNode::class)
+        ->and($string->brand)->toBe('wow')
+        ->and((string)$string)->toBe('string')
+        ->and($string->exportPhpCode())->not->toContain('wow')
+        ->and($int)->toBeInstanceOf(IntNode::class)
+        ->and($int->brand)->toBe('wow')
+        ->and((string)$int)->toBe('int')
+        ->and($int->exportPhpCode())->not->toContain('wow');
+});
+
+test('a questionmark union accepts null', function () {
+    /** @var UnionNode $node */
+    $node = new TypeParser()->parse('?bool');
+
+    expect($node)->toBeInstanceOf(UnionNode::class)
+        ->and($node->acceptsNull())->toBeTrue()
+        ->and($node->types[0])->toBeInstanceOf(NullNode::class)
+        ->and($node->types[1])->toBeInstanceOf(BoolNode::class);
+
+    compareToOptimizedAst($node);
+});
+
 test('DateTimeString without a format defaults to ATOM', function () {
     $parser = new TypeParser();
     $node = $parser->parse('DateTimeString');
@@ -861,10 +846,9 @@ test('Array shape keys may be double quoted', function () {
     expect($node)->toBeInstanceOf(StructNode::class)
         ->and($node->phpType)->toBe(StructPhpType::ARRAY)
         ->and($node->hasProperty('key something else'))->toBeTrue()
-        ->and($node->getProperty('key something else')?->node)->toBeInstanceOf(BuiltInNode::class)
-        ->and($node->getProperty('key something else')?->node->type)->toBe(BuiltInType::STRING)
+        ->and($node->getProperty('key something else')?->node)->toBeInstanceOf(StringNode::class)
         ->and($node->hasProperty('b'))->toBeTrue()
-        ->and($node->getProperty('b')?->node->type)->toBe(BuiltInType::INT);
+        ->and($node->getProperty('b')?->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
     validateAst($node);
@@ -999,7 +983,7 @@ test('Literal booleans stay literals and null stays a built in', function () {
         ->and($node->types[0]->value)->toBeTrue()
         ->and($node->types[1]->type)->toBe(LiteralType::BOOL)
         ->and($node->types[1]->value)->toBeFalse()
-        ->and(new TypeParser()->parse('null'))->toBeInstanceOf(BuiltInNode::class);
+        ->and(new TypeParser()->parse('null'))->toBeInstanceOf(NullNode::class);
 });
 
 test('Numeric literal forms decode correctly', function () {

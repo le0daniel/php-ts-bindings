@@ -7,9 +7,10 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BuiltInType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\MixedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -78,7 +79,7 @@ final readonly class ArrayConsumer implements TypeConsumer
 
         // No generics
         if (!$state->currentTokenIs(TokenType::LT)) {
-            return new ListNode(new BuiltInNode(BuiltInType::MIXED));
+            return new ListNode(new MixedNode());
         }
 
         $generics = $this->consumeGenerics($state, $parser, min: 1, max: $maxGenerics);
@@ -88,13 +89,9 @@ final readonly class ArrayConsumer implements TypeConsumer
         }
 
         $keyType = $generics[0];
-        if (!$keyType instanceof BuiltInNode) {
-            $state->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}");
-        }
-
-        $node = match ($keyType->type) {
-            BuiltInType::STRING => new RecordNode($generics[1]),
-            BuiltInType::INT => new ListNode($generics[1]),
+        $node = match (true) {
+            $keyType instanceof StringNode => new RecordNode($generics[1]),
+            $keyType instanceof IntNode => new ListNode($generics[1]),
             default => $state->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}"),
         };
 
