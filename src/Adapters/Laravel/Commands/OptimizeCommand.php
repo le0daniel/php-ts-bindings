@@ -9,10 +9,11 @@ use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
 use RuntimeException;
+use Throwable;
 
 final class OptimizeCommand extends Command
 {
-    protected $signature = 'operations:optimize';
+    protected $signature = 'operations:optimize {--id-length=}';
     protected $description = 'Optimize the schema operations for production use';
 
     public function handle(#[Give(LaravelServiceProvider::DEFAULT_SERVER)] Server $server): int
@@ -23,10 +24,22 @@ final class OptimizeCommand extends Command
             throw new RuntimeException('Cannot optimize a registry that is not a JustInTimeDiscoveryRegistry');
         }
 
+        $idLength = $this->hasOption('id-length')
+            ? (int) $this->option('id-length')
+            : config('operations.cache.idLength');
+
+        if (!is_int($idLength) || $idLength < 1) {
+            throw new RuntimeException('Invalid id-length option');
+        }
+
         try {
-            CachedOperationRegistry::writeToCache($registry, base_path('bootstrap/cache/operations.php'));
+            CachedOperationRegistry::writeToCache(
+                $registry,
+                base_path('bootstrap/cache/operations.php'),
+                idLength: (int) $this->option('id-length'),
+            );
             require base_path('bootstrap/cache/operations.php');
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             unlink(base_path('bootstrap/cache/operations.php'));
             return 1;
         }

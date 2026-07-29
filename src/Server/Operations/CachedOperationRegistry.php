@@ -50,7 +50,10 @@ final class CachedOperationRegistry implements OperationRegistry
         return $this->instances;
     }
 
-    public static function toPhpCode(OperationRegistry $registry): string
+    public static function toPhpCode(
+        OperationRegistry $registry,
+        int $idLength,
+    ): string
     {
         $endpointClass = PHPExport::absolute(Operation::class);
 
@@ -75,7 +78,9 @@ final class CachedOperationRegistry implements OperationRegistry
         }
 
         // The ast optimizer deduplicates all the ASTs, minimizing the nodes required at runtime.
-        $optimizer = new AstOptimizer();
+        $optimizer = new AstOptimizer(
+            idLength: $idLength,
+        );
         $operationRegistryClass = PHPExport::absolute(CachedOperationRegistry::class);
 
         // Operation discovery order depends on the filesystem, so sorting by key is what makes the
@@ -90,9 +95,9 @@ return new {$operationRegistryClass}([{$endpointsCode}]);
 PHP;
     }
 
-    public static function writeToCache(OperationRegistry $registry, string $filePath): void
+    public static function writeToCache(OperationRegistry $registry, string $filePath, int $idLength,): void
     {
-        $code = self::toPhpCode($registry);
+        $code = self::toPhpCode($registry, $idLength);
 
         // The cached code binds both the Asts and operations together and creates a file
         // that can be required with fully compiled types.

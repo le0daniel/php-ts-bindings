@@ -22,6 +22,10 @@ return [
      */
     "context" => null,
 
+    "cache" => [
+        "idLength" => 10,
+    ],
+
     /**
      * Define the way to generate the key of the remote procedures.
      * This is used to limit the data that gets exposed to the client.

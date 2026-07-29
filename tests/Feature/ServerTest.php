@@ -16,7 +16,7 @@ use Tests\Feature\Mocks\NotAMiddleware;
 
 function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
     $registry = EagerlyLoadedRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
-    $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($registry));
+    $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($registry, idLength: 10));
 
     $server = new Server($registry, [new ExposedExceptionPresenter(),],);
     $cachedServer = new Server($cachedRegistry, [new ExposedExceptionPresenter(),],);
