@@ -27,6 +27,9 @@ final class Syntax
         return $optional ? "{$encoded}?" : $encoded;
     }
 
+    /**
+     * @throws \JsonException
+     */
     public static function stringLiteral(string $value): string
     {
         return json_encode($value, JSON_THROW_ON_ERROR);
