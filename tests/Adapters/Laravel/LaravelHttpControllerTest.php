@@ -92,6 +92,72 @@ test('handle successful http query request', function () {
         ]);
 });
 
+test('an operations-spa request gets the client directives appended', function () {
+    // Arrange
+    $fcn = 'docs.method';
+    $inputData = ['name' => 'some_value'];
+
+    $typeParser = new TypeParser();
+    $operationRegistry = Mockery::mock(OperationRegistry::class);
+    $exceptionHandler = Mockery::mock(ExceptionHandler::class);
+    $app = Mockery::mock(Application::class);
+    $request = Mockery::mock(Request::class);
+    $request->query = new InputBag($inputData);
+
+    $operationDefinition = new Definition(
+        OperationType::QUERY,
+        'MyClass',
+        'someMethod',
+        'method',
+        'docs',
+        [],
+    );
+
+    $operation = new Operation(
+        'somekey',
+        $operationDefinition,
+        fn() => $typeParser->parse('array{name: string}'),
+        fn() => $typeParser->parse('array{id: string, name: string}'),
+    );
+
+    $controllerInstance = new class() {
+        public function someMethod(array $input, null $context, Client $client): array
+        {
+            $client->success('Saved');
+            $client->redirect('/docs/123', true);
+            return ['id' => '123', 'name' => $input['name']];
+        }
+    };
+
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
+
+    $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturn('operations-spa');
+    $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
+
+    $controller = new LaravelHttpController(
+        new Server($operationRegistry, [], new CatchAllPresenter(), $app),
+        $exceptionHandler,
+        null,
+    );
+
+    // Act
+    $response = $controller->handleHttpQueryRequest($fcn, $request);
+
+    // Assert
+    expect($response->getData(true))->toEqual([
+        'success' => true,
+        'data' => ['id' => '123', 'name' => 'some_value'],
+        '__client' => [
+            'redirect' => ['url' => '/docs/123', 'reload' => true],
+            'toasts' => [
+                ['type' => 'success', 'message' => 'Saved'],
+            ],
+            'type' => 'operations-spa',
+        ],
+    ]);
+});
+
 test('handle invalid input http query request', function () {
     // Arrange
     $fcn = 'docs.method';

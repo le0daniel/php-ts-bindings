@@ -9,11 +9,8 @@ use UnitEnum;
 final class PHPExport
 {
     /**
-     * Writes generated PHP through a temporary file and renames it into place.
-     *
-     * Generated caches are required while the application is serving traffic, so a partially
-     * written file would be loaded as valid PHP. rename() is atomic within a filesystem, which
-     * makes a reader see either the old file or the complete new one.
+     * Writes a file to disk atomically and throws on failure.
+     * @throws RuntimeException
      */
     public static function writeFileAtomically(string $filePath, string $contents): void
     {

@@ -8,6 +8,7 @@ final readonly class RpcSuccess
 {
     /**
      * @param array<string, mixed> $metadata
+     * @internal
      */
     public function __construct(
         public mixed       $data,

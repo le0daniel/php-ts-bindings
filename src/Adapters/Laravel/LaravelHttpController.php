@@ -9,9 +9,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades;
-use JsonSerializable;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
@@ -120,11 +120,11 @@ readonly class LaravelHttpController
      */
     private function appendClientDirectives(array $response, Client $client): array
     {
-        if (!$client instanceof JsonSerializable) {
+        if (!$client instanceof SerializableClient) {
             return $response;
         }
 
-        $clientData = $client->jsonSerialize();
+        $clientData = $client->serializeToArray();
         if ($clientData === null) {
             return $response;
         }

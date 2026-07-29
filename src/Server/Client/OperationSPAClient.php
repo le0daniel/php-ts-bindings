@@ -2,19 +2,20 @@
 
 namespace Le0daniel\PhpTsBindings\Server\Client;
 
-use JsonSerializable;
-use Le0daniel\PhpTsBindings\Contracts\Client;
-use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
+use Le0daniel\PhpTsBindings\Server\Data\Toast;
 use Le0daniel\PhpTsBindings\Utils\Dicts;
 use Le0daniel\PhpTsBindings\Utils\Strings;
 use UnitEnum;
 
 /**
- * @phpstan-type Redirect array{type: 'soft'|'hard', url: string}
- * @phpstan-type Toast array{type: 'success'|'error'|'alert'|'info', message: string}
+ * @phpstan-type Redirect array{url: string, reload: bool}
+ * @phpstan-type SerializedToast array{type: value-of<\Le0daniel\PhpTsBindings\Server\Data\ToastType>, message: string}
  */
-final class OperationSPAClient implements Client, JsonSerializable
+final class OperationSPAClient implements SerializableClient
 {
+    use InteractsWithToasts;
+
     /** @var Redirect|null  */
     private ?array $redirect = null;
 
@@ -24,28 +25,17 @@ final class OperationSPAClient implements Client, JsonSerializable
     /** @var list<array<int, mixed>>|null  */
     private ?array $invalidations = null;
 
-    public function toast(string $type, string $message): void
+    public function toast(Toast $toast): void
     {
         $this->toasts ??= [];
-        $this->toasts[] = [
-            'type' => $type,
-            'message' => $message,
-        ];
+        $this->toasts[] = $toast;
     }
 
-    public function redirect(string $url): void
+    public function redirect(string $url, bool $reload = false): void
     {
         $this->redirect = [
             'url' => $url,
-            'type' => 'soft',
-        ];
-    }
-
-    public function hardRedirect(string $url): void
-    {
-        $this->redirect = [
-            'url' => $url,
-            'type' => 'hard',
+            'reload' => $reload,
         ];
     }
 
@@ -59,13 +49,15 @@ final class OperationSPAClient implements Client, JsonSerializable
     }
 
     /**
-     * @return array{redirect?: Redirect, toasts?: null|Toast[], invalidations?: list<list<mixed>>, type: 'operations-spa'}|null
+     * @return array{redirect?: Redirect, toasts?: list<SerializedToast>, invalidations?: list<array<int, mixed>>, type: 'operations-spa'}|null
      */
-    public function jsonSerialize(): array|null
+    public function serializeToArray(): array|null
     {
         $data = Dicts::filterNullValues([
             'redirect' => $this->redirect,
-            'toasts' => $this->toasts,
+            'toasts' => $this->toasts === null
+                ? null
+                : array_map(fn(Toast $toast): array => $toast->toArray(), $this->toasts),
             'invalidations' => $this->invalidations,
         ]);
 

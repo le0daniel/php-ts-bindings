@@ -2,20 +2,29 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
+use Le0daniel\PhpTsBindings\Server\Data\Toast;
 use UnitEnum;
 
 interface Client
 {
+    public function toast(Toast $toast): void;
+
+    public function success(string $message): void;
+
+    public function error(string $message): void;
+
+    public function warning(string $message): void;
+
+    public function alert(string $message): void;
+
+    public function info(string $message): void;
+
     /**
-     * @param 'success'|'error'|'alert'|'info' $type
-     * @param string $message
+     * @param string $url
+     * @param bool $reload Forces the client to do a full page load instead of a client side navigation.
      * @return void
      */
-    public function toast(string $type, string $message): void;
-
-    public function redirect(string $url): void;
-
-    public function hardRedirect(string $url): void;
+    public function redirect(string $url, bool $reload = false): void;
 
     /**
      * @param UnitEnum|string $namespace

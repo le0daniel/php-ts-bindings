@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
@@ -24,6 +25,10 @@ final class EmitTypes implements GeneratesLibFiles
         'OperationNamespaces',
         'WithClientDirectives',
         'SPAClientDirectives',
+        'ClientDirectives',
+        'ClientToast',
+        'ClientRedirect',
+        'ClientInvalidation',
         'TYPE_MAP',
     ];
 
@@ -55,6 +60,12 @@ final class EmitTypes implements GeneratesLibFiles
             fn(string $alias, string $definition): string => "export type {$alias} = {$definition}",
         ));
 
+        // Derived from the enum so the emitted union can never drift from what Client::toast accepts.
+        $toastTypes = implode('|', array_map(
+            fn(ToastType $type): string => "'{$type->value}'",
+            ToastType::cases(),
+        ));
+
         return [
             "types" => new TypescriptFile(<<<TypeScript
 export type OperationNamespaces = {$this->generateNamespaceUnion($uniqueNamespaces)};
@@ -62,15 +73,17 @@ export type OperationNamespaces = {$this->generateNamespaceUnion($uniqueNamespac
 export type Success<T> = {success: true, data: T}
 export type Failure<E extends {code: number}> = {success: false} & E;
 export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
-export type WithClientDirectives<T> = T & {__client?: unknown}
-export type SPAClientDirectives<T> = T & {
-    __client: {
-        type: "operations-spa",
-        redirect?: {type: "soft"|"hard"; url: string;},
-        toasts?: {type: 'success'|'error'|'alert'|'info', message: string;}[],
-        invalidations?: [string, string, ...unknown[]][]
-    }
+export type ClientToast = {type: {$toastTypes}; message: string;};
+export type ClientRedirect = {url: string; reload: boolean;};
+export type ClientInvalidation = [string, ...unknown[]];
+export type ClientDirectives = {
+    type: "operations-spa";
+    redirect?: ClientRedirect;
+    toasts?: ClientToast[];
+    invalidations?: ClientInvalidation[];
 };
+export type WithClientDirectives<T> = T & {__client?: unknown}
+export type SPAClientDirectives<T> = T & {__client: ClientDirectives};
 
 declare const __brand: unique symbol;
 export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};

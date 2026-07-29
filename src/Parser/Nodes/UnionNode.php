@@ -4,13 +4,14 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 /**
  * @template T of NodeInterface
  */
-final class UnionNode implements NodeInterface
+final class UnionNode implements NodeInterface, ValidatableNode
 {
     private bool $acceptsNull;
 

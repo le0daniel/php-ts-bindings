@@ -3,22 +3,19 @@
 namespace Le0daniel\PhpTsBindings\Server\Client;
 
 use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Server\Data\Toast;
 use UnitEnum;
 
 final class NullClient implements Client
 {
+    use InteractsWithToasts;
 
-    public function toast(string $type, string $message): void
+    public function toast(Toast $toast): void
     {
 
     }
 
-    public function redirect(string $url): void
-    {
-
-    }
-
-    public function hardRedirect(string $url): void
+    public function redirect(string $url, bool $reload = false): void
     {
 
     }
