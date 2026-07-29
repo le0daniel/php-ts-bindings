@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 
 final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
 {
@@ -23,7 +23,7 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
     /**
      * @return array<string, TypescriptFile>
      */
-    public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
+    public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         $queryNamespaces = array_reduce($operations, function (array $carry, TypedOperation $operation) {
             if ($operation->operation->definition->type !== OperationType::QUERY) {

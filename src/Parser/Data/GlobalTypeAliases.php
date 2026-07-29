@@ -3,7 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser\Data;
 
 use Closure;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 
 final readonly class GlobalTypeAliases
 {
@@ -13,6 +13,11 @@ final readonly class GlobalTypeAliases
     public function __construct(
         public array $aliases = [],
     ) {
+    }
+
+    public function isEmpty(): bool
+    {
+        return count($this->aliases) === 0;
     }
 
     public function isGlobalAlias(string $value): bool

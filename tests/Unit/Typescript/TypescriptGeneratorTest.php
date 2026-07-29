@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
@@ -10,9 +10,9 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Mocks\ResultEnum;
 use Tests\Mocks\ValueObjects\CreateAccountInput;
@@ -29,7 +29,7 @@ use Tests\Unit\Typescript\Stubs\EmptyEnum;
 function typescriptOf(
     string|NodeInterface $type,
     IO                   $io = IO::INPUT,
-    ?TypeRegistry        $sharedRegistry = null,
+    ?AliasRegistry       $sharedRegistry = null,
 ): TypeScript
 {
     $node = is_string($type) ? new TypeParser()->parse($type) : $type;
@@ -208,7 +208,7 @@ test('reads a collected alias back out of the registry', function () {
 });
 
 test('registers into the passed registry but returns only what the emission needs', function () {
-    $shared = new TypeRegistry(['Existing' => '(string & Brand<"existing">)']);
+    $shared = new AliasRegistry(['Existing' => '(string & Brand<"existing">)']);
 
     $result = typescriptOf("BrandedString<'email'>", IO::INPUT, $shared);
 
@@ -221,7 +221,7 @@ test('registers into the passed registry but returns only what the emission need
 });
 
 test('one shared registry accumulates aliases across emissions', function () {
-    $shared = new TypeRegistry();
+    $shared = new AliasRegistry();
 
     $first = typescriptOf("BrandedString<'email'>", IO::INPUT, $shared);
     $second = typescriptOf("BrandedInt<'customerId'>", IO::INPUT, $shared);
@@ -235,7 +235,7 @@ test('one shared registry accumulates aliases across emissions', function () {
 });
 
 test('throws when the incoming registry already binds an alias to something else', function () {
-    $shared = new TypeRegistry(['Email' => '(number & Brand<"email">)']);
+    $shared = new AliasRegistry(['Email' => '(number & Brand<"email">)']);
 
     expect(fn() => typescriptOf("BrandedString<'email'>", IO::INPUT, $shared))
         ->toThrow(UnsupportedTypeException::class, 'Email');

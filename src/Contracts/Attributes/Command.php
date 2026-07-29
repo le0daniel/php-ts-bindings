@@ -17,6 +17,7 @@ final readonly class Command
     )
     {
     }
+
     public function namespaceAsString(): ?string
     {
         return $this->namespace ? Strings::toString($this->namespace) : null;

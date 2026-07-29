@@ -15,8 +15,8 @@ use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Le0daniel\PhpTsBindings\Utils\Lists;
 use RuntimeException;
@@ -84,7 +84,7 @@ final readonly class TypescriptServerCodeGenerator
         // Cross-operation and cross-direction alias conflicts are only caught when every pass hands
         // its aliases into one shared registry, so the run always has one. It is also what the
         // generated types file declares.
-        $registry = new TypeRegistry();
+        $registry = new AliasRegistry();
 
         $definitions = array_values(
             array_map(function (Operation $operation) use ($server, $registry): TypedOperation {
@@ -139,10 +139,10 @@ final readonly class TypescriptServerCodeGenerator
     /**
      * @param list<TypedOperation> $definitions
      * @param ServerMetadata $metadata
-     * @param TypeRegistry $registry The run's shared registry, holding every alias any pass produced.
+     * @param AliasRegistry $registry The run's shared registry, holding every alias any pass produced.
      * @return array<string, TypescriptFile>
      */
-    private function generateLibFiles(array $definitions, ServerMetadata $metadata, TypeRegistry $registry): array
+    private function generateLibFiles(array $definitions, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         return array_reduce(
             $this->generators,

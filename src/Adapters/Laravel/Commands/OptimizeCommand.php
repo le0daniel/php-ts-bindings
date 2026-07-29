@@ -3,11 +3,10 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
 use Illuminate\Console\Command;
-use Illuminate\Container\Attributes\Give;
+use Illuminate\Contracts\Foundation\Application;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
-use Le0daniel\PhpTsBindings\Server\Server;
 use RuntimeException;
 use Throwable;
 
@@ -16,8 +15,15 @@ final class OptimizeCommand extends Command
     protected $signature = 'operations:optimize {--id-length=}';
     protected $description = 'Optimize the schema operations for production use';
 
-    public function handle(#[Give(LaravelServiceProvider::DEFAULT_SERVER)] Server $server): int
+    public function handle(Application $application): int
     {
+        // Always use a fresh server with eagerly loaded schema.
+        // Otherwise the types
+        $server = LaravelServiceProvider::serverFactory(
+            $application,
+            operations: null,
+        );
+
         $registry = $server->registry;
 
         if (!$registry instanceof EagerlyLoadedRegistry) {

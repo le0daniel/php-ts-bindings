@@ -2,9 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
-use Le0daniel\PhpTsBindings\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
+use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\ValidatableNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;

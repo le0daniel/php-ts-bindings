@@ -3,7 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser\Registry;
 
 use Closure;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\UnknownTypeKeyException;
 

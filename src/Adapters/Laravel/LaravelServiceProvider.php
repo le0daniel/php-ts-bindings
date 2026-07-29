@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
+use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
@@ -45,6 +46,42 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         ];
     }
 
+    public static function serverFactory(
+        Application        $app,
+        ?OperationRegistry $operations,
+    ): Server
+    {
+        $config = $app->make('config');
+
+        $operations ??= EagerlyLoadedRegistry::eagerlyDiscover(
+            $config->get('operations.discovery_path', []),
+            $app->make(TypeParser::class),
+            match ($config->get('operations.key.mode', 'obfuscate')) {
+                'plain' => new PlainlyExposedKeyGenerator(),
+                'obfuscate' => new HashSha256KeyGenerator(
+                    $config->get('operations.key.pepper', 'none')
+                ),
+                "custom" => $app->make($config->get('operations.key.className')),
+                default => new HashSha256KeyGenerator("default"),
+            },
+        );
+
+        return new Server(
+            registry: $operations,
+            exceptionPresenters: [
+                new InvalidInputPresenter(),
+                new UnauthorizedPresenter($config->get('operations.exceptions.unauthorized', [])),
+                new UnauthenticatedPresenter($config->get('operations.exceptions.unauthenticated', [])),
+                new NotFoundPresenter($config->get('operations.exceptions.not_found', [])),
+                new ExposedExceptionPresenter(),
+            ],
+            defaultPresenter: new CatchAllPresenter(),
+            container: $app,
+            configuration: new ServerConfiguration()
+                ->withMiddlewares(...config('operations.middleware', [])),
+        );
+    }
+
     /**
      * Register any application services.
      */
@@ -57,37 +94,11 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         });
 
         $this->app->singleton(self::DEFAULT_SERVER, function (Application $app): Server {
-            $config = $app->make('config');
             $isRepositoryCached = !$this->app->runningInConsole() && file_exists(base_path('bootstrap/cache/operations.php'));
 
-            $repository = $isRepositoryCached
-                ? require(base_path('bootstrap/cache/operations.php'))
-                : EagerlyLoadedRegistry::eagerlyDiscover(
-                    $config->get('operations.discovery_path', []),
-                    $app->make(TypeParser::class),
-                    match ($config->get('operations.key.mode', 'obfuscate')) {
-                        'plain' => new PlainlyExposedKeyGenerator(),
-                        'obfuscate' => new HashSha256KeyGenerator(
-                            $config->get('operations.key.pepper', 'none')
-                        ),
-                        "custom" => $app->make($config->get('operations.key.className')),
-                        default => new HashSha256KeyGenerator("default"),
-                    },
-                );
-
-            return new Server(
-                $repository,
-                [
-                    new InvalidInputPresenter(),
-                    new UnauthorizedPresenter($config->get('operations.exceptions.unauthorized', [])),
-                    new UnauthenticatedPresenter($config->get('operations.exceptions.unauthenticated', [])),
-                    new NotFoundPresenter($config->get('operations.exceptions.not_found', [])),
-                    new ExposedExceptionPresenter(),
-                ],
-                new CatchAllPresenter(),
+            return self::serverFactory(
                 $app,
-                new ServerConfiguration()
-                    ->withMiddlewares(...config('operations.middleware', [])),
+                $isRepositoryCached ? require(base_path('bootstrap/cache/operations.php')) : null
             );
         });
 

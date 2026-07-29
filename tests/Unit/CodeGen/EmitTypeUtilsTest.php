@@ -11,8 +11,8 @@ use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Mocks\ValueObjects\Email;
 
@@ -27,7 +27,7 @@ function emitUtilsFor(OperationType $type = OperationType::QUERY, string $namesp
     );
 
     $generator = new TypescriptGenerator();
-    $registry = new TypeRegistry();
+    $registry = new AliasRegistry();
     $input = $generator->toTypescript($operation->inputNode(), IO::INPUT, $registry);
     $output = $generator->toTypescript($operation->outputNode(), IO::OUTPUT, $registry);
 

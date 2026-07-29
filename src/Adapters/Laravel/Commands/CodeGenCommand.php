@@ -5,7 +5,6 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 use Closure;
 use Generator;
 use Illuminate\Console\Command;
-use Illuminate\Container\Attributes\Give;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Routing\Router;
@@ -25,7 +24,6 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
-use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use RecursiveDirectoryIterator;
@@ -75,11 +73,16 @@ DESCRIPTION;
      * @throws BindingResolutionException
      */
     public function handle(
-        #[Give(LaravelServiceProvider::DEFAULT_SERVER)] Server $server,
         Router                                                 $router,
         Application                                            $application,
     ): int
     {
+        // Always get a fresh server
+        $server = LaravelServiceProvider::serverFactory(
+            $application,
+            operations: null,
+        );
+
         try {
             $metadata = new ServerMetadata(
                 $router->getRoutes()->getByName(LaravelHttpController::QUERY_NAME)->uri(),

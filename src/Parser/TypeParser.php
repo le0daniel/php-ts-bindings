@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Consumers\AliasConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\ArrayConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\BuiltInLeafConsumer;
@@ -15,14 +14,15 @@ use Le0daniel\PhpTsBindings\Parser\Consumers\StructConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UserDefinedObjectConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\UtilsConsumer;
 use Le0daniel\PhpTsBindings\Parser\Consumers\ValueObjectConsumer;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Exceptions\UnexpectedCharacterException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Lexer;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
-use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
