@@ -99,10 +99,10 @@ final readonly class TypescriptServerCodeGenerator
                 );
 
                 return new TypedOperation(
-                    $input,
-                    $output,
-                    TypeScript::fromRawString($this->generateAllErrorTypes($server, $operation->definition)),
-                    $operation,
+                    inputDef: $input,
+                    outputDef: $output,
+                    errorDef: $this->generateAllErrorTypes($server, $operation->definition) |> TypeScript::fromRawString(...),
+                    operation: $operation,
                 );
             }, $filteredDefinitions)
         );
@@ -123,10 +123,14 @@ final readonly class TypescriptServerCodeGenerator
 
     private function generateAllErrorTypes(Server $server, Definition $operation): string
     {
-        $possibleTypes = Lists::filterNullValues(array_map(function (ExceptionPresenter $presenter) use ($operation): null|string {
+        $possibleTypes = Lists::filterNullValues(array_map(static function (ExceptionPresenter $presenter) use ($operation): string {
             $code = $presenter::errorType();
+            $codeName = json_encode($code->name, JSON_THROW_ON_ERROR);
             $details = $presenter->toTypeScriptDefinition($operation);
-            return $details === null ? null : "{code: {$code->value}, details: {$details}}";
+
+            return $details === null
+                ? "{code: {$code->value}, type: {$codeName}}"
+                : "{code: {$code->value}, type: {$codeName}, details: {$details}}";
         }, [...$server->exceptionPresenters, $server->defaultPresenter]));
 
         return implode('|', $possibleTypes);
