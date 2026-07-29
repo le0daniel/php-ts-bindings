@@ -45,7 +45,7 @@ function emitTypesFor(string $inputType, string $outputType): string
         $registry,
     );
 
-    return $files['types'];
+    return $files['types']->toString();
 }
 
 test('rejects an alias colliding with a declaration the types file always contains', function (string $alias) {

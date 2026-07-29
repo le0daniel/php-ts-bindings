@@ -7,17 +7,17 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 
-final class EmitOperations implements GeneratesOperationCode, DependsOn
+final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
 {
     /**
      * @param (Closure(TypedOperation):string)|null $nameGenerator
      */
     public function __construct(
-        private readonly ?Closure $nameGenerator = null,
+        private ?Closure $nameGenerator = null,
     )
     {
     }
@@ -40,22 +40,16 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
      * unconditionally — inline brands reference it, yet it is never a registry key — and a linter
      * drops it where unused.
      *
-     * @return list<TypescriptImportStatement>
+     * @return list<TypescriptImport>
      */
     private function aliasImports(TypedOperation $operation): array
     {
-        $aliases = ['Brand', ...$operation->usedAliases()];
-        sort($aliases);
-
         return [
-            new TypescriptImportStatement(
-                from: Paths::libImport("types"),
-                imports: array_map(fn(string $alias): string => "type {$alias}", $aliases),
-            ),
+            TypescriptImport::types(Paths::libImport("types"), ['Brand', ...$operation->usedAliases()]),
         ];
     }
 
-    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): TypescriptCodeBlock
+    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): TypescriptFile
     {
         $definition = $operation->operation->definition;
         $name = $this->generateName($operation);
@@ -66,14 +60,8 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
         $errorTypeName = $operationBaseTypeName . "Error";
 
         $imports = [
-            new TypescriptImportStatement(
-                from: Paths::libImport("bindings"),
-                imports: ["executeOperation"]
-            ),
-            new TypescriptImportStatement(
-                from: Paths::libImport("OperationClient"),
-                imports: ["OperationOptions"]
-            ),
+            TypescriptImport::values(Paths::libImport("bindings"), "executeOperation"),
+            TypescriptImport::types(Paths::libImport("OperationClient"), "OperationOptions"),
             ...$this->aliasImports($operation),
         ];
         $docBlock = <<<TypeScript
@@ -86,7 +74,7 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
 TypeScript;
 
         if ($operation->inputDef->type === 'null') {
-            return new TypescriptCodeBlock(
+            return new TypescriptFile(
                 <<<TypeScript
 export type {$resultTypeName} = {$operation->outputDef->type};
 export type {$resultInputTypeName} = null;
@@ -105,7 +93,7 @@ TypeScript, $imports,
             );
         }
 
-        return new TypescriptCodeBlock(
+        return new TypescriptFile(
             <<<TypeScript
 export type {$resultTypeName} = {$operation->outputDef->type};
 export type {$resultInputTypeName} = {$operation->inputDef->type};

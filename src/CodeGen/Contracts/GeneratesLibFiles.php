@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\Contracts;
 
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 
 interface GeneratesLibFiles
@@ -19,7 +19,7 @@ interface GeneratesLibFiles
      *
      * @param list<TypedOperation> $operations
      * @param TypeRegistry $registry The run's shared registry: every alias any operation produced.
-     * @return array<string, string|TypeScriptFile>
+     * @return array<string, TypescriptFile>
      */
     public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array;
 }

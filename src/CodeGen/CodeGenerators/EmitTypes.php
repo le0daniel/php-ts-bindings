@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
@@ -27,7 +28,7 @@ final class EmitTypes implements GeneratesLibFiles
     ];
 
     /**
-     * @return array<string, string>
+     * @return array<string, TypescriptFile>
      */
     public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
     {
@@ -55,7 +56,7 @@ final class EmitTypes implements GeneratesLibFiles
         ));
 
         return [
-            "types" => <<<TypeScript
+            "types" => new TypescriptFile(<<<TypeScript
 export type OperationNamespaces = {$this->generateNamespaceUnion($uniqueNamespaces)};
 
 export type Success<T> = {success: true, data: T}
@@ -76,8 +77,7 @@ export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};
 
 /* All branded and named types exported */
 {$aliasTypeString}
-
-TypeScript,
+TypeScript),
         ];
     }
 

@@ -8,12 +8,12 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
@@ -64,7 +64,7 @@ final readonly class TypescriptServerCodeGenerator
      * @param Server $server
      * @param ServerMetadata $metadata
      * @param list<string> $ignore
-     * @return array<string, TypeScriptFile>
+     * @return array<string, TypescriptFile>
      */
     public function generate(Server $server, ServerMetadata $metadata, array $ignore = []): array
     {
@@ -136,12 +136,16 @@ final readonly class TypescriptServerCodeGenerator
      * @param list<TypedOperation> $definitions
      * @param ServerMetadata $metadata
      * @param TypeRegistry $registry The run's shared registry, holding every alias any pass produced.
-     * @return array<string, TypeScriptFile>
+     * @return array<string, TypescriptFile>
      */
     private function generateLibFiles(array $definitions, ServerMetadata $metadata, TypeRegistry $registry): array
     {
         return array_reduce(
             $this->generators,
+            /**
+             * @param array<string, TypescriptFile> $carry
+             * @return array<string, TypescriptFile>
+             */
             function (array $carry, $codeGenerator) use ($definitions, $metadata, $registry): array {
                 if (!$codeGenerator instanceof GeneratesLibFiles) {
                     return $carry;
@@ -152,8 +156,10 @@ final readonly class TypescriptServerCodeGenerator
                         throw new RuntimeException("Invalid file name '{$fileName}' for lib file. File names must only contain a-z, A-Z, 0-9, - and _.");
                     }
 
-                    $carry["lib/{$fileName}.ts"] ??= new TypeScriptFile();
-                    $carry["lib/{$fileName}.ts"]->merge(TypeScriptFile::from($fileContent));
+                    // Several generators may contribute to one lib file, so they accumulate rather
+                    // than overwrite.
+                    $fileKey = "lib/{$fileName}.ts";
+                    $carry[$fileKey] = ($carry[$fileKey] ?? new TypescriptFile())->append($fileContent);
                 }
                 return $carry;
             },
@@ -164,15 +170,18 @@ final readonly class TypescriptServerCodeGenerator
     /**
      * @param list<TypedOperation> $definitions
      * @param ServerMetadata $metadata
-     * @return array<string, TypeScriptFile>
+     * @return array<string, TypescriptFile>
      */
     private function generateOperationDefinitions(array $definitions, ServerMetadata $metadata): array
     {
-        /** @var array<string, TypeScriptFile> $operationFiles */
+        /** @var array<string, TypescriptFile> $operationFiles */
         $operationFiles = [];
         foreach ($definitions as $operationData) {
-            $namespace = $operationData->definition->namespace;
-            $file = $operationFiles["{$namespace}.ts"] ??= new TypeScriptFile();
+            $fileKey = "{$operationData->definition->namespace}.ts";
+
+            // The file is immutable, so each block produces a new one and the last is kept. It also
+            // owns the blank lines between blocks, which is why nothing is appended as a separator.
+            $file = $operationFiles[$fileKey] ?? new TypescriptFile();
 
             foreach ($this->generators as $codeGenerator) {
                 if (!$codeGenerator instanceof GeneratesOperationCode) {
@@ -180,11 +189,11 @@ final readonly class TypescriptServerCodeGenerator
                 }
 
                 if ($code = $codeGenerator->generateOperationCode($operationData, $metadata)) {
-                    $file->append($code);
+                    $file = $file->append($code);
                 }
             }
 
-            $file->append(PHP_EOL . PHP_EOL);
+            $operationFiles[$fileKey] = $file;
         }
 
         return $operationFiles;

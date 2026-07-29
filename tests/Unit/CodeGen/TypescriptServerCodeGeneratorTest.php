@@ -4,14 +4,16 @@ namespace Tests\Unit\CodeGen;
 
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Tests\Unit\CodeGen\Mocks\ConflictingNamedOperations;
 use Tests\Unit\CodeGen\Mocks\NamedOperations;
@@ -20,9 +22,10 @@ use Tests\Unit\CodeGen\Mocks\UserOperations;
 
 /**
  * @param list<class-string> $classes
- * @return array<string, TypeScriptFile>
+ * @param list<object> $generators
+ * @return array<string, TypescriptFile>
  */
-function generateFor(array $classes): array
+function generateFor(array $classes, ?array $generators = null): array
 {
     $server = new Server(
         EagerlyLoadedRegistry::withClasses($classes, keyGenerator: new PlainlyExposedKeyGenerator()),
@@ -30,7 +33,7 @@ function generateFor(array $classes): array
     );
 
     return new TypescriptServerCodeGenerator(
-        [
+        $generators ?? [
             new EmitTypes(),
             new EmitOperationClientBindings(),
             new EmitTypeUtils(),
@@ -86,6 +89,31 @@ test('references named types by alias and imports every alias the operation reli
         ->toContain('export type StatusInput = {id:(number & Brand<"customerId">);};')
         ->toContain("import type {Brand, Customer, Order, OrderStatus} from './lib/types'")
         ->not->toContain('Email');
+});
+
+test('merges what every generator imports into one sorted block per module', function () {
+    $operations = generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(),
+        new EmitQueryKey(),
+        new EmitTanstackQuery(),
+    ])['orders.ts']->toString();
+
+    // Modules are sorted by specifier and each appears exactly once, however the generators ran:
+    // bindings collects executeOperation and throwOnFailure, utils' queryKey is claimed twice and
+    // deduped, and the aliases come from both EmitOperations and EmitQueryKey. Type only exports
+    // are on their own line, which is what verbatimModuleSyntax requires.
+    expect($operations)->toStartWith(<<<TypeScript
+    import type {OperationOptions} from './lib/OperationClient';
+    import {executeOperation, throwOnFailure} from './lib/bindings';
+    import type {Brand, Customer, Order, OrderStatus} from './lib/types';
+    import {queryKey} from './lib/utils';
+    import type {UseQueryOptions} from '@tanstack/react-query';
+    import {queryOptions, useQuery} from '@tanstack/react-query';
+
+    TypeScript);
 });
 
 test('fails the run when two classes resolve to the same name with different shapes', function () {

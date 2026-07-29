@@ -5,7 +5,6 @@ namespace Tests\Unit\CodeGen;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
@@ -14,17 +13,20 @@ use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 use Tests\Mocks\ValueObjects\Email;
 
+/**
+ * The code block and the file it renders to — rendering imports is the file's business, so the
+ * import statements are only observable through the rendered output.
+ *
+ * @return array{string, string}
+ */
 function queryKeyCodeFor(TypedOperation $typedOperation): array
 {
-    $block = new EmitQueryKey()->generateOperationCode(
+    $file = new EmitQueryKey()->generateOperationCode(
         $typedOperation,
         new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
     );
 
-    return [
-        $block->code,
-        array_map(fn(TypescriptImportStatement $import): string => implode(PHP_EOL, $import->toStatements()), $block->imports ?? []),
-    ];
+    return [$file->code, $file->toString()];
 }
 
 function queryOperation(): Operation
@@ -39,7 +41,7 @@ function queryOperation(): Operation
 }
 
 test('imports the aliases the inlined input definition carries', function () {
-    [$code, $imports] = queryKeyCodeFor(new TypedOperation(
+    [$code, $rendered] = queryKeyCodeFor(new TypedOperation(
         new TypeScript('{status:OrderStatus;}', new TypeRegistry(['OrderStatus' => '"OPEN"|"SHIPPED"'])),
         new TypeScript('Order', new TypeRegistry(['Order' => '{id:number;}'])),
         TypeScript::fromRawString(''),
@@ -47,9 +49,9 @@ test('imports the aliases the inlined input definition carries', function () {
     ));
 
     expect($code)->toContain('export function getQueryKey(input: {status:OrderStatus;})')
-        ->and($imports)->toContain("import type {Brand, OrderStatus} from './lib/types';")
+        ->and($rendered)->toContain("import type {Brand, OrderStatus} from './lib/types';")
         // The output-only alias is not referenced by the query key.
-        ->and(implode("\n", $imports))->not->toContain('Order,');
+        ->and($rendered)->not->toContain('Order,');
 });
 
 test('always imports the Brand helper, whether the input renders an inline brand or not', function () {

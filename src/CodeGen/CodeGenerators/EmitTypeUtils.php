@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 
 final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
@@ -19,7 +20,7 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, TypescriptFile>
      */
     public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
     {
@@ -38,7 +39,7 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
         }, []);
 
         return [
-            "utils" => <<<TypeScript
+            "utils" => new TypescriptFile(<<<TypeScript
 import type {SPAClientDirectives, WithClientDirectives} from "./types";
 
 type QueryNamespaces = {$this->generateLiteralUnion($queryNamespaces)};
@@ -54,7 +55,7 @@ export function isSpaClientDirectives<const T>(result: WithClientDirectives<T>):
 
     return "type" in result.__client && result.__client.type === "operations-spa";
 }
-TypeScript
+TypeScript)
         ];
     }
 

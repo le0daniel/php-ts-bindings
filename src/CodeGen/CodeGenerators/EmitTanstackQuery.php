@@ -7,10 +7,10 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 
 final readonly class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {
@@ -33,7 +33,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
     }
 
-    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptCodeBlock
+    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptFile
     {
         $definition = $operation->operation->definition;
         if ($definition->type !== OperationType::QUERY) {
@@ -49,26 +49,18 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         $optionsTypeName = $operationBaseTypeName . "Options";
 
         $imports = [
-            new TypescriptImportStatement(
-                from: "@tanstack/react-query",
-                imports: ['useQuery', 'UseQueryOptions', 'queryOptions'],
+            new TypescriptImport(
+                "@tanstack/react-query",
+                values: ['useQuery', 'queryOptions'],
+                types: ['UseQueryOptions'],
             ),
-            new TypescriptImportStatement(
-                from: Paths::libImport("utils"),
-                imports: ['queryKey'],
-            ),
-            new TypescriptImportStatement(
-                from: Paths::libImport("bindings"),
-                imports: ['throwOnFailure'],
-            ),
+            TypescriptImport::values(Paths::libImport("utils"), 'queryKey'),
+            TypescriptImport::values(Paths::libImport("bindings"), 'throwOnFailure'),
         ];
 
-
-
         if ($operation->inputDef->type === 'null') {
-            return new TypescriptCodeBlock(
+            return new TypescriptFile(
                 <<<TypeScript
-
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
 export function {$queryOptionsName}(options?: {$optionsTypeName}) {
@@ -89,9 +81,8 @@ export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {
 TypeScript, $imports);
         }
 
-        return new TypescriptCodeBlock(
+        return new TypescriptFile(
             <<<TypeScript
-
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
 export function {$queryOptionsName}(input: {$resultInputTypeName}, options?: {$optionsTypeName}) {

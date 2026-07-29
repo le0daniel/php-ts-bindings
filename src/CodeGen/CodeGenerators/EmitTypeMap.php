@@ -5,9 +5,9 @@ namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
-use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
+use Le0daniel\PhpTsBindings\Utils\Arrays;
 
 final class EmitTypeMap implements GeneratesLibFiles
 {
@@ -34,8 +34,7 @@ final class EmitTypeMap implements GeneratesLibFiles
         })) . '}';
 
         return [
-            'types' => new TypeScriptFile(code: <<<TypeScript
-
+            'types' => new TypescriptFile(<<<TypeScript
 /**
  * Full type map of all operations, input and output types.
  */

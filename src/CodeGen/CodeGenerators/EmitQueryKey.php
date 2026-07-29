@@ -7,12 +7,12 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 
-final class EmitQueryKey implements DependsOn, GeneratesOperationCode
+final readonly class EmitQueryKey implements DependsOn, GeneratesOperationCode
 {
     public function dependsOnGenerator(): array
     {
@@ -24,7 +24,7 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
     /**
      * @param (Closure(TypedOperation):string)|null $nameGenerator
      */
-    public function __construct(private readonly ?Closure $nameGenerator = null)
+    public function __construct(private ?Closure $nameGenerator = null)
     {
     }
 
@@ -34,7 +34,7 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
     }
 
 
-    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptCodeBlock
+    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptFile
     {
         $definition = $operation->operation->definition;
         if ($definition->type !== OperationType::QUERY) {
@@ -46,21 +46,15 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
         // The input definition is inlined verbatim, so the aliases its registry carries must be
         // imported here as well — plus Brand, unconditionally, for inline brands. The file level
         // import merge dedupes them with EmitOperations' imports.
-        $aliases = ['Brand', ...$operation->inputDef->registry->usedAliases()];
-        sort($aliases);
-
         $imports = [
-            new TypescriptImportStatement(
-                from: Paths::libImport("utils"),
-                imports: ['queryKey'],
-            ),
-            new TypescriptImportStatement(
-                from: Paths::libImport("types"),
-                imports: array_map(fn(string $alias): string => "type {$alias}", $aliases),
+            TypescriptImport::values(Paths::libImport("utils"), 'queryKey'),
+            TypescriptImport::types(
+                Paths::libImport("types"),
+                ['Brand', ...$operation->inputDef->registry->usedAliases()],
             ),
         ];
 
-        return new TypescriptCodeBlock(
+        return new TypescriptFile(
             <<<TypeScript
 /** @pure */
 export function {$name}QueryKey(input: {$operation->inputDef->type}) {

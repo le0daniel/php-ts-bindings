@@ -24,9 +24,9 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Server\Server;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -165,8 +165,8 @@ DESCRIPTION;
 
     /**
      * @param string $directory
-     * @param array<string, TypeScriptFile> $files
-     * @return Generator<string, TypeScriptFile, mixed, void>
+     * @param array<string, TypescriptFile> $files
+     * @return Generator<string, TypescriptFile, mixed, void>
      */
     private function iterateFiles(string $directory, array $files): Generator
     {
@@ -178,7 +178,7 @@ DESCRIPTION;
 
     /**
      * @param string $directory
-     * @param array<string, TypeScriptFile> $files
+     * @param array<string, TypescriptFile> $files
      * @return int
      */
     private function verifyContentOnly(string $directory, array $files): int
@@ -210,7 +210,7 @@ DESCRIPTION;
 
     /**
      * @param string $directory
-     * @param array<string, TypeScriptFile> $files
+     * @param array<string, TypescriptFile> $files
      * @return void
      */
     private function writeFiles(string $directory, array $files): void

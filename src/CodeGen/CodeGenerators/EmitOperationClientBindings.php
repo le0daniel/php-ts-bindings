@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 
 final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
@@ -18,12 +19,12 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
     }
 
     /**
-     * @return array<string, string>
+     * @return array<string, TypescriptFile>
      */
     public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
     {
         return [
-            "OperationClient" => <<<TypeScript
+            "OperationClient" => new TypescriptFile(<<<TypeScript
 import type {Result, WithClientDirectives} from "./types";
 
 export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client?: OperationClient};
@@ -36,8 +37,8 @@ export interface OperationClient {
         options?: OperationOptions
     ): Promise<WithClientDirectives<Result<O, E>>>;
 }
-TypeScript,
-            "DefaultClient" => <<<TypeScript
+TypeScript),
+            "DefaultClient" => new TypescriptFile(<<<TypeScript
 import type {OperationClient, OperationOptions} from "./OperationClient";
 import type {Failure, Result, Success, WithClientDirectives} from "./types";
 
@@ -143,8 +144,8 @@ export class DefaultClient implements OperationClient {
     }
 
 }
-TypeScript,
-            "OperationException" => <<<TypeScript
+TypeScript),
+            "OperationException" => new TypescriptFile(<<<TypeScript
 import type {Failure} from "./types";
 
 export class OperationException extends Error {
@@ -168,8 +169,8 @@ export class OperationException extends Error {
         return e instanceof OperationException;
     }
 }
-TypeScript,
-            "bindings" => <<<TypeScript
+TypeScript),
+            "bindings" => new TypescriptFile(<<<TypeScript
 import type { Result, Success, WithClientDirectives } from './types';
 import type { OperationClient, OperationOptions } from './OperationClient';
 import { DefaultClient } from './DefaultClient';
@@ -206,7 +207,7 @@ export async function executeOperation<I, O, E extends {code: number}>(type: 'qu
 
     throw new Error('No client set');
 }
-TypeScript,
+TypeScript),
         ];
     }
 }
