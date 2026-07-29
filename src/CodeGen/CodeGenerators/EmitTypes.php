@@ -7,8 +7,8 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 
 final class EmitTypes implements GeneratesLibFiles
@@ -35,7 +35,7 @@ final class EmitTypes implements GeneratesLibFiles
     /**
      * @return array<string, TypescriptFile>
      */
-    public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
+    public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         foreach ($registry->usedAliases() as $alias) {
             if (in_array($alias, self::RESERVED_ALIASES, true)) {

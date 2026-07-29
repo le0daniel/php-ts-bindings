@@ -11,9 +11,9 @@ use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Mocks\Named\Order;
 use Tests\Mocks\Named\OrderStatus;
@@ -36,7 +36,7 @@ function emitTypesFor(string $inputType, string $outputType): string
     );
 
     $generator = new TypescriptGenerator();
-    $registry = new TypeRegistry();
+    $registry = new AliasRegistry();
     $input = $generator->toTypescript($operation->inputNode(), IO::INPUT, $registry);
     $output = $generator->toTypescript($operation->outputNode(), IO::OUTPUT, $registry);
 
@@ -50,7 +50,7 @@ function emitTypesFor(string $inputType, string $outputType): string
 }
 
 test('rejects an alias colliding with a declaration the types file always contains', function (string $alias) {
-    $registry = new TypeRegistry([$alias => '{a:string;}']);
+    $registry = new AliasRegistry([$alias => '{a:string;}']);
 
     expect(fn() => new EmitTypes()->emitFiles([], new ServerMetadata('/query/{fqn}', '/command/{fqn}'), $registry))
         ->toThrow(UnsupportedTypeException::class, 'collides with a declaration');

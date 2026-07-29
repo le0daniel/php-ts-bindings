@@ -6,13 +6,13 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 
 final class EmitTypeMap implements GeneratesLibFiles
 {
 
-    public function emitFiles(array $operations, ServerMetadata $metadata, TypeRegistry $registry): array
+    public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         /**
          * @var array<"query"|"command", array<string, array{input: string, output: string, errors: string}>> $map

@@ -10,8 +10,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Mocks\Named\AsymmetricNamed;
 use Tests\Mocks\Named\BrandedPayload;
@@ -35,7 +35,7 @@ test('a named class is referenced by its alias on output and carries its definit
 
 test('a named class defaults to output only and is inlined on input', function () {
     $node = new TypeParser()->parse(Customer::class);
-    $shared = new TypeRegistry();
+    $shared = new AliasRegistry();
 
     $result = new TypescriptGenerator()->toTypescript($node, IO::INPUT, $shared);
 
@@ -125,7 +125,7 @@ test('without a shared registry each pass stands alone and never conflicts with 
 test('IO::BOTH fails hard when the input and output shapes differ', function () {
     $node = new TypeParser()->parse(AsymmetricNamed::class);
     $generator = new TypescriptGenerator();
-    $shared = new TypeRegistry();
+    $shared = new AliasRegistry();
 
     expect($generator->toTypescript($node, IO::INPUT, $shared)->type)->toBe('AsymmetricNamed');
 

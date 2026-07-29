@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Typescript\Data;
+namespace Le0daniel\PhpTsBindings\Typescript\Helpers;
 
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnknownAliasException;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
@@ -14,7 +14,7 @@ use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
  *
  * Not to be confused with Parser\Contracts\TypeRegistry, which is the AST optimizer's node cache.
  */
-final class TypeRegistry
+final class AliasRegistry
 {
     /** @var array<string, string> */
     private array $definitions = [];

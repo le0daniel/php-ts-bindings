@@ -89,13 +89,7 @@ customizations, including writing your very own code generation plugin.
 ## Type Parsing
 
 ```php
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
-use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
-use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
+use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;use Le0daniel\PhpTsBindings\Parser\TypeParser;use Le0daniel\PhpTsBindings\Reflection\TypeReflector;use Le0daniel\PhpTsBindings\Typescript\Data\IO;use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
 $typeString = TypeReflector::reflectParameter(
   new ReflectionParameter()
@@ -131,7 +125,7 @@ $named->registry->usedAliases();       // => ['Token'] — every alias in the re
 // schema produced. Pass an optional shared registry and every call registers its aliases into it
 // at the end of the pass; that hand-over is where an alias meaning two different things across
 // several schemas is rejected.
-$generator->toTypescript($ast, IO::INPUT, $shared = new TypeRegistry());
+$generator->toTypescript($ast, IO::INPUT, $shared = new AliasRegistry());
 
 $executor = new SchemaExecutor()
 

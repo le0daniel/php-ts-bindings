@@ -29,9 +29,9 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Typescript\Data\EmissionContext;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 use UnitEnum;
 
@@ -45,7 +45,7 @@ use UnitEnum;
  */
 final readonly class TypescriptGenerator
 {
-    public function toTypescript(NodeInterface $node, IO $io, ?TypeRegistry $sharedRegistry = null): TypeScript
+    public function toTypescript(NodeInterface $node, IO $io, ?AliasRegistry $sharedRegistry = null): TypeScript
     {
         if ($io === IO::BOTH) {
             throw new InvalidArgumentException('Emit for IO::INPUT or IO::OUTPUT; IO::BOTH is only a #[Named] scope.');
@@ -55,7 +55,7 @@ final readonly class TypescriptGenerator
         // aliases this schema produced. When a shared registry is given, all of them are
         // registered into it after the pass — that hand-over is where an alias meaning two
         // different things across several schemas is rejected.
-        $localRegistry = new TypeRegistry();
+        $localRegistry = new AliasRegistry();
         $context = new EmissionContext($io, $localRegistry);
         $type = $this->emit($node, $context);
 
