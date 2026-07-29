@@ -3,7 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use DateTimeImmutable;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;

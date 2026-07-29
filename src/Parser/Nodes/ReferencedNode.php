@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 
 /**
  * This is used during ast optimization to replace references to other nodes with the actual node.

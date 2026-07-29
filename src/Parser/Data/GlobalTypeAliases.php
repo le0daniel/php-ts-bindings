@@ -3,7 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser\Data;
 
 use Closure;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 
 final readonly class GlobalTypeAliases
 {

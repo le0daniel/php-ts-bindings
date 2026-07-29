@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript\Exceptions;
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use RuntimeException;
 

@@ -2,13 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Data\Value;
-use Le0daniel\PhpTsBindings\Executor\Data\Context;
-use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
-use Throwable;
 
 final readonly class CustomCastingNode implements NodeInterface
 {

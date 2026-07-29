@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Contracts;
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 

@@ -2,10 +2,10 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use Le0daniel\PhpTsBindings\Contracts\Coercible;
-use Le0daniel\PhpTsBindings\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
+use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
+use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 final readonly class FloatNode implements NodeInterface, LeafNode, Coercible

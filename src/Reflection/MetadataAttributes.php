@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\Reflection;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Brand;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Named;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;

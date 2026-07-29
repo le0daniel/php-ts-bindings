@@ -2,11 +2,11 @@
 
 namespace Tests\Unit\Validators;
 
-use Le0daniel\PhpTsBindings\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
+use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Validators\Email;
 
 /** @return array{bool, Issue[]} */

@@ -2,15 +2,15 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
-use Le0daniel\PhpTsBindings\Contracts\Coercible;
-use Le0daniel\PhpTsBindings\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Contracts\ValueObjects\IntValueObject;
 use Le0daniel\PhpTsBindings\Contracts\ValueObjects\StringValueObject;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
+use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
+use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Throwable;
