@@ -41,6 +41,20 @@ final class Syntax
     }
 
     /**
+     * A module specifier as it appears after `from`. Single quoted, matching the rest of the
+     * generated output — unlike stringLiteral(), which is JSON and therefore double quotes.
+     * The specifier is written verbatim, so the caller vouches for it being writable.
+     */
+    public static function moduleSpecifier(string $specifier): string
+    {
+        if (str_contains($specifier, "'")) {
+            throw new \RuntimeException("Invalid path specified: '{$specifier}'");
+        }
+
+        return "'{$specifier}'";
+    }
+
+    /**
      * A branded type, e.g. `string & Brand<"email">`.
      */
     public static function branded(string $baseType, string $brandName): string
