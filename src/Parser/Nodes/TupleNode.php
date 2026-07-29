@@ -21,7 +21,7 @@ final readonly class TupleNode implements NodeInterface, ValidatableNode
     {
         $typeString = Arrays::mapWithKeys($this->types, fn(int $key, NodeInterface $type) => "{$key}: {$type}");
         $imploded = implode(', ', $typeString);
-        return "array{$imploded}";
+        return 'array{' . $imploded . '}';
     }
 
     public function exportPhpCode(): string

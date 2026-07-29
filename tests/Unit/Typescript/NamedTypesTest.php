@@ -1,6 +1,5 @@
 <?php declare(strict_types=1);
 
-use Le0daniel\PhpTsBindings\Parser\AstSorter;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
@@ -174,8 +173,8 @@ test('two named nodes claiming one alias with different shapes are rejected', fu
 });
 
 test('cached ASTs are metadata free and emit the plain structural type', function () {
-    $sortedNode = AstSorter::sort(new TypeParser()->parse(Order::class));
-    $optimizedCode = new ASTOptimizer()->generateOptimizedCode(['node' => $sortedNode]);
+    $node = new TypeParser()->parse(Order::class);
+    $optimizedCode = new ASTOptimizer()->generateOptimizedCode(['node' => $node]);
 
     /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");

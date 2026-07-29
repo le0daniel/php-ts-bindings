@@ -93,11 +93,14 @@ final readonly class SchemaExecutor implements Executor
             return $this->executeSerialize($node->node, $data, $context);
         }
 
+        // Ordered by how often each case is hit. Leaves outnumber every other node in a typical
+        // schema, and MetadataNode is last because the optimizer strips it: in a cached AST that
+        // arm can never match.
         $serializedValue = match (true) {
+            $node instanceof LeafNode => $node->serializeValue($data, $context),
+            array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->serialize($node, $data, $context, $this),
             // Codegen metadata has no runtime effect.
             $node instanceof MetadataNode => $this->executeSerialize($node->node, $data, $context),
-            array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->serialize($node, $data, $context, $this),
-            $node instanceof LeafNode => $node->serializeValue($data, $context),
             default => Value::INVALID,
         };
 
@@ -122,13 +125,14 @@ final readonly class SchemaExecutor implements Executor
             return $constrainedValue;
         }
 
+        // Ordered by how often each case is hit; see executeSerialize().
         return match (true) {
-            // Codegen metadata has no runtime effect.
-            $node instanceof MetadataNode => $this->executeParse($node->node, $data, $context),
-            array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
             $node instanceof LeafNode => $context->coercePrimitives && $node instanceof Coercible
                 ? $node->parseValue($node->coerce($data), $context)
                 : $node->parseValue($data, $context),
+            array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
+            // Codegen metadata has no runtime effect.
+            $node instanceof MetadataNode => $this->executeParse($node->node, $data, $context),
             default => Value::INVALID,
         };
     }

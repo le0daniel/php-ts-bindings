@@ -67,3 +67,33 @@ test("Middleware emits typescript middleware", function () {
     $definition = $errorPresenter->toTypeScriptDefinition($operation->definition);
     expect($definition)->toEqual('{type: "invalid_name"}');
 });
+/**
+ * The cached registry pools every operation's schemas together, so these cases only mean anything
+ * on the production path: executeOperation() compares the eagerly discovered server against the
+ * generated cache for each one.
+ */
+test('a constrained schema keeps its constraint when pooled with an unconstrained twin', function () {
+    expect(executeOperation('pooling.constrainedEmail', ['email' => 'a@b.c']))->toBeInstanceOf(RpcSuccess::class)
+        ->and(executeOperation('pooling.constrainedEmail', ['email' => '']))->toBeInstanceOf(RpcError::class)
+        ->and(executeOperation('pooling.looseEmail', ['email' => '']))->toBeInstanceOf(RpcSuccess::class);
+});
+
+test('property key order is identical cached and uncached', function () {
+    $result = executeOperation('pooling.declarationOrder', ['zebra' => 'z', 'alpha' => 'a', 'middle' => 1]);
+
+    expect($result)->toBeInstanceOf(RpcSuccess::class)
+        ->and(json_encode($result->data, JSON_THROW_ON_ERROR))
+        ->toBe('{"alpha":"a","middle":1,"zebra":"z"}');
+});
+
+test('the same shape declared in two orders behaves identically', function () {
+    $data = ['zebra' => 'z', 'alpha' => 'a', 'middle' => 1];
+
+    expect(json_encode(executeOperation('pooling.declarationOrder', $data)->data, JSON_THROW_ON_ERROR))
+        ->toBe(json_encode(executeOperation('pooling.reversedOrder', $data)->data, JSON_THROW_ON_ERROR));
+});
+
+test('int and float literal schemas do not merge when pooled', function () {
+    expect(executeOperation('pooling.intLiteral', ['value' => 1]))->toBeInstanceOf(RpcSuccess::class)
+        ->and(executeOperation('pooling.floatLiteral', ['value' => 1.0]))->toBeInstanceOf(RpcSuccess::class);
+});

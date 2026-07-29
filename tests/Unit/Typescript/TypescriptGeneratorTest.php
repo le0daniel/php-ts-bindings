@@ -190,7 +190,7 @@ test('returns branded types sorted by alias', function () {
     $result = typescriptOf("array{z: BrandedString<'zulu'>, a: BrandedString<'alpha'>, m: BrandedString<'mike'>}");
 
     expect(array_keys($result->registry->toArray()))->toBe(['Alpha', 'Mike', 'Zulu'])
-        ->and($result->type)->toBe('{z:Zulu;a:Alpha;m:Mike;}');
+        ->and($result->type)->toBe('{a:Alpha;m:Mike;z:Zulu;}');
 });
 
 test('throws when one brand resolves to two different definitions', function () {
@@ -266,9 +266,9 @@ test('throws for an uncastable class on input but emits it on output', function 
     expect(typescriptOf($type, IO::OUTPUT)->type)->toBe($output);
 })->with([
     'class without #[Castable]' => [UncastableClass::class, '{email:string;name:string;}'],
-    'abstract class' => [SomeAbstractClass::class, '{id:number;email:string;}'],
+    'abstract class' => [SomeAbstractClass::class, '{email:string;id:number;}'],
     'interface' => [SomeFileInterface::class, '{id:number;url:string;}'],
-    'readonly output fields' => [ReadonlyOutputFields::class, '{name:string;email:string;}'],
+    'readonly output fields' => [ReadonlyOutputFields::class, '{email:string;name:string;}'],
 ]);
 
 test('throws for nodes it cannot represent', function (NodeInterface $node) {

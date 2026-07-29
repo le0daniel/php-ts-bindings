@@ -19,7 +19,6 @@ use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
-use Le0daniel\PhpTsBindings\Parser\AstSorter;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
@@ -107,16 +106,15 @@ expect()->extend('toBeFailureAt', function (string $path, ?string $message = nul
 */
 
 function compareToOptimizedAst(NodeInterface $node) {
-    $sortedNode = AstSorter::sort($node);
     $optimizer = new ASTOptimizer();
-    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $sortedNode]);
+    $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
     /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     expect(
         (string) $registry->get('node')
-    )->toEqual((string) $sortedNode);
+    )->toEqual((string) $node);
 }
 
 /**
@@ -129,17 +127,14 @@ function compareToOptimizedAst(NodeInterface $node) {
  */
 function typescriptFor(NodeInterface $node, IO $io, ?TypeRegistry $sharedRegistry = null): TypeScript
 {
-    $sortedNode = AstSorter::sort($node);
-    compareToOptimizedAst($sortedNode);
+    compareToOptimizedAst($node);
 
-    return new TypescriptGenerator()->toTypescript($sortedNode, $io, $sharedRegistry);
+    return new TypescriptGenerator()->toTypescript($node, $io, $sharedRegistry);
 }
 
 function executeParse(NodeInterface|string $node, mixed $data, ParsingOptions $options = new ParsingOptions()): Success|Failure
 {
-    $node = AstSorter::sort(
-        is_string($node) ? new TypeParser()->parse($node) : $node,
-    );
+    $node = is_string($node) ? new TypeParser()->parse($node) : $node;
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
@@ -170,9 +165,7 @@ function executeParse(NodeInterface|string $node, mixed $data, ParsingOptions $o
 
 function executeSerialize(NodeInterface|string $node, mixed $data, SerializationOptions $options = new SerializationOptions()): Success|Failure
 {
-    $node = AstSorter::sort(
-        is_string($node) ? new TypeParser()->parse($node) : $node,
-    );
+    $node = is_string($node) ? new TypeParser()->parse($node) : $node;
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 

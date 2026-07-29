@@ -1,7 +1,6 @@
 <?php declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
-use Le0daniel\PhpTsBindings\Parser\AstSorter;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
@@ -70,15 +69,14 @@ test('metadata is transparent in the string form and eliminated from the optimiz
         ->and((string)$node)->toBe((string)$node->node)
         ->and($node->exportPhpCode())->not->toContain('MetadataNode');
 
-    $sortedNode = AstSorter::sort($node);
-    $optimizedCode = new ASTOptimizer()->generateOptimizedCode(['node' => $sortedNode]);
+    $optimizedCode = new ASTOptimizer()->generateOptimizedCode(['node' => $node]);
 
     /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     expect($optimizedCode)->not->toContain('MetadataNode')
         ->and($registry->get('node'))->not->toBeInstanceOf(MetadataNode::class)
-        ->and((string)$registry->get('node'))->toBe((string)$sortedNode);
+        ->and((string)$registry->get('node'))->toBe((string)$node);
 });
 
 test('rejects a name that is not a valid TypeScript identifier', function () {

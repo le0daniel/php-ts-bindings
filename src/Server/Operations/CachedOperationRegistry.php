@@ -74,11 +74,14 @@ final class CachedOperationRegistry implements OperationRegistry
                 "'{$key}' => fn() => new {$endpointClass}('{$endpoint->key}', $exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";
         }
 
-        // The ast optimizer is used to deduplicate all the ASTs, minimizing the nodes required.
-        // Additional optimizations are performed on structs and unions for faster execution.
+        // The ast optimizer deduplicates all the ASTs, minimizing the nodes required at runtime.
         $optimizer = new AstOptimizer();
         $operationRegistryClass = PHPExport::absolute(CachedOperationRegistry::class);
 
+        // Operation discovery order depends on the filesystem, so sorting by key is what makes the
+        // generated artifact byte identical across machines.
+        ksort($asts);
+        sort($endpoints);
         $endpointsCode = implode(',', $endpoints);
 
         return <<<PHP
@@ -93,7 +96,7 @@ PHP;
 
         // The cached code binds both the Asts and operations together and creates a file
         // that can be required with fully compiled types.
-        file_put_contents($filePath, <<<PHP
+        PHPExport::writeFileAtomically($filePath, <<<PHP
 <?php declare(strict_types=1);
 
 {$code}

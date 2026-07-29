@@ -34,7 +34,9 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
             // @phpstan-ignore-next-line classConstant.nonObject
             LiteralType::ENUM_CASE => "enum-value<{$this->value->name}@" . $this->value::class . ">",
             LiteralType::NULL => 'literal<null>',
-            LiteralType::INT, LiteralType::FLOAT => "literal<{$this->value}>",
+            LiteralType::INT => "literal<{$this->value}>",
+            // Rendered via var_export so 1.0 stays distinguishable from 1.
+            LiteralType::FLOAT => 'literal<' . var_export($this->value, true) . '>',
         };
     }
 

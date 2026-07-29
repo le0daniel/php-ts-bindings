@@ -3,10 +3,31 @@
 namespace Le0daniel\PhpTsBindings\Utils;
 
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
+use RuntimeException;
 use UnitEnum;
 
 final class PHPExport
 {
+    /**
+     * Writes generated PHP through a temporary file and renames it into place.
+     *
+     * Generated caches are required while the application is serving traffic, so a partially
+     * written file would be loaded as valid PHP. rename() is atomic within a filesystem, which
+     * makes a reader see either the old file or the complete new one.
+     */
+    public static function writeFileAtomically(string $filePath, string $contents): void
+    {
+        $written = file_put_contents($filePath, $contents);
+        if ($written !== false) {
+            return;
+        }
+
+        if (file_exists($filePath)) {
+            unlink($filePath);
+        }
+        throw new RuntimeException("Failed to write file to {$filePath}");
+    }
+
     public static function absolute(string $className): string
     {
         return str_starts_with($className, '\\') ? $className : '\\' . $className;

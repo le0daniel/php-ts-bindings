@@ -570,9 +570,10 @@ test('Generics parsing with readonly output properties', function () {
     compareToOptimizedAst($node);
     validateAst($node);
 
-    // Generated from the node as parsed, so the assertion pins declaration order.
+    // Struct properties are canonically ordered at construction, so emission is alphabetical
+    // regardless of declaration order.
     expect(new TypescriptGenerator()->toTypescript($node, IO::OUTPUT)->type)
-        ->toBe('{name:string;email:string;}');
+        ->toBe('{email:string;name:string;}');
 });
 
 test('Do not cast in default mode', function () {

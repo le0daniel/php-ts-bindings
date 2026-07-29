@@ -12,14 +12,47 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 final readonly class StructNode implements NodeInterface, ValidatableNode
 {
+    /** @var non-empty-list<PropertyNode|ReferencedNode> */
+    public array $properties;
+
     /**
+     * Properties are canonically ordered here rather than by a separate pass, so there is only
+     * ever one form of a given shape. That keeps a cached AST behaviourally identical to a freshly
+     * parsed one, and lets two declarations of the same shape in different orders share a single
+     * interned registry entry.
+     *
      * @param non-empty-list<PropertyNode|ReferencedNode> $properties
      */
     public function __construct(
         public StructPhpType $phpType,
-        public array         $properties,
+        array                $properties,
     )
     {
+        $this->properties = self::canonicalise($properties);
+    }
+
+
+    /**
+     * @param non-empty-list<PropertyNode|ReferencedNode> $properties
+     * @return non-empty-list<PropertyNode|ReferencedNode>
+     */
+    private static function canonicalise(array $properties): array
+    {
+        // ReferencedNode carries no name to sort by. The ASTOptimizer rebuilds structs by mapping
+        // over an already canonical list, so order is preserved and sorting is unnecessary there.
+        if (!array_all($properties, static fn(PropertyNode|ReferencedNode $property) => $property instanceof PropertyNode)) {
+            return $properties;
+        }
+
+        /** @var non-empty-list<PropertyNode> $properties */
+        usort($properties, static function (PropertyNode $a, PropertyNode $b): int {
+            $byName = strcmp($a->name, $b->name);
+            return $byName !== 0
+                ? $byName
+                : $a->propertyType->name <=> $b->propertyType->name;
+        });
+
+        return $properties;
     }
 
     public function validate(): void
@@ -56,26 +89,6 @@ final readonly class StructNode implements NodeInterface, ValidatableNode
     public function ofType(StructPhpType $type): self
     {
         return new self($type, $this->properties);
-    }
-
-    /**
-     * @return PropertyNode[]
-     */
-    public function sortedProperties(): array
-    {
-        /** @var list<PropertyNode> $properties */
-        $properties = $this->properties;
-
-        // Sort by name, then by type
-        usort($properties, function (PropertyNode $a, PropertyNode $b): int {
-            $nameComparison = strcmp($a->name, $b->name);
-            if ($nameComparison !== 0) {
-                return $nameComparison;
-            }
-            return $a->propertyType->name <=> $b->propertyType->name;
-        });
-
-        return $properties;
     }
 
     public function getProperty(string $name): ?PropertyNode

@@ -27,7 +27,16 @@ final readonly class ConstraintNode implements NodeInterface
 
     public function __toString(): string
     {
-        return $this->node->__toString();
+        if (empty($this->constraints)) {
+            return $this->node->__toString();
+        }
+
+        $names = implode(', ', array_map(
+            static fn(Constraint $constraint) => new \ReflectionClass($constraint)->getShortName(),
+            $this->constraints,
+        ));
+
+        return "{$this->node} & {$names}";
     }
 
     public function exportPhpCode(): string

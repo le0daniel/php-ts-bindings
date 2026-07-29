@@ -43,7 +43,11 @@ final class UnionNode implements NodeInterface
 
     public function __toString(): string
     {
-        return implode('|', array_map(fn(NodeInterface $type) => (string)$type, $this->types));
+        $types = implode('|', array_map(fn(NodeInterface $type) => (string)$type, $this->types));
+
+        return $this->discriminator === null
+            ? $types
+            : "{$types} by '{$this->discriminator}'";
     }
 
     public function isDiscriminated(): bool

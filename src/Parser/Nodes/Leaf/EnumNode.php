@@ -12,13 +12,16 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use UnitEnum;
 
-final readonly class EnumNode implements NodeInterface, LeafNode
+final class EnumNode implements NodeInterface, LeafNode
 {
+    /** @var array<string, UnitEnum> */
+    private array $cases;
+
     /**
      * @param class-string<UnitEnum> $enumClassName
      */
     public function __construct(
-        public string $enumClassName,
+        public readonly string $enumClassName,
     )
     {
     }
@@ -49,11 +52,14 @@ final readonly class EnumNode implements NodeInterface, LeafNode
             return Value::INVALID;
         }
 
-        $cases = $this->enumClassName::cases();
-        foreach ($cases as $case) {
-            if ($case->name === $value) {
-                return $case;
-            }
+        $cases = $this->cases ??= array_column(
+            $this->enumClassName::cases(),
+            null,
+            'name',
+        );
+
+        if (isset($cases[$value])) {
+            return $cases[$value];
         }
 
         $context->addIssue(new Issue(
