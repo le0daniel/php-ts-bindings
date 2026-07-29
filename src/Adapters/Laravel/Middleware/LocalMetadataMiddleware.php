@@ -25,6 +25,7 @@ final class LocalMetadataMiddleware implements MiddlewareContract
         $durationMs = (int)ceil((microtime(true) - $startTime) * 1000);
 
         return $result->appendMetadata([
+            'fullyQualifiedHandler' => "{$info->className}@{$info->methodName}",
             'durationMs' => $durationMs,
             'client' => [
                 'class' => $client::class,
