@@ -15,6 +15,11 @@ final readonly class GlobalTypeAliases
     ) {
     }
 
+    public function isEmpty(): bool
+    {
+        return count($this->aliases) === 0;
+    }
+
     public function isGlobalAlias(string $value): bool
     {
         return array_key_exists($value, $this->aliases);
