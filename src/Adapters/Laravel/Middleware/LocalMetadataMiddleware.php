@@ -4,21 +4,17 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Middleware;
 
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 
-final class LocalMetadataMiddleware
+/**
+ * @implements MiddlewareContract<mixed>
+ */
+final class LocalMetadataMiddleware implements MiddlewareContract
 {
-    /**
-     * @param mixed $input
-     * @param Closure(mixed): (RpcSuccess|RpcError) $next
-     * @param mixed $context
-     * @param ResolveInfo $resolveInfo
-     * @param Client $client
-     * @return RpcSuccess|RpcError
-     */
-    public function handle(mixed $input, Closure $next, mixed $context, ResolveInfo $resolveInfo, Client $client): RpcSuccess|RpcError
+    public function handle(mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
     {
         if (config('app.debug') !== true) {
             return $next($input);
@@ -34,16 +30,16 @@ final class LocalMetadataMiddleware
                 'class' => $client::class,
             ],
             'info' => [
-                'namespace' => $resolveInfo->namespace,
-                'name' => $resolveInfo->name,
-                'fqn' => $resolveInfo->fullyQualifiedName,
-                'operationType' => $resolveInfo->operationType->name,
+                'namespace' => $info->namespace,
+                'name' => $info->name,
+                'fqn' => $info->fullyQualifiedName,
+                'operationType' => $info->operationType->name,
             ],
             'handler' => [
-                'className' => $resolveInfo->className,
-                'methodName' => $resolveInfo->methodName,
+                'className' => $info->className,
+                'methodName' => $info->methodName,
             ],
-            'middleware' => $resolveInfo->middleware,
+            'middleware' => $info->middleware,
             'input' => $input,
             'context' => [
                 'class' => is_object($context) ? get_class($context) : gettype($context),

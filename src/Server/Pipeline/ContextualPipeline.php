@@ -3,92 +3,92 @@
 namespace Le0daniel\PhpTsBindings\Server\Pipeline;
 
 use Closure;
+use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
+use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
+use Le0daniel\PhpTsBindings\Server\Data\RpcError;
+use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Throwable;
 
-final class ContextualPipeline
+/**
+ * Runs the middlewares as an onion around the destination, first middleware outermost.
+ *
+ * INVARIANT: nothing escapes this pipeline as a Throwable. Every ring - and the destination -
+ * is wrapped, so a failure is turned into an RpcError right where it happened and handed back to
+ * the enclosing middleware as the return value of its $next() call. The stack is never unwound
+ * past a middleware, which means outer rings always get to run their post-processing on the error.
+ *
+ * The conversion goes through $onError, so failures are presented the same way whether they come
+ * from a middleware or from the operation itself. If $onError fails too there is nobody left to
+ * ask, so the pipeline falls back to a bare INTERNAL_ERROR rather than letting the request crash.
+ *
+ * @phpstan-import-type Next from MiddlewareContract
+ * @template-contravariant TContext = mixed
+ */
+final readonly class ContextualPipeline
 {
     /**
-     * @var (Closure(Throwable): mixed)|null
-     */
-    private Closure|null $catchErrorsWith = null;
-
-    /**
-     * @var (Closure(mixed, mixed...): mixed)|null
-     */
-    private Closure|null $then = null;
-
-    /**
-     * @param list<object> $pipes
+     * @param list<MiddlewareContract<TContext>> $middlewares
+     * @param Closure(Throwable): RpcError $onError
+     * @param Closure(mixed): (RpcSuccess|RpcError) $destination
      */
     public function __construct(
-        private readonly array $pipes,
+        private array   $middlewares,
+        private Closure $onError,
+        private Closure $destination,
     )
     {
     }
 
     /**
-     * @param Closure(Throwable): mixed $closure
-     * @return $this
+     * @param TContext $context
      */
-    public function catchErrorsWith(Closure $closure): self
+    public function execute(mixed $input, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
     {
-        $this->catchErrorsWith = $closure;
-        return $this;
-    }
-
-    /**
-     * @param Closure(mixed, mixed...): mixed $then
-     * @return $this
-     */
-    public function then(Closure $then): self
-    {
-        $this->then = $then;
-        return $this;
-    }
-
-    /**
-     * @param list<mixed> $context
-     * @return Closure(mixed, object): mixed
-     */
-    private function reducer(array $context): Closure
-    {
-        return function ($stack, object $instance) use ($context) {
-            return function (mixed $input) use ($stack, $instance, $context) {
-                try {
-                    $result = $instance->handle($input, $stack, ...$context);
-                    if ($result instanceof Throwable) {
-                        return $this->catchErrorsWith ? ($this->catchErrorsWith)($result) : $result;
-                    }
-                    return $result;
-                } catch (Throwable $exception) {
-                    if ($this->catchErrorsWith) {
-                        return ($this->catchErrorsWith)($exception);
-                    }
-                    return $exception;
-                }
-            };
-        };
-    }
-
-    public function execute(mixed $value, mixed ... $context): mixed
-    {
-        $context = array_values($context);
-        $middle = function ($value) use ($context) {
-            if ($this->then) {
-                try {
-                    return ($this->then)($value, ...$context);
-                } catch (Throwable $exception) {
-                    return $exception;
-                }
+        $next = function (mixed $input) use ($info): RpcSuccess|RpcError {
+            try {
+                return ($this->destination)($input);
+            } catch (Throwable $throwable) {
+                return $this->toRpcError($throwable, $info);
             }
-
-            return $value;
         };
 
-        $pipeline = array_reduce(
-            array_reverse($this->pipes), $this->reducer($context), $middle,
-        );
+        foreach (array_reverse($this->middlewares) as $middleware) {
+            $next = $this->ring($middleware, $next, $context, $info, $client);
+        }
 
-        return $pipeline($value);
+        return $next($input);
+    }
+
+    /**
+     * @param MiddlewareContract<TContext> $middleware
+     * @param Next $next
+     * @param TContext $context
+     * @return Next
+     */
+    private function ring(MiddlewareContract $middleware, Closure $next, mixed $context, ResolveInfo $info, Client $client): Closure
+    {
+        return function (mixed $input) use ($middleware, $next, $context, $info, $client): RpcSuccess|RpcError {
+            try {
+                return $middleware->handle($input, $next, $context, $info, $client);
+            } catch (Throwable $throwable) {
+                return $this->toRpcError($throwable, $info);
+            }
+        };
+    }
+
+    private function toRpcError(Throwable $throwable, ResolveInfo $info): RpcError
+    {
+        try {
+            return ($this->onError)($throwable);
+        } catch (Throwable $failedToPresent) {
+            return new RpcError(
+                ErrorType::INTERNAL_ERROR,
+                $failedToPresent,
+                ['type' => 'INTERNAL_SERVER_ERROR'],
+                $info,
+            );
+        }
     }
 }

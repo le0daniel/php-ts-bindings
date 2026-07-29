@@ -7,9 +7,9 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 use Le0daniel\PhpTsBindings\Contracts\Discoverer;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
 use RuntimeException;
@@ -95,17 +95,17 @@ final class OperationDiscovery implements Discoverer
             throw new RuntimeException("Method {$method->name} must have at least one parameter.");
         }
 
-        $attributes = [
-            // Collect all middlewares, on the class and the method itself.
+        // Collect all middlewares, on the class and the method itself.
+        $middlewareAttributes = [
             ... $class->getAttributes(Middleware::class),
             ... $method->getAttributes(Middleware::class),
         ];
 
-        $middlewares = empty($attributes) ? [] : array_reduce($attributes, function (array $carry, ReflectionAttribute $attribute) {
-            $instance = $attribute->newInstance();
-            array_push($carry, ...$instance->middleware);
-            return $carry;
-        }, []);
+        /** @var list<class-string<MiddlewareContract<mixed>>> $middlewares */
+        $middlewares = [];
+        foreach ($middlewareAttributes as $middlewareAttribute) {
+            array_push($middlewares, ...$middlewareAttribute->newInstance()->middleware);
+        }
 
         return new Definition(
             $type,

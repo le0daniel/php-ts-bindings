@@ -26,7 +26,8 @@ final class ExposedExceptionPresenter implements ExceptionPresenter
         $reflection = new ReflectionMethod($definition->fullyQualifiedClassName, $definition->methodName);
         $attributes = $reflection->getAttributes(Throws::class);
 
-        // We go through all middleware and extract their throws attributes
+        // We go through all middleware and extract their throws attributes.
+        // handle() is guaranteed to exist: every middleware implements MiddlewareContract.
         if (count($definition->middleware) > 0) {
             foreach ($definition->middleware as $middlewareClassName) {
                 $reflection = new ReflectionMethod($middlewareClassName, 'handle');

@@ -2,9 +2,10 @@
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
+use Le0daniel\PhpTsBindings\Contracts\RpcResult;
 use Throwable;
 
-final readonly class RpcError
+final readonly class RpcError implements RpcResult
 {
     /**
      * @param array<string, mixed> $metadata
@@ -21,20 +22,20 @@ final readonly class RpcError
 
     /**
      * @param array<string, mixed> $metadata
-     * @return self
+     * @return static
      * @api
      */
-    public function withMetadata(array $metadata): self
+    public function withMetadata(array $metadata): static
     {
         return new self($this->type, $this->cause, $this->details, $this->resolveInfo, $metadata);
     }
 
     /**
      * @param array<string, mixed> $metadata
-     * @return self
+     * @return static
      * @api
      */
-    public function appendMetadata(array $metadata): self
+    public function appendMetadata(array $metadata): static
     {
         return new self($this->type, $this->cause, $this->details, $this->resolveInfo, [
             ...$this->metadata,

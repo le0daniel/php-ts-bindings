@@ -2,6 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
+
 final class ResolveInfo
 {
     public string $fullyQualifiedName {
@@ -14,7 +16,7 @@ final class ResolveInfo
      * @param OperationType $operationType
      * @param class-string<object> $className
      * @param string $methodName
-     * @param list<class-string> $middleware
+     * @param list<class-string<MiddlewareContract<mixed>>> $middleware
      */
     public function __construct(
         public readonly string $namespace,

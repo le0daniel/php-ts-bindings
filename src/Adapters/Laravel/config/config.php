@@ -47,19 +47,23 @@ return [
     ],
 
     /**
-     * A list of global middleware class names run on every single Operation (Query and Command)
-     * Must implement:
-     * - public handle(mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
+     * A list of global middleware class names run on every single Operation (Query and Command).
+     * Every class must implement Le0daniel\PhpTsBindings\Contracts\MiddlewareContract.
+     *
+     * $next() always hands back an RpcSuccess or an RpcError - a failure further in is converted
+     * before it reaches you, so post-processing runs either way.
      *
      * Usage:
      * ```php
-     *   public function handle(mixed $input, Closure $next) {
+     *   public function handle(mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError {
      *       // (...)
      *       $result = $next($input);
      *       // (...)
      *       return $result;
      *   }
      * ```
+     *
+     * @see Le0daniel\PhpTsBindings\Contracts\MiddlewareContract
      */
     "middleware" => [],
 

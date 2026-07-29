@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 final class Definition implements ExportableToPhpCode
@@ -13,7 +14,7 @@ final class Definition implements ExportableToPhpCode
      * @param string $methodName
      * @param string $name
      * @param string $namespace
-     * @param list<class-string> $middleware
+     * @param list<class-string<MiddlewareContract<mixed>>> $middleware
      */
     public function __construct(
         public OperationType $type,

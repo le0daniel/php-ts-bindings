@@ -2,14 +2,17 @@
 
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
 use Le0daniel\PhpTsBindings\Server\Presenter\ExposedExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
+use Tests\Feature\Mocks\NotAMiddleware;
 
 function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
     $registry = EagerlyLoadedRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
@@ -49,6 +52,25 @@ test("Exceptions are exposed through middleware", function () {
         ->and($error->details)->toEqual([
             'type' => 'invalid_name',
         ]);
+});
+
+test("A middleware that does not implement the contract yields an RpcError", function () {
+    $server = new Server(
+        EagerlyLoadedRegistry::eagerlyDiscover(
+            __DIR__ . '/Operations',
+            keyGenerator: new PlainlyExposedKeyGenerator
+        ),
+        [
+            new ExposedExceptionPresenter(),
+        ],
+        configuration: new ServerConfiguration()->withMiddlewares(NotAMiddleware::class),
+    );
+
+    $result = $server->command('test.run', ['name' => 'Leo'], null, new NullClient());
+
+    expect($result)->toBeInstanceOf(RpcError::class)
+        ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
+        ->and($result->cause)->toBeInstanceOf(InvalidMiddlewareException::class);
 });
 
 test("Middleware emits typescript middleware", function () {

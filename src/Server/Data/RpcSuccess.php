@@ -3,8 +3,9 @@
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
 use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\RpcResult;
 
-final readonly class RpcSuccess
+final readonly class RpcSuccess implements RpcResult
 {
     /**
      * @param array<string, mixed> $metadata
@@ -22,10 +23,10 @@ final readonly class RpcSuccess
     /**
      * Overwrite all existing metadata
      * @param array<string, mixed> $metadata
-     * @return self
+     * @return static
      * @api
      */
-    public function withMetadata(array $metadata): self
+    public function withMetadata(array $metadata): static
     {
         return new self($this->data, $this->client, $this->resolveInfo, $metadata);
     }
@@ -33,10 +34,10 @@ final readonly class RpcSuccess
     /**
      * Append metadata to the result
      * @param array<string, mixed> $metadata
-     * @return self
+     * @return static
      * @api
      */
-    public function appendMetadata(array $metadata): self
+    public function appendMetadata(array $metadata): static
     {
         return new self($this->data, $this->client, $this->resolveInfo, [
             ...$this->metadata,
