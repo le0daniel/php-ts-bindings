@@ -48,4 +48,29 @@ final readonly class ArtisanOptions
     {
         return is_string($option) ? $option : null;
     }
+
+    /**
+     * An option that must be a positive integer, falling back to a configured default when it was
+     * not passed.
+     *
+     * Absence is read off the value rather than from Command::hasOption(), which is true whenever an
+     * option is *declared* and so can never tell you whether the user typed it. Getting that wrong
+     * is what made the fallback unreachable and turned a plain `operations:optimize` into a failure.
+     *
+     * Null means "no usable value", never a silently coerced one: an absent option, a flag, a
+     * repeated option, a float and a non-positive number all come back as null so the caller can say
+     * so instead of writing a cache with an id length of 0.
+     */
+    public static function asPositiveInt(mixed $option, mixed $fallback): ?int
+    {
+        $value = $option ?? $fallback;
+
+        $int = match (true) {
+            is_int($value) => $value,
+            is_string($value) && preg_match('/^-?\d+$/', $value) === 1 => (int)$value,
+            default => null,
+        };
+
+        return $int !== null && $int > 0 ? $int : null;
+    }
 }

@@ -4,7 +4,6 @@ namespace Le0daniel\PhpTsBindings\Server\Client;
 
 use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
 use Le0daniel\PhpTsBindings\Server\Data\Toast;
-use Le0daniel\PhpTsBindings\Utils\Dicts;
 use Le0daniel\PhpTsBindings\Utils\Strings;
 use Override;
 use UnitEnum;

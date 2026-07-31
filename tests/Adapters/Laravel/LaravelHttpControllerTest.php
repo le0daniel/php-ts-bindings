@@ -18,7 +18,6 @@ use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Mockery;
-use Symfony\Component\HttpFoundation\InputBag;
 
 test('handle successful http query request', function () {
     // Arrange
@@ -29,8 +28,7 @@ test('handle successful http query request', function () {
     $operationRegistry = Mockery::mock(OperationRegistry::class);
     $exceptionHandler = Mockery::mock(ExceptionHandler::class);
     $app = Mockery::mock(Application::class);
-    $request = Mockery::mock(Request::class);
-    $request->query = new InputBag($inputData);
+    $request = Request::create('/query/docs.method', 'GET', $inputData);
 
     $operationDefinition = new Definition(
         OperationType::QUERY,
@@ -62,7 +60,6 @@ test('handle successful http query request', function () {
     $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
     $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
 
-    $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturnNull();
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
 
     $server = new Server($operationRegistry, $app);
@@ -94,8 +91,7 @@ test('an operations-spa request gets the client directives appended', function (
     $operationRegistry = Mockery::mock(OperationRegistry::class);
     $exceptionHandler = Mockery::mock(ExceptionHandler::class);
     $app = Mockery::mock(Application::class);
-    $request = Mockery::mock(Request::class);
-    $request->query = new InputBag($inputData);
+    $request = Request::create('/query/docs.method', 'GET', $inputData);
 
     $operationDefinition = new Definition(
         OperationType::QUERY,
@@ -125,7 +121,7 @@ test('an operations-spa request gets the client directives appended', function (
     $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
     $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
 
-    $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturn('operations-spa');
+    $request->headers->set(LaravelHttpController::CLIENT_ID_HEADER, 'operations-spa');
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
 
     $controller = new LaravelHttpController(
@@ -161,8 +157,7 @@ test('handle invalid input http query request', function () {
     $operationRegistry = Mockery::mock(OperationRegistry::class);
     $exceptionHandler = Mockery::mock(ExceptionHandler::class);
     $app = Mockery::mock(Application::class);
-    $request = Mockery::mock(Request::class);
-    $request->query = new InputBag($inputData);
+    $request = Request::create('/query/docs.method', 'GET', $inputData);
 
     $operationDefinition = new Definition(
         OperationType::QUERY,
@@ -195,7 +190,6 @@ test('handle invalid input http query request', function () {
     $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
     $exceptionHandler->shouldReceive('report')->with(InvalidInputException::class);
 
-    $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturnNull();
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
     $repository->shouldReceive('get')->with('app.debug')->andReturn(false);
 

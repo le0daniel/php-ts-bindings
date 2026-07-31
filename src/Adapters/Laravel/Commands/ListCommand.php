@@ -15,7 +15,7 @@ use Le0daniel\PhpTsBindings\Server\Server;
 final class ListCommand extends Command
 {
     protected $signature = 'operations:list';
-    protected $description = 'Send a marketing email to a user';
+    protected $description = 'List all registered queries and commands';
 
     public function handle(
         #[Give(LaravelServiceProvider::DEFAULT_SERVER)] Server $server,

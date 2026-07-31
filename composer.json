@@ -1,9 +1,19 @@
 {
   "name": "le0daniel/php-ts-bindings",
-  "description": "Library to create type bindings between PHP8 and TS, supporting parsing, serialization and emitting of  TS types for PHP objects/input strongly typed",
+  "description": "Type-safe RPC between a PHP 8.5 backend and a TypeScript frontend, driven by your PHPStan types.",
   "type": "library",
+  "license": "MIT",
+  "keywords": [
+    "rpc",
+    "typescript",
+    "phpstan",
+    "code-generation",
+    "type-safety",
+    "laravel"
+  ],
   "require": {
-    "php": "^8.5"
+    "php": "^8.5",
+    "psr/container": "^2.0"
   },
   "require-dev": {
     "pestphp/pest": "^v4.7.0",
@@ -11,6 +21,10 @@
     "laravel/framework": "^13",
     "mockery/mockery": "^1.6",
     "phpstan/phpstan-strict-rules": "^2.0"
+  },
+  "suggest": {
+    "laravel/framework": "Enables the first-party Laravel adapter: config, routes, and the operations:* artisan commands.",
+    "phpstan/phpstan": "Include vendor/le0daniel/php-ts-bindings/extension.neon so Pick, Omit, BrandedString, BrandedInt and DateTimeString resolve."
   },
   "autoload": {
     "psr-4": {
