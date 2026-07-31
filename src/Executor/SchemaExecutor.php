@@ -56,7 +56,6 @@ final readonly class SchemaExecutor implements Executor
     {
         $context = new Context(
             partialFailures: $options->partialFailures,
-            runConstraints: true,
             coercePrimitives: $options->coercePrimitives,
         );
         $result = $this->executeParse($node, $input, $context);
@@ -72,7 +71,6 @@ final readonly class SchemaExecutor implements Executor
     {
         $context = new Context(
             partialFailures: $options->partialFailures,
-            runConstraints: $options->runConstraints,
         );
 
         $result = $this->executeSerialize($node, $output, $context);
@@ -90,7 +88,11 @@ final readonly class SchemaExecutor implements Executor
     #[Override]
     public function executeSerialize(NodeInterface $node, mixed $data, Context $context): mixed
     {
-        // Constraints are ignored when serializing.
+        // Constraints are never run when serializing, and there is no option to turn them on.
+        // Parsing proves refinements about input the application did not produce and cannot
+        // trust. Output came out of the application's own code, which PHPStan already analysed
+        // against the very return type being serialized here - re-checking it would pay at
+        // runtime for a guarantee static analysis has already given.
         if ($node instanceof ConstraintNode) {
             return $this->executeSerialize($node->node, $data, $context);
         }

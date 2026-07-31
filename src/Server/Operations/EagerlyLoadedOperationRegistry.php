@@ -5,7 +5,7 @@ namespace Le0daniel\PhpTsBindings\Server\Operations;
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\FileReflector;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
@@ -92,7 +92,7 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
                 $classReflection = new ReflectionClass($definition->fullyQualifiedClassName);
                 $inputParameter = $classReflection->getMethod($definition->methodName)->getParameters()[0];
 
-                $parsingContext = ParsingContext::fromReflectionClass($classReflection);
+                $parsingContext = ParsingScope::fromReflectionClass($classReflection);
                 $input = fn() => $parser->parse(TypeReflector::reflectParameter($inputParameter), $parsingContext);
                 $output = fn() => $parser->parse(TypeReflector::reflectReturnType($classReflection->getMethod($definition->methodName)), $parsingContext);
 

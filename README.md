@@ -89,7 +89,7 @@ customizations, including writing your very own code generation plugin.
 ## Type Parsing
 
 ```php
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;use Le0daniel\PhpTsBindings\Parser\TypeParser;use Le0daniel\PhpTsBindings\Reflection\TypeReflector;use Le0daniel\PhpTsBindings\Typescript\Data\IO;use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
+use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;use Le0daniel\PhpTsBindings\Parser\TypeParser;use Le0daniel\PhpTsBindings\Reflection\TypeReflector;use Le0daniel\PhpTsBindings\Typescript\Data\IO;use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
 $typeString = TypeReflector::reflectParameter(
   new ReflectionParameter()
@@ -99,7 +99,7 @@ $parser = new TypeParser();
 $ast = $parser->parse(
     $typeString, 
     // The parsing context is needed for Type Imports and used classes.
-    ParsingContext::fromClassString(MyClassDeclaringThisParameter::class)
+    ParsingScope::fromClassString(MyClassDeclaringThisParameter::class)
 );
 
 $generator = new TypescriptGenerator();
@@ -133,6 +133,50 @@ $executor = new SchemaExecutor()
 $parsed = $executor->parse($node, ['key' => 'value']);
 $serialized = $executor->serialize($node, "my string");
 ```
+
+### Refinement types
+
+Some PHPStan types narrow a PHP type further than PHP itself can express: `positive-int` is an
+`int` to PHP, `non-empty-list<T>` is an `array`. Those refinements are checked at runtime.
+
+| PHPStan type | PHP type | Checked |
+| --- | --- | --- |
+| `int<min, max>` | `int` | inclusive bounds; `min` / `max` mean unbounded |
+| `positive-int` | `int` | `>= 1` |
+| `non-negative-int` | `int` | `>= 0` |
+| `negative-int` | `int` | `<= -1` |
+| `non-positive-int` | `int` | `<= 0` |
+| `non-empty-string` | `string` | `!== ''` — note `"0"` is valid |
+| `non-falsy-string`, `truthy-string` | `string` | truthy — `"0"` is not |
+| `numeric-string` | `string` | `is_numeric()` |
+| `lowercase-string` | `string` | `strtolower($v) === $v` |
+| `uppercase-string` | `string` | `strtoupper($v) === $v` |
+| `non-empty-lowercase-string` | `string` | both of the above |
+| `non-empty-uppercase-string` | `string` | both of the above |
+| `non-empty-list<T>` | `array` | at least one element |
+| `non-empty-array<K, V>` | `array` | at least one element |
+
+`int-mask<…>`, `int-mask-of<…>` and `class-string` are **not** supported. Integer refinement is
+`int<min, max>` and the four shorthands above, nothing else.
+
+There is no attribute or annotation for attaching a check of your own: a property is refined by
+its PHPStan type or not at all. That is what keeps a parsed schema equal to the type it was
+parsed from, and it is why this library validates types rather than data — "is a valid email
+address" is not something PHPStan can express, so it is not something this library checks.
+
+### Refinements run on input, never on output
+
+`$executor->parse()` checks every refinement. `$executor->serialize()` checks none of them, and
+`SerializationOptions` has no knob to change that.
+
+Input arrives from a client and is untrusted, so every claim its type makes has to be proven.
+Output comes out of your own code, which PHPStan already analysed against the very return type
+being serialized — if your method says it returns `positive-int`, static analysis has established
+that. Re-checking it at runtime would cost you something for a guarantee you already have. This
+library assumes static analysis does its job.
+
+Serialization still enforces *types*: a `string` where an `int` is declared fails either way. Only
+the PHPStan refinement on top of the type is skipped.
 
 ## Utility types
 

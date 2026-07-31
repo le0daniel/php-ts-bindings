@@ -77,11 +77,17 @@ test('Test Create User input schema', function () {
             'age' => 123,
             'email' => 'my@mail.test',
         ]))->toBeSuccess()
+        // Both refinements come from the property's PHPStan type, nothing else.
         ->and($schema([
             'username' => 'my username',
             'age' => 123,
-            'email' => 'my mail',
-        ]))->toBeFailureAt('email', 'validation.invalid_email');
+            'email' => '',
+        ]))->toBeFailureAt('email', 'validation.not_empty_string')
+        ->and($schema([
+            'username' => 'my username',
+            'age' => 0,
+            'email' => 'my@mail.test',
+        ]))->toBeFailureAt('age', 'validation.invalid_min');
 
     $createUser = $schema([
         'username' => 'my username',

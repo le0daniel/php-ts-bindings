@@ -7,7 +7,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Constraints\NonEmptyString;
+use Le0daniel\PhpTsBindings\Parser\Constraints\NonEmptyString;
 
 /**
  * __toString() is the label a developer sees in error messages and debug output. It no longer

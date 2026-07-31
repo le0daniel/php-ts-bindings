@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Data;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
@@ -14,7 +14,7 @@ use ReflectionProperty;
 /**
  * @phpstan-type ImportedType = array{className: string, typeName: string}
  */
-final readonly class ParsingContext
+final readonly class ParsingScope
 {
     /**
      * @param string|null $namespace

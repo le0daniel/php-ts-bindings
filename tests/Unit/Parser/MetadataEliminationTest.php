@@ -137,7 +137,7 @@ test('unwrapMetadata strips the wrapper and leaves everything else alone', funct
 test('unwrapMetadata keeps constraints attached, unlike getDeclaringNode', function () {
     $constrained = new Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode(
         new StringNode(),
-        [new Le0daniel\PhpTsBindings\Constraints\NonEmptyString()],
+        [new Le0daniel\PhpTsBindings\Parser\Constraints\NonEmptyString()],
     );
     $wrapped = new MetadataNode($constrained, null, 'tag');
 

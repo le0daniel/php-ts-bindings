@@ -11,7 +11,7 @@ use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Constraints\Length;
+use Le0daniel\PhpTsBindings\Parser\Constraints\IntRange;
 use Override;
 
 final readonly class IntConsumer implements TypeConsumer
@@ -34,10 +34,14 @@ final readonly class IntConsumer implements TypeConsumer
             return new IntNode();
         }
 
+        // `min` and `max` become null, not PHP_INT_MIN/PHP_INT_MAX: `int<min, 100>` says there is
+        // no lower bound, which is a different claim from "the bound is this platform's smallest
+        // int". Both validate identically; null keeps the exported cache and the diagnostic label
+        // readable.
         $state->advance();
         $min = match (true) {
             $state->currentTokenIs(TokenType::INT) => Lexemes::decodeInt($state->current()->value),
-            $state->currentTokenIs(TokenType::IDENTIFIER, 'min') => PHP_INT_MIN,
+            $state->currentTokenIs(TokenType::IDENTIFIER, 'min') => null,
             default => $state->produceSyntaxError('Expected int or min'),
         };
 
@@ -49,7 +53,7 @@ final readonly class IntConsumer implements TypeConsumer
 
         $max = match (true) {
             $state->currentTokenIs(TokenType::INT) => Lexemes::decodeInt($state->current()->value),
-            $state->currentTokenIs(TokenType::IDENTIFIER, 'max') => PHP_INT_MAX,
+            $state->currentTokenIs(TokenType::IDENTIFIER, 'max') => null,
             default => $state->produceSyntaxError('Expected int or max'),
         };
 
@@ -62,7 +66,7 @@ final readonly class IntConsumer implements TypeConsumer
 
         return new ConstraintNode(
             new IntNode(),
-            [new Length(min: $min, max: $max, including: true)]
+            [new IntRange($min, $max)]
         );
     }
 }

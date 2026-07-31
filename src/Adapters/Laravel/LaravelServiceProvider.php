@@ -23,7 +23,7 @@ use Override;
 final class LaravelServiceProvider extends ServiceProvider implements DeferrableProvider
 {
     /**
-     * Resolves the default configured server via the laravel service provider
+     * Resolves the default-configured server via the laravel service provider
      */
     public const string DEFAULT_SERVER = 'operations.default_server';
 
@@ -101,8 +101,8 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
             $config = $app->make('config');
 
             return new Preloader(
-                $app->make(self::DEFAULT_SERVER),
-                match ($config->get('operations.key.mode', 'obfuscate')) {
+                server: $app->make(self::DEFAULT_SERVER),
+                keyGenerator: match ($config->get('operations.key.mode', 'obfuscate')) {
                     'plain' => new PlainlyExposedKeyGenerator(),
                     'obfuscate' => new HashSha256KeyGenerator(
                         $config->get('operations.key.pepper', 'none')

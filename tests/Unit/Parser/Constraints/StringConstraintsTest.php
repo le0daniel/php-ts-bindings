@@ -1,10 +1,8 @@
 <?php declare(strict_types=1);
 
-namespace Tests\Unit\Constraints;
+namespace Tests\Unit\Parser\Constraints;
 
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
-use Le0daniel\PhpTsBindings\Constraints\NonEmptyString;
-use Le0daniel\PhpTsBindings\Constraints\NonFalsyString;
 
 /**
  * `non-empty-string` and `non-falsy-string` are different PHPStan types and the difference is

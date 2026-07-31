@@ -2,14 +2,20 @@
 
 namespace Tests\Unit\Parser;
 
+use Le0daniel\PhpTsBindings\Parser\Constraints\IntRange;
+use Le0daniel\PhpTsBindings\Parser\Constraints\ListLength;
+use Le0daniel\PhpTsBindings\Parser\Constraints\LowercaseString;
+use Le0daniel\PhpTsBindings\Parser\Constraints\NonEmptyString;
+use Le0daniel\PhpTsBindings\Parser\Constraints\NumericString;
+use Le0daniel\PhpTsBindings\Parser\Constraints\UppercaseString;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BoolNode;
@@ -19,8 +25,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
@@ -29,7 +35,6 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
-use Le0daniel\PhpTsBindings\Constraints\Email;
 use Tests\Feature\Mocks\Paginated;
 use Tests\Mocks\ResultEnum;
 use Tests\Unit\Parser\Data\Stubs\Address;
@@ -175,9 +180,9 @@ test('Generic Int', function () {
     $node = $parser->parse("int<0, 100>");
 
     expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0])->toBeInstanceOf(IntRange::class)
         ->and($node->constraints[0]->min)->toBe(0)
         ->and($node->constraints[0]->max)->toBe(100)
-        ->and($node->constraints[0]->including)->toBe(true)
         ->and($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
@@ -188,10 +193,10 @@ test('Generic Int Min', function () {
 
     $node = $parser->parse("int<min, 100>");
 
+    // `min` is an absent bound, not PHP_INT_MIN: the type says there is no lower limit.
     expect($node)->toBeInstanceOf(ConstraintNode::class)
-        ->and($node->constraints[0]->min)->toBe(PHP_INT_MIN)
+        ->and($node->constraints[0]->min)->toBeNull()
         ->and($node->constraints[0]->max)->toBe(100)
-        ->and($node->constraints[0]->including)->toBe(true)
         ->and($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
@@ -204,8 +209,7 @@ test('Generic Int Max', function () {
 
     expect($node)->toBeInstanceOf(ConstraintNode::class)
         ->and($node->constraints[0]->min)->toBe(-1)
-        ->and($node->constraints[0]->max)->toBe(PHP_INT_MAX)
-        ->and($node->constraints[0]->including)->toBe(true)
+        ->and($node->constraints[0]->max)->toBeNull()
         ->and($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
@@ -219,7 +223,6 @@ test('Generic Int Negative Values', function () {
     expect($node)->toBeInstanceOf(ConstraintNode::class)
         ->and($node->constraints[0]->min)->toBe(-100)
         ->and($node->constraints[0]->max)->toBe(-3)
-        ->and($node->constraints[0]->including)->toBe(true)
         ->and($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
@@ -243,17 +246,17 @@ test('numeric', function () {
 test('Global aliases', function () {
     $parser = new TypeParser(
         TypeParser::defaultConsumers(new GlobalTypeAliases([
-            'Email' => fn() => new ConstraintNode(
+            'Slug' => fn() => new ConstraintNode(
                 new StringNode(),
-                [new Email()],
+                [new NonEmptyString()],
             ),
         ]))
     );
     /** @var ConstraintNode $node */
-    $node = $parser->parse("Email");
+    $node = $parser->parse("Slug");
 
     expect($node)->toBeInstanceOf(ConstraintNode::class)
-        ->and($node->constraints[0])->toBeInstanceOf(Email::class)
+        ->and($node->constraints[0])->toBeInstanceOf(NonEmptyString::class)
         ->and(count($node->constraints))->toBe(1);
 
     compareToOptimizedAst($node);
@@ -273,7 +276,7 @@ test('positive-int', function () {
 test('Local type resolution', function () {
     $parser = new TypeParser();
     /** @var ConstraintNode $node */
-    $node = $parser->parse("AddressInput", ParsingContext::fromClassString(Address::class));
+    $node = $parser->parse("AddressInput", ParsingScope::fromClassString(Address::class));
     compareToOptimizedAst($node);
 
     expect($node)->toBeInstanceOf(StructNode::class);
@@ -283,7 +286,7 @@ test('Local type resolution', function () {
 test('Local imported resolution', function () {
     $parser = new TypeParser();
     /** @var ConstraintNode $node */
-    $node = $parser->parse("AddressInputData", ParsingContext::fromClassString(MyUserClass::class));
+    $node = $parser->parse("AddressInputData", ParsingScope::fromClassString(MyUserClass::class));
     compareToOptimizedAst($node);
 
     expect($node)->toBeInstanceOf(StructNode::class);
@@ -322,6 +325,68 @@ test('negative-int', function () {
 
     compareToOptimizedAst($node);
 });
+
+test('string refinements constrain a StringNode', function (string $type, array $expectedConstraints) {
+    $parser = new TypeParser();
+    /** @var ConstraintNode $node */
+    $node = $parser->parse($type);
+
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->node)->toBeInstanceOf(StringNode::class)
+        ->and(array_map(fn($constraint) => $constraint::class, $node->constraints))
+        ->toBe($expectedConstraints);
+
+    compareToOptimizedAst($node);
+})->with([
+    ['non-empty-string', [NonEmptyString::class]],
+    ['numeric-string', [NumericString::class]],
+    ['lowercase-string', [LowercaseString::class]],
+    ['uppercase-string', [UppercaseString::class]],
+    ['non-empty-lowercase-string', [NonEmptyString::class, LowercaseString::class]],
+    ['non-empty-uppercase-string', [NonEmptyString::class, UppercaseString::class]],
+]);
+
+/**
+ * The `non-empty-` prefix used to be normalised away, so `non-empty-list<int>` parsed to a bare
+ * ListNode and accepted the empty list it forbids.
+ */
+test('non-empty-list keeps its minimum', function () {
+    $parser = new TypeParser();
+    /** @var ConstraintNode $node */
+    $node = $parser->parse("non-empty-list<int>");
+
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0])->toBeInstanceOf(ListLength::class)
+        ->and($node->constraints[0]->min)->toBe(1)
+        ->and($node->node)->toBeInstanceOf(ListNode::class);
+
+    compareToOptimizedAst($node);
+});
+
+test('non-empty-array keeps its minimum over both key types', function (string $type, string $expectedNode) {
+    $parser = new TypeParser();
+    /** @var ConstraintNode $node */
+    $node = $parser->parse($type);
+
+    expect($node)->toBeInstanceOf(ConstraintNode::class)
+        ->and($node->constraints[0])->toBeInstanceOf(ListLength::class)
+        ->and($node->constraints[0]->min)->toBe(1)
+        ->and($node->node)->toBeInstanceOf($expectedNode);
+
+    compareToOptimizedAst($node);
+})->with([
+    ['non-empty-array<string, int>', RecordNode::class],
+    ['non-empty-array<int, int>', ListNode::class],
+    ['non-empty-array', ListNode::class],
+]);
+
+test('the plain list and array types carry no constraint', function (string $type) {
+    $node = new TypeParser()->parse($type);
+
+    expect($node)->not->toBeInstanceOf(ConstraintNode::class);
+
+    compareToOptimizedAst($node);
+})->with(['list<int>', 'array<string, int>', 'array<int, int>', 'array']);
 
 test('object struct', function () {
     $parser = new TypeParser();
@@ -470,7 +535,7 @@ test('Test date time literals', function () {
 test('Test date time with a namespace', function () {
     $parser = new TypeParser();
     /** @var UnionNode $node */
-    $node = $parser->parse(\DateTime::class, new ParsingContext('SomeName\\Space'));
+    $node = $parser->parse(\DateTime::class, new ParsingScope('SomeName\\Space'));
     expect($node)->toBeInstanceOf(DateTimeNode::class);
     compareToOptimizedAst($node);
 });
@@ -480,7 +545,7 @@ test('Test EnumCase and class const literal', function () {
     /** @var UnionNode $node */
     $node = $parser->parse(
         "ResultEnumBase::SUCCESS|ResultEnumBase::FAILURE|ResultEnum::OTHER",
-        new ParsingContext('SomeName\\Space', [
+        new ParsingScope('SomeName\\Space', [
             'ResultEnumBase' => ResultEnum::class,
             'ResultEnum' => ResultEnum::class,
         ]),

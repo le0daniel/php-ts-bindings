@@ -1,8 +1,7 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Constraints;
+namespace Le0daniel\PhpTsBindings\Parser\Constraints;
 
-use Attribute;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
@@ -10,21 +9,18 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 
-#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
+/**
+ * Backs `non-falsy-string` and its alias `truthy-string`. It differs from NonEmptyString by
+ * exactly one value: "0" is a valid non-empty-string but not a valid non-falsy-string.
+ */
 final readonly class NonFalsyString implements Constraint
 {
+    use ValidatesString;
 
     #[Override]
     public function validate(mixed $value, ExecutionContext $context): bool
     {
-        if (!is_string($value)) {
-            $context->addIssue(new Issue(
-                IssueMessage::INVALID_TYPE,
-                [
-                    "message" => "Expected string, got: " . gettype($value),
-                    "value" => $value,
-                ]
-            ));
+        if (!$this->isString($value, $context)) {
             return false;
         }
 
@@ -44,7 +40,12 @@ final readonly class NonFalsyString implements Constraint
     #[Override]
     public function exportPhpCode(): string
     {
-        $className = PHPExport::absolute(self::class);
-        return "new {$className}()";
+        return 'new ' . PHPExport::absolute(self::class) . '()';
+    }
+
+    #[Override]
+    public function __toString(): string
+    {
+        return 'NonFalsyString';
     }
 }

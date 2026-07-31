@@ -5,9 +5,9 @@ namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Override;
@@ -69,7 +69,7 @@ final readonly class AliasConsumer implements TypeConsumer
             $importDefinition = $state->context->getImportedTypeInfo($token->value);
             return $parser->parse(
                 $importDefinition['typeName'],
-                ParsingContext::fromClassString($importDefinition['className']),
+                ParsingScope::fromClassString($importDefinition['className']),
             );
         }
 

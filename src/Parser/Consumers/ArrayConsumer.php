@@ -2,10 +2,13 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
+use Le0daniel\PhpTsBindings\Parser\Constraints\ListLength;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\MixedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
@@ -42,15 +45,21 @@ final readonly class ArrayConsumer implements TypeConsumer
     }
 
     /**
+     * `non-empty-list` and `non-empty-array` are the same shape as their plain counterparts plus
+     * a minimum element count, so the keyword is split into the shape it describes and the
+     * refinement it adds rather than being normalised away.
+     *
      * @throws InvalidSyntaxException
      */
     #[Override]
-    public function consume(ParserState $state, TypeParser $parser): RecordNode|ListNode|TupleNode
+    public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
-        $type = match ($state->current()->value) {
+        $keyword = $state->current()->value;
+        $type = match ($keyword) {
             'list', 'non-empty-list' => 'list',
             default => 'array',
         };
+        $isNonEmpty = $keyword === 'non-empty-list' || $keyword === 'non-empty-array';
 
         if (!$state->current()->is(TokenType::IDENTIFIER)) {
             $state->produceSyntaxError("Expected Array Type Identifier: array or list");
@@ -78,24 +87,37 @@ final readonly class ArrayConsumer implements TypeConsumer
 
         // No generics
         if (!$state->currentTokenIs(TokenType::LT)) {
-            return new ListNode(new MixedNode());
+            return $this->applyEmptiness(new ListNode(new MixedNode()), $isNonEmpty);
         }
 
         $generics = $this->consumeGenerics($state, $parser, min: 1, max: $maxGenerics);
 
         if (count($generics) === 1) {
-            return new ListNode($generics[0]);
+            return $this->applyEmptiness(new ListNode($generics[0]), $isNonEmpty);
         }
 
         // A branded key (array<BrandedString<'k'>, V>) is still a string key on the wire.
         // Constraints are deliberately NOT unwrapped: a constrained key (array<non-empty-string, V>)
         // could never be validated at runtime, so it is rejected instead of silently loosened.
         $keyType = Nodes::unwrapMetadata($generics[0]);
-        return match (true) {
+        $node = match (true) {
             $keyType instanceof StringNode => new RecordNode($generics[1]),
             $keyType instanceof IntNode => new ListNode($generics[1]),
             default => $state->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}"),
         };
+
+        return $this->applyEmptiness($node, $isNonEmpty);
+    }
+
+    /**
+     * ListLength counts a RecordNode as readily as a ListNode - `non-empty-array<string, V>` is a
+     * record, and both are a plain PHP array by the time the executor sees them.
+     */
+    private function applyEmptiness(RecordNode|ListNode $node, bool $isNonEmpty): NodeInterface
+    {
+        return $isNonEmpty
+            ? new ConstraintNode($node, [new ListLength(min: 1)])
+            : $node;
     }
 
     /**

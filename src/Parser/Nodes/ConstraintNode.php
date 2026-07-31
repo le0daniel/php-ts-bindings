@@ -34,8 +34,10 @@ final readonly class ConstraintNode implements NodeInterface, WrapsNode
             return $this->node->__toString();
         }
 
+        // Each constraint names its own bounds, so `int<0, 100>` reads as `int & IntRange(0, 100)`
+        // rather than losing the numbers to a bare class name.
         $names = implode(', ', array_map(
-            static fn(Constraint $constraint) => new \ReflectionClass($constraint)->getShortName(),
+            static fn(Constraint $constraint): string => (string)$constraint,
             $this->constraints,
         ));
 

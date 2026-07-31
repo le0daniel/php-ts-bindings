@@ -4,15 +4,13 @@ namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Optional;
-use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
-use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
@@ -23,9 +21,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
 use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
-use Le0daniel\PhpTsBindings\Utils\Lists;
 use Override;
-use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionParameter;
@@ -106,7 +102,7 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
         $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
         $castingStrategy = $this->determineCastingStrategy($reflectionClass);
 
-        $context = ParsingContext::fromReflectionClass($reflectionClass, $this->consumeGenerics($state, $parser));
+        $context = ParsingScope::fromReflectionClass($reflectionClass, $this->consumeGenerics($state, $parser));
 
         $node = match ($castingStrategy) {
             ObjectCastStrategy::NEVER => $this->parseNeverStrategy($reflectionClass, $parser, $context),
@@ -142,17 +138,14 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
     }
 
     /** @param ReflectionClass<object> $reflectionClass */
-    private function parseNeverStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
+    private function parseNeverStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingScope $context): CustomCastingNode
     {
         $properties = array_map(
             fn(ReflectionProperty $property) => new PropertyNode(
                 $property->getName(),
-                $this->applyConstraints(
-                    $property,
-                    $parser->parse(
-                        TypeReflector::reflectProperty($property),
-                        $context->descendIntoDeclaringClass($property)
-                    )
+                $parser->parse(
+                    TypeReflector::reflectProperty($property),
+                    $context->descendIntoDeclaringClass($property)
                 ),
                 false,
                 PropertyType::OUTPUT,
@@ -171,7 +164,7 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
     }
 
     /** @param ReflectionClass<object> $reflectionClass */
-    private function parseSetPropertiesStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
+    private function parseSetPropertiesStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingScope $context): CustomCastingNode
     {
         $properties = [];
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
@@ -181,12 +174,9 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
 
             $properties[] = new PropertyNode(
                 $property->getName(),
-                $this->applyConstraints(
-                    $property,
-                    $parser->parse(
-                        TypeReflector::reflectProperty($property),
-                        $context->descendIntoDeclaringClass($property)
-                    )
+                $parser->parse(
+                    TypeReflector::reflectProperty($property),
+                    $context->descendIntoDeclaringClass($property)
                 ),
                 isOptional: $this->allowsOptional($property),
                 propertyType: PropertyType::BOTH,
@@ -200,29 +190,11 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
         );
     }
 
-    private function applyConstraints(ReflectionProperty|ReflectionParameter $reflection, NodeInterface $node): NodeInterface
-    {
-        $constraints = Lists::filterNullValues(
-            array_map(
-                static function (ReflectionAttribute $attribute): null|Constraint {
-                    $instance = $attribute->newInstance();
-                    return $instance instanceof Constraint ? $instance : null;
-                },
-                $reflection->getAttributes()
-            )
-        );
-
-        return empty($constraints) ? $node : new ConstraintNode(
-            $node,
-            $constraints,
-        );
-    }
-
     /**
      * @param ReflectionClass<object> $reflectionClass
      * @throws InvalidSyntaxException
      */
-    private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
+    private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingScope $context): CustomCastingNode
     {
         /** @var array<PropertyNode> $structProperties */
         $structProperties = [];
@@ -237,12 +209,9 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
         foreach ($constructor->getParameters() as $parameter) {
             $structProperties[] = new PropertyNode(
                 $parameter->name,
-                $this->applyConstraints(
-                    $parameter,
-                    $parser->parse(
-                        TypeReflector::reflectParameter($parameter),
-                        $context->descendIntoDeclaringClass($parameter)
-                    )
+                $parser->parse(
+                    TypeReflector::reflectParameter($parameter),
+                    $context->descendIntoDeclaringClass($parameter)
                 ),
                 isOptional: $this->allowsOptional($parameter),
                 propertyType: PropertyType::INPUT,
@@ -260,12 +229,9 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
 
             $structProperties[] = new PropertyNode(
                 $property->name,
-                $this->applyConstraints(
-                    $property,
-                    $parser->parse(
-                        TypeReflector::reflectProperty($property),
-                        $context->descendIntoDeclaringClass($property)
-                    )
+                $parser->parse(
+                    TypeReflector::reflectProperty($property),
+                    $context->descendIntoDeclaringClass($property)
                 ),
                 isOptional: $this->allowsOptional($property),
                 propertyType: PropertyType::OUTPUT,

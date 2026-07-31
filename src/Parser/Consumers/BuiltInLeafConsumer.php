@@ -2,6 +2,12 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Consumers;
 
+use Le0daniel\PhpTsBindings\Parser\Constraints\IntRange;
+use Le0daniel\PhpTsBindings\Parser\Constraints\LowercaseString;
+use Le0daniel\PhpTsBindings\Parser\Constraints\NonEmptyString;
+use Le0daniel\PhpTsBindings\Parser\Constraints\NonFalsyString;
+use Le0daniel\PhpTsBindings\Parser\Constraints\NumericString;
+use Le0daniel\PhpTsBindings\Parser\Constraints\UppercaseString;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
@@ -16,11 +22,15 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Constraints\Length;
-use Le0daniel\PhpTsBindings\Constraints\NonEmptyString;
-use Le0daniel\PhpTsBindings\Constraints\NonFalsyString;
 use Override;
 
+/**
+ * Every keyword here that is not a plain PHP type is a PHPStan refinement: the leaf node proves
+ * the PHP type, the constraint proves what PHPStan narrowed it to.
+ *
+ * `int-mask` and `int-mask-of` are deliberately absent. Integer refinement is `int<min, max>`
+ * (IntConsumer) plus the four named shorthands below, nothing else.
+ */
 final readonly class BuiltInLeafConsumer implements TypeConsumer
 {
 
@@ -40,6 +50,11 @@ final readonly class BuiltInLeafConsumer implements TypeConsumer
             'truthy-string',
             'non-falsy-string',
             'non-empty-string',
+            'numeric-string',
+            'lowercase-string',
+            'uppercase-string',
+            'non-empty-lowercase-string',
+            'non-empty-uppercase-string',
             'scalar',
             'positive-int',
             'negative-int',
@@ -73,6 +88,29 @@ final readonly class BuiltInLeafConsumer implements TypeConsumer
                 new StringNode(),
                 [new NonEmptyString()],
             ),
+            'numeric-string' => new ConstraintNode(
+                new StringNode(),
+                [new NumericString()],
+            ),
+            'lowercase-string' => new ConstraintNode(
+                new StringNode(),
+                [new LowercaseString()],
+            ),
+            'uppercase-string' => new ConstraintNode(
+                new StringNode(),
+                [new UppercaseString()],
+            ),
+
+            // Two refinements over one string. ConstraintNode already carries a list, so the pair
+            // needs no nesting; list order is the order the failures are reported in.
+            'non-empty-lowercase-string' => new ConstraintNode(
+                new StringNode(),
+                [new NonEmptyString(), new LowercaseString()],
+            ),
+            'non-empty-uppercase-string' => new ConstraintNode(
+                new StringNode(),
+                [new NonEmptyString(), new UppercaseString()],
+            ),
             'scalar' => new UnionNode([
                 new IntNode(),
                 new FloatNode(),
@@ -81,19 +119,19 @@ final readonly class BuiltInLeafConsumer implements TypeConsumer
             ]),
             'positive-int' => new ConstraintNode(
                 new IntNode(),
-                [new Length(min: 1, including: true)]
+                [new IntRange(min: 1)]
             ),
             'negative-int' => new ConstraintNode(
                 new IntNode(),
-                [new Length(max: -1, including: true)]
+                [new IntRange(max: -1)]
             ),
             "non-negative-int" => new ConstraintNode(
                 new IntNode(),
-                [new Length(min: 0, including: true)]
+                [new IntRange(min: 0)]
             ),
             'non-positive-int' => new ConstraintNode(
                 new IntNode(),
-                [new Length(max: 0, including: true)]
+                [new IntRange(max: 0)]
             ),
             'numeric' => new UnionNode([
                 new IntNode(),

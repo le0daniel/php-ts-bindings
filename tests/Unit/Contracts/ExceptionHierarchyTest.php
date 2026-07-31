@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\UnknownTypeKeyException;
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Exceptions\UnexpectedCharacterException;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
@@ -84,7 +84,7 @@ test('the subsystem bases are distinct so a catch cannot over-capture', function
  */
 test('a malformed type reaches the consumer as a PhpTsBindingsException', function (string $type) {
     try {
-        new TypeParser()->parse($type, new ParsingContext());
+        new TypeParser()->parse($type, new ParsingScope());
         $this->fail("Expected '{$type}' to be rejected.");
     } catch (PhpTsBindingsException) {
         expect(true)->toBeTrue();

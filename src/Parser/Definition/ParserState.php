@@ -2,9 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Lexer\SourceLocation;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Token;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
@@ -33,12 +33,12 @@ final class ParserState
     /**
      * @param string $input
      * @param non-empty-list<Token> $tokens The raw, lossless token stream.
-     * @param ParsingContext $context
+     * @param ParsingScope $context
      */
     public function __construct(
-        public readonly string         $input,
-        array                          $tokens,
-        public readonly ParsingContext $context,
+        public readonly string       $input,
+        array                        $tokens,
+        public readonly ParsingScope $context,
     )
     {
         $significant = array_values(

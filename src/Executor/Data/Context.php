@@ -9,7 +9,6 @@ final class Context implements ExecutionContext
 {
     public function __construct(
         public bool $partialFailures = false,
-        public bool $runConstraints = true,
         public bool $coercePrimitives = false,
     )
     {

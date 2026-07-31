@@ -17,9 +17,9 @@ use Le0daniel\PhpTsBindings\Parser\Consumers\ValueObjectConsumer;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Exceptions\UnexpectedCharacterException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Lexer;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
@@ -94,7 +94,7 @@ final readonly class TypeParser
      *
      * @throws InvalidSyntaxException
      */
-    public function parse(string $typeString, ParsingContext $context = new ParsingContext()): NodeInterface
+    public function parse(string $typeString, ParsingScope $context = new ParsingScope()): NodeInterface
     {
         try {
             $tokens = new Lexer()->tokenize($typeString);

@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
@@ -74,14 +74,14 @@ test('a value object may also implement Stringable without colliding', function 
 });
 
 test('resolves value objects through the namespace of the parsing context', function () {
-    $node = new TypeParser()->parse('Email', new ParsingContext('Tests\\Mocks\\ValueObjects'));
+    $node = new TypeParser()->parse('Email', new ParsingScope('Tests\\Mocks\\ValueObjects'));
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
         ->and($node->node->className)->toBe(Email::class);
 });
 
 test('resolves value objects through a use-statement alias', function () {
-    $node = new TypeParser()->parse('Mail', new ParsingContext('Some\\Space', ['Mail' => Email::class]));
+    $node = new TypeParser()->parse('Mail', new ParsingScope('Some\\Space', ['Mail' => Email::class]));
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
         ->and($node->node->className)->toBe(Email::class);

@@ -2,15 +2,15 @@
 
 namespace Tests\Unit\Parser\Data;
 
-use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use ReflectionClass;
 use Tests\Unit\Parser\Data\Stubs\ComplexPhpDoc;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 
 test('from class reflection', function () {
     // Reads all the context out of the file.
-    $context = ParsingContext::fromReflectionClass(new ReflectionClass(MyUserClass::class));
-    $fromFileContext = ParsingContext::fromFilePath(__DIR__ . '/Stubs/MyUserClass.php');
+    $context = ParsingScope::fromReflectionClass(new ReflectionClass(MyUserClass::class));
+    $fromFileContext = ParsingScope::fromFilePath(__DIR__ . '/Stubs/MyUserClass.php');
 
     expect(serialize($context))
         ->toBe(serialize($fromFileContext))
@@ -39,7 +39,7 @@ test('from class reflection', function () {
 });
 
 test("Extensive PHP Doc type declaration", function () {
-    $fromFileContext = ParsingContext::fromClassString(ComplexPhpDoc::class);
+    $fromFileContext = ParsingScope::fromClassString(ComplexPhpDoc::class);
 
     expect($fromFileContext->localTypes)->toBe([
         'ReadyToOrderInput' => 'array{     id: positive-int,     status: OrderStatus::READY_TO_ORDER,     fileId?: positive-int }',

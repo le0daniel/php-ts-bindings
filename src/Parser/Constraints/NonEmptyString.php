@@ -1,8 +1,7 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Constraints;
+namespace Le0daniel\PhpTsBindings\Parser\Constraints;
 
-use Attribute;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
@@ -10,19 +9,18 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 
-#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
+/**
+ * Backs `non-empty-string`, and the non-empty half of `non-empty-lowercase-string` and
+ * `non-empty-uppercase-string`.
+ */
 final readonly class NonEmptyString implements Constraint
 {
+    use ValidatesString;
+
     #[Override]
     public function validate(mixed $value, ExecutionContext $context): bool
     {
-        if (!is_string($value)) {
-            $context->addIssue(new Issue(
-                IssueMessage::INVALID_TYPE,
-                [
-                    "message" => "Expected string, got: " . gettype($value),
-                ]
-            ));
+        if (!$this->isString($value, $context)) {
             return false;
         }
 
@@ -37,13 +35,19 @@ final readonly class NonEmptyString implements Constraint
             ));
             return false;
         }
+
         return true;
     }
 
     #[Override]
     public function exportPhpCode(): string
     {
-        $className = PHPExport::absolute(self::class);
-        return "new {$className}()";
+        return 'new ' . PHPExport::absolute(self::class) . '()';
+    }
+
+    #[Override]
+    public function __toString(): string
+    {
+        return 'NonEmptyString';
     }
 }
