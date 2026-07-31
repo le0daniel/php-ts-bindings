@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
-final class Regexes
+final readonly class Regexes
 {
     public static function findFirstVarDeclaration(string $docBlocks): ?string
     {

@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Validators;
+namespace Le0daniel\PhpTsBindings\Constraints;
 
 use Attribute;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
@@ -8,11 +8,13 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
-final class NonFalsyStringValidator implements Constraint
+final readonly class NonFalsyString implements Constraint
 {
 
+    #[Override]
     public function validate(mixed $value, ExecutionContext $context): bool
     {
         if (!is_string($value)) {
@@ -39,6 +41,7 @@ final class NonFalsyStringValidator implements Constraint
         return true;
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);

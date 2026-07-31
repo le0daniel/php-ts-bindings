@@ -8,23 +8,26 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use RuntimeException;
+use Override;
 use stdClass;
 
 /**
  * @implements Handler<IntersectionNode>
  */
-final class IntersectionHandler implements Handler
+final readonly class IntersectionHandler implements Handler
 {
-    /** @param IntersectionNode $node */
+    #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|Value
     {
+        assert($node instanceof IntersectionNode);
+
         /** @var array<string, mixed> $intersectionValues */
         $intersectionValues = [];
 
-        foreach ($node->types as $type) {
+        foreach ($node->nodes as $type) {
             $partialObject = $executor->executeSerialize($type, $value, $context);
             if ($partialObject === Value::INVALID) {
                 return Value::INVALID;
@@ -36,16 +39,18 @@ final class IntersectionHandler implements Handler
         return (object) array_merge(...$intersectionValues);
     }
 
-    /** @param IntersectionNode $node */
+    #[Override]
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
+        assert($node instanceof IntersectionNode);
+
         /** @var array<string, mixed> $intersectionValues */
         $intersectionValues = [];
 
         /** @var 'array'|'object'|null $mode */
         $mode = null;
 
-        foreach ($node->types as $type) {
+        foreach ($node->nodes as $type) {
             $partialObject = $executor->executeParse($type, $value, $context);
             if ($partialObject === Value::INVALID) {
                 return Value::INVALID;
@@ -73,7 +78,7 @@ final class IntersectionHandler implements Handler
         return match ($mode) {
             'array' => array_merge(...$intersectionValues),
             'object' => (object) array_merge(...$intersectionValues),
-            default => throw new RuntimeException("Invalid mode {$mode}"),
+            default => throw new SchemaException("Invalid mode {$mode}"),
         };
     }
 }

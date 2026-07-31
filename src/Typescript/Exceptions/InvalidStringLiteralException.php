@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript\Exceptions;
 
-use RuntimeException;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 
 /**
  * A user supplied string literal (a #[Brand] tag, a #[Named] alias, a BrandedString/BrandedInt
@@ -10,7 +10,7 @@ use RuntimeException;
  * there. Every invalid-identifier failure throws this, regardless of which attribute or utility
  * carried the literal.
  */
-final class InvalidStringLiteralException extends RuntimeException
+final class InvalidStringLiteralException extends CodeGenException
 {
     public static function notAValidTypescriptIdentifier(string $literal, string $useSite): self
     {

@@ -2,8 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use ReflectionAttribute;
-use RuntimeException;
 
 final readonly class AttributesReflector
 {
@@ -32,27 +32,11 @@ final readonly class AttributesReflector
     {
         $reflection = array_find($this->attributes, fn(ReflectionAttribute $attribute) => $attribute->name === $attributeClass);
         if (!$reflection) {
-            throw new RuntimeException("Attribute {$attributeClass} not found");
+            throw new ParserException("Attribute {$attributeClass} not found");
         }
 
         /** @var T */
         return $reflection->newInstance();
     }
 
-    /**
-     * @template T of object
-     * @param class-string<T> $attributeClass
-     * @return list<T>
-     */
-    public function getInstances(string $attributeClass): array
-    {
-        $reflections = array_filter(
-            $this->attributes,
-            fn(ReflectionAttribute $attribute) => $attribute->name === $attributeClass
-        );
-
-        return array_values(
-            array_map(fn(ReflectionAttribute $attribute) => $attribute->newInstance(), $reflections)
-        );
-    }
 }

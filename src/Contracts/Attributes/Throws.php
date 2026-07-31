@@ -12,7 +12,7 @@ use Throwable;
  * Declared exceptions are only exposed to the client if their class is marked with the ExposeAs attribute.
  */
 #[Attribute(Attribute::TARGET_METHOD|Attribute::IS_REPEATABLE)]
-final class Throws
+final readonly class Throws
 {
     /**
      * @param class-string<Throwable> $exceptionClass

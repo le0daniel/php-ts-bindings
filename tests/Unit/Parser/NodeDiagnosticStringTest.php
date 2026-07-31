@@ -7,7 +7,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Validators\NonEmptyString;
+use Le0daniel\PhpTsBindings\Constraints\NonEmptyString;
 
 /**
  * __toString() is the label a developer sees in error messages and debug output. It no longer
@@ -39,7 +39,7 @@ test('a tuple keeps its braces', function () {
 
 test('a discriminated union names its discriminator', function () {
     $discriminated = new TypeParser()->parse("array{kind: 'a', v: string}|array{kind: 'b', v: int}");
-    $plain = new Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode($discriminated->types);
+    $plain = new Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode($discriminated->nodes);
 
     expect((string)$discriminated)->toContain('kind')
         ->and((string)$discriminated)->not->toBe((string)$plain);

@@ -3,13 +3,13 @@
 namespace Le0daniel\PhpTsBindings\Parser\Data;
 
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Reflection\FileReflector;
 use Le0daniel\PhpTsBindings\Utils;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionParameter;
 use ReflectionProperty;
-use RuntimeException;
 
 /**
  * @phpstan-type ImportedType = array{className: string, typeName: string}
@@ -18,7 +18,7 @@ final readonly class ParsingContext
 {
     /**
      * @param string|null $namespace
-     * @param array<string, class-string> $usedNamespaceMap
+     * @param array<string, string> $usedNamespaceMap
      * @param array<string, string> $localTypes
      * @param array<string, ImportedType> $importedTypes
      * @param array<string, NodeInterface> $generics
@@ -34,6 +34,11 @@ final readonly class ParsingContext
     {
     }
 
+    /**
+     * Given an identifier, returns the fully qualified class name without leading backslash.
+     * @param string $className
+     * @return string
+     */
     public function toFullyQualifiedClassName(string $className): string
     {
         return Utils\Namespaces::toFullyQualifiedClassName($className, $this->namespace, $this->usedNamespaceMap);
@@ -55,12 +60,12 @@ final readonly class ParsingContext
     }
 
     /**
-     * @throws RuntimeException
+     * @throws ParserException
      */
     public function getLocalTypeDefinition(string $typeName): string
     {
         if (!$this->isLocalType($typeName)) {
-            throw new RuntimeException("Type definition for {$typeName} not found");
+            throw new ParserException("Type definition for {$typeName} not found");
         }
 
         return $this->localTypes[$typeName];
@@ -78,7 +83,7 @@ final readonly class ParsingContext
     public function getImportedTypeInfo(string $typeName): array
     {
         if (!$this->isImportedType($typeName)) {
-            throw new RuntimeException("Type definition for {$typeName} not found");
+            throw new ParserException("Type definition for {$typeName} not found");
         }
 
         return $this->importedTypes[$typeName];
@@ -86,13 +91,15 @@ final readonly class ParsingContext
 
     public function descendIntoDeclaringClass(ReflectionProperty|ReflectionParameter $property): self
     {
-        // Declaration is in the same class file.
-        if ($this->declaredInClass === $property->getDeclaringClass()->getName()) {
+        // A ReflectionParameter belonging to a closure has no declaring class, so there is nothing
+        // to descend into and the current context is already the right one.
+        $declaringClass = $property->getDeclaringClass();
+        if ($declaringClass === null || $this->declaredInClass === $declaringClass->getName()) {
             return $this;
         }
 
         // ToDo: Identify the generics that should be passed down. Currently ignored.
-        return self::fromReflectionClass($property->getDeclaringClass());
+        return self::fromReflectionClass($declaringClass);
     }
 
     /**
@@ -101,6 +108,10 @@ final readonly class ParsingContext
      */
     public static function fromClassString(string $classString, array $generics = []): self
     {
+        if (!class_exists($classString) && !interface_exists($classString)) {
+            throw new ParserException("Cannot build a parsing context for unknown class {$classString}.");
+        }
+
         return self::fromReflectionClass(new ReflectionClass($classString), $generics);
     }
 
@@ -111,7 +122,14 @@ final readonly class ParsingContext
      */
     public static function fromReflectionClass(ReflectionClass $class, array $generics = []): self
     {
-        $reflector = new FileReflector($class->getFileName());
+        $fileName = $class->getFileName();
+        if ($fileName === false) {
+            throw new ParserException(
+                "Cannot build a parsing context for {$class->getName()}: it is not defined in a file."
+            );
+        }
+
+        $reflector = new FileReflector($fileName);
         $namespace = $reflector->getNamespace();
         $useNamespaceMap = Utils\Namespaces::buildNamespaceAliasMap($reflector->getUsedNamespaces());
 
@@ -149,7 +167,7 @@ final readonly class ParsingContext
     /**
      * @param false|string|null $docBlock
      * @param string|null $namespace
-     * @param array<string, class-string> $usedNamespaces
+     * @param array<string, string> $usedNamespaces
      * @return array<string,ImportedType>
      */
     private static function findFullyQualifiedImportedTypes(null|false|string $docBlock, ?string $namespace, array $usedNamespaces): array
@@ -172,7 +190,7 @@ final readonly class ParsingContext
             $expectedCount = count($declaredGenerics);
             $actualCount = count($generics);
 
-            throw new RuntimeException("Number of generics does not match. Expected {$expectedCount} <{$declaredGenericNames}>, got {$actualCount}.");
+            throw new ParserException("Number of generics does not match. Expected {$expectedCount} <{$declaredGenericNames}>, got {$actualCount}.");
         }
 
         $assignedGenerics = [];

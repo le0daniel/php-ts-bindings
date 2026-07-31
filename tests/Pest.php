@@ -22,7 +22,7 @@ use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
@@ -125,7 +125,7 @@ function compareToOptimizedAst(NodeInterface $node) {
  * MetadataNode is transparent in the string form, so the structural parity assertion holds for
  * every schema, metadata or not.
  */
-function typescriptFor(NodeInterface $node, IO $io, ?AliasRegistry $sharedRegistry = null): TypeScript
+function typescriptFor(NodeInterface $node, IO $io, ?AliasRegistry $sharedRegistry = null): Typescript
 {
     compareToOptimizedAst($node);
 

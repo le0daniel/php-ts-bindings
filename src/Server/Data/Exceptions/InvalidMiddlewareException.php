@@ -3,7 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Server\Data\Exceptions;
 
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
-use RuntimeException;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 
 /**
  * Thrown when a class registered as middleware does not implement MiddlewareContract.
@@ -12,7 +12,7 @@ use RuntimeException;
  * configuration - so the mistake only becomes visible when the operation runs. Saying which class
  * is at fault beats the "call to undefined method handle()" this used to produce.
  */
-final class InvalidMiddlewareException extends RuntimeException
+final class InvalidMiddlewareException extends SchemaException
 {
     private function __construct(string $message)
     {

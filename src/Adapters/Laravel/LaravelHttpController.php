@@ -3,16 +3,13 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
 use Illuminate\Contracts\Debug\ExceptionHandler;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
-use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
@@ -20,7 +17,6 @@ use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Server;
-use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\Dicts;
 use Throwable;
 

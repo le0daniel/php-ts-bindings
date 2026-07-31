@@ -9,13 +9,19 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 use UnitEnum;
 
 final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
 {
     /**
+     * $type and $value must agree; every method below reads one to interpret the other. Checked here
+     * rather than trusted, because a mismatch is constructible - `new LiteralNode(ENUM_CASE, 'x')`
+     * used to build fine and then fail much later, while reading ->name off a string.
+     *
      * @param string|bool|int|float|null|UnitEnum $value
      */
     public function __construct(
@@ -23,29 +29,70 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
         public mixed       $value,
     )
     {
+        $agrees = match ($type) {
+            LiteralType::ENUM_CASE => $value instanceof UnitEnum,
+            LiteralType::STRING => is_string($value),
+            LiteralType::INT => is_int($value),
+            LiteralType::FLOAT => is_float($value),
+            LiteralType::BOOL => is_bool($value),
+            LiteralType::NULL => $value === null,
+        };
+
+        if (!$agrees) {
+            throw new ParserException(
+                "Literal of type {$type->value} cannot hold a " . get_debug_type($value) . '.'
+            );
+        }
     }
 
+    /**
+     * The value as the ENUM_CASE branch knows it to be. The constructor guarantees the correlation;
+     * this only makes it visible to the type checker.
+     */
+    private function enumValue(): UnitEnum
+    {
+        assert($this->value instanceof UnitEnum);
+        return $this->value;
+    }
+
+    /**
+     * The value of a LiteralType::STRING literal. Callers that have checked $type can read the
+     * string without re-deriving that fact.
+     */
+    public function stringValue(): string
+    {
+        assert($this->type === LiteralType::STRING && is_string($this->value));
+        return $this->value;
+    }
+
+    private function scalarValue(): string|int|float
+    {
+        assert(is_string($this->value) || is_int($this->value) || is_float($this->value));
+        return $this->value;
+    }
+
+    #[Override]
     public function __toString(): string
     {
         return match ($this->type) {
             LiteralType::BOOL => $this->value ? 'literal<true>' : 'literal<false>',
-            LiteralType::STRING => "literal<'{$this->value}'>",
-            // @phpstan-ignore-next-line classConstant.nonObject
-            LiteralType::ENUM_CASE => "enum-value<{$this->value->name}@" . $this->value::class . ">",
+            LiteralType::STRING => "literal<'{$this->scalarValue()}'>",
+            LiteralType::ENUM_CASE => 'enum-value<' . $this->enumValue()->name . '@' . $this->enumValue()::class . '>',
             LiteralType::NULL => 'literal<null>',
-            LiteralType::INT => "literal<{$this->value}>",
+            LiteralType::INT => "literal<{$this->scalarValue()}>",
             // Rendered via var_export so 1.0 stays distinguishable from 1.
             LiteralType::FLOAT => 'literal<' . var_export($this->value, true) . '>',
         };
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);
         $type = PHPExport::exportEnumCase($this->type);
 
         if ($this->type === LiteralType::ENUM_CASE) {
-            $enumCase = PHPExport::exportEnumCase($this->value);
+            $enumCase = PHPExport::exportEnumCase($this->enumValue());
             return "new {$className}({$type}, {$enumCase})";
         }
 
@@ -53,6 +100,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
         return "new {$className}({$type}, {$value})";
     }
 
+    #[Override]
     public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->type !== LiteralType::ENUM_CASE) {
@@ -60,7 +108,8 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
                 $context->addIssue(new Issue(
                     IssueMessage::INVALID_TYPE,
                     [
-                        'message' => "Expected literal value: {$this->value}, got: {$value}",
+                        'message' => 'Expected literal value: ' . var_export($this->value, true)
+                            . ', got: ' . get_debug_type($value),
                     ]
                 ));
                 return Value::INVALID;
@@ -69,19 +118,20 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
             return $this->value;
         }
 
-        $name = $this->value->name;
-        return $value === $name ? $this->value : Value::INVALID;
+        return $value === $this->enumValue()->name ? $this->value : Value::INVALID;
     }
 
+    #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->type === LiteralType::ENUM_CASE) {
-            return $value === $this->value ? $this->value->name : Value::INVALID;
+            return $value === $this->value ? $this->enumValue()->name : Value::INVALID;
         }
 
         return $value === $this->value ? $this->value : Value::INVALID;
     }
 
+    #[Override]
     public function coerce(mixed $value): mixed
     {
         return match ($this->type) {

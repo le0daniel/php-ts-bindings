@@ -29,7 +29,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
-use Le0daniel\PhpTsBindings\Validators\Email;
+use Le0daniel\PhpTsBindings\Constraints\Email;
 use Tests\Feature\Mocks\Paginated;
 use Tests\Mocks\ResultEnum;
 use Tests\Unit\Parser\Data\Stubs\Address;
@@ -64,7 +64,7 @@ test('test literal union', function () {
      * @var int $index
      * @var LiteralNode $type
      */
-    foreach ($node->types as $index => $type) {
+    foreach ($node->nodes as $index => $type) {
         match ($index) {
             0 => expect($type)->toBeInstanceOf(LiteralNode::class)
                 ->and($type->value)->toBe(7)
@@ -91,11 +91,11 @@ test('Complex inheritance', function () {
 
     $node = $parser->parse('?'.FullAccount::class);
     expect($node)->toBeInstanceOf(UnionNode::class)
-        ->and($node->types[0])->toBeInstanceOf(NullNode::class)
-        ->and($node->types[1])->toBeInstanceOf(CustomCastingNode::class)
-        ->and($node->types[1]->node)->toBeInstanceOf(StructNode::class)
-        ->and($node->types[1]->node->phpType)->toEqual(StructPhpType::ARRAY)
-        ->and($node->types[1]->strategy)->toEqual(ObjectCastStrategy::NEVER);
+        ->and($node->nodes[0])->toBeInstanceOf(NullNode::class)
+        ->and($node->nodes[1])->toBeInstanceOf(CustomCastingNode::class)
+        ->and($node->nodes[1]->node)->toBeInstanceOf(StructNode::class)
+        ->and($node->nodes[1]->node->phpType)->toEqual(StructPhpType::ARRAY)
+        ->and($node->nodes[1]->strategy)->toEqual(ObjectCastStrategy::NEVER);
 });
 
 test('test scalar', function () {
@@ -105,7 +105,7 @@ test('test scalar', function () {
     $node = $parser->parse("scalar");
     expect($node)->toBeInstanceOf(UnionNode::class);
 
-    foreach ($node->types as $index => $type) {
+    foreach ($node->nodes as $index => $type) {
         match ($index) {
             0 => expect($type)->toBeInstanceOf(IntNode::class),
             1 => expect($type)->toBeInstanceOf(FloatNode::class),
@@ -124,8 +124,8 @@ test('test questionmark nullability support', function () {
 
     expect($node)->toBeInstanceOf(UnionNode::class);
 
-    expect($node->types[0])->toBeInstanceOf(NullNode::class);
-    expect($node->types[1])->toBeInstanceOf(FloatNode::class);
+    expect($node->nodes[0])->toBeInstanceOf(NullNode::class);
+    expect($node->nodes[1])->toBeInstanceOf(FloatNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -144,9 +144,9 @@ test('test group support of question mark nullability and flattened result', fun
 
     expect($node)->toBeInstanceOf(UnionNode::class);
 
-    expect($node->types[0])->toBeInstanceOf(NullNode::class);
-    expect($node->types[1])->toBeInstanceOf(FloatNode::class);
-    expect($node->types[2])->toBeInstanceOf(StringNode::class);
+    expect($node->nodes[0])->toBeInstanceOf(NullNode::class);
+    expect($node->nodes[1])->toBeInstanceOf(FloatNode::class);
+    expect($node->nodes[2])->toBeInstanceOf(StringNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -230,7 +230,7 @@ test('numeric', function () {
     /** @var UnionNode $node */
     $node = $parser->parse("numeric");
 
-    foreach ($node->types as $index => $type) {
+    foreach ($node->nodes as $index => $type) {
         match ($index) {
             0 => expect($type)->toBeInstanceOf(IntNode::class),
             1 => expect($type)->toBeInstanceOf(FloatNode::class),
@@ -355,8 +355,8 @@ test('simplified tuple struct', function () {
     $node = $parser->parse("array{string, int}");
     expect($node)->toBeInstanceOf(TupleNode::class);
 
-    expect($node->types[0])->toBeInstanceOf(StringNode::class);
-    expect($node->types[1])->toBeInstanceOf(IntNode::class);
+    expect($node->nodes[0])->toBeInstanceOf(StringNode::class);
+    expect($node->nodes[1])->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -367,8 +367,8 @@ test('classic tuple struct', function () {
     $node = $parser->parse("array{0:string, 1: int}");
     expect($node)->toBeInstanceOf(TupleNode::class);
 
-    expect($node->types[0])->toBeInstanceOf(StringNode::class);
-    expect($node->types[1])->toBeInstanceOf(IntNode::class);
+    expect($node->nodes[0])->toBeInstanceOf(StringNode::class);
+    expect($node->nodes[1])->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -403,8 +403,8 @@ test('Grouped Modifier', function () {
 
     expect($node->node)->toBeInstanceOf(UnionNode::class);
 
-    expect($node->node->types[0])->toBeInstanceOf(StringNode::class);
-    expect($node->node->types[1])->toBeInstanceOf(IntNode::class);
+    expect($node->node->nodes[0])->toBeInstanceOf(StringNode::class);
+    expect($node->node->nodes[1])->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -445,7 +445,7 @@ test('Test simple literals', function () {
     $node = $parser->parse("1|-2|true|false|'string'");
     expect($node)->toBeInstanceOf(UnionNode::class);
 
-    foreach ($node->types as $index => $type) {
+    foreach ($node->nodes as $index => $type) {
         match ($index) {
             0 => expect($type->value)->toBe(1),
             1 => expect($type->value)->toBe(-2),
@@ -487,7 +487,7 @@ test('Test EnumCase and class const literal', function () {
     );
     expect($node)->toBeInstanceOf(UnionNode::class);
 
-    foreach ($node->types as $index => $type) {
+    foreach ($node->nodes as $index => $type) {
         match ($index) {
             0 => expect($type->value)->toBe(ResultEnum::SUCCESS),
             1 => expect($type->value)->toBe(ResultEnum::FAILURE),
@@ -761,8 +761,8 @@ test('a questionmark union accepts null', function () {
 
     expect($node)->toBeInstanceOf(UnionNode::class)
         ->and($node->acceptsNull())->toBeTrue()
-        ->and($node->types[0])->toBeInstanceOf(NullNode::class)
-        ->and($node->types[1])->toBeInstanceOf(BoolNode::class);
+        ->and($node->nodes[0])->toBeInstanceOf(NullNode::class)
+        ->and($node->nodes[1])->toBeInstanceOf(BoolNode::class);
 
     compareToOptimizedAst($node);
 });
@@ -908,10 +908,10 @@ test('String literals honour escapes', function () {
     $node = new TypeParser()->parse("'it\\'s'|\"say \\\"hi\\\"\"");
 
     expect($node)->toBeInstanceOf(UnionNode::class)
-        ->and($node->types[0])->toBeInstanceOf(LiteralNode::class)
-        ->and($node->types[0]->type)->toBe(LiteralType::STRING)
-        ->and($node->types[0]->value)->toBe("it's")
-        ->and($node->types[1]->value)->toBe('say "hi"');
+        ->and($node->nodes[0])->toBeInstanceOf(LiteralNode::class)
+        ->and($node->nodes[0]->type)->toBe(LiteralType::STRING)
+        ->and($node->nodes[0]->value)->toBe("it's")
+        ->and($node->nodes[1]->value)->toBe('say "hi"');
 });
 
 test('Whitespace between brackets is allowed', function () {
@@ -1000,11 +1000,11 @@ test('Literal booleans stay literals and null stays a built in', function () {
     /** @var UnionNode $node */
     $node = new TypeParser()->parse('true|false');
 
-    expect($node->types[0])->toBeInstanceOf(LiteralNode::class)
-        ->and($node->types[0]->type)->toBe(LiteralType::BOOL)
-        ->and($node->types[0]->value)->toBeTrue()
-        ->and($node->types[1]->type)->toBe(LiteralType::BOOL)
-        ->and($node->types[1]->value)->toBeFalse()
+    expect($node->nodes[0])->toBeInstanceOf(LiteralNode::class)
+        ->and($node->nodes[0]->type)->toBe(LiteralType::BOOL)
+        ->and($node->nodes[0]->value)->toBeTrue()
+        ->and($node->nodes[1]->type)->toBe(LiteralType::BOOL)
+        ->and($node->nodes[1]->value)->toBeFalse()
         ->and(new TypeParser()->parse('null'))->toBeInstanceOf(NullNode::class);
 });
 

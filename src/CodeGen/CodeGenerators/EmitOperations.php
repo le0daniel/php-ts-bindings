@@ -10,6 +10,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
+use Override;
 
 final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
 {
@@ -22,6 +23,7 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
     {
     }
 
+    #[Override]
     public function dependsOnGenerator(): array
     {
         return [
@@ -49,6 +51,7 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
         ];
     }
 
+    #[Override]
     public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): TypescriptFile
     {
         $definition = $operation->operation->definition;

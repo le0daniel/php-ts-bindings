@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Utils;
 
-final class Paths
+final readonly class Paths
 {
     public static function libImport(string $name): string
     {

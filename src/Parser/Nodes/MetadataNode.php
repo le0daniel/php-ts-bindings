@@ -2,10 +2,13 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
-use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\ValidatableNode;
+use Le0daniel\PhpTsBindings\Parser\Contracts\WrapsNode;
+use Le0daniel\PhpTsBindings\Parser\Contracts\WrapsNodes;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
+use Override;
 
 /**
  * Codegen metadata attached to any node: an exported type name and/or a TypeScript brand.
@@ -17,7 +20,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
  * metadata into a cache, and a metadata-carrying tree stays string-identical to its optimized
  * form.
  */
-final readonly class MetadataNode implements NodeInterface, ValidatableNode
+final readonly class MetadataNode implements NodeInterface, ValidatableNode, WrapsNode
 {
     public function __construct(
         public NodeInterface $node,
@@ -27,26 +30,29 @@ final readonly class MetadataNode implements NodeInterface, ValidatableNode
     {
     }
 
+    #[Override]
     public function __toString(): string
     {
         return (string) $this->node;
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         return $this->node->exportPhpCode();
     }
 
+    #[Override]
     public function validate(): void
     {
         if ($this->name === null && $this->brand === null) {
-            throw new InvalidArgumentException(
+            throw new ParserException(
                 'MetadataNode without a name or brand is meaningless; use the inner node directly.'
             );
         }
 
         if ($this->node instanceof MetadataNode) {
-            throw new InvalidArgumentException(
+            throw new ParserException(
                 'MetadataNode should not be nested.'
             );
         }

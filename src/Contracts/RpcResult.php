@@ -2,6 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
+use NoDiscard;
+
 /**
  * The two possible outcomes of an operation: RpcSuccess and RpcError.
  *
@@ -14,11 +16,13 @@ interface RpcResult
      * Overwrite all existing metadata.
      * @param array<string, mixed> $metadata
      */
+    #[NoDiscard]
     public function withMetadata(array $metadata): static;
 
     /**
      * Append metadata to the result.
      * @param array<string, mixed> $metadata
      */
+    #[NoDiscard]
     public function appendMetadata(array $metadata): static;
 }

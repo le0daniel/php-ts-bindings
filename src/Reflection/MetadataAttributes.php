@@ -15,7 +15,7 @@ use ReflectionClass;
  * MetadataNode when any is present. See MetadataNode: pure code generation metadata, zero
  * runtime effect.
  */
-final class MetadataAttributes
+final readonly class MetadataAttributes
 {
     /**
      * @param ReflectionClass<covariant object> $reflectionClass

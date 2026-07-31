@@ -8,19 +8,22 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
+use Override;
 
 /**
  * @implements Handler<ListNode>
  */
-final class ListHandler implements Handler
+final readonly class ListHandler implements Handler
 {
 
     /**
-     * @param ListNode $node
      * @return Value|array<int, mixed>
      */
+    #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
+        assert($node instanceof ListNode);
+
         if (!is_iterable($value)) {
             return Value::INVALID;
         }
@@ -46,11 +49,13 @@ final class ListHandler implements Handler
     }
 
     /**
-     * @param ListNode $node
      * @return Value|array<int, mixed>
      */
+    #[Override]
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): array|Value
     {
+        assert($node instanceof ListNode);
+
         if (!is_array($value) || !array_is_list($value)) {
             return Value::INVALID;
         }

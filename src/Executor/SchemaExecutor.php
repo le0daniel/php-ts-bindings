@@ -30,6 +30,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use Override;
 
 final readonly class SchemaExecutor implements Executor
 {
@@ -86,6 +87,7 @@ final readonly class SchemaExecutor implements Executor
     /**
      * @internal
      */
+    #[Override]
     public function executeSerialize(NodeInterface $node, mixed $data, Context $context): mixed
     {
         // Constraints are ignored when serializing.
@@ -115,6 +117,7 @@ final readonly class SchemaExecutor implements Executor
     /**
      * @internal
      */
+    #[Override]
     public function executeParse(NodeInterface $node, mixed $data, Context $context): mixed
     {
         if ($node instanceof ConstraintNode) {

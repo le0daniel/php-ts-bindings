@@ -16,13 +16,15 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Validators\LengthValidator;
-use Le0daniel\PhpTsBindings\Validators\NonEmptyString;
-use Le0daniel\PhpTsBindings\Validators\NonFalsyStringValidator;
+use Le0daniel\PhpTsBindings\Constraints\Length;
+use Le0daniel\PhpTsBindings\Constraints\NonEmptyString;
+use Le0daniel\PhpTsBindings\Constraints\NonFalsyString;
+use Override;
 
-final class BuiltInLeafConsumer implements TypeConsumer
+final readonly class BuiltInLeafConsumer implements TypeConsumer
 {
 
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
@@ -50,6 +52,7 @@ final class BuiltInLeafConsumer implements TypeConsumer
     /**
      * @throws InvalidSyntaxException
      */
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $token = $state->current();
@@ -64,7 +67,7 @@ final class BuiltInLeafConsumer implements TypeConsumer
             'truthy-string',
             'non-falsy-string' => new ConstraintNode(
                 new StringNode(),
-                [new NonFalsyStringValidator()],
+                [new NonFalsyString()],
             ),
             'non-empty-string' => new ConstraintNode(
                 new StringNode(),
@@ -78,19 +81,19 @@ final class BuiltInLeafConsumer implements TypeConsumer
             ]),
             'positive-int' => new ConstraintNode(
                 new IntNode(),
-                [new LengthValidator(min: 1, including: true)]
+                [new Length(min: 1, including: true)]
             ),
             'negative-int' => new ConstraintNode(
                 new IntNode(),
-                [new LengthValidator(max: -1, including: true)]
+                [new Length(max: -1, including: true)]
             ),
             "non-negative-int" => new ConstraintNode(
                 new IntNode(),
-                [new LengthValidator(min: 0, including: true)]
+                [new Length(min: 0, including: true)]
             ),
             'non-positive-int' => new ConstraintNode(
                 new IntNode(),
-                [new LengthValidator(max: 0, including: true)]
+                [new Length(max: 0, including: true)]
             ),
             'numeric' => new UnionNode([
                 new IntNode(),

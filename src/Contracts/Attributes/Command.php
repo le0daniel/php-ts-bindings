@@ -3,7 +3,6 @@
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
 use Attribute;
-use BackedEnum;
 use Le0daniel\PhpTsBindings\Utils\Strings;
 use UnitEnum;
 
@@ -20,6 +19,6 @@ final readonly class Command
 
     public function namespaceAsString(): ?string
     {
-        return $this->namespace ? Strings::toString($this->namespace) : null;
+        return $this->namespace !== null ? Strings::toString($this->namespace) : null;
     }
 }

@@ -6,24 +6,28 @@ use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
+use Override;
 use Throwable;
 
-final class InvalidInputPresenter implements ExceptionPresenter
+final readonly class InvalidInputPresenter implements ExceptionPresenter
 {
 
+    #[Override]
     public function matches(Throwable $throwable, Definition $definition): bool
     {
         return $throwable instanceof InvalidInputException;
     }
 
-    public function toTypeScriptDefinition(Definition $definition): string
+    #[Override]
+    public function toTypescriptDefinition(Definition $definition): string
     {
         return '{type:"INVALID_INPUT"; fields: Record<string, string[]>;}';
     }
 
-    /*
-     * @return array{status: 422, type: "INVALID_INPUT", fields: array<string, string[]>}
+    /**
+     * @return array{type: "INVALID_INPUT", fields: array<string, string[]>}
      */
+    #[Override]
     public function details(Throwable $throwable): array
     {
         /** @var InvalidInputException $throwable */
@@ -34,6 +38,7 @@ final class InvalidInputPresenter implements ExceptionPresenter
         ];
     }
 
+    #[Override]
     public static function errorType(): ErrorType
     {
         return ErrorType::INVALID_INPUT;

@@ -4,7 +4,6 @@ namespace Le0daniel\PhpTsBindings\Contracts;
 
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
-use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Throwable;
 
 interface ExceptionPresenter
@@ -23,7 +22,7 @@ interface ExceptionPresenter
      * @param Definition $definition
      * @return string|null
      */
-    public function toTypeScriptDefinition(Definition $definition): ?string;
+    public function toTypescriptDefinition(Definition $definition): ?string;
 
     /**
      * Render a response compatible with the current definition

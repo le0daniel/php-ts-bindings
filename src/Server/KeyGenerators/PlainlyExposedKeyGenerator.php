@@ -3,11 +3,12 @@
 namespace Le0daniel\PhpTsBindings\Server\KeyGenerators;
 
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
-use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Override;
 
-final class PlainlyExposedKeyGenerator implements OperationKeyGenerator
+final readonly class PlainlyExposedKeyGenerator implements OperationKeyGenerator
 {
 
+    #[Override]
     public function generateKey(string $namespace, string $name): string
     {
         return "{$namespace}.{$name}";

@@ -26,17 +26,20 @@ use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 use Le0daniel\PhpTsBindings\Utils\Nodes;
+use Override;
 
-final class UtilsConsumer implements TypeConsumer
+final readonly class UtilsConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
 
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         return $state->currentTokenIs(TokenType::IDENTIFIER)
             && in_array($state->current()->value, ['Pick', 'Omit', 'BrandedString', 'BrandedInt', 'DateTimeString'], true);
     }
 
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $type = $state->current()->value;
@@ -84,13 +87,23 @@ final class UtilsConsumer implements TypeConsumer
             $state->produceSyntaxError("Expected struct or custom casting node for picking or omitting");
         }
 
-        $structNode = $nodeToPickFrom instanceof CustomCastingNode
-            // For a custom casting node, we pick from the object and create a new struct from it.
-            ? $nodeToPickFrom->node
+        if ($nodeToPickFrom instanceof CustomCastingNode) {
+            // Only a struct has properties to pick from; a custom cast over a list or a record has
+            // no named shape to narrow.
+            $castFrom = $nodeToPickFrom->node;
+            if (!$castFrom instanceof StructNode) {
+                $state->produceSyntaxError("Cannot pick or omit from a custom casting node that does not wrap a struct");
+            }
+
+            // Picking from a castable object produces a new shape, so it is rebuilt as a plain
+            // object struct with both directions enabled.
+            $structNode = $castFrom
                 ->filter(fn(PropertyNode $propertyNode): bool => $propertyNode->propertyType->isOutput())
                 ->map(fn(PropertyNode $propertyType) => $propertyType->changePropertyType(PropertyType::BOTH))
-                ->ofType(StructPhpType::OBJECT)
-            : $nodeToPickFrom;
+                ->ofType(StructPhpType::OBJECT);
+        } else {
+            $structNode = $nodeToPickFrom;
+        }
 
         return $structNode->filter(
             fn(PropertyNode $property): bool => match ($type) {
@@ -128,7 +141,7 @@ final class UtilsConsumer implements TypeConsumer
     private function propertiesToPickOrOmit(ParserState $state, NodeInterface $node): array
     {
         if ($node instanceof LiteralNode && $node->type === LiteralType::STRING) {
-            return [(string)$node->value];
+            return [$node->stringValue()];
         }
 
         if (!$node instanceof UnionNode) {
@@ -137,11 +150,11 @@ final class UtilsConsumer implements TypeConsumer
 
         return array_map(function (NodeInterface $node) use ($state): string {
             if ($node instanceof LiteralNode && $node->type === LiteralType::STRING) {
-                return (string)$node->value;
+                return $node->stringValue();
             }
 
             $type = $node::class;
             $state->produceSyntaxError("Expected string literal for picking or omitting, got: {$type}");
-        }, $node->types);
+        }, $node->nodes);
     }
 }

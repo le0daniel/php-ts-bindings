@@ -10,21 +10,23 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
+use Override;
 use stdClass;
 use Throwable;
 
 /**
  * @implements Handler<CustomCastingNode>
  */
-final class CustomClassHandler implements Handler
+final readonly class CustomClassHandler implements Handler
 {
-
-
-    /** @param CustomCastingNode $node
-     * @return  stdClass|Value
+    /**
+     * @return stdClass|Value
      */
+    #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|Value
     {
+        assert($node instanceof CustomCastingNode);
+
         $object = $executor->executeSerialize($node->node, $value, $context);
 
         if ($object === Value::INVALID) {
@@ -48,9 +50,11 @@ final class CustomClassHandler implements Handler
         return $object;
     }
 
-    /** @param CustomCastingNode $node */
+    #[Override]
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
+        assert($node instanceof CustomCastingNode);
+
         if ($node->strategy === ObjectCastStrategy::NEVER) {
             return Value::INVALID;
         }

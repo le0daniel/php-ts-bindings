@@ -4,6 +4,8 @@ namespace Le0daniel\PhpTsBindings\Server\Data;
 
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\RpcResult;
+use NoDiscard;
+use Override;
 
 final readonly class RpcSuccess implements RpcResult
 {
@@ -26,6 +28,8 @@ final readonly class RpcSuccess implements RpcResult
      * @return static
      * @api
      */
+    #[Override]
+    #[NoDiscard]
     public function withMetadata(array $metadata): static
     {
         return new self($this->data, $this->client, $this->resolveInfo, $metadata);
@@ -37,6 +41,8 @@ final readonly class RpcSuccess implements RpcResult
      * @return static
      * @api
      */
+    #[Override]
+    #[NoDiscard]
     public function appendMetadata(array $metadata): static
     {
         return new self($this->data, $this->client, $this->resolveInfo, [

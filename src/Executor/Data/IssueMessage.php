@@ -8,6 +8,7 @@ enum IssueMessage: string
     case INVALID_KEY_TYPE = 'validation.invalid_key_type';
     case MISSING_PROPERTY = 'validation.missing_property';
     case FALSY_STRING = 'validation.falsy_string';
+    case NOT_EMPTY_STRING = 'validation.not_empty_string';
     case INVALID_EMAIL = 'validation.invalid_email';
     case INTERNAL_ERROR = 'internal_error';
     case INVALID_MIN = 'validation.invalid_min';

@@ -2,9 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Server\Data\Exceptions;
 
-use RuntimeException;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 
-final class OperationNotFoundException extends RuntimeException
+final class OperationNotFoundException extends SchemaException
 {
 
 }

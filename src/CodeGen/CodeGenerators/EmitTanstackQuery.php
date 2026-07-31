@@ -11,9 +11,11 @@ use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
+use Override;
 
 final readonly class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {
+    #[Override]
     public function dependsOnGenerator(): array
     {
         return [
@@ -33,6 +35,7 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
     }
 
+    #[Override]
     public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptFile
     {
         $definition = $operation->operation->definition;

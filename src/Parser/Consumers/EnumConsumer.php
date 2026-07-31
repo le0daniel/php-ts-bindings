@@ -10,11 +10,13 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Override;
 use ReflectionClass;
 use UnitEnum;
 
-final class EnumConsumer implements TypeConsumer
+final readonly class EnumConsumer implements TypeConsumer
 {
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
@@ -24,6 +26,7 @@ final class EnumConsumer implements TypeConsumer
         return enum_exists($state->context->toFullyQualifiedClassName($state->current()->value));
     }
 
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);

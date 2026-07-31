@@ -5,9 +5,9 @@ namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Foundation\Application;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
-use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
-use RuntimeException;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Throwable;
 
 final class OptimizeCommand extends Command
@@ -26,8 +26,8 @@ final class OptimizeCommand extends Command
 
         $registry = $server->registry;
 
-        if (!$registry instanceof EagerlyLoadedRegistry) {
-            throw new RuntimeException('Cannot optimize a registry that is not a JustInTimeDiscoveryRegistry');
+        if (!$registry instanceof EagerlyLoadedOperationRegistry) {
+            throw new SchemaException('Cannot optimize a registry that is not a JustInTimeDiscoveryRegistry');
         }
 
         $idLength = $this->hasOption('id-length')
@@ -35,7 +35,7 @@ final class OptimizeCommand extends Command
             : config('operations.cache.idLength');
 
         if (!is_int($idLength) || $idLength < 1) {
-            throw new RuntimeException('Invalid id-length option');
+            throw new SchemaException('Invalid id-length option');
         }
 
         try {

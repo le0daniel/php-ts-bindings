@@ -3,10 +3,13 @@
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\WrapsNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use NoDiscard;
+use Override;
 
-final readonly class PropertyNode implements NodeInterface
+final readonly class PropertyNode implements NodeInterface, WrapsNode
 {
     public function __construct(
         public string        $name,
@@ -15,22 +18,20 @@ final readonly class PropertyNode implements NodeInterface
         public PropertyType  $propertyType = PropertyType::BOTH,
     ) {}
 
+    #[NoDiscard]
     public function changePropertyType(PropertyType $propertyType): self
     {
         return new self($this->name, $this->node, $this->isOptional, $propertyType);
     }
 
+    #[Override]
     public function __toString(): string
     {
         $optional = $this->isOptional ? '?' : '';
         return "{$this->name}{$optional}: {$this->node}{$this->propertyType->asString()}";
     }
 
-    public function changeType(PropertyType $type): self
-    {
-        return new self($this->name, $this->node, $this->isOptional, $type);
-    }
-
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);

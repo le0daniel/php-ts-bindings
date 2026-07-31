@@ -3,6 +3,8 @@
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
 use Le0daniel\PhpTsBindings\Contracts\RpcResult;
+use NoDiscard;
+use Override;
 use Throwable;
 
 final readonly class RpcError implements RpcResult
@@ -25,6 +27,8 @@ final readonly class RpcError implements RpcResult
      * @return static
      * @api
      */
+    #[Override]
+    #[NoDiscard]
     public function withMetadata(array $metadata): static
     {
         return new self($this->type, $this->cause, $this->details, $this->resolveInfo, $metadata);
@@ -35,6 +39,8 @@ final readonly class RpcError implements RpcResult
      * @return static
      * @api
      */
+    #[Override]
+    #[NoDiscard]
     public function appendMetadata(array $metadata): static
     {
         return new self($this->type, $this->cause, $this->details, $this->resolveInfo, [

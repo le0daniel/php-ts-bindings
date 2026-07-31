@@ -3,9 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
 use Attribute;
-use BackedEnum;
 use Le0daniel\PhpTsBindings\Utils\Strings;
-use StringBackedEnum;
 use UnitEnum;
 
 #[Attribute(Attribute::TARGET_METHOD)]
@@ -21,6 +19,6 @@ final readonly class Query
 
     public function namespaceAsString(): ?string
     {
-        return $this->namespace ? Strings::toString($this->namespace) : null;
+        return $this->namespace !== null ? Strings::toString($this->namespace) : null;
     }
 }

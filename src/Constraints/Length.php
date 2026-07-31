@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Validators;
+namespace Le0daniel\PhpTsBindings\Constraints;
 
 use Attribute;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
@@ -8,9 +8,10 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 
 #[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER | Attribute::IS_REPEATABLE)]
-final readonly class LengthValidator implements Constraint
+final readonly class Length implements Constraint
 {
     public function __construct(
         public int|null $min = null,
@@ -20,6 +21,7 @@ final readonly class LengthValidator implements Constraint
     {
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);
@@ -29,6 +31,7 @@ final readonly class LengthValidator implements Constraint
         return "new {$className}({$min}, {$max}, {$including})";
     }
 
+    #[Override]
     public function validate(mixed $value, ExecutionContext $context): bool
     {
         $valueToValidate = match (gettype($value)) {

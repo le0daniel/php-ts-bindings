@@ -9,11 +9,12 @@ use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Override;
 use ReflectionClass;
 use Throwable;
 use UnitEnum;
 
-final class ClassConstConsumer implements TypeConsumer
+final readonly class ClassConstConsumer implements TypeConsumer
 {
 
     /**
@@ -22,6 +23,7 @@ final class ClassConstConsumer implements TypeConsumer
      * trailing `Foo::` from being claimed here, and keeps this consumer — which runs ahead
      * of the alias, enum and object consumers — from stealing plain identifiers.
      */
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         return $state->currentTokenIs(TokenType::IDENTIFIER)
@@ -30,6 +32,7 @@ final class ClassConstConsumer implements TypeConsumer
     }
 
     /** @throws InvalidSyntaxException */
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): LiteralNode
     {
         $className = $state->current()->value;
@@ -37,6 +40,9 @@ final class ClassConstConsumer implements TypeConsumer
 
         $constOrEnumCase = $state->current()->value;
         $fqcn = $state->context->toFullyQualifiedClassName($className);
+        if (!class_exists($fqcn) && !interface_exists($fqcn)) {
+            $state->produceSyntaxError("Class {$fqcn} does not exist.");
+        }
 
         try {
             $reflection = new ReflectionClass($fqcn);

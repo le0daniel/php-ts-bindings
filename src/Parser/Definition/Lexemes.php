@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
-use RuntimeException;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 
 /**
  * Decodes raw lexemes produced by the Lexer into PHP values.
@@ -12,7 +12,7 @@ use RuntimeException;
  * class is where that raw text becomes a value, and it is the only place in the parser
  * allowed to make that decision.
  */
-final class Lexemes
+final readonly class Lexemes
 {
     private const array ESCAPE_SEQUENCES = [
         '\\' => '\\',
@@ -97,29 +97,40 @@ final class Lexemes
                 }
 
                 if ($sequence[0] === 'x' || $sequence[0] === 'X') {
-                    return chr((int)hexdec(substr($sequence, 1)));
+                    return chr(self::toByte((int)hexdec(substr($sequence, 1))));
                 }
 
                 if ($sequence[0] === 'u') {
-                    return self::codePointToUtf8((int)hexdec($matches[2]));
+                    return self::codePointToUtf8((int)hexdec($matches[2] ?? ''));
                 }
 
-                return chr((int)octdec($sequence));
+                // Three octal digits reach 511, which PHP itself truncates to a byte.
+                return chr(self::toByte((int)octdec($sequence)));
             },
             $string,
         );
 
         if ($resolved === null) {
-            throw new RuntimeException('Failed to resolve escape sequences: ' . preg_last_error_msg());
+            throw new ParserException('Failed to resolve escape sequences: ' . preg_last_error_msg());
         }
 
         return $resolved;
     }
 
+    /**
+     * @return int<0, 255>
+     */
+    private static function toByte(int $value): int
+    {
+        /** @var int<0, 255> $byte */
+        $byte = $value & 0xFF;
+        return $byte;
+    }
+
     private static function codePointToUtf8(int $codePoint): string
     {
         if ($codePoint <= 0x7F) {
-            return chr($codePoint);
+            return chr(self::toByte($codePoint));
         }
 
         if ($codePoint <= 0x7FF) {

@@ -8,12 +8,14 @@ use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
+use Override;
 
 /**
  * @implements MiddlewareContract<mixed>
  */
-final class LocalMetadataMiddleware implements MiddlewareContract
+final readonly class LocalMetadataMiddleware implements MiddlewareContract
 {
+    #[Override]
     public function handle(mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
     {
         if (config('app.debug') !== true) {

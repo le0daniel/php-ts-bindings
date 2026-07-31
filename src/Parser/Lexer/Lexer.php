@@ -2,8 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Lexer;
 
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Exceptions\UnexpectedCharacterException;
-use RuntimeException;
 
 /**
  * A purely lexical scanner for PHPStan/Psalm type strings.
@@ -31,7 +31,7 @@ final class Lexer
         $matches = [];
         $result = preg_match_all(self::pattern(), $input, $matches, PREG_SET_ORDER);
         if ($result === false) {
-            throw new RuntimeException("Failed to tokenize input: " . preg_last_error_msg());
+            throw new ParserException("Failed to tokenize input: " . preg_last_error_msg());
         }
 
         $marks = self::marks();

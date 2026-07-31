@@ -11,10 +11,12 @@ use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Validators\LengthValidator;
+use Le0daniel\PhpTsBindings\Constraints\Length;
+use Override;
 
-final class IntConsumer implements TypeConsumer
+final readonly class IntConsumer implements TypeConsumer
 {
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         return $state->currentTokenIs(TokenType::IDENTIFIER, 'int');
@@ -23,6 +25,7 @@ final class IntConsumer implements TypeConsumer
     /**
      * @throws InvalidSyntaxException
      */
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $state->advance();
@@ -59,7 +62,7 @@ final class IntConsumer implements TypeConsumer
 
         return new ConstraintNode(
             new IntNode(),
-            [new LengthValidator(min: $min, max: $max, including: true)]
+            [new Length(min: $min, max: $max, including: true)]
         );
     }
 }

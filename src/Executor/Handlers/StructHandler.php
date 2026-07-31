@@ -10,20 +10,34 @@ use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
+use Override;
 use stdClass;
 
 /**
  * @implements Handler<StructNode>
  */
-final class StructHandler implements Handler
+final readonly class StructHandler implements Handler
 {
+    /**
+     * StructNode::$properties is typed to admit ReferencedNode because the ASTOptimizer builds
+     * structs out of interned references on its way to exportPhpCode(). Those structs are only ever
+     * exported, never executed: loading the generated file resolves every reference back through the
+     * registry, so a struct reaching a handler always holds real PropertyNodes. Asserted rather than
+     * branched on because the check is free in production and a failure would be a library bug.
+     */
+    private const string REFERENCE_INVARIANT = 'A ReferencedNode must be resolved before execution.';
 
-    /** @param StructNode $node */
+    #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): Value|stdClass
     {
+        assert($node instanceof StructNode);
+
         $struct = [];
         foreach ($node->properties as $propertyNode) {
+            assert($propertyNode instanceof PropertyNode, self::REFERENCE_INVARIANT);
+
             if (!$propertyNode->propertyType->isOutput()) {
                 continue;
             }
@@ -70,9 +84,11 @@ final class StructHandler implements Handler
         return (object) $struct;
     }
 
-    /** @param StructNode $node */
+    #[Override]
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
+        assert($node instanceof StructNode);
+
         if (!is_array($value) && !$value instanceof stdClass) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
@@ -86,6 +102,8 @@ final class StructHandler implements Handler
 
         $struct = [];
         foreach ($node->properties as $propertyNode) {
+            assert($propertyNode instanceof PropertyNode, self::REFERENCE_INVARIANT);
+
             if (!$propertyNode->propertyType->isInput()) {
                 continue;
             }

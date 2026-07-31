@@ -2,10 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
-use InvalidArgumentException;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use ReflectionClass;
 use ReflectionException;
-use RuntimeException;
 
 final class FileReflector
 {
@@ -13,7 +12,10 @@ final class FileReflector
     private ?array $tokens = null;
 
     /**
-     * @var array<int|class-string, string|class-string>|null
+     * Keys and values are whatever the file's `use` statements spell; they are not verified to name
+     * anything that exists, so this is not class-string.
+     *
+     * @var array<int|string, string>|null
      */
     private ?array $usedNamespaces = null;
     private ?string $namespace = null;
@@ -26,14 +28,14 @@ final class FileReflector
 
     /**
      * @param string $filePath
-     * @throws InvalidArgumentException
+     * @throws ParserException
      */
     public function __construct(
         public readonly string $filePath
     ) {
         $realPath = realpath($this->filePath);
         if ($realPath === false || !is_file($realPath) || !is_readable($realPath)) {
-            throw new InvalidArgumentException(
+            throw new ParserException(
                 "File does not exist or is not readable: {$this->filePath}"
             );
         }
@@ -56,24 +58,24 @@ final class FileReflector
             return $this->usedNamespaces;
         }
 
-        $this->ensureTokensAreParsed();
+        $tokens = $this->tokens();
         $namespaces = [];
-        $numTokens = count($this->tokens);
+        $numTokens = count($tokens);
 
         for ($i = 0; $i < $numTokens; $i++) {
-            $token = $this->tokens[$i];
+            $token = $tokens[$i];
 
             if (!is_array($token) || $token[0] !== T_USE) {
                 continue;
             }
 
             // Skip `use function` and `use const`
-            $nextToken = $this->peekNextSignificantToken($i, $numTokens);
+            $nextToken = self::peekNextSignificantToken($tokens, $i, $numTokens);
             if ($nextToken && in_array($nextToken[0], [T_FUNCTION, T_CONST], true)) {
                 continue;
             }
 
-            [$fullyQualifiedClassName, $alias, $i] = $this->parseUseStatement($i, $numTokens);
+            [$fullyQualifiedClassName, $alias, $i] = self::parseUseStatement($tokens, $i, $numTokens);
 
             if ($fullyQualifiedClassName) {
                 if ($alias) {
@@ -98,8 +100,7 @@ final class FileReflector
             return $this->namespace;
         }
 
-        $this->ensureTokensAreParsed();
-        $this->namespace = $this->findNamespaceInTokens();
+        $this->namespace = self::findNamespaceInTokens($this->tokens());
         $this->namespaceParsed = true;
 
         return $this->namespace;
@@ -110,7 +111,7 @@ final class FileReflector
      * and returns a ReflectionClass instance for it.
      *
      * @return ReflectionClass<object>|never
-     * @throws RuntimeException If no class-like structure is found or if the class cannot be loaded.
+     * @throws ParserException If no class-like structure is found or if the class cannot be loaded.
      * @throws ReflectionException If the class is loaded but cannot be reflected.
      */
     public function getDeclaredClass(): ReflectionClass
@@ -119,13 +120,11 @@ final class FileReflector
             return $this->declaredClass;
         }
 
-        $this->ensureTokensAreParsed();
-
         $namespace = $this->getNamespace();
-        $className = $this->findClassNameInTokens();
+        $className = self::findClassNameInTokens($this->tokens());
 
         if ($className === null) {
-            throw new RuntimeException(
+            throw new ParserException(
                 "No class, interface, trait, or enum found in file: {$this->filePath}"
             );
         }
@@ -139,34 +138,44 @@ final class FileReflector
         }
 
         if (!class_exists($fullyQualifiedClassName, false) && !interface_exists($fullyQualifiedClassName, false) && !trait_exists($fullyQualifiedClassName, false)) {
-            throw new RuntimeException("Failed to load class {$fullyQualifiedClassName} from file {$this->filePath}");
+            throw new ParserException("Failed to load class {$fullyQualifiedClassName} from file {$this->filePath}");
         }
 
         return $this->declaredClass = new ReflectionClass($fullyQualifiedClassName);
     }
 
-    private function ensureTokensAreParsed(): void
+    /**
+     * Returns the tokens rather than only populating $tokens, so callers hold a non-null list and
+     * every read below is provably safe instead of relying on having called this first.
+     *
+     * @return list<string|array{int, string, int}>
+     */
+    private function tokens(): array
     {
-        if ($this->tokens === null) {
-            $content = file_get_contents($this->filePath);
-            if ($content === false) {
-                throw new RuntimeException(
-                    "Could not read file content: {$this->filePath}"
-                );
-            }
-            $this->tokens = token_get_all($content);
+        if ($this->tokens !== null) {
+            return $this->tokens;
         }
+
+        $content = file_get_contents($this->filePath);
+        if ($content === false) {
+            throw new ParserException(
+                "Could not read file content: {$this->filePath}"
+            );
+        }
+
+        return $this->tokens = token_get_all($content);
     }
 
     /**
+     * @param list<string|array{int, string, int}> $tokens
      * @return string|null The found namespace name or null.
      */
-    private function findNamespaceInTokens(): ?string
+    private static function findNamespaceInTokens(array $tokens): ?string
     {
-        $count = count($this->tokens);
+        $count = count($tokens);
         for ($i = 0; $i < $count; $i++) {
-            if ($this->tokens[$i][0] === T_NAMESPACE) {
-                $nextToken = $this->peekNextSignificantToken($i, $count);
+            if ($tokens[$i][0] === T_NAMESPACE) {
+                $nextToken = self::peekNextSignificantToken($tokens, $i, $count);
                 if ($nextToken && in_array($nextToken[0], [T_STRING, T_NAME_QUALIFIED], true)) {
                     return $nextToken[1];
                 }
@@ -176,19 +185,20 @@ final class FileReflector
     }
 
     /**
+     * @param list<string|array{int, string, int}> $tokens
      * @return string|null The found class name or null.
      */
-    private function findClassNameInTokens(): ?string
+    private static function findClassNameInTokens(array $tokens): ?string
     {
-        $count = count($this->tokens);
+        $count = count($tokens);
         for ($i = 0; $i < $count; $i++) {
-            $token = $this->tokens[$i];
+            $token = $tokens[$i];
             if (!is_array($token)) {
                 continue;
             }
 
             if (in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM])) {
-                $nextToken = $this->peekNextSignificantToken($i, $count);
+                $nextToken = self::peekNextSignificantToken($tokens, $i, $count);
                 if ($nextToken && $nextToken[0] === T_STRING) {
                     return $nextToken[1];
                 }
@@ -198,14 +208,13 @@ final class FileReflector
     }
 
     /**
-     * @param int $currentIndex
-     * @param int $maxIndex
+     * @param list<string|array{int, string, int}> $tokens
      * @return (array{int, string, int})|null
      */
-    private function peekNextSignificantToken(int $currentIndex, int $maxIndex): ?array
+    private static function peekNextSignificantToken(array $tokens, int $currentIndex, int $maxIndex): ?array
     {
         for ($i = $currentIndex + 1; $i < $maxIndex; $i++) {
-            $token = $this->tokens[$i];
+            $token = $tokens[$i];
             if (is_array($token) && $token[0] !== T_WHITESPACE) {
                 return $token;
             }
@@ -214,18 +223,17 @@ final class FileReflector
     }
 
     /**
-     * @param int $startIndex
-     * @param int $maxIndex
+     * @param list<string|array{int, string, int}> $tokens
      * @return array{string, string|null, int}
      */
-    private function parseUseStatement(int $startIndex, int $maxIndex): array
+    private static function parseUseStatement(array $tokens, int $startIndex, int $maxIndex): array
     {
         $fullyQualifiedClassname = '';
         $alias = null;
         $i = $startIndex + 1;
 
         while ($i < $maxIndex) {
-            $token = $this->tokens[$i];
+            $token = $tokens[$i];
             if ($token === ';') {
                 break;
             }
@@ -236,7 +244,7 @@ final class FileReflector
                         $fullyQualifiedClassname = $token[1];
                         break;
                     case T_AS:
-                        $aliasToken = $this->peekNextSignificantToken($i, $maxIndex);
+                        $aliasToken = self::peekNextSignificantToken($tokens, $i, $maxIndex);
                         if ($aliasToken && $aliasToken[0] === T_STRING) {
                             $alias = $aliasToken[1];
                         }

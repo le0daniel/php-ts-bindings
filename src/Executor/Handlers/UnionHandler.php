@@ -11,14 +11,16 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use Override;
 
 /**
  * @implements Handler<UnionNode<NodeInterface>>
  */
-final class UnionHandler implements Handler
+final readonly class UnionHandler implements Handler
 {
 
     /** @param UnionNode<NodeInterface> $node */
+    #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
         // Quick check for nullability.
@@ -27,15 +29,16 @@ final class UnionHandler implements Handler
         }
 
         // Using discriminator for better performance.
-        if ($node->isDiscriminated()) {
-            $valueToCheck = $this->extractKeyedValue($node->discriminator, $value);
+        $discriminator = $node->discriminator;
+        if ($discriminator !== null) {
+            $valueToCheck = $this->extractKeyedValue($discriminator, $value);
             if ($valueToCheck instanceof Value) {
                 $context->addIssue(new Issue(
                     IssueMessage::INVALID_TYPE,
                     [
                         'message' => 'Invalid type for union discriminated type.',
                         'value' => $value,
-                        'discriminator' => $node->discriminator,
+                        'discriminator' => $discriminator,
                     ]
                 ));
                 return Value::INVALID;
@@ -53,7 +56,7 @@ final class UnionHandler implements Handler
             return Value::INVALID;
         }
 
-        foreach ($node->types as $type) {
+        foreach ($node->nodes as $type) {
             $result = $executor->executeSerialize($type, $value, $context);
             if ($result !== Value::INVALID) {
                 $context->removeCurrentIssues();
@@ -64,21 +67,23 @@ final class UnionHandler implements Handler
     }
 
     /** @param UnionNode<NodeInterface> $node */
+    #[Override]
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
         if ($value === null && $node->acceptsNull()) {
             return null;
         }
 
-        if ($node->isDiscriminated()) {
-            $valueToCheck = $this->extractKeyedValue($node->discriminator, $value);
+        $discriminator = $node->discriminator;
+        if ($discriminator !== null) {
+            $valueToCheck = $this->extractKeyedValue($discriminator, $value);
             if ($valueToCheck instanceof Value) {
                 $context->addIssue(new Issue(
                     IssueMessage::INVALID_TYPE,
                     [
                         'message' => 'Invalid type for union discriminated type.',
                         'value' => $value,
-                        'discriminator' => $node->discriminator,
+                        'discriminator' => $discriminator,
                     ]
                 ));
                 return Value::INVALID;
@@ -92,7 +97,7 @@ final class UnionHandler implements Handler
         }
 
         // ToDo Handle probing context.
-        foreach ($node->types as $type) {
+        foreach ($node->nodes as $type) {
             $result = $executor->executeParse($type, $value, $context);
             if ($result !== Value::INVALID) {
                 $context->removeCurrentIssues();

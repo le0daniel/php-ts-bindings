@@ -5,21 +5,10 @@ parameters:
     paths:
         - src/
 
-    # ToDo: Enable this in the future
+    # Level 10 is the highest level
+    level: 8
+
     reportPossiblyNonexistentGeneralArrayOffset: false
+    reportPossiblyNonexistentConstantArrayOffset: true
     checkMissingCallableSignature: true
     checkBenevolentUnionTypes: true
-    reportPossiblyNonexistentConstantArrayOffset: true
-
-    # Level 10 is the highest level
-    level: 6
-
-#    typeAliases:
-#        Email: 'non-empty-string'
-
-#    ignoreErrors:
-#        - '#class-string<operations.default_server>#'
-
-#
-#    excludePaths:
-#        - ./src/Adapters/*

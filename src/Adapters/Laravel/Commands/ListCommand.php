@@ -7,10 +7,10 @@ use Illuminate\Container\Attributes\Give;
 use Illuminate\Routing\Router;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Server;
-use RuntimeException;
 
 final class ListCommand extends Command
 {
@@ -25,8 +25,10 @@ final class ListCommand extends Command
         $queryRoute = $router->getRoutes()->getByName(LaravelHttpController::QUERY_NAME);
         $commandRoute = $router->getRoutes()->getByName(LaravelHttpController::COMMAND_NAME);
 
-        if (!$commandRoute && !$queryRoute) {
-            throw new RuntimeException('Cannot list routes that are not registered');
+        // Both are dereferenced below, so both must exist. This used to be `&&`, which only tripped
+        // when neither route was registered and left a null dereference when exactly one was.
+        if (!$commandRoute || !$queryRoute) {
+            throw new SchemaException('Cannot list routes that are not registered');
         }
 
         $this->table([

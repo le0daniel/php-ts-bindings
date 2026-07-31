@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
@@ -30,7 +30,7 @@ function typescriptOf(
     string|NodeInterface $type,
     IO                   $io = IO::INPUT,
     ?AliasRegistry       $sharedRegistry = null,
-): TypeScript
+): Typescript
 {
     $node = is_string($type) ? new TypeParser()->parse($type) : $type;
     return new TypescriptGenerator()->toTypescript($node, $io, $sharedRegistry);

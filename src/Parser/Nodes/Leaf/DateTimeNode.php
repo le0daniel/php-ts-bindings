@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 use Throwable;
 
 final readonly class DateTimeNode implements NodeInterface, LeafNode
@@ -26,11 +27,13 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
     {
     }
 
+    #[Override]
     public function __toString(): string
     {
         return $this->dateTimeClass . "<{$this->format}>";
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);
@@ -41,6 +44,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
         return "new {$className}({$dateTimeClass}::class{$format})";
     }
 
+    #[Override]
     public function parseValue(mixed $value, ExecutionContext $context): DateTimeInterface|Value
     {
         if (!is_string($value)) {
@@ -82,6 +86,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
     /**
      * @return string|Value::INVALID
      */
+    #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): string|Value
     {
         if (!$value instanceof DateTimeInterface) {

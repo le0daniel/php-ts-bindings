@@ -5,9 +5,10 @@ namespace Le0daniel\PhpTsBindings\Server\Presenter;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
+use Override;
 use Throwable;
 
-final class NotFoundPresenter implements ExceptionPresenter
+final readonly class NotFoundPresenter implements ExceptionPresenter
 {
     /**
      * @param list<class-string<Throwable>> $classNames
@@ -18,19 +19,22 @@ final class NotFoundPresenter implements ExceptionPresenter
     {
     }
 
+    #[Override]
     public function matches(Throwable $throwable, Definition $definition): bool
     {
         return in_array(get_class($throwable), $this->classNames, true);
     }
 
-    public function toTypeScriptDefinition(Definition $definition): string
+    #[Override]
+    public function toTypescriptDefinition(Definition $definition): string
     {
         return '{type: "NOT_FOUND";}';
     }
 
-    /*
-     * @return array{status: 404, type: "NOT_FOUND"}
+    /**
+     * @return array{type: "NOT_FOUND"}
      */
+    #[Override]
     public function details(Throwable $throwable): array
     {
         return [
@@ -38,6 +42,7 @@ final class NotFoundPresenter implements ExceptionPresenter
         ];
     }
 
+    #[Override]
     public static function errorType(): ErrorType
     {
         return ErrorType::NOT_FOUND;

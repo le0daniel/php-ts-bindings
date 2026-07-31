@@ -1,5 +1,6 @@
 <?php declare(strict_types=1);
 
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
 
@@ -77,12 +78,12 @@ test('reports whether it imports anything', function () {
 
 test('rejects an empty module specifier', function () {
     expect(fn() => new TypescriptImport(''))
-        ->toThrow(InvalidArgumentException::class, 'cannot be written as a TypeScript module specifier');
+        ->toThrow(CodeGenException::class, 'cannot be written as a TypeScript module specifier');
 });
 
 test('rejects a module specifier that could not be written as a string literal', function (string $from) {
     expect(fn() => TypescriptImport::values($from, 'a'))
-        ->toThrow(InvalidArgumentException::class, 'cannot be written as a TypeScript module specifier');
+        ->toThrow(CodeGenException::class, 'cannot be written as a TypeScript module specifier');
 })->with([
     'single quote' => ["./li'b"],
     'double quote' => ['./li"b'],
@@ -148,14 +149,15 @@ test('a merged value import removes the same name from the type bucket', functio
 test('refuses to merge imports of different modules', function () {
     expect(fn() => TypescriptImport::types('./lib/types', 'Brand')
         ->merge(TypescriptImport::types('./lib/utils', 'Brand')))
-        ->toThrow(InvalidArgumentException::class, 'different modules');
+        ->toThrow(CodeGenException::class, 'different modules');
 });
 
 test('merging leaves both operands untouched', function () {
     $one = TypescriptImport::types('./lib/types', 'Brand');
     $two = TypescriptImport::values('./lib/types', 'queryKey');
 
-    $one->merge($two);
+    // Discarding the result is the point of this test, hence the explicit (void).
+    (void) $one->merge($two);
 
     expect($one->types)->toBe(['Brand'])
         ->and($one->values)->toBe([])

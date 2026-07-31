@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Tests\Mocks\ValueObjects\Email;
 
@@ -42,9 +42,9 @@ function queryOperation(): Operation
 
 test('imports the aliases the inlined input definition carries', function () {
     [$code, $rendered] = queryKeyCodeFor(new TypedOperation(
-        new TypeScript('{status:OrderStatus;}', new AliasRegistry(['OrderStatus' => '"OPEN"|"SHIPPED"'])),
-        new TypeScript('Order', new AliasRegistry(['Order' => '{id:number;}'])),
-        TypeScript::fromRawString(''),
+        new Typescript('{status:OrderStatus;}', new AliasRegistry(['OrderStatus' => '"OPEN"|"SHIPPED"'])),
+        new Typescript('Order', new AliasRegistry(['Order' => '{id:number;}'])),
+        Typescript::fromRawString(''),
         queryOperation(),
     ));
 
@@ -56,16 +56,16 @@ test('imports the aliases the inlined input definition carries', function () {
 
 test('always imports the Brand helper, whether the input renders an inline brand or not', function () {
     [, $withBrand] = queryKeyCodeFor(new TypedOperation(
-        new TypeScript('{id:number & Brand<"customerId">;}', new AliasRegistry()),
-        TypeScript::fromRawString('string'),
-        TypeScript::fromRawString(''),
+        new Typescript('{id:number & Brand<"customerId">;}', new AliasRegistry()),
+        Typescript::fromRawString('string'),
+        Typescript::fromRawString(''),
         queryOperation(),
     ));
 
     [, $withoutBrand] = queryKeyCodeFor(new TypedOperation(
-        TypeScript::fromRawString('{id:number;}'),
-        TypeScript::fromRawString('string'),
-        TypeScript::fromRawString(''),
+        Typescript::fromRawString('{id:number;}'),
+        Typescript::fromRawString('string'),
+        Typescript::fromRawString(''),
         queryOperation(),
     ));
 

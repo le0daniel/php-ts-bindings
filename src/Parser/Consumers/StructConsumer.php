@@ -12,10 +12,12 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Override;
 
-final class StructConsumer implements TypeConsumer
+final readonly class StructConsumer implements TypeConsumer
 {
 
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         if ($state->currentTokenIs(TokenType::IDENTIFIER, 'object')) {
@@ -32,6 +34,7 @@ final class StructConsumer implements TypeConsumer
     /**
      * @throws InvalidSyntaxException
      */
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $structType = StructPhpType::from($state->current()->value);

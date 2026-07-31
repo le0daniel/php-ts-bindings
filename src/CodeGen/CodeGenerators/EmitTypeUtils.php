@@ -10,9 +10,11 @@ use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
+use Override;
 
-final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
+final readonly class EmitTypeUtils implements GeneratesLibFiles, DependsOn
 {
+    #[Override]
     public function dependsOnGenerator(): array
     {
         return [
@@ -23,21 +25,21 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
     /**
      * @return array<string, TypescriptFile>
      */
+    #[Override]
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
-        $queryNamespaces = array_reduce($operations, function (array $carry, TypedOperation $operation) {
+        /** @var list<string> $queryNamespaces */
+        $queryNamespaces = [];
+        foreach ($operations as $operation) {
             if ($operation->operation->definition->type !== OperationType::QUERY) {
-                return $carry;
+                continue;
             }
 
-            if (!in_array($operation->operation->definition->namespace, $carry, true)) {
-                return [
-                    ...$carry,
-                    $operation->operation->definition->namespace,
-                ];
+            $namespace = $operation->operation->definition->namespace;
+            if (!in_array($namespace, $queryNamespaces, true)) {
+                $queryNamespaces[] = $namespace;
             }
-            return $carry;
-        }, []);
+        }
 
         // Derived from the enum, so the values the guard accepts can never drift from ToastType.
         $toastTypes = implode(', ', array_map(

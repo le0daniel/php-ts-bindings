@@ -2,12 +2,12 @@
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
-final class Issues
+final readonly class Issues
 {
     public const string ROOT_PATH = '__root';
 
     /**
-     * @param array<string, Issue[]> $issuesMap
+     * @param array<string, list<Issue>> $issuesMap
      */
     public function __construct(
         public readonly array $issuesMap = [],
@@ -23,7 +23,9 @@ final class Issues
     {
         return new self(
             array_map(
-                fn(string|array $issues) => Issue::fromMessageArray(is_array($issues) ? $issues : [$issues]),
+                fn(string|array $issues) => Issue::fromMessageArray(
+                    is_array($issues) ? array_values($issues) : [$issues],
+                ),
                 $issuesMap
             )
         );
@@ -44,7 +46,9 @@ final class Issues
     /** @return list<Issue> */
     public function allFlat(): array
     {
-        return array_merge(...array_values($this->issuesMap));
+        return $this->issuesMap === []
+            ? []
+            : array_merge(...array_values($this->issuesMap));
     }
 
     /**
@@ -62,9 +66,8 @@ final class Issues
      */
     public function serializeToDebugFields(): array
     {
-        /** @phpstan-ignore-next-line return.type */
-        return array_map(function ($issues) {
-            return array_map(fn(Issue $issue) => [
+        return array_map(function (array $issues): array {
+            return array_map(fn(Issue $issue): array => [
                 'message' => $issue->messageOrLocalizationKey,
                 'debugInfo' => $issue->debugInfo,
                 'exception' => $issue->exception ? [

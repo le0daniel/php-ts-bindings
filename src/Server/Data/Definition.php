@@ -5,8 +5,9 @@ namespace Le0daniel\PhpTsBindings\Server\Data;
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 
-final class Definition implements ExportableToPhpCode
+final readonly class Definition implements ExportableToPhpCode
 {
     /**
      * @param OperationType $type
@@ -32,6 +33,7 @@ final class Definition implements ExportableToPhpCode
         return "{$this->namespace}.{$this->name}";
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);

@@ -2,10 +2,11 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript\Code;
 
-use InvalidArgumentException;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 use Le0daniel\PhpTsBindings\Utils\Lists;
+use NoDiscard;
 
 /**
  * What one module contributes to a file: the names taken for their runtime value and the names
@@ -42,7 +43,7 @@ final readonly class TypescriptImport
      *
      * @param list<string> $values
      * @param list<string> $types
-     * @throws InvalidArgumentException When $from cannot be written as a module specifier.
+     * @throws CodeGenException When $from cannot be written as a module specifier.
      * @throws InvalidStringLiteralException When a name is not a valid TypeScript identifier.
      */
     public function __construct(
@@ -95,12 +96,13 @@ final readonly class TypescriptImport
     }
 
     /**
-     * @throws InvalidArgumentException When the two imports name different modules.
+     * @throws CodeGenException When the two imports name different modules.
      */
+    #[NoDiscard]
     public function merge(self $other): self
     {
         if ($this->from !== $other->from) {
-            throw new InvalidArgumentException(
+            throw new CodeGenException(
                 "Cannot merge imports of '{$this->from}' and '{$other->from}': they are different modules."
             );
         }
@@ -137,13 +139,14 @@ final readonly class TypescriptImport
         return $names |> Lists::unique(...) |> Lists::sorted(...);
     }
 
+    /**
+     * Validated here rather than at render time so a bad specifier fails where it was introduced.
+     * The rule itself belongs to Syntax, which owns what can be written into a TypeScript file.
+     */
     private static function assertUsableSpecifier(string $from): void
     {
-        // The specifier is written verbatim inside a single quoted string literal. Whitespace,
-        // quotes and backslashes would either break the literal or silently name a module that
-        // does not exist, so reject them rather than escape them into something plausible.
-        if ($from === '' || preg_match('/[\s\'"\\\\]/', $from) === 1) {
-            throw new InvalidArgumentException(
+        if (!Syntax::isValidModuleSpecifier($from)) {
+            throw new CodeGenException(
                 "'{$from}' cannot be written as a TypeScript module specifier."
             );
         }

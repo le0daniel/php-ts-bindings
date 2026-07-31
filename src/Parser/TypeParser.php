@@ -27,6 +27,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 
@@ -59,7 +60,7 @@ final readonly class TypeParser
     /**
      * @param GlobalTypeAliases $globalTypeAliases
      * @param bool $allowAllObjectCasting
-     * @return TypeConsumer[]
+     * @return list<TypeConsumer>
      */
     public static function defaultConsumers(
         GlobalTypeAliases $globalTypeAliases = new GlobalTypeAliases(),
@@ -241,8 +242,8 @@ final readonly class TypeParser
     }
 
     /**
-     * @param list<NodeInterface> $types
-     * @return list<NodeInterface>
+     * @param non-empty-list<NodeInterface> $types
+     * @return non-empty-list<NodeInterface>
      */
     private function flattenNestedUnionTypes(array $types): array
     {
@@ -250,15 +251,28 @@ final readonly class TypeParser
 
         foreach ($types as $type) {
             if ($type instanceof UnionNode) {
-                array_push($flattened, ... $type->types);
+                array_push($flattened, ... $type->nodes);
                 continue;
             }
             $flattened[] = $type;
         }
 
+        /** @var non-empty-list<NodeInterface> $flattened */
         return $flattened;
     }
 
+
+    /**
+     * A discriminator has to survive a strict comparison against a value decoded from JSON, which
+     * rules out floats (precision), enum cases (not wire values) and null (indistinguishable from
+     * an absent field).
+     *
+     * @phpstan-assert-if-true bool|int|string $value
+     */
+    private static function canDiscriminate(mixed $value): bool
+    {
+        return is_bool($value) || is_int($value) || is_string($value);
+    }
 
     /**
      * @param non-empty-list<NodeInterface> $types
@@ -276,8 +290,15 @@ final readonly class TypeParser
 
         // Step 1: Find candidate fields from the first type
         foreach ($firstType->properties as $property) {
-            if ($property->node instanceof LiteralNode) {
-                $candidateFields[$property->name] = $property->node->value;
+            // Discrimination runs on freshly parsed structs; the optimizer's reference holding
+            // structs are exported, never unioned.
+            if (!$property instanceof PropertyNode || !$property->node instanceof LiteralNode) {
+                continue;
+            }
+
+            $value = $property->node->value;
+            if (self::canDiscriminate($value)) {
+                $candidateFields[$property->name] = $value;
             }
         }
 
@@ -293,14 +314,15 @@ final readonly class TypeParser
                 $otherProperty = $otherType->getProperty($fieldName);
 
                 // Check for presence, type, and uniqueness
+                $otherValue = $otherProperty?->node instanceof LiteralNode ? $otherProperty->node->value : null;
                 if (
-                    !$otherProperty?->node instanceof LiteralNode ||
-                    in_array($otherProperty->node->value, $values, true)
+                    !self::canDiscriminate($otherValue) ||
+                    in_array($otherValue, $values, true)
                 ) {
                     $isDiscriminator = false;
                     break; // This is not the discriminator field
                 }
-                $values[] = $otherProperty->node->value;
+                $values[] = $otherValue;
             }
 
             if ($isDiscriminator) {

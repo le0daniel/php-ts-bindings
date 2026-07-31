@@ -4,6 +4,7 @@ namespace Le0daniel\PhpTsBindings\PHPStan;
 
 
 use DateTimeImmutable;
+use Override;
 use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
 use PHPStan\PhpDocParser\Ast\Type\TypeNode;
@@ -14,7 +15,6 @@ use PHPStan\PhpDoc\TypeNodeResolverExtension;
 use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
 use PHPStan\Type\Type;
 use PHPStan\Type\ObjectType;
-use PHPStan\Type\ObjectShape;
 use PHPStan\Type\ObjectShapeType;
 use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\Constant\ConstantArrayType;
@@ -31,11 +31,13 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         $this->reflectionProvider = $reflectionProvider;
     }
 
+    #[Override]
     public function setTypeNodeResolver(TypeNodeResolver $typeNodeResolver): void
     {
         $this->typeNodeResolver = $typeNodeResolver;
     }
 
+    #[Override]
     public function resolve(TypeNode $typeNode, NameScope $nameScope): ?Type
     {
         // DateTimeString is the one utility type usable without generics, so it is the only
@@ -100,6 +102,7 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         };
     }
 
+    /** @param 'Omit'|'Pick' $typeName */
     private function resolvePickAndOmitUtil(string $typeName, GenericTypeNode $typeNode, NameScope $nameScope): ?Type
     {
         $arguments = $typeNode->genericTypes;
@@ -214,7 +217,7 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         $optionalProperties = [];
 
         foreach ($structType->getProperties() as $propertyName => $propertyType) {
-            $keyType = new ConstantStringType($propertyName, false);
+            $keyType = new ConstantStringType((string)$propertyName, false);
             $isPropertyInNewObject = match ($type) {
                 'Pick' => $keysType->isSuperTypeOf($keyType)->yes(),
                 'Omit' => !$keysType->isSuperTypeOf($keyType)->yes(),

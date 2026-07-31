@@ -6,6 +6,7 @@ use Closure;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\UnknownTypeKeyException;
+use Override;
 
 /**
  * Lazily instantiates schemas from generated code, memoizing each one.
@@ -42,6 +43,7 @@ final class CachedTypeRegistry implements TypeRegistry
         $this->factory = $factory;
     }
 
+    #[Override]
     public function get(string $key): NodeInterface
     {
         // An unknown key throws before the assignment, so misses are never memoized.

@@ -2,12 +2,12 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript\Exceptions;
 
-use RuntimeException;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 
 /**
  * Thrown when a type alias is read out of the registry without being defined in it.
  */
-final class UnknownAliasException extends RuntimeException
+final class UnknownAliasException extends CodeGenException
 {
     private function __construct(string $message)
     {

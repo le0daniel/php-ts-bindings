@@ -2,46 +2,51 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
-use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\ValidatableNode;
+use Le0daniel\PhpTsBindings\Parser\Contracts\WrapsNodes;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Utils\Nodes;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 
-final readonly class IntersectionNode implements NodeInterface, ValidatableNode
+final readonly class IntersectionNode implements NodeInterface, ValidatableNode, WrapsNodes
 {
     /**
-     * @param list<NodeInterface> $types
+     * @param list<NodeInterface> $nodes
      */
     public function __construct(
-        public array $types,
+        public array $nodes,
     )
     {
     }
 
+    #[Override]
     public function __toString(): string
     {
         return implode(
             ',',
-            $this->types
+            $this->nodes
         );
     }
 
+    #[Override]
     public function validate(): void
     {
-        if (!Nodes::areAllNodesOfSameStructType($this->types)) {
-            throw new InvalidArgumentException("All nodes need to be of the same struct type.");
+        if (!Nodes::areAllNodesOfSameStructType($this->nodes)) {
+            throw new ParserException("All nodes need to be of the same struct type.");
         }
 
-        if (count($this->types) < 2) {
-            throw new InvalidArgumentException("An intersection must be between at least two struct nodes.");
+        if (count($this->nodes) < 2) {
+            throw new ParserException("An intersection must be between at least two struct nodes.");
         }
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute($this::class);
-        $nodes = PHPExport::exportArray($this->types);
+        $nodes = PHPExport::exportArray($this->nodes);
         return "new {$className}({$nodes})";
     }
 }

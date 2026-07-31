@@ -2,6 +2,7 @@
 
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
@@ -118,12 +119,12 @@ test('MetadataNode rejects being nested', function () {
     $node = new MetadataNode(new MetadataNode(new StringNode(), null, 'inner'), null, 'outer');
 
     expect(fn() => $node->validate())
-        ->toThrow(InvalidArgumentException::class, 'should not be nested');
+        ->toThrow(ParserException::class, 'should not be nested');
 });
 
 test('MetadataNode rejects carrying neither a name nor a brand', function () {
     expect(fn() => new MetadataNode(new StringNode())->validate())
-        ->toThrow(InvalidArgumentException::class, 'meaningless');
+        ->toThrow(ParserException::class, 'meaningless');
 });
 
 test('unwrapMetadata strips the wrapper and leaves everything else alone', function () {
@@ -136,7 +137,7 @@ test('unwrapMetadata strips the wrapper and leaves everything else alone', funct
 test('unwrapMetadata keeps constraints attached, unlike getDeclaringNode', function () {
     $constrained = new Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode(
         new StringNode(),
-        [new Le0daniel\PhpTsBindings\Validators\NonEmptyString()],
+        [new Le0daniel\PhpTsBindings\Constraints\NonEmptyString()],
     );
     $wrapped = new MetadataNode($constrained, null, 'tag');
 

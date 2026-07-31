@@ -1,13 +1,13 @@
 <?php
 
-namespace Tests\Unit\Validators;
+namespace Tests\Unit\Constraints;
 
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
-use Le0daniel\PhpTsBindings\Validators\Email;
+use Le0daniel\PhpTsBindings\Constraints\Email;
 
 /** @return array{bool, Issue[]} */
 function validate(mixed $value, Constraint $constraint): array

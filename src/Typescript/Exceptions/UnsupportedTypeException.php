@@ -2,9 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript\Exceptions;
 
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use RuntimeException;
 
 /**
  * Thrown when a schema describes something that has no honest TypeScript representation.
@@ -12,7 +12,7 @@ use RuntimeException;
  * Emitting a placeholder instead would push the problem into the generated client, where it shows
  * up as a type error far away from the schema that caused it.
  */
-final class UnsupportedTypeException extends RuntimeException
+final class UnsupportedTypeException extends CodeGenException
 {
     private function __construct(string $message)
     {

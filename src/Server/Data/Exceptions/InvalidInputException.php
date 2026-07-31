@@ -4,12 +4,13 @@ namespace Le0daniel\PhpTsBindings\Server\Data\Exceptions;
 
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 
-final class InvalidInputException extends \Exception
+final class InvalidInputException extends SchemaException
 {
     public function __construct(public readonly Failure $failure)
     {
-        parent::__construct("Input validation failed", 422, $this->failure);
+        parent::__construct("Input validation failed", 422);
     }
 
     /**

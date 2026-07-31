@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Data;
 
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 enum LiteralType: string
 {
     case ENUM_CASE = 'enum-case';
@@ -20,7 +21,7 @@ enum LiteralType: string
             'boolean' => LiteralType::BOOL,
             'NULL' => LiteralType::NULL,
             'string' => LiteralType::STRING,
-            default => throw new \InvalidArgumentException("Unsupported type: {$nativeGetType}"),
+            default => throw new ParserException("Unsupported type: {$nativeGetType}"),
         };
     }
 }

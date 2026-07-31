@@ -2,9 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Exceptions;
 
-use RuntimeException;
-
-final class InvalidGeneratorDependencies extends RuntimeException
+final class InvalidGeneratorDependencies extends CodeGenException
 {
     /**
      * @param array<string> $messages

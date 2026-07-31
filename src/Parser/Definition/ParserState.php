@@ -2,13 +2,12 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
-use Iterator;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\SourceLocation;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Token;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
-use RuntimeException;
 use Throwable;
 
 /**
@@ -19,9 +18,11 @@ use Throwable;
  * meaningful tokens only. Tokens keep their absolute byte offsets into $input, so dropping
  * whitespace does not disturb error rendering.
  *
- * @implements Iterator<int, Token>
+ * Deliberately not an Iterator: consumers drive the cursor explicitly through advance(), peek() and
+ * currentTokenIs(). An Iterator would have offered a second way to move that does not enforce
+ * canAdvance(), so a foreach could walk off the end of a stream the parser considers exhausted.
  */
-final class ParserState implements Iterator
+final class ParserState
 {
     private int $currentIndex = 0;
     private readonly int $count;
@@ -46,7 +47,7 @@ final class ParserState implements Iterator
 
         // The Lexer always terminates the stream with EOF, which is never whitespace.
         if ($significant === []) {
-            throw new RuntimeException('The token stream must contain at least one significant token.');
+            throw new ParserException('The token stream must contain at least one significant token.');
         }
 
         $this->tokens = $significant;
@@ -95,29 +96,9 @@ final class ParserState implements Iterator
     public function advance(int $amount = 1): void
     {
         if (!$this->canAdvance($amount)) {
-            throw new RuntimeException('Cannot advance past end of token');
+            throw new ParserException('Cannot advance past end of token');
         }
         $this->currentIndex += $amount;
-    }
-
-    public function next(): void
-    {
-        $this->currentIndex++;
-    }
-
-    public function key(): int
-    {
-        return $this->currentIndex;
-    }
-
-    public function valid(): bool
-    {
-        return $this->currentIndex < $this->count;
-    }
-
-    public function rewind(): void
-    {
-        $this->currentIndex = 0;
     }
 
     public function highlightCurrentToken(): string

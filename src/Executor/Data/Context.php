@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
+use Override;
 
 final class Context implements ExecutionContext
 {
@@ -20,7 +21,7 @@ final class Context implements ExecutionContext
     private array $path = [];
 
     /**
-     * @var array<string, Issue[]>
+     * @var array<string, list<Issue>>
      */
     private(set) array $issues = [];
 
@@ -41,6 +42,7 @@ final class Context implements ExecutionContext
             : Issues::ROOT_PATH;
     }
 
+    #[Override]
     public function addIssue(Issue $issue): void
     {
         $this->issues[$this->pathAsString()][] = $issue;

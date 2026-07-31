@@ -10,8 +10,9 @@ use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Override;
 
-final class EmitTypes implements GeneratesLibFiles
+final readonly class EmitTypes implements GeneratesLibFiles
 {
     /**
      * Declarations this file always contains. An alias claiming one of these names would generate
@@ -35,6 +36,7 @@ final class EmitTypes implements GeneratesLibFiles
     /**
      * @return array<string, TypescriptFile>
      */
+    #[Override]
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         foreach ($registry->usedAliases() as $alias) {
@@ -43,15 +45,14 @@ final class EmitTypes implements GeneratesLibFiles
             }
         }
 
-        $uniqueNamespaces = array_reduce($operations, function (array $carry, TypedOperation $operation) {
-            if (!in_array($operation->operation->definition->namespace, $carry, true)) {
-                return [
-                    ...$carry,
-                    $operation->operation->definition->namespace,
-                ];
+        /** @var list<string> $uniqueNamespaces */
+        $uniqueNamespaces = [];
+        foreach ($operations as $operation) {
+            $namespace = $operation->operation->definition->namespace;
+            if (!in_array($namespace, $uniqueNamespaces, true)) {
+                $uniqueNamespaces[] = $namespace;
             }
-            return $carry;
-        }, []);
+        }
 
         // The shared registry holds every alias any pass produced; the types file declares them
         // all, so every operation file can import any key of its own definitions' registries.

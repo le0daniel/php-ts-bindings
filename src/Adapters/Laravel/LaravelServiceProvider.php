@@ -16,7 +16,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
-use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
 use Le0daniel\PhpTsBindings\Server\Presenter\ExposedExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Presenter\InvalidInputPresenter;
@@ -24,6 +24,7 @@ use Le0daniel\PhpTsBindings\Server\Presenter\NotFoundPresenter;
 use Le0daniel\PhpTsBindings\Server\Presenter\UnauthenticatedPresenter;
 use Le0daniel\PhpTsBindings\Server\Presenter\UnauthorizedPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
+use Override;
 
 final class LaravelServiceProvider extends ServiceProvider implements DeferrableProvider
 {
@@ -35,6 +36,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     /**
      * @return class-string[]
      */
+    #[Override]
     public function provides(): array
     {
         // @phpstan-ignore-next-line return.type -- allowed here.
@@ -53,7 +55,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     {
         $config = $app->make('config');
 
-        $operations ??= EagerlyLoadedRegistry::eagerlyDiscover(
+        $operations ??= EagerlyLoadedOperationRegistry::eagerlyDiscover(
             $config->get('operations.discovery_path', []),
             $app->make(TypeParser::class),
             match ($config->get('operations.key.mode', 'obfuscate')) {
@@ -85,6 +87,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     /**
      * Register any application services.
      */
+    #[Override]
     public function register(): void
     {
         $this->app->bind(TypeParser::class, function () {

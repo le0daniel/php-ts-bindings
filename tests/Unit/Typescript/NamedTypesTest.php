@@ -1,5 +1,6 @@
 <?php declare(strict_types=1);
 
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
@@ -156,7 +157,7 @@ test('Pick over a named class produces a new shape and drops the alias', functio
 
 test('emitting for IO::BOTH is rejected', function () {
     expect(fn() => new TypescriptGenerator()->toTypescript(new StringNode(), IO::BOTH))
-        ->toThrow(InvalidArgumentException::class, 'IO::BOTH');
+        ->toThrow(CodeGenException::class, 'IO::BOTH');
 });
 
 test('two named nodes claiming one alias with different shapes are rejected', function () {

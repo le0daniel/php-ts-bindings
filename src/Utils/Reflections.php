@@ -2,18 +2,18 @@
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
-use RuntimeException;
 
-final class Reflections
+final readonly class Reflections
 {
     public static function getDocBlockExtendedType(ReflectionProperty|ReflectionParameter $propertyOrParameter): string
     {
         if (!$propertyOrParameter->getType()) {
-            throw new RuntimeException("No type defined.");
+            throw new ParserException("No type defined.");
         }
 
         $typeString = match (true) {
@@ -26,7 +26,7 @@ final class Reflections
     private static function getParameterTypeString(ReflectionParameter $parameter): string
     {
         if (!$parameter->getType()) {
-            throw new RuntimeException("No type defined.");
+            throw new ParserException("No type defined.");
         }
 
         $declaringFnDoc = $parameter->getDeclaringFunction()->getDocComment();
@@ -40,7 +40,7 @@ final class Reflections
     private static function getPropertyTypeString(ReflectionProperty $property): string
     {
         if (!$property->hasType()) {
-            throw new RuntimeException("No type defined.");
+            throw new ParserException("No type defined.");
         }
 
         if ($property->getDocComment()) {

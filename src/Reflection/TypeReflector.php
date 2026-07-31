@@ -2,19 +2,19 @@
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Utils\Regexes;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
-use RuntimeException;
 
 final readonly class TypeReflector
 {
     public static function reflectProperty(ReflectionProperty $property): string
     {
         if (!$property->getType()) {
-            throw new RuntimeException("No type defined.");
+            throw new ParserException("No type defined.");
         }
 
         if ($property->getDocComment() && $type = Regexes::findFirstVarDeclaration($property->getDocComment())) {
@@ -36,7 +36,7 @@ final readonly class TypeReflector
     public static function reflectParameter(ReflectionParameter $parameter): string
     {
         if (!$parameter->getType()) {
-            throw new RuntimeException("No type defined.");
+            throw new ParserException("No type defined.");
         }
 
         $declaringDocBlock = $parameter->getDeclaringFunction()->getDocComment();
@@ -52,7 +52,7 @@ final readonly class TypeReflector
     public static function reflectReturnType(ReflectionFunction|ReflectionMethod $returnable): string
     {
         if (!$returnable->hasReturnType()) {
-            throw new RuntimeException("No return type defined.");
+            throw new ParserException("No return type defined.");
         }
 
         $docBlock = $returnable->getDocComment();

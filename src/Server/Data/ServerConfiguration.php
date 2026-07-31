@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
+use NoDiscard;
 
 final readonly class ServerConfiguration
 {
@@ -21,14 +22,14 @@ final readonly class ServerConfiguration
      * @param class-string<MiddlewareContract<mixed>> ...$middlewares
      * @return self
      */
+    #[NoDiscard]
     public function withMiddlewares(string ...$middlewares): self
     {
+        // array_values is redundant at runtime - spreading two lists yields a list - but it is
+        // what tells the type checker so, and $middleware is declared as a list.
         return new self(
             $this->coerceQueryInput,
-            [
-                ...$this->middleware,
-                ...array_values($middlewares),
-            ],
+            [...$this->middleware, ...$middlewares] |> array_values(...),
         );
     }
 }

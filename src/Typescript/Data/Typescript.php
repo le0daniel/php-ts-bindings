@@ -7,7 +7,7 @@ use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 /**
  * A generated TypeScript type together with the aliases it references.
  */
-final readonly class TypeScript
+final readonly class Typescript
 {
     /**
      * @param string $type The type. Named types are referenced by their alias name, brands appear
@@ -23,8 +23,8 @@ final readonly class TypeScript
     {
     }
 
-    public static function fromRawString(string $type): TypeScript
+    public static function fromRawString(string $type): Typescript
     {
-        return new TypeScript($type, new AliasRegistry());
+        return new Typescript($type, new AliasRegistry());
     }
 }

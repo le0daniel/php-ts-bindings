@@ -5,9 +5,11 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\WrapsNode;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 
-final readonly class ConstraintNode implements NodeInterface
+final readonly class ConstraintNode implements NodeInterface, WrapsNode
 {
     /**
      * @param NodeInterface $node
@@ -25,6 +27,7 @@ final readonly class ConstraintNode implements NodeInterface
         return array_all($this->constraints, fn(Constraint $constraint) => $constraint->validate($value, $context));
     }
 
+    #[Override]
     public function __toString(): string
     {
         if (empty($this->constraints)) {
@@ -39,6 +42,7 @@ final readonly class ConstraintNode implements NodeInterface
         return "{$this->node} & {$names}";
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         if (empty($this->constraints)) {

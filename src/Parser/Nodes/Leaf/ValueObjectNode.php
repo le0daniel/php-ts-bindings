@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 use Throwable;
 
 /**
@@ -34,11 +35,13 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
     {
     }
 
+    #[Override]
     public function __toString(): string
     {
         return "valueObject<{$this->className},{$this->backingType->value}>";
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);
@@ -48,6 +51,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
         return "new {$className}({$valueObjectClass}::class, {$backingType})";
     }
 
+    #[Override]
     public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->backingType === BackingType::STRING) {
@@ -81,6 +85,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
         }
     }
 
+    #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->backingType === BackingType::STRING) {
@@ -110,6 +115,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
         }
     }
 
+    #[Override]
     public function coerce(mixed $value): mixed
     {
         if ($this->backingType === BackingType::STRING) {
@@ -127,7 +133,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
     {
         return new Issue(
             IssueMessage::INVALID_TYPE,
-            [
+            debugInfo: [
                 'message' => "Expected value of type {$this->backingType->value} for {$this->className}, got: " . get_debug_type($value),
                 'node' => self::class,
             ],
@@ -143,7 +149,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
     {
         return new Issue(
             IssueMessage::INVALID_TYPE,
-            [
+            debugInfo: [
                 'message' => "Value rejected by {$this->className}: {$throwable->getMessage()}",
                 'node' => self::class,
                 'value' => $value,
@@ -156,7 +162,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
     {
         return new Issue(
             IssueMessage::INVALID_TYPE,
-            [
+            debugInfo: [
                 'message' => "Expected instance of {$this->className}, got: " . get_debug_type($value),
                 'node' => self::class,
             ],

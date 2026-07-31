@@ -3,11 +3,11 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Strings;
-use RuntimeException;
 use UnitEnum;
 
 final readonly class Preloader
@@ -38,11 +38,11 @@ final readonly class Preloader
     public function preload(string|UnitEnum $namespace, string $name, mixed $input, mixed $context): array
     {
         $namespaceAsString = Strings::toString($namespace);
-        $fqcn = $this->keyGenerator->generateKey(Strings::toString($namespaceAsString), $name);
+        $fqcn = $this->keyGenerator->generateKey($namespaceAsString, $name);
         $result = $this->server->query($fqcn, $input, $context, new NullClient());
 
         if (!$result instanceof RpcSuccess) {
-            throw new RuntimeException("Failed to preload: {$namespaceAsString}.{$name}");
+            throw new SchemaException("Failed to preload: {$namespaceAsString}.{$name}");
         }
 
         return [

@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
-final class Namespaces
+final readonly class Namespaces
 {
     /**
      * Example Namespaces:
@@ -24,42 +24,37 @@ final class Namespaces
      *  ]
      * ```
      *
-     * @param array<int, class-string>|array<class-string, string> $namespaces
-     * @return array<string, class-string>
+     * Names come from a file's parsed `use` statements, so they are strings that look like class
+     * names but are not verified to name anything. Typing them class-string would be a guarantee
+     * this cannot make - resolution happens later, against the consumers that actually need a class.
+     *
+     * @param array<int|string, string> $namespaces
+     * @return array<string, string>
      */
     public static function buildNamespaceAliasMap(array $namespaces): array
     {
         $map = [];
         foreach ($namespaces as $namespace => $alias) {
             if (is_int($namespace)) {
-                /** @var class-string $alias */
                 $map[Strings::classBaseName($alias)] = self::withoutLeadingSlash($alias);
             } else {
-                /** @var class-string $namespace */
                 $map[$alias] = self::withoutLeadingSlash($namespace);
             }
         }
         return $map;
     }
 
-    /**
-     * @param class-string $className
-     * @return class-string
-     */
     private static function withoutLeadingSlash(string $className): string
     {
-        /** @var class-string $value */
-        $value = str_starts_with($className, '\\') ? substr($className, 1) : $className;
-        return $value;
+        return str_starts_with($className, '\\') ? substr($className, 1) : $className;
     }
 
     /**
-     * @param array<string, class-string> $namespacesMap
+     * @param array<string, string> $namespacesMap
      */
     public static function toFullyQualifiedClassName(string $className, ?string $namespace, array $namespacesMap): string
     {
         if (str_starts_with($className, '\\')) {
-            /** @var class-string $className */
             return self::withoutLeadingSlash($className);
         }
 

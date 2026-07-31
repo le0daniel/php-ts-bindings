@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\Utils;
 
 use Closure;
 
-final class Arrays
+final readonly class Arrays
 {
     /**
      * @template TArrayKey of array-key

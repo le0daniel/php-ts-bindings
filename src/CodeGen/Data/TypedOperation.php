@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\Data;
 
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 
 final class TypedOperation
 {
@@ -21,9 +21,9 @@ final class TypedOperation
      * file imports, and what the generated types file declares (via the run's shared registry).
      */
     public function __construct(
-        public readonly TypeScript $inputDef,
-        public readonly TypeScript $outputDef,
-        public readonly TypeScript $errorDef,
+        public readonly Typescript $inputDef,
+        public readonly Typescript $outputDef,
+        public readonly Typescript $errorDef,
         public readonly Operation  $operation,
     )
     {

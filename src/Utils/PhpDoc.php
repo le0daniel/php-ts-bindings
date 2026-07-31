@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
-final class PhpDoc
+final readonly class PhpDoc
 {
     private const array REGEX_PARTS = [
         '{cn}' => '[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*',

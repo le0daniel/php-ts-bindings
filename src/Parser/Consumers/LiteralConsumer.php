@@ -10,11 +10,13 @@ use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Override;
 
-final class LiteralConsumer implements TypeConsumer
+final readonly class LiteralConsumer implements TypeConsumer
 {
     private const array BOOLEANS = ['true', 'false'];
 
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         $token = $state->current();
@@ -29,6 +31,7 @@ final class LiteralConsumer implements TypeConsumer
         return $token->isAnyTypeOf(TokenType::STRING, TokenType::FLOAT, TokenType::INT);
     }
 
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $token = $state->current();

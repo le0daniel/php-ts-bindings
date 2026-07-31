@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Override;
 use ReflectionClass;
 use ReflectionException;
 
@@ -22,8 +23,9 @@ use ReflectionException;
  * Registered ahead of EnumConsumer, DateTimeConsumer and UserDefinedObjectConsumer, all of which
  * would otherwise claim the class first.
  */
-final class ValueObjectConsumer implements TypeConsumer
+final readonly class ValueObjectConsumer implements TypeConsumer
 {
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
@@ -39,6 +41,7 @@ final class ValueObjectConsumer implements TypeConsumer
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
@@ -51,6 +54,10 @@ final class ValueObjectConsumer implements TypeConsumer
             $state->produceSyntaxError(
                 "Value object {$fullyQualifiedClassName} must implement either StringValueObject or IntValueObject, not both."
             );
+        }
+
+        if (!class_exists($fullyQualifiedClassName) && !interface_exists($fullyQualifiedClassName)) {
+            $state->produceSyntaxError("Value object {$fullyQualifiedClassName} does not exist.");
         }
 
         $reflectionClass = new ReflectionClass($fullyQualifiedClassName);

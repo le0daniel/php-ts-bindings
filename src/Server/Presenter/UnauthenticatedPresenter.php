@@ -5,9 +5,10 @@ namespace Le0daniel\PhpTsBindings\Server\Presenter;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
+use Override;
 use Throwable;
 
-final class UnauthenticatedPresenter implements ExceptionPresenter
+final readonly class UnauthenticatedPresenter implements ExceptionPresenter
 {
     /**
      * @param list<class-string<\Throwable>> $unauthenticatedClassNames
@@ -18,19 +19,22 @@ final class UnauthenticatedPresenter implements ExceptionPresenter
     {
     }
 
+    #[Override]
     public function matches(Throwable $throwable, Definition $definition): bool
     {
         return in_array(get_class($throwable), $this->unauthenticatedClassNames, true);
     }
 
-    public function toTypeScriptDefinition(Definition $definition): string
+    #[Override]
+    public function toTypescriptDefinition(Definition $definition): string
     {
         return '{type: "UNAUTHENTICATED";}';
     }
 
-    /*
-     * @return array{status: 401, type: "UNAUTHENTICATED"}
+    /**
+     * @return array{type: "UNAUTHENTICATED"}
      */
+    #[Override]
     public function details(Throwable $throwable): array
     {
         return [
@@ -38,6 +42,7 @@ final class UnauthenticatedPresenter implements ExceptionPresenter
         ];
     }
 
+    #[Override]
     public static function errorType(): ErrorType
     {
         return ErrorType::AUTHENTICATION_ERROR;

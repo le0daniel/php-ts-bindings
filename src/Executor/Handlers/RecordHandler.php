@@ -10,17 +10,19 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
+use Override;
 use stdClass;
 
 /**
  * @implements Handler<RecordNode>
  */
-final class RecordHandler implements Handler
+final readonly class RecordHandler implements Handler
 {
-
-    /** @param RecordNode $node */
+    #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): stdClass|Value
     {
+        assert($node instanceof RecordNode);
+
         if (!is_iterable($value)) {
             return Value::INVALID;
         }
@@ -51,11 +53,13 @@ final class RecordHandler implements Handler
     }
 
     /**
-     * @param RecordNode $node
      * @return array<string, mixed>|Value::INVALID
      */
+    #[Override]
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): array|Value
     {
+        assert($node instanceof RecordNode);
+
         if (!is_array($value)) {
             return Value::INVALID;
         }

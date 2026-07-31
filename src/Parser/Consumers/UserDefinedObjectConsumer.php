@@ -10,6 +10,7 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
@@ -23,14 +24,14 @@ use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
 use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Utils\Lists;
+use Override;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionParameter;
 use ReflectionProperty;
-use RuntimeException;
 
-final class UserDefinedObjectConsumer implements TypeConsumer
+final readonly class UserDefinedObjectConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
 
@@ -40,6 +41,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
     {
     }
 
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
@@ -47,14 +49,11 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         }
 
         $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
-
-        try {
-            $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
-        } catch (ReflectionException) {
+        if (!class_exists($fullyQualifiedClassName) && !interface_exists($fullyQualifiedClassName)) {
             return false;
         }
 
-        return $reflectionClass->isUserDefined();
+        return new ReflectionClass($fullyQualifiedClassName)->isUserDefined();
     }
 
     /** @param ReflectionClass<object> $class */
@@ -96,9 +95,12 @@ final class UserDefinedObjectConsumer implements TypeConsumer
      * @throws ReflectionException
      * @throws InvalidSyntaxException
      */
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
+        // canConsume() ran first and only claims names that resolve to a user defined class.
+        assert(class_exists($fullyQualifiedClassName) || interface_exists($fullyQualifiedClassName));
         $state->advance();
 
         $reflectionClass = new ReflectionClass($fullyQualifiedClassName);
@@ -131,8 +133,9 @@ final class UserDefinedObjectConsumer implements TypeConsumer
             return true;
         }
 
-        if (!$param->getType()->allowsNull()) {
-            throw new RuntimeException("Optional parameter must allow null or provide a default value. PHP does not difference between null and undefined.");
+        $type = $param->getType();
+        if ($type === null || !$type->allowsNull()) {
+            throw new ParserException("Optional parameter must allow null or provide a default value. PHP does not difference between null and undefined.");
         }
 
         return true;
@@ -141,24 +144,26 @@ final class UserDefinedObjectConsumer implements TypeConsumer
     /** @param ReflectionClass<object> $reflectionClass */
     private function parseNeverStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingContext $context): CustomCastingNode
     {
+        $properties = array_map(
+            fn(ReflectionProperty $property) => new PropertyNode(
+                $property->getName(),
+                $this->applyConstraints(
+                    $property,
+                    $parser->parse(
+                        TypeReflector::reflectProperty($property),
+                        $context->descendIntoDeclaringClass($property)
+                    )
+                ),
+                false,
+                PropertyType::OUTPUT,
+            ),
+            $reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
+        );
+
         return new CustomCastingNode(
             new StructNode(
                 StructPhpType::ARRAY,
-                array_map(
-                    fn(ReflectionProperty $property) => new PropertyNode(
-                        $property->getName(),
-                        $this->applyConstraints(
-                            $property,
-                            $parser->parse(
-                                TypeReflector::reflectProperty($property),
-                                $context->descendIntoDeclaringClass($property)
-                            )
-                        ),
-                        false,
-                        PropertyType::OUTPUT,
-                    ),
-                    $reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC),
-                ),
+                $properties,
             ),
             $reflectionClass->getName(),
             ObjectCastStrategy::NEVER,
@@ -171,7 +176,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         $properties = [];
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
             if ($property->isReadOnly() || $property->hasHooks()) {
-                throw new RuntimeException("Property {$property->name} is not writable");
+                throw new ParserException("Property {$property->name} is not writable");
             }
 
             $properties[] = new PropertyNode(
@@ -222,7 +227,14 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         /** @var array<PropertyNode> $structProperties */
         $structProperties = [];
 
-        foreach ($reflectionClass->getConstructor()->getParameters() as $parameter) {
+        $constructor = $reflectionClass->getConstructor();
+        if ($constructor === null) {
+            throw new ParserException(
+                "Cannot build {$reflectionClass->getName()} from its constructor: it declares none."
+            );
+        }
+
+        foreach ($constructor->getParameters() as $parameter) {
             $structProperties[] = new PropertyNode(
                 $parameter->name,
                 $this->applyConstraints(
@@ -240,7 +252,9 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
             if ($property->isPromoted()) {
                 $index = array_find_key($structProperties, fn(PropertyNode $propertyNode) => $propertyNode->name === $property->getName());
-                $structProperties[$index] = $structProperties[$index]->changePropertyType(PropertyType::BOTH);
+                if ($index !== null) {
+                    $structProperties[$index] = $structProperties[$index]->changePropertyType(PropertyType::BOTH);
+                }
                 continue;
             }
 
@@ -259,7 +273,7 @@ final class UserDefinedObjectConsumer implements TypeConsumer
         }
 
         return new CustomCastingNode(
-            new StructNode(StructPhpType::ARRAY, $structProperties),
+            new StructNode(StructPhpType::ARRAY, array_values($structProperties)),
             $reflectionClass->getName(),
             ObjectCastStrategy::CONSTRUCTOR,
         );

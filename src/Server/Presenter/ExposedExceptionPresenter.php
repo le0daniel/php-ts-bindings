@@ -7,13 +7,15 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
+use Le0daniel\PhpTsBindings\Utils\Lists;
+use Override;
 use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
 use Throwable;
 
-final class ExposedExceptionPresenter implements ExceptionPresenter
+final readonly class ExposedExceptionPresenter implements ExceptionPresenter
 {
 
     /**
@@ -61,18 +63,20 @@ final class ExposedExceptionPresenter implements ExceptionPresenter
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function matches(Throwable $throwable, Definition $definition): bool
     {
         return $this->exposedTypeOf($throwable::class) !== null
             && in_array($throwable::class, $this->extractDeclaredExceptions($definition), true);
     }
 
-    public function toTypeScriptDefinition(Definition $definition): ?string
+    #[Override]
+    public function toTypescriptDefinition(Definition $definition): ?string
     {
-        $exposedTypes = array_filter(array_map(
+        $exposedTypes = array_map(
             $this->exposedTypeOf(...),
             $this->extractDeclaredExceptions($definition),
-        ));
+        ) |> Lists::filterNullValues(...);
 
         if (empty($exposedTypes)) {
             return null;
@@ -87,13 +91,18 @@ final class ExposedExceptionPresenter implements ExceptionPresenter
     /**
      * @return array{type: string}
      */
+    #[Override]
     public function details(Throwable $throwable): array
     {
-        return [
-            'type' => $this->exposedTypeOf($throwable::class),
-        ];
+        // matches() already established that this exception carries an ExposeAs; a presenter is
+        // only ever asked for details after it claimed the throwable.
+        $type = $this->exposedTypeOf($throwable::class);
+        assert($type !== null, 'details() called for a throwable this presenter does not match.');
+
+        return ['type' => $type];
     }
 
+    #[Override]
     public static function errorType(): ErrorType
     {
         return ErrorType::DOMAIN_ERROR;

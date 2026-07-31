@@ -10,6 +10,7 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Override;
 use ReflectionException;
 
 final readonly class AliasConsumer implements TypeConsumer
@@ -20,6 +21,7 @@ final readonly class AliasConsumer implements TypeConsumer
     {
     }
 
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
@@ -36,6 +38,7 @@ final readonly class AliasConsumer implements TypeConsumer
     /**
      * @throws InvalidSyntaxException|ReflectionException
      */
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $token = $state->current();

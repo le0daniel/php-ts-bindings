@@ -3,26 +3,40 @@
 namespace Le0daniel\PhpTsBindings\Utils;
 
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
-use RuntimeException;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use UnitEnum;
 
-final class PHPExport
+final readonly class PHPExport
 {
     /**
-     * Writes a file to disk atomically and throws on failure.
-     * @throws RuntimeException
+     * Writes through a temporary file in the same directory and renames it into place.
+     *
+     * The generated caches this produces are require()d while the application is serving traffic,
+     * so a half written file would be loaded as valid PHP and fail far from here. rename() is
+     * atomic within a filesystem, which makes a reader see either the whole old file or the whole
+     * new one - hence the temporary alongside the target rather than in the system temp directory,
+     * which may be a different filesystem.
+     *
+     * @throws ParserException
      */
     public static function writeFileAtomically(string $filePath, string $contents): void
     {
-        $written = file_put_contents($filePath, $contents);
-        if ($written !== false) {
-            return;
+        $directory = dirname($filePath);
+        if (!is_dir($directory) || !is_writable($directory)) {
+            throw new ParserException("Failed to write file to {$filePath}: {$directory} is not a writable directory.");
         }
 
-        if (file_exists($filePath)) {
-            unlink($filePath);
+        $temporaryPath = $filePath . '.' . getmypid() . '.tmp';
+
+        if (file_put_contents($temporaryPath, $contents) !== strlen($contents)) {
+            @unlink($temporaryPath);
+            throw new ParserException("Failed to write file to {$filePath}");
         }
-        throw new RuntimeException("Failed to write file to {$filePath}");
+
+        if (!@rename($temporaryPath, $filePath)) {
+            @unlink($temporaryPath);
+            throw new ParserException("Failed to write file to {$filePath}");
+        }
     }
 
     public static function absolute(string $className): string
@@ -48,7 +62,7 @@ final class PHPExport
         }
 
         if (!array_is_list($array)) {
-            throw new \InvalidArgumentException('Array must be a list');
+            throw new ParserException('Array must be a list');
         }
 
         $imploded = implode(',', array_map(self::export(...), $array));

@@ -9,13 +9,13 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
-use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Presenter\ExposedExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Tests\Feature\Mocks\NotAMiddleware;
 
 function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
-    $registry = EagerlyLoadedRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
+    $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
     $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($registry, idLength: 10));
 
     $server = new Server($registry, [new ExposedExceptionPresenter(),],);
@@ -56,7 +56,7 @@ test("Exceptions are exposed through middleware", function () {
 
 test("A middleware that does not implement the contract yields an RpcError", function () {
     $server = new Server(
-        EagerlyLoadedRegistry::eagerlyDiscover(
+        EagerlyLoadedOperationRegistry::eagerlyDiscover(
             __DIR__ . '/Operations',
             keyGenerator: new PlainlyExposedKeyGenerator
         ),
@@ -75,7 +75,7 @@ test("A middleware that does not implement the contract yields an RpcError", fun
 
 test("Middleware emits typescript middleware", function () {
     $server = new Server(
-        EagerlyLoadedRegistry::eagerlyDiscover(
+        EagerlyLoadedOperationRegistry::eagerlyDiscover(
             __DIR__ . '/Operations',
             keyGenerator: new PlainlyExposedKeyGenerator
         ),
@@ -86,7 +86,7 @@ test("Middleware emits typescript middleware", function () {
 
     $operation = $server->registry->get(OperationType::COMMAND, 'test.run');
     $errorPresenter = new ExposedExceptionPresenter();
-    $definition = $errorPresenter->toTypeScriptDefinition($operation->definition);
+    $definition = $errorPresenter->toTypescriptDefinition($operation->definition);
     expect($definition)->toEqual('{type: "invalid_name"}');
 });
 /**

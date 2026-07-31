@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
@@ -15,11 +16,10 @@ use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Le0daniel\PhpTsBindings\Utils\Lists;
-use RuntimeException;
 
 final readonly class TypescriptServerCodeGenerator
 {
@@ -72,40 +72,33 @@ final readonly class TypescriptServerCodeGenerator
          * Filter out some operations that are not needed.
          * @var array<int|string, Operation> $filteredDefinitions
          */
-        $filteredDefinitions = array_values(
-            array_filter($server->registry->all(), function (Operation $operation) use ($ignore): bool {
-                if (in_array($operation->definition->namespace, $ignore, true) || in_array($operation->definition->fullyQualifiedName(), $ignore, true)) {
-                    return false;
-                }
-                return true;
-            })
-        );
+        $filteredDefinitions = array_filter(
+            $server->registry->all(),
+            fn(Operation $operation): bool => !in_array($operation->definition->namespace, $ignore, true)
+                && !in_array($operation->definition->fullyQualifiedName(), $ignore, true),
+        ) |> array_values(...);
 
         // Cross-operation and cross-direction alias conflicts are only caught when every pass hands
         // its aliases into one shared registry, so the run always has one. It is also what the
         // generated types file declares.
         $registry = new AliasRegistry();
 
-        $definitions = array_values(
-            array_map(function (Operation $operation) use ($server, $registry): TypedOperation {
-                AstValidator::validate($operation->inputNode());
-                AstValidator::validate($operation->outputNode());
+        // Bound once: inputNode()/outputNode() run the parse closure on every call, so asking twice
+        // parses every schema in the run twice.
+        $definitions = array_map(function (Operation $operation) use ($server, $registry): TypedOperation {
+            $inputNode = $operation->inputNode();
+            $outputNode = $operation->outputNode();
 
-                $input = $this->typescriptGenerator->toTypescript(
-                    $operation->inputNode(), IO::INPUT, $registry,
-                );
-                $output = $this->typescriptGenerator->toTypescript(
-                    $operation->outputNode(), IO::OUTPUT, $registry,
-                );
+            AstValidator::validate($inputNode);
+            AstValidator::validate($outputNode);
 
-                return new TypedOperation(
-                    inputDef: $input,
-                    outputDef: $output,
-                    errorDef: $this->generateAllErrorTypes($server, $operation->definition) |> TypeScript::fromRawString(...),
-                    operation: $operation,
-                );
-            }, $filteredDefinitions)
-        );
+            return new TypedOperation(
+                inputDef: $this->typescriptGenerator->toTypescript($inputNode, IO::INPUT, $registry),
+                outputDef: $this->typescriptGenerator->toTypescript($outputNode, IO::OUTPUT, $registry),
+                errorDef: $this->generateAllErrorTypes($server, $operation->definition) |> Typescript::fromRawString(...),
+                operation: $operation,
+            );
+        }, $filteredDefinitions);
 
         // Deterministically sort for consistency between systems
         usort($definitions, function (TypedOperation $a, TypedOperation $b): int {
@@ -126,7 +119,7 @@ final readonly class TypescriptServerCodeGenerator
         $possibleTypes = Lists::filterNullValues(array_map(static function (ExceptionPresenter $presenter) use ($operation): string {
             $code = $presenter::errorType();
             $codeName = json_encode($code->name, JSON_THROW_ON_ERROR);
-            $details = $presenter->toTypeScriptDefinition($operation);
+            $details = $presenter->toTypescriptDefinition($operation);
 
             return $details === null
                 ? "{code: {$code->value}, type: {$codeName}}"
@@ -157,7 +150,7 @@ final readonly class TypescriptServerCodeGenerator
 
                 foreach ($codeGenerator->emitFiles($definitions, $metadata, $registry) as $fileName => $fileContent) {
                     if (preg_match('/^[a-zA-Z0-9_\-]+$/', $fileName) !== 1) {
-                        throw new RuntimeException("Invalid file name '{$fileName}' for lib file. File names must only contain a-z, A-Z, 0-9, - and _.");
+                        throw new CodeGenException("Invalid file name '{$fileName}' for lib file. File names must only contain a-z, A-Z, 0-9, - and _.");
                     }
 
                     // Several generators may contribute to one lib file, so they accumulate rather

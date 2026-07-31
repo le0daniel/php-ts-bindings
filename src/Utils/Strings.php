@@ -4,11 +4,11 @@ namespace Le0daniel\PhpTsBindings\Utils;
 
 use UnitEnum;
 
-final class Strings
+final readonly class Strings
 {
     /**
-     * @param class-string $className
-     * @return string
+     * The last segment of a backslash separated name. Not restricted to class-string: it is also
+     * used on namespaces and on names parsed out of `use` statements, which are unverified.
      */
     public static function classBaseName(string $className): string
     {

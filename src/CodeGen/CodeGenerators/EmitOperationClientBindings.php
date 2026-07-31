@@ -7,10 +7,12 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
+use Override;
 
-final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
+final readonly class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
 {
 
+    #[Override]
     public function dependsOnGenerator(): array
     {
         return [
@@ -21,6 +23,7 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
     /**
      * @return array<string, TypescriptFile>
      */
+    #[Override]
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         return [

@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 
 final class CachedOperationRegistry implements OperationRegistry
 {
@@ -23,6 +24,7 @@ final class CachedOperationRegistry implements OperationRegistry
     {
     }
 
+    #[Override]
     public function has(OperationType $type, string $fullyQualifiedKey): bool
     {
         return array_key_exists(
@@ -31,6 +33,7 @@ final class CachedOperationRegistry implements OperationRegistry
         );
     }
 
+    #[Override]
     public function get(OperationType $type, string $fullyQualifiedKey): Operation
     {
         $key = self::key($type, $fullyQualifiedKey);
@@ -42,6 +45,7 @@ final class CachedOperationRegistry implements OperationRegistry
         return "{$type->name}:{$fullyQualifiedKey}";
     }
 
+    #[Override]
     public function all(): array
     {
         foreach ($this->operations as $key => $factory) {
@@ -78,7 +82,7 @@ final class CachedOperationRegistry implements OperationRegistry
         }
 
         // The ast optimizer deduplicates all the ASTs, minimizing the nodes required at runtime.
-        $optimizer = new AstOptimizer(
+        $optimizer = new ASTOptimizer(
             idLength: $idLength,
         );
         $operationRegistryClass = PHPExport::absolute(CachedOperationRegistry::class);

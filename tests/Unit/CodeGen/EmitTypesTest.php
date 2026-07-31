@@ -11,7 +11,7 @@ use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
@@ -41,7 +41,7 @@ function emitTypesFor(string $inputType, string $outputType): string
     $output = $generator->toTypescript($operation->outputNode(), IO::OUTPUT, $registry);
 
     $files = new EmitTypes()->emitFiles(
-        [new TypedOperation($input, $output, TypeScript::fromRawString(''), $operation)],
+        [new TypedOperation($input, $output, Typescript::fromRawString(''), $operation)],
         new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
         $registry,
     );

@@ -11,7 +11,7 @@ use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
-use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedRegistry;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
@@ -28,7 +28,7 @@ use Tests\Unit\CodeGen\Mocks\UserOperations;
 function generateFor(array $classes, ?array $generators = null): array
 {
     $server = new Server(
-        EagerlyLoadedRegistry::withClasses($classes, keyGenerator: new PlainlyExposedKeyGenerator()),
+        EagerlyLoadedOperationRegistry::withClasses($classes, keyGenerator: new PlainlyExposedKeyGenerator()),
         [],
     );
 

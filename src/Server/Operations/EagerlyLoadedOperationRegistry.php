@@ -7,14 +7,19 @@ use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Parser\Data\ParsingContext;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Reflection\FileReflector;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
+use Override;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 use ReflectionClass;
 use ReflectionException;
+use SplFileInfo;
 
-final class EagerlyLoadedRegistry implements OperationRegistry
+final class EagerlyLoadedOperationRegistry implements OperationRegistry
 {
     /**
      * @var array<string, Operation>
@@ -44,15 +49,34 @@ final class EagerlyLoadedRegistry implements OperationRegistry
     ): self
     {
         $directories = is_array($directories) ? $directories : [$directories];
-        $discoverer = new DiscoveryManager([$discovery]);
         foreach ($directories as $directory) {
-            $discoverer->discover($directory);
+            self::discoverDirectory($directory, $discovery);
         }
 
-        return self::readDiscoverer($parser, $keyGenerator, $discovery);
+        return self::registryFromDiscovery($parser, $keyGenerator, $discovery);
     }
 
-    private static function readDiscoverer(
+    /**
+     * Every .php file under $directory is reflected and offered to the discovery, which keeps the
+     * ones carrying #[Query] or #[Command].
+     */
+    private static function discoverDirectory(string $directory, OperationDiscovery $discovery): void
+    {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($directory)
+        );
+
+        /** @var SplFileInfo $file */
+        foreach ($iterator as $file) {
+            if (!$file->isFile() || $file->getExtension() !== 'php' || !$file->getRealPath()) {
+                continue;
+            }
+
+            $discovery->discover(new FileReflector($file->getRealPath())->getDeclaredClass());
+        }
+    }
+
+    private static function registryFromDiscovery(
         TypeParser            $parser,
         OperationKeyGenerator $keyGenerator,
         OperationDiscovery    $discovery,
@@ -93,7 +117,7 @@ final class EagerlyLoadedRegistry implements OperationRegistry
         foreach ($classes as $className) {
             $discovery->discover(new ReflectionClass($className));
         }
-        return self::readDiscoverer($parser, $keyGenerator, $discovery);
+        return self::registryFromDiscovery($parser, $keyGenerator, $discovery);
     }
 
     private static function key(OperationType $type, string $fullyQualifiedKey): string
@@ -101,6 +125,7 @@ final class EagerlyLoadedRegistry implements OperationRegistry
         return "{$type->name}@{$fullyQualifiedKey}";
     }
 
+    #[Override]
     public function has(OperationType $type, string $fullyQualifiedKey): bool
     {
         $key = self::key($type, $fullyQualifiedKey);
@@ -110,6 +135,7 @@ final class EagerlyLoadedRegistry implements OperationRegistry
     /**
      * @throws ReflectionException
      */
+    #[Override]
     public function get(OperationType $type, string $fullyQualifiedKey): Operation
     {
         $key = self::key($type, $fullyQualifiedKey);
@@ -119,6 +145,7 @@ final class EagerlyLoadedRegistry implements OperationRegistry
     /**
      * @return Operation[]
      */
+    #[Override]
     public function all(): array
     {
         foreach ($this->factories as $key => $factory) {

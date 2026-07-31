@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Lexer;
 
+use Override;
 use Stringable;
 
 /**
@@ -38,6 +39,7 @@ final readonly class Token implements Stringable
         return in_array($this->type, $types, true);
     }
 
+    #[Override]
     public function __toString(): string
     {
         return $this->value;

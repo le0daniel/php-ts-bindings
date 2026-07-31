@@ -6,15 +6,14 @@ use Closure;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
-use Le0daniel\PhpTsBindings\Contracts\Discoverer;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use ReflectionClass;
 use ReflectionMethod;
-use RuntimeException;
 
-final class OperationDiscovery implements Discoverer
+final class OperationDiscovery
 {
     private const string DEFAULT_NAMESPACE = 'global';
 
@@ -29,15 +28,12 @@ final class OperationDiscovery implements Discoverer
     }
 
     /**
-     * Used for extensibility.
-     * Return false to filter the item out and have your own custom rules
+     * The extension point is the $filterFn closure, not a subclass - this class is final. Return
+     * false from it to keep an operation out of the registry.
      *
      * @param ReflectionClass<object> $class
-     * @param ReflectionMethod $method
-     * @param Query|Command $attribute
-     * @return bool
      */
-    protected function filter(ReflectionClass $class, ReflectionMethod $method, Query|Command $attribute): bool
+    private function filter(ReflectionClass $class, ReflectionMethod $method, Query|Command $attribute): bool
     {
         if ($this->filterFn) {
             return ($this->filterFn)($class, $method, $attribute);
@@ -47,7 +43,7 @@ final class OperationDiscovery implements Discoverer
     }
 
     /** @param ReflectionClass<object> $class */
-    final public function discover(ReflectionClass $class): void
+    public function discover(ReflectionClass $class): void
     {
         foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             $attributes = $method->getAttributes();
@@ -68,7 +64,7 @@ final class OperationDiscovery implements Discoverer
                     $fullKey = "{$definition->type->name}@{$definition->fullyQualifiedName()}";
 
                     if (array_key_exists($fullKey, $this->operations)) {
-                        throw new RuntimeException("Name collision for: {$definition->fullyQualifiedName()} defined in {$definition->fullyQualifiedClassName} -> {$definition->methodName}.");
+                        throw new SchemaException("Name collision for: {$definition->fullyQualifiedName()} defined in {$definition->fullyQualifiedClassName} -> {$definition->methodName}.");
                     }
 
                     $this->operations[$fullKey] = $definition;
@@ -92,7 +88,7 @@ final class OperationDiscovery implements Discoverer
 
         $parameters = $method->getParameters();
         if (count($parameters) < 1) {
-            throw new RuntimeException("Method {$method->name} must have at least one parameter.");
+            throw new SchemaException("Method {$method->name} must have at least one parameter.");
         }
 
         // Collect all middlewares, on the class and the method itself.

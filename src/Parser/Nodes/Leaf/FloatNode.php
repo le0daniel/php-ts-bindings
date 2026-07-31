@@ -7,21 +7,25 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 
 final readonly class FloatNode implements NodeInterface, LeafNode, Coercible
 {
     use RejectsInvalidType;
 
+    #[Override]
     public function __toString(): string
     {
         return 'float';
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         return 'new ' . PHPExport::absolute(self::class) . '()';
     }
 
+    #[Override]
     public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
         return is_float($value) || is_int($value)
@@ -29,6 +33,7 @@ final readonly class FloatNode implements NodeInterface, LeafNode, Coercible
             : $this->invalidType('float', $value, $context);
     }
 
+    #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         return is_numeric($value)
@@ -36,6 +41,7 @@ final readonly class FloatNode implements NodeInterface, LeafNode, Coercible
             : $this->invalidType('float', $value, $context);
     }
 
+    #[Override]
     public function coerce(mixed $value): mixed
     {
         return filter_var($value, FILTER_VALIDATE_INT) !== false || filter_var($value, FILTER_VALIDATE_FLOAT) !== false

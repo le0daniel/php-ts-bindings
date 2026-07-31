@@ -2,13 +2,15 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript\Utils;
 
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
+
 /**
  * TypeScript syntax primitives.
  *
  * Everything the generator needs to write is spelled out here, so this package depends on nothing
  * outside itself and CodeGen depends on it rather than the other way round.
  */
-final class Syntax
+final readonly class Syntax
 {
     public static function isValidIdentifier(string $name): bool
     {
@@ -20,7 +22,7 @@ final class Syntax
      */
     public static function objectKey(string $key, bool $optional = false): string
     {
-        $encoded = preg_match('/^[a-zA-Z_][a-zA-Z\d_]*$/', $key)
+        $encoded = self::isValidIdentifier($key)
             ? $key
             : self::stringLiteral($key);
 
@@ -41,14 +43,27 @@ final class Syntax
     }
 
     /**
+     * A specifier is written verbatim inside a single quoted string literal. Whitespace, quotes and
+     * backslashes would either break the literal or silently name a module that does not exist, so
+     * they are rejected rather than escaped into something plausible.
+     */
+    public static function isValidModuleSpecifier(string $specifier): bool
+    {
+        return $specifier !== '' && preg_match('/[\s\'"\\\\]/', $specifier) !== 1;
+    }
+
+    /**
      * A module specifier as it appears after `from`. Single quoted, matching the rest of the
      * generated output — unlike stringLiteral(), which is JSON and therefore double quotes.
-     * The specifier is written verbatim, so the caller vouches for it being writable.
+     *
+     * @throws CodeGenException When the specifier cannot be written verbatim.
      */
     public static function moduleSpecifier(string $specifier): string
     {
-        if (str_contains($specifier, "'")) {
-            throw new \RuntimeException("Invalid path specified: '{$specifier}'");
+        if (!self::isValidModuleSpecifier($specifier)) {
+            throw new CodeGenException(
+                "'{$specifier}' cannot be written as a TypeScript module specifier."
+            );
         }
 
         return "'{$specifier}'";

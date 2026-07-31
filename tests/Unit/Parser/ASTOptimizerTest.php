@@ -124,7 +124,7 @@ test('C2: a float literal schema pooled with an int literal twin still rejects t
 
 test('C3: unions differing only in discriminator do not share an entry', function () {
     $discriminated = new TypeParser()->parse("array{kind: 'a', v: string}|array{kind: 'b', v: int}");
-    $plain = new Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode($discriminated->types);
+    $plain = new Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode($discriminated->nodes);
 
     expect($discriminated->exportPhpCode())->not->toBe($plain->exportPhpCode());
 

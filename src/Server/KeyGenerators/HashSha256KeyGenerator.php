@@ -3,8 +3,8 @@
 namespace Le0daniel\PhpTsBindings\Server\KeyGenerators;
 
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
-use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Utils\Hashs;
+use Override;
 
 final readonly class HashSha256KeyGenerator implements OperationKeyGenerator
 {
@@ -16,6 +16,7 @@ final readonly class HashSha256KeyGenerator implements OperationKeyGenerator
     {
     }
 
+    #[Override]
     public function generateKey(string $namespace, string $name): string
     {
         $namespaceHash = Hashs::base64UrlEncodedSha256("{$namespace}|{$this->pepper}");

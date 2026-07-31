@@ -6,6 +6,7 @@ use Closure;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\UnknownTypeKeyException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
@@ -21,7 +22,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
-use RuntimeException;
 
 final class ASTOptimizer
 {
@@ -42,7 +42,7 @@ final class ASTOptimizer
     )
     {
         if ($this->registryVariableName === self::KEY_VARIABLE_NAME) {
-            throw new RuntimeException(
+            throw new ParserException(
                 "The registry variable cannot be named '" . self::KEY_VARIABLE_NAME
                 . "'; it would collide with the generated factory's key parameter.",
             );
@@ -63,7 +63,7 @@ final class ASTOptimizer
         $identifier = '#' . $prefix . substr(sha1($exported), 0, $this->idLength);
 
         if (isset($this->dedupedNodes[$identifier]) && $this->dedupedNodes[$identifier][1] !== $exported) {
-            throw new RuntimeException(
+            throw new ParserException(
                 "Identity hash collision on '{$identifier}'. Increase the idLength of the ASTOptimizer.",
             );
         }
@@ -90,7 +90,7 @@ PHP);
     public function generateOptimizedCode(array $nodes): string
     {
         if (array_any(array_keys($nodes), fn(string $key) => str_starts_with($key, '#'))) {
-            throw new RuntimeException('The keys of the nodes MUST not start with a # character');
+            throw new ParserException('The keys of the nodes MUST not start with a # character');
         }
 
         $this->dedupedNodes = [];
@@ -123,10 +123,21 @@ PHP);
             . "return match (\${$key}) { {$arms} default => throw {$unknownKeyException}::forKey(\${$key}) }; })";
     }
 
+    private static function asCastableNode(NodeInterface $node): StructNode|ListNode|RecordNode|ReferencedNode
+    {
+        assert(
+            $node instanceof StructNode
+            || $node instanceof ListNode
+            || $node instanceof RecordNode
+            || $node instanceof ReferencedNode
+        );
+        return $node;
+    }
+
     /**
-     * @template T of NodeInterface
-     * @param T $node
-     * @return T|ReferencedNode
+     * Returns either an interned reference to the node or a rebuilt node whose children have been
+     * interned. Not the same concrete type as the input: a PropertyNode comes back as a
+     * ReferencedNode, and a composite comes back rebuilt.
      */
     private function dedupeNode(NodeInterface $node): NodeInterface
     {
@@ -157,10 +168,10 @@ PHP);
 
         // Deep optimization
         if ($node instanceof StructNode) {
-            return $this->intern('s', new StructNode(
-                $node->phpType,
-                array_map($this->dedupeNode(...), $node->properties),
-            ), (string)$node);
+            /** @var non-empty-list<PropertyNode|ReferencedNode> $properties */
+            $properties = array_map($this->dedupeNode(...), $node->properties);
+
+            return $this->intern('s', new StructNode($node->phpType, $properties), (string)$node);
         }
 
         // Composite nodes are rebuilt inline rather than interned: a single use composite costs
@@ -168,7 +179,9 @@ PHP);
         return match ($node::class) {
             ConstraintNode::class => $this->flattenConstraintNode($node),
             CustomCastingNode::class => new CustomCastingNode(
-                $this->dedupeNode($node->node),
+                // A custom cast wraps a struct, list or record, and dedupe returns a reference to
+                // whichever it was - all four are what CustomCastingNode accepts.
+                self::asCastableNode($this->dedupeNode($node->node)),
                 $node->fullyQualifiedCastingClass,
                 $node->strategy,
             ),
@@ -179,17 +192,17 @@ PHP);
                 $this->dedupeNode($node->node),
             ),
             TupleNode::class => new TupleNode(
-                array_map($this->dedupeNode(...), $node->types),
+                array_map($this->dedupeNode(...), $node->nodes),
             ),
             UnionNode::class => new UnionNode(
-                array_map($this->dedupeNode(...), $node->types),
+                array_map($this->dedupeNode(...), $node->nodes),
                 $node->discriminator,
                 $node->discriminatorMap,
             ),
             IntersectionNode::class => new IntersectionNode(
-                array_map($this->dedupeNode(...), $node->types),
+                array_map($this->dedupeNode(...), $node->nodes),
             ),
-            default => throw new RuntimeException('Unknown node type: ' . $node::class),
+            default => throw new ParserException('Unknown node type: ' . $node::class),
         };
     }
 

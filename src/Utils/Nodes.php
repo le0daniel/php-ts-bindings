@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 
-final class Nodes
+final readonly class Nodes
 {
     public static function getDeclaringNode(NodeInterface $node): NodeInterface
     {
@@ -44,7 +44,7 @@ final class Nodes
         $stack = $nodes;
         while ($node = array_pop($stack)) {
             if ($node instanceof UnionNode) {
-                array_push($stack, ... $node->types);
+                array_push($stack, ... $node->nodes);
                 continue;
             }
 

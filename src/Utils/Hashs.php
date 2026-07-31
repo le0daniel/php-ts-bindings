@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
-final class Hashs
+final readonly class Hashs
 {
 
     public static function base64UrlEncodedSha256(string $message): string

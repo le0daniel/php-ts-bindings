@@ -83,11 +83,18 @@ DESCRIPTION;
             operations: null,
         );
 
-        try {
-            $metadata = new ServerMetadata(
-                $router->getRoutes()->getByName(LaravelHttpController::QUERY_NAME)->uri(),
-                $router->getRoutes()->getByName(LaravelHttpController::COMMAND_NAME)->uri(),
+        $queryRoute = $router->getRoutes()->getByName(LaravelHttpController::QUERY_NAME);
+        $commandRoute = $router->getRoutes()->getByName(LaravelHttpController::COMMAND_NAME);
+        if ($queryRoute === null || $commandRoute === null) {
+            $this->error(
+                'The operation routes are not registered. Call LaravelHttpController::registerQueries() '
+                . 'and ::registerCommands() from your route definitions.'
             );
+            return 1;
+        }
+
+        try {
+            $metadata = new ServerMetadata($queryRoute->uri(), $commandRoute->uri());
 
             $codeGenerator = new TypescriptServerCodeGenerator(
                 $this->getGeneratorsFromInput($application),
@@ -111,9 +118,16 @@ DESCRIPTION;
             return 1;
         }
 
-        $directory = str_starts_with('/', $this->argument('directory'))
-            ? $this->argument('directory')
-            : base_path($this->argument('directory'));
+        $target = ArtisanOptions::asString($this->argument('directory')) ?? '';
+        if ($target === '') {
+            $this->error('A target directory is required.');
+            return 1;
+        }
+
+        // Argument order matters: the haystack is the path. Reversed, this asked whether '/' starts
+        // with the path, which is false for every real input, so absolute paths were being prefixed
+        // with base_path().
+        $directory = str_starts_with($target, '/') ? $target : base_path($target);
 
         if ($this->option('verify')) {
             $this->info("Verify generated code only.");
@@ -155,14 +169,15 @@ DESCRIPTION;
             return $nameGenerator;
         }
 
-        $possibleClassNameAndMethod = $this->option('naming');
-        $parts = explode('::', $possibleClassNameAndMethod, 2);
+        $naming = ArtisanOptions::asString($this->option('naming')) ?? '';
+        $parts = explode('::', $naming, 2);
 
         if (count($parts) === 2 && class_exists($parts[0]) && method_exists($parts[0], $parts[1])) {
-            return Closure::fromCallable([$application->make($parts[0]), $parts[1]]);
+            $instance = $application->make($parts[0]);
+            return $instance->{$parts[1]}(...);
         }
 
-        $this->error("Unknown naming mode {$this->option('naming')}.");
+        $this->error("Unknown naming mode {$naming}.");
         exit(1);
     }
 

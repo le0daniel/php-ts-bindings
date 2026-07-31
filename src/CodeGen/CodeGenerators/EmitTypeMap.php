@@ -8,10 +8,12 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Override;
 
-final class EmitTypeMap implements GeneratesLibFiles
+final readonly class EmitTypeMap implements GeneratesLibFiles
 {
 
+    #[Override]
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         /**

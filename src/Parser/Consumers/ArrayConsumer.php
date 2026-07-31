@@ -6,8 +6,6 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\MixedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
@@ -16,6 +14,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Utils\Nodes;
+use Override;
 
 /**
  * Most complex consumer. It consumes the php array type which is a bit of everything:
@@ -32,6 +31,7 @@ final readonly class ArrayConsumer implements TypeConsumer
     {
     }
 
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
@@ -44,6 +44,7 @@ final readonly class ArrayConsumer implements TypeConsumer
     /**
      * @throws InvalidSyntaxException
      */
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): RecordNode|ListNode|TupleNode
     {
         $type = match ($state->current()->value) {
@@ -143,6 +144,10 @@ final readonly class ArrayConsumer implements TypeConsumer
         }
 
         $state->advance();
+        if ($types === []) {
+            $state->produceSyntaxError('A tuple must declare at least one type.');
+        }
+
         return new TupleNode($types);
     }
 
@@ -181,6 +186,10 @@ final readonly class ArrayConsumer implements TypeConsumer
         }
 
         $state->advance();
+        if ($types === []) {
+            $state->produceSyntaxError('A tuple must declare at least one type.');
+        }
+
         return new TupleNode($types);
     }
 }

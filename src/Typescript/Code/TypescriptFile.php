@@ -4,6 +4,8 @@ namespace Le0daniel\PhpTsBindings\Typescript\Code;
 
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 use Le0daniel\PhpTsBindings\Utils\Lists;
+use NoDiscard;
+use Override;
 use Stringable;
 
 /**
@@ -49,15 +51,17 @@ final readonly class TypescriptFile implements Stringable
         $this->imports = self::mergeByModule($imports);
     }
 
+    #[NoDiscard]
     public function withImports(TypescriptImport ...$imports): self
     {
-        return new self($this->code, [...$this->imports, ...$imports]);
+        return new self($this->code, [...$this->imports, ...$imports] |> array_values(...));
     }
 
     /**
      * Appends a block of code. A string carries no imports; a file carries its own, merged into
      * this one. Blocks are separated by a blank line, and appending nothing changes nothing.
      */
+    #[NoDiscard]
     public function append(string|self $block): self
     {
         $code = $block instanceof self ? $block->code : self::normalizeBlock($block);
@@ -86,6 +90,7 @@ final readonly class TypescriptFile implements Stringable
         return implode(PHP_EOL, $importLines) . PHP_EOL . ($body === '' ? '' : PHP_EOL . $body);
     }
 
+    #[Override]
     public function __toString(): string
     {
         return $this->toString();

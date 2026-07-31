@@ -9,6 +9,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 use UnitEnum;
 
 final class EnumNode implements NodeInterface, LeafNode
@@ -25,11 +26,13 @@ final class EnumNode implements NodeInterface, LeafNode
     {
     }
 
+    #[Override]
     public function __toString(): string
     {
         return "enum<{$this->enumClassName}>";
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $enumClass = PHPExport::absolute($this->enumClassName);
@@ -37,6 +40,7 @@ final class EnumNode implements NodeInterface, LeafNode
         return "new {$className}({$enumClass}::class)";
     }
 
+    #[Override]
     public function parseValue(mixed $value, ExecutionContext $context): UnitEnum|Value
     {
         /** ToDo: Error handling */
@@ -71,6 +75,7 @@ final class EnumNode implements NodeInterface, LeafNode
         return Value::INVALID;
     }
 
+    #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         if (!is_a($value, $this->enumClassName)) {

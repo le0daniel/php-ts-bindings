@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript;
 
-use InvalidArgumentException;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
@@ -29,7 +29,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Typescript\Data\EmissionContext;
 use Le0daniel\PhpTsBindings\Typescript\Data\IO;
-use Le0daniel\PhpTsBindings\Typescript\Data\TypeScript;
+use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
@@ -45,10 +45,10 @@ use UnitEnum;
  */
 final readonly class TypescriptGenerator
 {
-    public function toTypescript(NodeInterface $node, IO $io, ?AliasRegistry $sharedRegistry = null): TypeScript
+    public function toTypescript(NodeInterface $node, IO $io, ?AliasRegistry $sharedRegistry = null): Typescript
     {
         if ($io === IO::BOTH) {
-            throw new InvalidArgumentException('Emit for IO::INPUT or IO::OUTPUT; IO::BOTH is only a #[Named] scope.');
+            throw new CodeGenException('Emit for IO::INPUT or IO::OUTPUT; IO::BOTH is only a #[Named] scope.');
         }
 
         // Every pass emits into its own local registry, so the result always carries exactly the
@@ -63,7 +63,7 @@ final readonly class TypescriptGenerator
             $sharedRegistry?->set($alias, $definition);
         }
 
-        return new TypeScript($type, $localRegistry);
+        return new Typescript($type, $localRegistry);
     }
 
     private function emit(NodeInterface $node, EmissionContext $context): string
@@ -204,7 +204,7 @@ final readonly class TypescriptGenerator
     {
         $members = array_map(
             fn($member): string => $this->emit($member, $context),
-            $node->types,
+            $node->nodes,
         );
 
         // Distinct schema nodes can render to the same type: `int|float` is one `number`.
@@ -215,7 +215,7 @@ final readonly class TypescriptGenerator
     {
         $members = array_map(
             fn($member): string => $this->emit($member, $context),
-            $node->types,
+            $node->nodes,
         );
 
         return implode('&', $members) |> Syntax::wrapInParentheses(...);
@@ -225,7 +225,7 @@ final readonly class TypescriptGenerator
     {
         $members = array_map(
             fn(NodeInterface $member): string => $this->emit($member, $context),
-            $node->types,
+            $node->nodes,
         );
 
         return '[' . implode(',', $members) . ']';

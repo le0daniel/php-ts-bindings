@@ -9,9 +9,11 @@ use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\DateTimeNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Override;
 
-final class DateTimeConsumer implements TypeConsumer
+final readonly class DateTimeConsumer implements TypeConsumer
 {
+    #[Override]
     public function canConsume(ParserState $state): bool
     {
         if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
@@ -30,6 +32,7 @@ final class DateTimeConsumer implements TypeConsumer
         return class_exists($token->value, false) && is_a($token->value, DateTimeInterface::class, true);
     }
 
+    #[Override]
     public function consume(ParserState $state, TypeParser $parser): NodeInterface
     {
         $token = $state->current();
