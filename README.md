@@ -359,6 +359,79 @@ docblock utilities are the shorthand for brand + name in one, since docblocks ca
 attributes: `BrandedString<'token'>` is referenced as `Token` and declared as
 `export type Token = (string & Brand<"token">)`.
 
+### Sharing one declaration across value objects
+
+A family of ids usually shares an interface or a base class. Declare the attributes once there and
+every value object in the family picks them up:
+
+```php
+#[Brand]
+#[Named]
+interface IntId extends IntValueObject {}
+
+final readonly class AccountId implements IntId { /* ... */ }
+final readonly class BrandId   implements IntId { /* ... */ }
+```
+
+```typescript
+export type AccountId = (number & Brand<"accountId">);
+export type BrandId = (number & Brand<"brandId">);
+```
+
+The brand and the alias are derived from the **concrete** class, not from the one carrying the
+attribute — which is the whole point: `AccountId` and `BrandId` share a declaration but stay
+mutually unassignable in TypeScript.
+
+Each attribute is resolved on its own, in this order:
+
+1. **The class itself.** A local declaration always wins, and declaring both attributes locally
+   means nothing else is inspected. A local `#[Brand]` combines fine with an inherited `#[Named]`.
+2. **The direct parent class,** abstract or concrete.
+3. **The directly declared interfaces.** Two of them declaring the same attribute is an ambiguity
+   the library refuses to resolve — it fails instead of picking one. Declare the attribute on the
+   class itself to say which applies.
+
+The remaining caveats are worth reading, because each is silent otherwise:
+
+- **Value objects only.** Enums and plain classes read the attributes from the class itself and
+  nothing else, so implementing a `#[Named]` interface names nothing.
+- **One level up, and no further.** `interface DeepId extends IntId` does not pass `IntId`'s
+  attributes on to *its* implementors, and neither does `class GrandChild extends Child extends
+  Base`. Redeclare them on the intermediate type when you want them to keep travelling.
+- **An inherited declaration cannot carry a fixed name.** `#[Brand('id')]` on `IntId` would give
+  every implementor the brand `"id"` and collapse them into one type, so it is rejected at parse
+  time. Drop the name to derive it per class, or compute one with a closure — see below.
+- **A concrete parent keeps a brand of its own.** `#[Brand]` on a non-abstract `BaseId` brands
+  `BaseId` as `baseId` *and* its children after their own names — one declaration, distinct types.
+
+### Computing the name yourself
+
+Both attributes accept a closure instead of a string, called with the class being emitted. It works
+anywhere, but it is what makes a *shared* declaration flexible: an inherited attribute cannot carry
+a fixed name, yet it can carry a rule each implementor runs against its own class name.
+
+```php
+final class Naming
+{
+    public static function alias(string $className): string
+    {
+        return explode('\\', $className) |> array_last(...) |> ucfirst(...);
+    }
+}
+
+#[Brand]
+#[Named(name: Naming::alias(...))]
+interface IntId extends IntValueObject {}
+```
+
+> **PHP only accepts first-class callable syntax here.** A closure literal in an attribute argument
+> — `#[Named(name: static fn(string $c) => ucfirst($c))]` — does not compile: PHP reports
+> *"Constant expression contains invalid operations"*. Point the closure at a named function or
+> static method instead, as above.
+
+The closure runs at parse time, never at runtime, and its result still has to be a valid TypeScript
+identifier — an invalid one fails generation the same way a bad string literal does.
+
 ## Validating AST
 
 By default, the parsed AST is not validated. This means, the AST itself can be invalid. For example Intersection types

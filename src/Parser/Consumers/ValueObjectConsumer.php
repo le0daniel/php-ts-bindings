@@ -77,6 +77,11 @@ final readonly class ValueObjectConsumer implements TypeConsumer
             ),
             $reflectionClass,
             defaultIo: IO::BOTH,
+            // A family of ids usually shares one interface or base class; let it carry the
+            // declaration for all of them. Only value objects opt in: an interface or abstract
+            // parent is never parseable on its own here, so the attributes cannot mean anything
+            // other than "apply to my children".
+            inheritFromParents: true,
         );
     }
 }

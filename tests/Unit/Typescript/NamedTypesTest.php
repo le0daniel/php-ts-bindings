@@ -22,6 +22,8 @@ use Tests\Mocks\Named\Order;
 use Tests\Mocks\Named\OrderStatus;
 use Tests\Mocks\Named\PublicResource;
 use Tests\Mocks\Named\RenamedThing;
+use Tests\Mocks\ValueObjects\Inherited\AccountId;
+use Tests\Mocks\ValueObjects\Inherited\BrandId;
 
 test('a named class is referenced by its alias on output and carries its definition in the registry', function () {
     $node = new TypeParser()->parse(Customer::class);
@@ -171,6 +173,22 @@ test('two named nodes claiming one alias with different shapes are rejected', fu
 
     expect(fn() => new TypescriptGenerator()->toTypescript($outer, IO::OUTPUT))
         ->toThrow(UnsupportedTypeException::class, 'Cycle');
+});
+
+test('siblings inheriting one declaration emit distinct aliases in both directions', function () {
+    $node = new TypeParser()->parse(
+        'array{account: \\' . AccountId::class . ', brand: \\' . BrandId::class . '}',
+    );
+
+    foreach ([IO::INPUT, IO::OUTPUT] as $io) {
+        $result = typescriptFor($node, $io);
+
+        expect($result->type)->toBe('{account:AccountId;brand:BrandId;}')
+            ->and($result->registry->toArray())->toBe([
+                'AccountId' => '(number & Brand<"accountId">)',
+                'BrandId' => '(number & Brand<"brandId">)',
+            ]);
+    }
 });
 
 test('cached ASTs are metadata free and emit the plain structural type', function () {

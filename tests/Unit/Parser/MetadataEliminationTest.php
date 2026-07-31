@@ -72,6 +72,7 @@ dataset('metadata positions', [
     'deeply nested' => "array{a: array{b: list<BrandedString<'tok'>>}}",
     'named class' => Customer::class,
     'branded value object' => Email::class,
+    'value object with inherited metadata' => \Tests\Mocks\ValueObjects\Inherited\AccountId::class,
     'value object in struct' => 'array{e: ' . Email::class . '}',
     'named class in list' => 'list<' . Customer::class . '>',
     'named class in union' => Customer::class . '|null',
