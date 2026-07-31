@@ -2,9 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
-use Le0daniel\PhpTsBindings\Executor\Contracts\Result;
-use Override;
-
 /**
  * A value did not validate. Returned from the executor, never thrown - a value the caller supplied
  * being wrong is an outcome, not an exceptional condition.
@@ -14,24 +11,12 @@ use Override;
  * to travel as an exception - across the RPC boundary - InvalidInputException and
  * InvalidOutputException wrap it.
  */
-final readonly class Failure implements Result
+final readonly class Failure
 {
     public function __construct(
         public Issues $issues,
     )
     {
-    }
-
-    #[Override]
-    public function isSuccess(): false
-    {
-        return false;
-    }
-
-    #[Override]
-    public function issues(): Issues
-    {
-        return $this->issues;
     }
 
     /**
@@ -41,5 +26,10 @@ final readonly class Failure implements Result
     public function describe(): string
     {
         return "Validation failed: {$this->issues->serializeToCompleteString()}.";
+    }
+
+    public function isSuccess(): false
+    {
+        return false;
     }
 }

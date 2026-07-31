@@ -18,22 +18,10 @@ test('a Failure is not throwable', function () {
     expect(new Failure(new Issues()))->not->toBeInstanceOf(\Throwable::class);
 });
 
-test('both arms of a result implement Result', function () {
-    expect(new Success('value'))->toBeInstanceOf(Result::class)
-        ->and(new Failure(new Issues()))->toBeInstanceOf(Result::class);
-});
-
 test('isSuccess distinguishes the two arms without instanceof', function () {
     expect(new Success('value')->isSuccess())->toBeTrue()
         ->and(new Failure(new Issues())->isSuccess())->toBeFalse();
 });
-
-test('issues are reachable through the Result contract on both arms', function (Result $result) {
-    expect($result->issues())->toBeInstanceOf(Issues::class);
-})->with([
-    'success' => [fn() => new Success('value')],
-    'failure' => [fn() => new Failure(new Issues())],
-]);
 
 test('a returned failure cannot be caught as an exception', function () {
     $executor = new SchemaExecutor();
@@ -44,8 +32,7 @@ test('a returned failure cannot be caught as an exception', function () {
         $this->fail('A failed parse must be returned, not thrown: ' . $e::class);
     }
 
-    expect($result)->toBeInstanceOf(Failure::class)
-        ->and($result->isSuccess())->toBeFalse();
+    expect($result)->toBeInstanceOf(Failure::class);
 });
 
 test('the executor still narrows to the concrete arms', function () {

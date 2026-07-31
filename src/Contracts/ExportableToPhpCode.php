@@ -2,6 +2,9 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
+/**
+ * @internal
+ */
 interface ExportableToPhpCode
 {
     public function exportPhpCode(): string;

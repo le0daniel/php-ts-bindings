@@ -38,7 +38,7 @@ test('the non-empty-string failure reports an IssueMessage, not a raw key', func
     $result = executeParse('non-empty-string', '');
     $keys = array_map(
         fn($issue) => $issue->messageOrLocalizationKey,
-        $result->issues()->allFlat(),
+        $result->issues->allFlat(),
     );
 
     expect($keys)->toContain(IssueMessage::NOT_EMPTY_STRING->value);

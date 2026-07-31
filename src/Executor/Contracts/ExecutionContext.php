@@ -4,6 +4,9 @@ namespace Le0daniel\PhpTsBindings\Executor\Contracts;
 
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 
+/**
+ * @internal
+ */
 interface ExecutionContext
 {
     public function addIssue(Issue $issue): void;
