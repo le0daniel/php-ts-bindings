@@ -18,7 +18,7 @@ use ReflectionClass;
 use ReflectionException;
 
 /**
- * Consumes user defined value objects: classes implementing StringValueObject or IntValueObject.
+ * Consumes user-defined value objects: classes implementing StringValueObject or IntValueObject.
  *
  * Registered ahead of EnumConsumer, DateTimeConsumer and UserDefinedObjectConsumer, all of which
  * would otherwise claim the class first.
