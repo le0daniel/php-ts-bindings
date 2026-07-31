@@ -29,7 +29,6 @@ function generateFor(array $classes, ?array $generators = null): array
 {
     $server = new Server(
         EagerlyLoadedOperationRegistry::withClasses($classes, keyGenerator: new PlainlyExposedKeyGenerator()),
-        [],
     );
 
     return new TypescriptServerCodeGenerator(

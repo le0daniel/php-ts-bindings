@@ -17,12 +17,6 @@ use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
-use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
-use Le0daniel\PhpTsBindings\Server\Presenter\ExposedExceptionPresenter;
-use Le0daniel\PhpTsBindings\Server\Presenter\InvalidInputPresenter;
-use Le0daniel\PhpTsBindings\Server\Presenter\NotFoundPresenter;
-use Le0daniel\PhpTsBindings\Server\Presenter\UnauthenticatedPresenter;
-use Le0daniel\PhpTsBindings\Server\Presenter\UnauthorizedPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Override;
 
@@ -70,17 +64,14 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
         return new Server(
             registry: $operations,
-            exceptionPresenters: [
-                new InvalidInputPresenter(),
-                new UnauthorizedPresenter($config->get('operations.exceptions.unauthorized', [])),
-                new UnauthenticatedPresenter($config->get('operations.exceptions.unauthenticated', [])),
-                new NotFoundPresenter($config->get('operations.exceptions.not_found', [])),
-                new ExposedExceptionPresenter(),
-            ],
-            defaultPresenter: new CatchAllPresenter(),
             container: $app,
             configuration: new ServerConfiguration()
-                ->withMiddlewares(...config('operations.middleware', [])),
+                ->withMiddlewares(...$config->get('operations.middleware', []))
+                ->withExceptions(
+                    notFound: $config->get('operations.exceptions.not_found', []),
+                    unauthenticated: $config->get('operations.exceptions.unauthenticated', []),
+                    unauthorized: $config->get('operations.exceptions.unauthorized', []),
+                ),
         );
     }
 

@@ -5,10 +5,10 @@ namespace Le0daniel\PhpTsBindings\Server\Pipeline;
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
-use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
+use Le0daniel\PhpTsBindings\Server\Errors\ErrorPresenter;
 use Throwable;
 
 /**
@@ -83,12 +83,7 @@ final readonly class ContextualPipeline
         try {
             return ($this->onError)($throwable);
         } catch (Throwable $failedToPresent) {
-            return new RpcError(
-                ErrorType::INTERNAL_ERROR,
-                $failedToPresent,
-                ['type' => 'INTERNAL_SERVER_ERROR'],
-                $info,
-            );
+            return ErrorPresenter::internalError($failedToPresent, $info);
         }
     }
 }

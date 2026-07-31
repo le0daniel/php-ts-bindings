@@ -9,8 +9,8 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
-use Le0daniel\PhpTsBindings\Server\Presenter\ExposedExceptionPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Tests\Feature\Mocks\NotAMiddleware;
 
@@ -18,8 +18,8 @@ function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
     $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
     $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($registry, idLength: 10));
 
-    $server = new Server($registry, [new ExposedExceptionPresenter(),],);
-    $cachedServer = new Server($cachedRegistry, [new ExposedExceptionPresenter(),],);
+    $server = new Server($registry);
+    $cachedServer = new Server($cachedRegistry);
 
     $regularResponse = $server->command($name, $input, null, new NullClient());
     $cachedResponse = $cachedServer->command($name, $input, null, new NullClient());
@@ -60,9 +60,6 @@ test("A middleware that does not implement the contract yields an RpcError", fun
             __DIR__ . '/Operations',
             keyGenerator: new PlainlyExposedKeyGenerator
         ),
-        [
-            new ExposedExceptionPresenter(),
-        ],
         configuration: new ServerConfiguration()->withMiddlewares(NotAMiddleware::class),
     );
 
@@ -79,15 +76,12 @@ test("Middleware emits typescript middleware", function () {
             __DIR__ . '/Operations',
             keyGenerator: new PlainlyExposedKeyGenerator
         ),
-        [
-            new ExposedExceptionPresenter(),
-        ],
     );
 
     $operation = $server->registry->get(OperationType::COMMAND, 'test.run');
-    $errorPresenter = new ExposedExceptionPresenter();
-    $definition = $errorPresenter->toTypescriptDefinition($operation->definition);
-    expect($definition)->toEqual('{type: "invalid_name"}');
+    $union = ErrorTypescript::forOperation($server->configuration, $operation->definition);
+
+    expect($union)->toContain('{code: 400, type: "DOMAIN_ERROR", details: {type: "invalid_name"}}');
 });
 /**
  * The cached registry pools every operation's schemas together, so these cases only mean anything

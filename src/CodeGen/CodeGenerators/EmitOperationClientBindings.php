@@ -135,7 +135,7 @@ export class DefaultClient implements OperationClient {
             ...json,
             success: false,
             code: json?.code ?? response.status,
-            type: response.type ?? 'INTERNAL_ERROR'
+            type: json?.type ?? 'INTERNAL_ERROR'
         } as WithClientDirectives<Failure<E>>);
     }
 

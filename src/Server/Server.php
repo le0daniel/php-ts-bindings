@@ -3,14 +3,11 @@
 namespace Le0daniel\PhpTsBindings\Server;
 
 use Le0daniel\PhpTsBindings\Contracts\Client;
-use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
-use Le0daniel\PhpTsBindings\Server\Data\Definition;
-use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
@@ -21,8 +18,8 @@ use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
+use Le0daniel\PhpTsBindings\Server\Errors\ErrorPresenter;
 use Le0daniel\PhpTsBindings\Server\Pipeline\ContextualPipeline;
-use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
 use Psr\Container\ContainerExceptionInterface;
 use Psr\Container\ContainerInterface;
 use Psr\Container\NotFoundExceptionInterface;
@@ -33,30 +30,29 @@ final readonly class Server
     public SchemaExecutor $executor;
 
     /**
-     * @param OperationRegistry $registry
-     * @param list<ExceptionPresenter> $exceptionPresenters
-     * @param ExceptionPresenter $defaultPresenter
-     * @param ContainerInterface|null $container
-     * @param ServerConfiguration $configuration
+     * Error presentation is not an extension point: the catalogue is finite and the server needs it
+     * to run. What an application configures is which of its exceptions belong in which category.
+     *
+     * @see ErrorPresenter
      */
+    private ErrorPresenter $errorPresenter;
+
     public function __construct(
         public OperationRegistry        $registry,
-        public array                    $exceptionPresenters,
-        public ExceptionPresenter       $defaultPresenter = new CatchAllPresenter(),
         private null|ContainerInterface $container = null,
         public ServerConfiguration      $configuration = new ServerConfiguration(),
     )
     {
         $this->executor = new SchemaExecutor();
+        $this->errorPresenter = new ErrorPresenter($configuration);
     }
 
     public function query(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
         if (!$this->registry->has(OperationType::QUERY, $name)) {
-            return new RpcError(
-                ErrorType::NOT_FOUND,
+            return $this->errorPresenter->present(
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
-                ['type' => 'NOT_FOUND'],
+                null,
                 null,
             );
         }
@@ -67,10 +63,9 @@ final readonly class Server
     public function command(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
         if (!$this->registry->has(OperationType::COMMAND, $name)) {
-            return new RpcError(
-                ErrorType::NOT_FOUND,
+            return $this->errorPresenter->present(
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
-                ['type' => 'NOT_FOUND'],
+                null,
                 null,
             );
         }
@@ -103,12 +98,12 @@ final readonly class Server
                 ? $this->container->get($operation->definition->fullyQualifiedClassName)
                 : new $operation->definition->fullyQualifiedClassName;
         } catch (Throwable $throwable) {
-            return $this->produceError($throwable, $operation->definition, $resolveInfo);
+            return $this->errorPresenter->present($throwable, $operation->definition, $resolveInfo);
         }
 
         return new ContextualPipeline(
             middlewares: $middlewares,
-            onError: fn(Throwable $throwable): RpcError => $this->produceError($throwable, $operation->definition, $resolveInfo),
+            onError: fn(Throwable $throwable): RpcError => $this->errorPresenter->present($throwable, $operation->definition, $resolveInfo),
             destination: function (mixed $input) use ($controllerClass, $client, $operation, $context, $resolveInfo): RpcSuccess|RpcError {
                 try {
                     $inputValidationResult = $this
@@ -120,7 +115,7 @@ final readonly class Server
                         ));
 
                     if ($inputValidationResult instanceof Failure) {
-                        return $this->produceError(
+                        return $this->errorPresenter->present(
                             new InvalidInputException($inputValidationResult),
                             $operation->definition,
                             $resolveInfo,
@@ -134,7 +129,7 @@ final readonly class Server
                         );
 
                     if ($serializedResult instanceof Failure) {
-                        return $this->produceError(
+                        return $this->errorPresenter->present(
                             new InvalidOutputException($serializedResult),
                             $operation->definition,
                             $resolveInfo,
@@ -143,7 +138,7 @@ final readonly class Server
 
                     return new RpcSuccess($serializedResult->value, $client, $resolveInfo);
                 } catch (Throwable $throwable) {
-                    return $this->produceError($throwable, $operation->definition, $resolveInfo);
+                    return $this->errorPresenter->present($throwable, $operation->definition, $resolveInfo);
                 }
             },
         )->execute($input, $context, $resolveInfo, $client);
@@ -165,31 +160,5 @@ final readonly class Server
         }
 
         return $middleware;
-    }
-
-    /**
-     * @param Throwable $exception
-     * @param Definition $definition
-     * @return RpcError
-     */
-    private function produceError(Throwable $exception, Definition $definition, ?ResolveInfo $info): RpcError
-    {
-        foreach ($this->exceptionPresenters as $presenter) {
-            if ($presenter->matches($exception, $definition)) {
-                return new RpcError(
-                    $presenter::errorType(),
-                    $exception,
-                    $presenter->details($exception),
-                    $info
-                );
-            }
-        }
-
-        return new RpcError(
-            $this->defaultPresenter::errorType(),
-            $exception,
-            $this->defaultPresenter->details($exception),
-            $info
-        );
     }
 }

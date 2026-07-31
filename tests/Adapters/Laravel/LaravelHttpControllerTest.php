@@ -16,8 +16,6 @@ use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use Le0daniel\PhpTsBindings\Server\Presenter\CatchAllPresenter;
-use Le0daniel\PhpTsBindings\Server\Presenter\InvalidInputPresenter;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Mockery;
 use Symfony\Component\HttpFoundation\InputBag;
@@ -67,12 +65,7 @@ test('handle successful http query request', function () {
     $request->shouldReceive('header')->with(LaravelHttpController::CLIENT_ID_HEADER)->andReturnNull();
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
 
-    $server = new Server(
-        $operationRegistry,
-        [],
-        new CatchAllPresenter(),
-        $app,
-    );
+    $server = new Server($operationRegistry, $app);
 
     $controller = new LaravelHttpController(
         $server,
@@ -136,7 +129,7 @@ test('an operations-spa request gets the client directives appended', function (
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
 
     $controller = new LaravelHttpController(
-        new Server($operationRegistry, [], new CatchAllPresenter(), $app),
+        new Server($operationRegistry, $app),
         $exceptionHandler,
         null,
     );
@@ -206,12 +199,7 @@ test('handle invalid input http query request', function () {
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
     $repository->shouldReceive('get')->with('app.debug')->andReturn(false);
 
-    $server = new Server(
-        $operationRegistry,
-        [new InvalidInputPresenter()],
-        new CatchAllPresenter(),
-        $app,
-    );
+    $server = new Server($operationRegistry, $app);
 
     $controller = new LaravelHttpController(
         $server,
@@ -234,5 +222,6 @@ test('handle invalid input http query request', function () {
                 ],
             ],
             'code' => 422,
+            'type' => 'INVALID_INPUT',
         ]);
 });

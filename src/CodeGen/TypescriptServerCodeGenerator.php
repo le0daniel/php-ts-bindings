@@ -9,9 +9,8 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
-use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
-use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
@@ -19,7 +18,6 @@ use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
-use Le0daniel\PhpTsBindings\Utils\Lists;
 
 final readonly class TypescriptServerCodeGenerator
 {
@@ -95,7 +93,8 @@ final readonly class TypescriptServerCodeGenerator
             return new TypedOperation(
                 inputDef: $this->typescriptGenerator->toTypescript($inputNode, IO::INPUT, $registry),
                 outputDef: $this->typescriptGenerator->toTypescript($outputNode, IO::OUTPUT, $registry),
-                errorDef: $this->generateAllErrorTypes($server, $operation->definition) |> Typescript::fromRawString(...),
+                errorDef: ErrorTypescript::forOperation($server->configuration, $operation->definition)
+                    |> Typescript::fromRawString(...),
                 operation: $operation,
             );
         }, $filteredDefinitions);
@@ -112,21 +111,6 @@ final readonly class TypescriptServerCodeGenerator
             ...$this->generateLibFiles($definitions, $metadata, $registry),
             ...$this->generateOperationDefinitions($definitions, $metadata),
         ];
-    }
-
-    private function generateAllErrorTypes(Server $server, Definition $operation): string
-    {
-        $possibleTypes = Lists::filterNullValues(array_map(static function (ExceptionPresenter $presenter) use ($operation): string {
-            $code = $presenter::errorType();
-            $codeName = json_encode($code->name, JSON_THROW_ON_ERROR);
-            $details = $presenter->toTypescriptDefinition($operation);
-
-            return $details === null
-                ? "{code: {$code->value}, type: {$codeName}}"
-                : "{code: {$code->value}, type: {$codeName}, details: {$details}}";
-        }, [...$server->exceptionPresenters, $server->defaultPresenter]));
-
-        return implode('|', $possibleTypes);
     }
 
     /**

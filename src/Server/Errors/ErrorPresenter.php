@@ -1,0 +1,115 @@
+<?php declare(strict_types=1);
+
+namespace Le0daniel\PhpTsBindings\Server\Errors;
+
+use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\OperationNotFoundException;
+use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
+use Le0daniel\PhpTsBindings\Server\Data\RpcError;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
+use Throwable;
+
+/**
+ * Turns a Throwable into the RpcError the client sees.
+ *
+ * The catalogue below is finite and closed: it is what the server needs to run, not an extension
+ * point. What an application configures is which of its exceptions belong in which category, via
+ * ServerConfiguration::withExceptions(). Everything unrecognised is an internal error - an
+ * exception only reaches the client on purpose, never by accident.
+ *
+ * Resolution is top to bottom and the first match wins, so the exposed domain error sits last,
+ * just before the catch all: an exception that is explicitly categorised stays categorised even
+ * when it also carries #[ExposeAs].
+ *
+ * The TypeScript counterpart of this catalogue lives in CodeGen\Utils\ErrorTypescript.
+ */
+final readonly class ErrorPresenter
+{
+    public function __construct(
+        private ServerConfiguration $configuration,
+    )
+    {
+    }
+
+    /**
+     * Total: every Throwable yields an RpcError, including one thrown while working out what to
+     * present.
+     *
+     * $definition is null when there is no operation to speak of (an unknown name), which also
+     * means there is nothing to reflect on for the domain error case.
+     */
+    public function present(Throwable $throwable, ?Definition $definition, ?ResolveInfo $info): RpcError
+    {
+        try {
+            [$type, $details] = $this->resolve($throwable, $definition);
+            return new RpcError($type, $throwable, $details, $info);
+        } catch (Throwable) {
+            return self::internalError($throwable, $info);
+        }
+    }
+
+    /**
+     * The last resort shape, for when presenting itself fails.
+     */
+    public static function internalError(Throwable $throwable, ?ResolveInfo $info): RpcError
+    {
+        return new RpcError(
+            ErrorType::INTERNAL_ERROR,
+            $throwable,
+            ['type' => 'INTERNAL_SERVER_ERROR'],
+            $info,
+        );
+    }
+
+    /**
+     * @return array{ErrorType, array<string, mixed>}
+     */
+    private function resolve(Throwable $throwable, ?Definition $definition): array
+    {
+        if ($throwable instanceof InvalidInputException) {
+            return [ErrorType::INVALID_INPUT, [
+                'type' => 'INVALID_INPUT',
+                'fields' => $throwable->failure->issues->serializeToFieldsArray(),
+            ]];
+        }
+
+        if ($this->matchesAny($throwable, $this->configuration->unauthenticatedExceptions)) {
+            return [ErrorType::AUTHENTICATION_ERROR, ['type' => 'UNAUTHENTICATED']];
+        }
+
+        if ($this->matchesAny($throwable, $this->configuration->unauthorizedExceptions)) {
+            return [ErrorType::AUTHORIZATION_ERROR, ['type' => 'UNAUTHORIZED']];
+        }
+
+        if ($throwable instanceof OperationNotFoundException || $this->matchesAny($throwable, $this->configuration->notFoundExceptions)) {
+            return [ErrorType::NOT_FOUND, ['type' => 'NOT_FOUND']];
+        }
+
+        if ($definition && $exposedType = $this->exposedTypeOf($throwable, $definition)) {
+            return [ErrorType::DOMAIN_ERROR, ['type' => $exposedType]];
+        }
+
+        return [ErrorType::INTERNAL_ERROR, ['type' => 'INTERNAL_SERVER_ERROR']];
+    }
+
+    /**
+     * @param list<class-string<Throwable>> $classNames
+     */
+    private function matchesAny(Throwable $throwable, array $classNames): bool
+    {
+        return array_any($classNames, static fn(string $className): bool => $throwable instanceof $className);
+    }
+
+    /**
+     * An exception is a domain error only if the operation declares it via #[Throws] and the
+     * exception itself opts into being shown via #[ExposeAs].
+     */
+    private function exposedTypeOf(Throwable $throwable, Definition $definition): ?string
+    {
+        return in_array($throwable::class, ExposedExceptions::declaredFor($definition), true)
+            ? ExposedExceptions::exposedTypeOf($throwable::class)
+            : null;
+    }
+}

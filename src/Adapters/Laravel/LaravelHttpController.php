@@ -157,6 +157,9 @@ readonly class LaravelHttpController
         $content = $this->appendClientDirectives([
             'success' => false,
             'code' => $result->type->value,
+            // The discriminant the generated error union is narrowed on. The status code carries the
+            // same information, but only the client that reads the body can rely on it.
+            'type' => $result->type->name,
             'details' => $result->details
         ], $client);
 
