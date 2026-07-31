@@ -1,16 +1,18 @@
 <?php declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
 use Tests\Mocks\Named\ArticleResource;
+use Tests\Mocks\Named\AsymmetricNamed;
 use Tests\Mocks\Named\Customer;
+use Tests\Mocks\Named\PerDirectionNamed;
 use Tests\Mocks\Named\InvalidlyBranded;
 use Tests\Mocks\Named\InvalidlyNamed;
 use Tests\Mocks\Named\NamedValueObject;
@@ -36,12 +38,12 @@ use Tests\Mocks\ValueObjects\Inherited\PartiallyOverriddenId;
 use Tests\Mocks\ValueObjects\Inherited\PlainId;
 use Tests\Mocks\ValueObjects\Inherited\SharedExplicitBrandId;
 
-test('resolves #[Named] on a class to the base name and output direction by default', function () {
+test('resolves #[Named] on a class to the base name, for both directions', function () {
     $node = new TypeParser()->parse(Customer::class);
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
-        ->and($node->name?->name)->toBe('Customer')
-        ->and($node->name?->io)->toBe(IO::OUTPUT)
+        ->and($node->name?->inputName)->toBe('Customer')
+        ->and($node->name?->outputName)->toBe('Customer')
         ->and($node->brand)->toBeNull()
         ->and($node->node)->toBeInstanceOf(CustomCastingNode::class);
 
@@ -52,7 +54,8 @@ test('resolves #[Named] on a class to the base name and output direction by defa
 test('an explicit name wins over the base name', function () {
     $node = new TypeParser()->parse(RenamedThing::class);
 
-    expect($node->name?->name)->toBe('CustomThing');
+    expect($node->name?->inputName)->toBe('CustomThing')
+        ->and($node->name?->outputName)->toBe('CustomThing');
 });
 
 test('a class without codegen attributes carries no metadata wrapper', function () {
@@ -61,12 +64,12 @@ test('a class without codegen attributes carries no metadata wrapper', function 
     expect($node)->toBeInstanceOf(CustomCastingNode::class);
 });
 
-test('#[Named] on an enum defaults to IO::BOTH, its shape is identical in both directions', function () {
+test('#[Named] on an enum names both directions; its shape is identical either way', function () {
     $node = new TypeParser()->parse(OrderStatus::class);
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
-        ->and($node->name?->name)->toBe('OrderStatus')
-        ->and($node->name?->io)->toBe(IO::BOTH)
+        ->and($node->name?->inputName)->toBe('OrderStatus')
+        ->and($node->name?->outputName)->toBe('OrderStatus')
         ->and($node->node)->toBeInstanceOf(EnumNode::class);
 
     compareToOptimizedAst($node);
@@ -76,8 +79,8 @@ test('a value object can combine #[Brand] and #[Named]', function () {
     $node = new TypeParser()->parse(NamedValueObject::class);
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
-        ->and($node->name?->name)->toBe('AccountId')
-        ->and($node->name?->io)->toBe(IO::BOTH)
+        ->and($node->name?->inputName)->toBe('AccountId')
+        ->and($node->name?->outputName)->toBe('AccountId')
         ->and($node->brand)->toBe('accountId')
         ->and($node->node)->toBeInstanceOf(ValueObjectNode::class);
 });
@@ -123,8 +126,8 @@ test('a value object inherits both attributes from its interface and derives the
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
         ->and($node->brand)->toBe($expectedBrand)
-        ->and($node->name?->name)->toBe($expectedName)
-        ->and($node->name?->io)->toBe(IO::BOTH)
+        ->and($node->name?->outputName)->toBe($expectedName)
+        ->and($node->name?->inputName)->toBe($expectedName)
         ->and($node->node)->toBeInstanceOf(ValueObjectNode::class)
         ->and($node->node->className)->toBe($type);
 
@@ -143,9 +146,9 @@ test('a concrete parent keeps a brand of its own, distinct from its children', f
 
     expect($parent)->toBeInstanceOf(MetadataNode::class)
         ->and($parent->brand)->toBe('baseId')
-        ->and($parent->name?->name)->toBe('BaseId')
+        ->and($parent->name?->outputName)->toBe('BaseId')
         ->and($child->brand)->toBe('childId')
-        ->and($child->name?->name)->toBe('ChildId');
+        ->and($child->name?->outputName)->toBe('ChildId');
 
     compareToOptimizedAst($parent);
     validateAst($parent);
@@ -156,7 +159,7 @@ test('a locally declared attribute wins over the inherited one', function () {
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
         ->and($node->brand)->toBe('explicitBrand')
-        ->and($node->name?->name)->toBe('ExplicitName');
+        ->and($node->name?->outputName)->toBe('ExplicitName');
 
     compareToOptimizedAst($node);
     validateAst($node);
@@ -167,18 +170,18 @@ test('a local #[Brand] combines with an inherited #[Named]', function () {
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
         ->and($node->brand)->toBe('partialBrand')
-        ->and($node->name?->name)->toBe('PartiallyOverriddenId');
+        ->and($node->name?->outputName)->toBe('PartiallyOverriddenId');
 
     compareToOptimizedAst($node);
     validateAst($node);
 });
 
 test('the parent class is consulted before the interfaces', function () {
-    // Both carry #[Named]; only the io tells them apart.
+    // Both carry #[Named]; only the suffix their closure adds tells them apart.
     $node = new TypeParser()->parse(ParentWinsId::class);
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
-        ->and($node->name?->io)->toBe(IO::OUTPUT);
+        ->and($node->name?->outputName)->toBe('ParentWinsIdFromParent');
 });
 
 test('the lookup stops after one level', function (string $type) {
@@ -243,7 +246,7 @@ test('a naming closure computes the brand and alias from the concrete class', fu
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
         ->and($node->brand)->toBe($expectedBrand)
-        ->and($node->name?->name)->toBe($expectedName);
+        ->and($node->name?->outputName)->toBe($expectedName);
 
     compareToOptimizedAst($node);
     validateAst($node);
@@ -258,4 +261,33 @@ test('a naming closure computes the brand and alias from the concrete class', fu
 test('a naming closure still has to produce a valid TypeScript identifier', function () {
     expect(fn() => new TypeParser()->parse(BadClosureId::class))
         ->toThrow(InvalidStringLiteralException::class, 'not a valid TypeScript identifier');
+});
+
+/**
+ * The naming closure is also handed the direction, which is the only way to get two aliases out of
+ * one declaration — and the only way to name a class whose two shapes differ.
+ */
+test('a naming closure receives the direction and may return a name per direction', function () {
+    $node = new TypeParser()->parse(PerDirectionNamed::class);
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->name?->inputName)->toBe('PerDirectionNamedInput')
+        ->and($node->name?->outputName)->toBe('PerDirectionNamed')
+        ->and($node->name?->isSameForBothDirections())->toBeFalse();
+
+    validateAst($node);
+});
+
+test('one alias over a class whose input and output shapes differ is rejected', function () {
+    // Parsing stays cheap and permissive: only validation, which the code generator runs, refuses it.
+    $node = new TypeParser()->parse(AsymmetricNamed::class);
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->name?->isSameForBothDirections())->toBeTrue();
+
+    expect(fn() => AstValidator::validate($node))
+        ->toThrow(ParserException::class, 'resolves to one alias "AsymmetricNamed" for both directions');
+});
+
+test('a named class whose properties are all bidirectional validates cleanly', function () {
+    validateAst(new TypeParser()->parse(Customer::class));
 });

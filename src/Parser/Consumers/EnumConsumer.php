@@ -9,7 +9,6 @@ use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Override;
 use ReflectionClass;
 use UnitEnum;
@@ -36,7 +35,6 @@ final readonly class EnumConsumer implements TypeConsumer
         return MetadataAttributes::wrap(
             new EnumNode($fullyQualifiedClassName),
             new ReflectionClass($fullyQualifiedClassName),
-            defaultIo: IO::BOTH,
         );
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript\Data;
 
+use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 
 /**

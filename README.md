@@ -89,7 +89,7 @@ customizations, including writing your very own code generation plugin.
 ## Type Parsing
 
 ```php
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;use Le0daniel\PhpTsBindings\Parser\TypeParser;use Le0daniel\PhpTsBindings\Reflection\TypeReflector;use Le0daniel\PhpTsBindings\Typescript\Data\IO;use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
+use Le0daniel\PhpTsBindings\Data\IO;use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;use Le0daniel\PhpTsBindings\Parser\TypeParser;use Le0daniel\PhpTsBindings\Reflection\TypeReflector;use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
 $typeString = TypeReflector::reflectParameter(
   new ReflectionParameter()
@@ -315,7 +315,7 @@ getUser(1);                 // Type error: number is not assignable to the brand
 `({...} & Brand<"...">)`. Combine it with `#[Named]` to export the branded type once by name:
 
 ```php
-#[Brand] #[Named(io: IO::BOTH)]
+#[Brand] #[Named]
 final readonly class UserId implements IntValueObject { /* ... */ }
 ```
 
@@ -329,9 +329,9 @@ export type UserId = (number & Brand<"userId">);
 inlining the structure at every use site, the generator declares it once and references it by name.
 
 ```php
-#[Named]                    // alias defaults to the class base name: App\Data\Order => Order
-#[Named('CustomOrder')]     // or name it yourself
-#[Named(io: IO::BOTH)]      // name input and output alike (see below)
+#[Named]                             // alias defaults to the class base name: App\Data\Order => Order
+#[Named('CustomOrder')]              // or name it yourself
+#[Named(name: Naming::alias(...))]   // or compute it, per direction (see below)
 final class Order
 {
     public Customer $customer;  // Customer may itself be #[Named] — aliases nest recursively
@@ -344,11 +344,31 @@ export type Customer = {email:(string & Brand<"email">);name:string;};
 export type Order = {customer:Customer;id:(number & Brand<"customerId">);};
 ```
 
-Because a class can legitimately have a different input shape than output shape (constructor-only
-parameters, output-only properties), the name applies to **output only by default**; on input the
-structure is inlined as if the attribute were absent. Opt into `IO::BOTH` when both directions are
-identical — if they are not, generation fails hard with a conflicting alias error instead of
-emitting a lying type. The same error protects against two classes resolving to the same alias with
+**One name covers both directions.** A class can legitimately have a different input shape than
+output shape — constructor-only parameters, output-only properties — and one alias cannot describe
+both, because the generated types file declares each alias exactly once. A `#[Castable]` class whose
+shapes diverge under a single name is rejected during schema generation, naming the property that
+made them differ:
+
+```php
+#[Named] #[Castable]
+final class Article
+{
+    public string $slug;                                       // output only
+    public function __construct(public string $title, string $draft) { /* ... */ }
+}                                                              // $draft is input only
+```
+
+> `#[Named]` on `App\Data\Article` resolves to one alias `Article` for both directions, but its input
+> and output shapes differ: `draft` is input only.
+
+Give each shape its own alias with a naming closure, which receives the direction:
+
+```php
+#[Named(name: Naming::perDirection(...))]  // => ArticleInput on the way in, Article on the way out
+```
+
+The same conflicting-alias error protects against two classes resolving to the same alias with
 different shapes anywhere in a run, and a handful of names the generated types file always declares
 (`Brand`, `Result`, `Success`, `Failure`, ...) are rejected outright.
 
@@ -406,9 +426,11 @@ The remaining caveats are worth reading, because each is silent otherwise:
 
 ### Computing the name yourself
 
-Both attributes accept a closure instead of a string, called with the class being emitted. It works
-anywhere, but it is what makes a *shared* declaration flexible: an inherited attribute cannot carry
-a fixed name, yet it can carry a rule each implementor runs against its own class name.
+Both attributes accept a closure instead of a string, called with the class being emitted. It earns
+its keep twice over.
+
+First, it is what makes a *shared* declaration flexible: an inherited attribute cannot carry a fixed
+name, yet it can carry a rule each implementor runs against its own class name.
 
 ```php
 final class Naming
@@ -423,6 +445,26 @@ final class Naming
 #[Named(name: Naming::alias(...))]
 interface IntId extends IntValueObject {}
 ```
+
+Second, `#[Named]` calls its closure **once per direction** and hands it the `IO`, which is the only
+way to give a class with two shapes two aliases:
+
+```php
+public static function perDirection(string $className, IO $io): string
+{
+    $base = explode('\\', $className) |> array_last(...);
+    return $io === IO::INPUT ? "{$base}Input" : $base;
+}
+```
+
+```typescript
+export type Article = {slug:string;title:string;};
+export type ArticleInput = {draft:string;title:string;};
+```
+
+A closure that ignores its second argument — like `Naming::alias()` above — simply names both
+directions the same, which is what almost every type wants. `#[Brand]`'s closure takes only the
+class name: a brand tags one wire value, so it is the same in both directions by construction.
 
 > **PHP only accepts first-class callable syntax here.** A closure literal in an attribute argument
 > — `#[Named(name: static fn(string $c) => ucfirst($c))]` — does not compile: PHP reports

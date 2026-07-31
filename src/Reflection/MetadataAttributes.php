@@ -4,11 +4,11 @@ namespace Le0daniel\PhpTsBindings\Reflection;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Brand;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Named;
+use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use ReflectionClass;
 
 /**
@@ -20,8 +20,6 @@ final readonly class MetadataAttributes
 {
     /**
      * @param ReflectionClass<covariant object> $reflectionClass
-     * @param IO $defaultIo The direction a #[Named] without an explicit io applies to. Value
-     *        objects and enums pass IO::BOTH — their input and output shapes are always identical.
      * @param bool $inheritFromParents Also accept an attribute declared one level up, on the direct
      *        parent class or a directly declared interface. Value objects opt in so a family of ids
      *        can share one declaration; see wrap()'s callers.
@@ -29,7 +27,6 @@ final readonly class MetadataAttributes
     public static function wrap(
         NodeInterface   $node,
         ReflectionClass $reflectionClass,
-        IO              $defaultIo = IO::OUTPUT,
         bool            $inheritFromParents = false,
     ): NodeInterface
     {
@@ -51,9 +48,15 @@ final readonly class MetadataAttributes
 
         $className = $reflectionClass->getName();
 
+        // Both directions are resolved here, so no user closure ever travels in the node tree. Only
+        // the Closure form can return two different names; everything else lands on one alias, and
+        // MetadataNode::validate() is what rejects that over a shape that differs per direction.
         return new MetadataNode(
             $node,
-            $named === null ? null : new NamedType($named->typeName($className), $named->io ?? $defaultIo),
+            $named === null ? null : new NamedType(
+                inputName: $named->typeName($className, IO::INPUT),
+                outputName: $named->typeName($className, IO::OUTPUT),
+            ),
             $brand?->brandName($className),
         );
     }

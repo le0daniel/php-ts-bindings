@@ -1,5 +1,6 @@
 <?php declare(strict_types=1);
 
+use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
@@ -10,7 +11,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Tests\Mocks\ValueObjects\AbstractValueObject;
 use Tests\Mocks\ValueObjects\AmbiguousValueObject;
 use Tests\Mocks\ValueObjects\CreateAccountInput;

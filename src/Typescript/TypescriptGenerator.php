@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript;
 
-use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
+use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
@@ -28,7 +28,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Typescript\Data\EmissionContext;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
@@ -47,10 +46,6 @@ final readonly class TypescriptGenerator
 {
     public function toTypescript(NodeInterface $node, IO $io, ?AliasRegistry $sharedRegistry = null): Typescript
     {
-        if ($io === IO::BOTH) {
-            throw new CodeGenException('Emit for IO::INPUT or IO::OUTPUT; IO::BOTH is only a #[Named] scope.');
-        }
-
         // Every pass emits into its own local registry, so the result always carries exactly the
         // aliases this schema produced. When a shared registry is given, all of them are
         // registered into it after the pass — that hand-over is where an alias meaning two
@@ -132,9 +127,10 @@ final readonly class TypescriptGenerator
      *
      * A brand intersects the inner type with Brand<"..."> and is always parenthesised
      * (`(string & Brand<"email">)`), so the result composes into any surrounding type unchanged.
-     * A name applying to the direction registers the result as an alias; the use site references
-     * the bare identifier. The registry accepts the identical re-registration a second use site
-     * produces and rejects a contradicting one.
+     * A name registers the result as an alias and the use site references the bare identifier. The
+     * alias applies to both directions; which of the two names it is comes from the node, which
+     * resolved them per direction at parse time. The registry accepts the identical
+     * re-registration a second use site produces and rejects a contradicting one.
      */
     private function metadata(MetadataNode $node, EmissionContext $context): string
     {
@@ -144,9 +140,10 @@ final readonly class TypescriptGenerator
             $inner = Syntax::branded($inner, $node->brand) |> Syntax::wrapInParentheses(...);
         }
 
-        if ($node->name?->appliesTo($context->io)) {
-            $context->registry->set($node->name->name, $inner);
-            return $node->name->name;
+        if ($node->name !== null) {
+            $alias = $node->name->nameFor($context->io);
+            $context->registry->set($alias, $inner);
+            return $alias;
         }
 
         return $inner;

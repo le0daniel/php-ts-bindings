@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
 use Attribute;
 use Closure;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
+use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 
@@ -17,20 +17,19 @@ use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
  * The alias comes from one of three sources:
  *  - no name: the class base name, used verbatim, so App\Data\Order becomes `Order`;
  *  - a string: used verbatim;
- *  - a Closure(string $className): string, called with the class being emitted. PHP only accepts
- *    first-class callable syntax here, never a closure literal:
+ *  - a Closure(string $className, IO $io): string, called once per direction with the class being
+ *    emitted. PHP only accepts first-class callable syntax here, never a closure literal:
  *    #[Named(name: AliasNaming::suffixed(...))]
+ *
+ * One name covers input and output alike. A class can legitimately have a different input shape
+ * than output shape (constructor-only parameters, output-only properties), and one alias cannot
+ * describe both honestly — every alias is declared exactly once in the generated types file. That
+ * combination is rejected by MetadataNode::validate(), which runs at schema generation. The way out
+ * is a Closure returning a distinct name per IO, so each shape gets its own alias.
  *
  * Two classes resolving to the same name with different shapes fail generation with a conflicting
  * alias error, as does a name colliding with a declaration the generated types file always
  * contains (Brand, Result, ...).
- *
- * $io decides which direction the name applies to and defaults to IO::OUTPUT, because a class can
- * legitimately have a different input shape than output shape (constructor-only parameters,
- * output-only properties). On the other direction the structure is inlined as if the attribute
- * were absent. IO::BOTH names both directions under the one alias — if the two shapes differ,
- * generation fails hard instead of emitting a lying type. On value objects and enums the default
- * is IO::BOTH instead: their input and output shapes are always identical.
  *
  * On a VALUE OBJECT the attribute may also be declared one level up, on the interface or parent
  * class a family of ids shares, and every child picks it up — deriving its own alias from its own
@@ -50,23 +49,25 @@ use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 final readonly class Named
 {
     /**
-     * @param string|Closure(string): string|null $name
+     * @param string|Closure(string, IO): string|null $name
      */
     public function __construct(
         public string|Closure|null $name = null,
-        public ?IO                 $io = null,
     )
     {
     }
 
     /**
+     * Called once per direction. Only the Closure form can tell them apart; a derived or explicit
+     * name is the same string both ways.
+     *
      * @internal
      */
-    public function typeName(string $classString): string
+    public function typeName(string $classString, IO $io): string
     {
         $name = match (true) {
             $this->name === null => explode('\\', $classString) |> array_last(...),
-            $this->name instanceof Closure => ($this->name)($classString),
+            $this->name instanceof Closure => ($this->name)($classString, $io),
             default => $this->name,
         };
 

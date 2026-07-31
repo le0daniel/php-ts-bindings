@@ -10,13 +10,16 @@ use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
+use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Tests\Unit\CodeGen\Mocks\AsymmetricNamedOperations;
 use Tests\Unit\CodeGen\Mocks\ConflictingNamedOperations;
 use Tests\Unit\CodeGen\Mocks\NamedOperations;
+use Tests\Unit\CodeGen\Mocks\PerDirectionNamedOperations;
 use Tests\Unit\CodeGen\Mocks\UnrepresentableOperations;
 use Tests\Unit\CodeGen\Mocks\UserOperations;
 
@@ -123,4 +126,28 @@ test('fails the run when two classes resolve to the same name with different sha
 test('fails the whole run when an operation input has no TypeScript representation', function () {
     expect(fn() => generateFor([UnrepresentableOperations::class]))
         ->toThrow(UnsupportedTypeException::class, 'SomeFileInterface');
+});
+
+test('fails the run when one alias would have to describe two shapes', function () {
+    // AstValidator runs before any pass, so this never reaches the emitter.
+    expect(fn() => generateFor([AsymmetricNamedOperations::class]))
+        ->toThrow(ParserException::class, 'resolves to one alias "AsymmetricNamed" for both directions');
+});
+
+test('a name per direction declares both shapes; a single shape is referenced both ways', function () {
+    $files = generateFor([PerDirectionNamedOperations::class]);
+    $types = $files['lib/types.ts']->toString();
+    $operations = $files['articles.ts']->toString();
+
+    expect($types)
+        ->toContain('export type PerDirectionNamed = {visible:string;}')
+        ->toContain('export type PerDirectionNamedInput = {secret:string;}')
+        ->toContain('export type Customer = {email:(string & Brand<"email">);name:string;}');
+
+    // The symmetric class is its alias in both directions — no inlined duplicate of the same shape.
+    expect($operations)
+        ->toContain('export type RoundtripInput = PerDirectionNamedInput;')
+        ->toContain('export type RoundtripResult = PerDirectionNamed;')
+        ->toContain('export type CustomerInput = Customer;')
+        ->toContain('export type CustomerResult = Customer;');
 });

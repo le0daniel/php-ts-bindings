@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\Parser;
 
+use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Constraints\IntRange;
 use Le0daniel\PhpTsBindings\Parser\Constraints\ListLength;
 use Le0daniel\PhpTsBindings\Parser\Constraints\LowercaseString;
@@ -32,7 +33,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Feature\Mocks\Paginated;
@@ -809,7 +809,7 @@ test('codegen metadata is transparent in the string form and the exported php co
 
     expect($string)->toBeInstanceOf(MetadataNode::class)
         ->and($string->brand)->toBe('wow')
-        ->and($string->name?->name)->toBe('Wow')
+        ->and($string->name?->outputName)->toBe('Wow')
         ->and($string->node)->toBeInstanceOf(StringNode::class)
         ->and((string)$string)->toBe('string')
         ->and($string->exportPhpCode())->not->toContain('wow')

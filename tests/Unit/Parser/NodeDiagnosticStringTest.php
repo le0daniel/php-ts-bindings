@@ -47,7 +47,7 @@ test('a discriminated union names its discriminator', function () {
 
 test('metadata stays transparent, which the elimination guarantee depends on', function () {
     $inner = new StringNode();
-    $node = new MetadataNode($inner, new NamedType('Token'), 'token');
+    $node = new MetadataNode($inner, NamedType::same('Token'), 'token');
 
     expect((string)$node)->toBe((string)$inner);
 });

@@ -6,12 +6,12 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Named;
 
 /**
- * Input ({secret:string;}) and output ({visible:string;}) differ, so the one alias #[Named] derives
- * cannot describe both and validation must reject it.
+ * The same asymmetric shape as AsymmetricNamed, but the naming closure returns a distinct alias per
+ * direction, so both shapes can be declared honestly: PerDirectionNamedInput and PerDirectionNamed.
  */
-#[Named]
+#[Named(name: AliasNaming::perDirection(...))]
 #[Castable]
-final class AsymmetricNamed
+final class PerDirectionNamed
 {
     public string $visible;
 

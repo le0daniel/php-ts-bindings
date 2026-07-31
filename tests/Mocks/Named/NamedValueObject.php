@@ -8,8 +8,8 @@ use Le0daniel\PhpTsBindings\Contracts\ValueObjects\StringValueObject;
 
 /**
  * Brand and Named combined: exported once as `export type AccountId = (string & Brand<"accountId">)`
- * and referenced by name at every use site. No explicit io — on a value object #[Named] defaults
- * to IO::BOTH.
+ * and referenced by name at every use site. A value object's shape never differs per direction, so
+ * the one alias covers both.
  */
 #[Brand('accountId')]
 #[Named('AccountId')]

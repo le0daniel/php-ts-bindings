@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
+use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
@@ -10,7 +10,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
@@ -20,6 +19,7 @@ use Tests\Mocks\Named\Customer;
 use Tests\Mocks\Named\NamedValueObject;
 use Tests\Mocks\Named\Order;
 use Tests\Mocks\Named\OrderStatus;
+use Tests\Mocks\Named\PerDirectionNamed;
 use Tests\Mocks\Named\PublicResource;
 use Tests\Mocks\Named\RenamedThing;
 use Tests\Mocks\ValueObjects\Inherited\AccountId;
@@ -36,16 +36,18 @@ test('a named class is referenced by its alias on output and carries its definit
         ]);
 });
 
-test('a named class defaults to output only and is inlined on input', function () {
+test('a named class carries its alias on input too, under one shared registry', function () {
     $node = new TypeParser()->parse(Customer::class);
     $shared = new AliasRegistry();
 
     $result = new TypescriptGenerator()->toTypescript($node, IO::INPUT, $shared);
 
-    expect($result->type)->toBe('{email:(string & Brand<"email">);name:string;}')
-        ->and($result->registry->isEmpty())->toBeTrue()
-        // The name never registers for a direction it does not apply to.
-        ->and($shared->has('Customer'))->toBeFalse();
+    expect($result->type)->toBe('Customer')
+        ->and($result->registry->toArray())->toBe([
+            'Customer' => '{email:(string & Brand<"email">);name:string;}',
+        ])
+        // One name, one declaration: the input pass hands the very same alias to the shared registry.
+        ->and($shared->get('Customer'))->toBe('{email:(string & Brand<"email">);name:string;}');
 });
 
 test('named types nest recursively: the outer definition references the inner alias', function () {
@@ -60,12 +62,15 @@ test('named types nest recursively: the outer definition references the inner al
         ]);
 });
 
-test('on input a named-by-default tree is fully inlined and registers nothing', function () {
+test('nested aliases are referenced on input exactly as they are on output', function () {
     $node = new TypeParser()->parse(Order::class);
     $result = typescriptFor($node, IO::INPUT);
 
-    expect($result->type)->toBe('{customer:{email:(string & Brand<"email">);name:string;};id:(number & Brand<"customerId">);}')
-        ->and($result->registry->isEmpty())->toBeTrue();
+    expect($result->type)->toBe('Order')
+        ->and($result->registry->toArray())->toBe([
+            'Customer' => '{email:(string & Brand<"email">);name:string;}',
+            'Order' => '{customer:Customer;id:(number & Brand<"customerId">);}',
+        ]);
 });
 
 test('a use site inside a struct references the alias and carries its dependencies as used', function () {
@@ -104,7 +109,7 @@ test('an explicit name is used verbatim', function () {
         ->and($result->registry->toArray())->toBe(['CustomThing' => '{value:string;}']);
 });
 
-test('a named enum with IO::BOTH is aliased identically in both directions', function () {
+test('a named enum is aliased identically in both directions', function () {
     $node = new TypeParser()->parse(OrderStatus::class);
 
     foreach ([IO::INPUT, IO::OUTPUT] as $io) {
@@ -114,7 +119,11 @@ test('a named enum with IO::BOTH is aliased identically in both directions', fun
     }
 });
 
-test('without a shared registry each pass stands alone and never conflicts with another', function () {
+/**
+ * The generator emits one direction at a time and never compares the two — which is precisely why
+ * AstValidator refuses a single alias over two shapes before generation gets this far.
+ */
+test('a single pass cannot see the other direction, so nothing catches the divergence here', function () {
     $node = new TypeParser()->parse(AsymmetricNamed::class);
     $generator = new TypescriptGenerator();
 
@@ -125,7 +134,7 @@ test('without a shared registry each pass stands alone and never conflicts with 
         ->and($output->registry->toArray())->toBe(['AsymmetricNamed' => '{visible:string;}']);
 });
 
-test('IO::BOTH fails hard when the input and output shapes differ', function () {
+test('the shared registry is the backstop when the two passes do meet', function () {
     $node = new TypeParser()->parse(AsymmetricNamed::class);
     $generator = new TypescriptGenerator();
     $shared = new AliasRegistry();
@@ -133,7 +142,20 @@ test('IO::BOTH fails hard when the input and output shapes differ', function () 
     expect($generator->toTypescript($node, IO::INPUT, $shared)->type)->toBe('AsymmetricNamed');
 
     expect(fn() => $generator->toTypescript($node, IO::OUTPUT, $shared))
-        ->toThrow(UnsupportedTypeException::class, 'IO::BOTH');
+        ->toThrow(UnsupportedTypeException::class, 'AsymmetricNamed');
+});
+
+test('a name per direction declares both shapes under their own aliases', function () {
+    $node = new TypeParser()->parse(PerDirectionNamed::class);
+    $generator = new TypescriptGenerator();
+    $shared = new AliasRegistry();
+
+    expect($generator->toTypescript($node, IO::INPUT, $shared)->type)->toBe('PerDirectionNamedInput')
+        ->and($generator->toTypescript($node, IO::OUTPUT, $shared)->type)->toBe('PerDirectionNamed')
+        ->and($shared->toArray())->toBe([
+            'PerDirectionNamed' => '{visible:string;}',
+            'PerDirectionNamedInput' => '{secret:string;}',
+        ]);
 });
 
 test('a named interface works on output and stays uncastable on input', function () {
@@ -157,18 +179,13 @@ test('Pick over a named class produces a new shape and drops the alias', functio
         ->and($result->registry->isEmpty())->toBeTrue();
 });
 
-test('emitting for IO::BOTH is rejected', function () {
-    expect(fn() => new TypescriptGenerator()->toTypescript(new StringNode(), IO::BOTH))
-        ->toThrow(CodeGenException::class, 'IO::BOTH');
-});
-
 test('two named nodes claiming one alias with different shapes are rejected', function () {
-    $inner = new MetadataNode(new StringNode(), new NamedType('Cycle', IO::BOTH));
+    $inner = new MetadataNode(new StringNode(), NamedType::same('Cycle'));
     $outer = new MetadataNode(
         new StructNode(StructPhpType::ARRAY, [
             new PropertyNode('self', $inner, false, PropertyType::BOTH),
         ]),
-        new NamedType('Cycle', IO::BOTH),
+        NamedType::same('Cycle'),
     );
 
     expect(fn() => new TypescriptGenerator()->toTypescript($outer, IO::OUTPUT))

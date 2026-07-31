@@ -22,7 +22,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 use Le0daniel\PhpTsBindings\Utils\Nodes;
@@ -72,7 +71,7 @@ final readonly class UtilsConsumer implements TypeConsumer
 
             return new MetadataNode(
                 $type === 'BrandedString' ? new StringNode() : new IntNode(),
-                new NamedType(ucfirst($brand), IO::BOTH),
+                NamedType::same(ucfirst($brand)),
                 $brand,
             );
         }

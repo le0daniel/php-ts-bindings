@@ -12,7 +12,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Override;
 use ReflectionClass;
 use ReflectionException;
@@ -76,7 +75,6 @@ final readonly class ValueObjectConsumer implements TypeConsumer
                 $isStringBacked ? BackingType::STRING : BackingType::INT,
             ),
             $reflectionClass,
-            defaultIo: IO::BOTH,
             // A family of ids usually shares one interface or base class; let it carry the
             // declaration for all of them. Only value objects opt in: an interface or abstract
             // parent is never parseable on its own here, so the attributes cannot mean anything

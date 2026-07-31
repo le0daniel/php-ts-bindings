@@ -5,8 +5,8 @@ namespace Tests\Mocks\Named;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Named;
 
 /**
- * An enum's case union is identical in both directions, so #[Named] defaults to IO::BOTH here —
- * no explicit io needed.
+ * An enum's case union is identical in both directions, so the one alias #[Named] derives describes
+ * both honestly.
  */
 #[Named]
 enum OrderStatus

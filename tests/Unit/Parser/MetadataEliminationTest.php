@@ -109,7 +109,7 @@ test('an optimized AST parses identically to the metadata carrying one', functio
 });
 
 test('MetadataNode cannot serialize itself even outside the optimizer', function () {
-    $node = new MetadataNode(new StringNode(), new NamedType('Token'), 'token');
+    $node = new MetadataNode(new StringNode(), NamedType::same('Token'), 'token');
 
     expect($node->exportPhpCode())->not->toContain('MetadataNode')
         ->and($node->exportPhpCode())->toBe(new StringNode()->exportPhpCode())

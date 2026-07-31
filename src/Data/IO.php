@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Typescript\Data;
+namespace Le0daniel\PhpTsBindings\Data;
 
 /**
  * The direction a type is generated for.
@@ -10,12 +10,11 @@ namespace Le0daniel\PhpTsBindings\Typescript\Data;
  * exists on the way out, and a class that cannot be constructed from user input has no input type
  * at all.
  *
- * BOTH is not a direction anything is generated for — TypescriptGenerator::toTypescript() rejects
- * it. It only exists as a #[Named] scope, saying the name applies to input and output alike.
+ * Every generation pass runs for exactly one of these. A #[Named] alias is resolved for both, which
+ * is what its naming closure receives this enum for.
  */
 enum IO
 {
     case INPUT;
     case OUTPUT;
-    case BOTH;
 }

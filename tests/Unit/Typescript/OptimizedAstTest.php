@@ -2,9 +2,9 @@
 
 namespace Tests\Unit\Typescript;
 
+use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Typescript\Data\IO;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Unit\Executor\Mocks\UserSchema;
 

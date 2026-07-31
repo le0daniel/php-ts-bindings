@@ -14,6 +14,19 @@ final class Naming
         return self::baseName($className) . 'Alias';
     }
 
+    /**
+     * Paired with contractAlias() so a test can tell which of two competing declarations won.
+     */
+    public static function parentAlias(string $className): string
+    {
+        return self::baseName($className) . 'FromParent';
+    }
+
+    public static function contractAlias(string $className): string
+    {
+        return self::baseName($className) . 'FromContract';
+    }
+
     public static function prefixedBrand(string $className): string
     {
         return 'app' . self::baseName($className);

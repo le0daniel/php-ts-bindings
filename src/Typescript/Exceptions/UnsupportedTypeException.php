@@ -40,12 +40,18 @@ final class UnsupportedTypeException extends CodeGenException
         );
     }
 
+    /**
+     * A #[Named] class whose own shape differs per direction is caught earlier and more precisely by
+     * MetadataNode::validate(). What reaches here is either two different types claiming one alias,
+     * or a named type that is symmetric itself but wraps something asymmetric further down.
+     */
     public static function conflictingAlias(string $alias, string $existing, string $conflicting): self
     {
         return new self(
             "Type alias {$alias} has conflicting definitions: '{$existing}' and '{$conflicting}'."
-            . " If {$alias} comes from #[Named(io: IO::BOTH)], its input and output shapes differ:"
-            . " align the shapes or name only one direction."
+            . " Either two types claim the same alias — rename one — or {$alias} contains something whose"
+            . " input and output shapes differ, in which case it needs a name per direction:"
+            . " #[Named(name: Naming::alias(...))]."
         );
     }
 
