@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Constraints;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
@@ -10,13 +10,11 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 
 /**
- * Backs `lowercase-string`.
- *
- * strtolower(), not mb_strtolower(): PHPStan defines the type against PHP's own ASCII-only
- * case folding, so a multibyte uppercase letter is a lowercase-string to PHPStan and must be
- * one here too. The empty string qualifies.
+ * Backs `numeric-string`. PHPStan defines it as a string is_numeric() accepts, which includes
+ * leading whitespace, a sign, exponents and hex-free floats - the value stays a string either
+ * way, so no coercion happens here.
  */
-final readonly class LowercaseString implements Constraint
+final readonly class NumericString implements Constraint
 {
     use ValidatesString;
 
@@ -27,11 +25,11 @@ final readonly class LowercaseString implements Constraint
             return false;
         }
 
-        if (strtolower($value) !== $value) {
+        if (!is_numeric($value)) {
             $context->addIssue(new Issue(
-                IssueMessage::NOT_LOWERCASE_STRING,
+                IssueMessage::NOT_NUMERIC_STRING,
                 [
-                    "message" => "Expected lowercase string, got: '{$value}'",
+                    "message" => "Expected numeric string, got: '{$value}'",
                 ]
             ));
             return false;
@@ -49,6 +47,6 @@ final readonly class LowercaseString implements Constraint
     #[Override]
     public function __toString(): string
     {
-        return 'LowercaseString';
+        return 'NumericString';
     }
 }

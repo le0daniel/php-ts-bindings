@@ -1,7 +1,7 @@
 <?php declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Data\IO;
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
@@ -212,7 +212,7 @@ test('cached ASTs are metadata free and emit the plain structural type', functio
     $node = new TypeParser()->parse(Order::class);
     $optimizedCode = new ASTOptimizer()->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
+    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     $result = new TypescriptGenerator()->toTypescript($registry->get('node'), IO::OUTPUT);

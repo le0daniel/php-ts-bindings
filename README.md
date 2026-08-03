@@ -493,8 +493,7 @@ CI to catch a frontend that has drifted from the backend.
 Outside Laravel, or for schemas that are not operations, the same optimizer is available directly:
 
 ```php
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
-use Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 
 new ASTOptimizer()->optimizeAndWriteToFile('asts.php', [
     'MyClass@method@input' => $inputAst,

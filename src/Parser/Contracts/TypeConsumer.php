@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Contracts;
 
-use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParserState;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 interface TypeConsumer

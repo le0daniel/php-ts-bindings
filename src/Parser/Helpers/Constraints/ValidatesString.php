@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Constraints;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;

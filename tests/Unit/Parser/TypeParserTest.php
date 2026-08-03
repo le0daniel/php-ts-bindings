@@ -3,14 +3,14 @@
 namespace Tests\Unit\Parser;
 
 use Le0daniel\PhpTsBindings\Data\IO;
-use Le0daniel\PhpTsBindings\Parser\Constraints\IntRange;
-use Le0daniel\PhpTsBindings\Parser\Constraints\ListLength;
-use Le0daniel\PhpTsBindings\Parser\Constraints\LowercaseString;
-use Le0daniel\PhpTsBindings\Parser\Constraints\NonEmptyString;
-use Le0daniel\PhpTsBindings\Parser\Constraints\NumericString;
-use Le0daniel\PhpTsBindings\Parser\Constraints\UppercaseString;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\IntRange;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\ListLength;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\LowercaseString;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NonEmptyString;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NumericString;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\UppercaseString;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;

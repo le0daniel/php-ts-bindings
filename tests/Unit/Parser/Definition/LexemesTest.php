@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Parser\Definition;
 
-use Le0daniel\PhpTsBindings\Parser\Definition\Lexemes;
+use Le0daniel\PhpTsBindings\Parser\Utils\Lexemes;
 
 test('single quoted literals resolve only backslash and quote escapes', function () {
     expect(Lexemes::decodeString("'hello'"))->toBe('hello')

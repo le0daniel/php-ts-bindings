@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Parser\Data\Stubs;
 
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer as Optimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer as Optimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 /**

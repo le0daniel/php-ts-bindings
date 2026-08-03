@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
 use Closure;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Constraint;
@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\UnknownTypeKeyException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
@@ -19,7 +20,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
-use Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 

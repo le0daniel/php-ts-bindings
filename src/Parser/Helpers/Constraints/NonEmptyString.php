@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Constraints;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
@@ -10,11 +10,10 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 
 /**
- * Backs `numeric-string`. PHPStan defines it as a string is_numeric() accepts, which includes
- * leading whitespace, a sign, exponents and hex-free floats - the value stays a string either
- * way, so no coercion happens here.
+ * Backs `non-empty-string`, and the non-empty half of `non-empty-lowercase-string` and
+ * `non-empty-uppercase-string`.
  */
-final readonly class NumericString implements Constraint
+final readonly class NonEmptyString implements Constraint
 {
     use ValidatesString;
 
@@ -25,11 +24,13 @@ final readonly class NumericString implements Constraint
             return false;
         }
 
-        if (!is_numeric($value)) {
+        // Not empty(): "0" is empty() but is a valid non-empty-string. Rejecting it here would be
+        // stricter than the type this constraint backs - that is what non-falsy-string is for.
+        if ($value === '') {
             $context->addIssue(new Issue(
-                IssueMessage::NOT_NUMERIC_STRING,
+                IssueMessage::NOT_EMPTY_STRING,
                 [
-                    "message" => "Expected numeric string, got: '{$value}'",
+                    "message" => "Expected non-empty string, got an empty string.",
                 ]
             ));
             return false;
@@ -47,6 +48,6 @@ final readonly class NumericString implements Constraint
     #[Override]
     public function __toString(): string
     {
-        return 'NumericString';
+        return 'NonEmptyString';
     }
 }

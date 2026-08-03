@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Constraints;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
@@ -10,10 +10,13 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 
 /**
- * Backs `non-empty-string`, and the non-empty half of `non-empty-lowercase-string` and
- * `non-empty-uppercase-string`.
+ * Backs `lowercase-string`.
+ *
+ * strtolower(), not mb_strtolower(): PHPStan defines the type against PHP's own ASCII-only
+ * case folding, so a multibyte uppercase letter is a lowercase-string to PHPStan and must be
+ * one here too. The empty string qualifies.
  */
-final readonly class NonEmptyString implements Constraint
+final readonly class LowercaseString implements Constraint
 {
     use ValidatesString;
 
@@ -24,13 +27,11 @@ final readonly class NonEmptyString implements Constraint
             return false;
         }
 
-        // Not empty(): "0" is empty() but is a valid non-empty-string. Rejecting it here would be
-        // stricter than the type this constraint backs - that is what non-falsy-string is for.
-        if ($value === '') {
+        if (strtolower($value) !== $value) {
             $context->addIssue(new Issue(
-                IssueMessage::NOT_EMPTY_STRING,
+                IssueMessage::NOT_LOWERCASE_STRING,
                 [
-                    "message" => "Expected non-empty string, got an empty string.",
+                    "message" => "Expected lowercase string, got: '{$value}'",
                 ]
             ));
             return false;
@@ -48,6 +49,6 @@ final readonly class NonEmptyString implements Constraint
     #[Override]
     public function __toString(): string
     {
-        return 'NonEmptyString';
+        return 'LowercaseString';
     }
 }

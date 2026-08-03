@@ -3,7 +3,7 @@
 namespace Tests\Unit\Typescript;
 
 use Le0daniel\PhpTsBindings\Data\IO;
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Unit\Executor\Mocks\UserSchema;
@@ -21,7 +21,7 @@ function toDefinition(string $typeString, ?IO $io = null): string
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $ast]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
+    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     $generator = new TypescriptGenerator();

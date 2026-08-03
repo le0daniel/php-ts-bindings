@@ -5,13 +5,13 @@ namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
-use Le0daniel\PhpTsBindings\Parser\Definition\Lexemes;
-use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Parser\Utils\Lexemes;
 use Override;
 
 final readonly class StructConsumer implements TypeConsumer

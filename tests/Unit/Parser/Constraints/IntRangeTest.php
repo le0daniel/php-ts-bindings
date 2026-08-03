@@ -4,7 +4,7 @@ namespace Tests\Unit\Parser\Constraints;
 
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
-use Le0daniel\PhpTsBindings\Parser\Constraints\IntRange;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\IntRange;
 
 beforeEach(function () {
     $this->context = new Context();

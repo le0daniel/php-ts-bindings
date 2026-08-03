@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;

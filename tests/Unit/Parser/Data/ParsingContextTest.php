@@ -18,7 +18,7 @@ test('from class reflection', function () {
         ->toBe('Tests\\Unit\\Parser\\Data\\Stubs')
         ->and($context->usedNamespaceMap)
         ->toBe([
-            'Optimizer' => 'Le0daniel\PhpTsBindings\Parser\ASTOptimizer',
+            'Optimizer' => 'Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer',
             'TypeParser' => 'Le0daniel\PhpTsBindings\Parser\TypeParser',
         ])
         ->and($context->localTypes)

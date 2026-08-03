@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
 
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\UnknownTypeKeyException;
-use Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 /**

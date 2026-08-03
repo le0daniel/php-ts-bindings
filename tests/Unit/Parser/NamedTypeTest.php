@@ -1,8 +1,8 @@
 <?php declare(strict_types=1);
 
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
-use Le0daniel\PhpTsBindings\Parser\AstValidator;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
@@ -94,7 +94,7 @@ test('metadata is transparent in the string form and eliminated from the optimiz
 
     $optimizedCode = new ASTOptimizer()->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry $registry */
+    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     expect($optimizedCode)->not->toContain('MetadataNode')

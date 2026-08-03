@@ -2,16 +2,16 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
-use Le0daniel\PhpTsBindings\Parser\Constraints\IntRange;
-use Le0daniel\PhpTsBindings\Parser\Constraints\LowercaseString;
-use Le0daniel\PhpTsBindings\Parser\Constraints\NonEmptyString;
-use Le0daniel\PhpTsBindings\Parser\Constraints\NonFalsyString;
-use Le0daniel\PhpTsBindings\Parser\Constraints\NumericString;
-use Le0daniel\PhpTsBindings\Parser\Constraints\UppercaseString;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
-use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\IntRange;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\LowercaseString;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NonEmptyString;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NonFalsyString;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NumericString;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\UppercaseString;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BoolNode;

@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Registry;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers\Registry;
 
 use Closure;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;

@@ -1,7 +1,8 @@
 <?php declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
@@ -9,7 +10,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ReferencedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
-use Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 /**

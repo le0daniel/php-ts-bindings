@@ -1,13 +1,13 @@
 <?php declare(strict_types=1);
 
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
-use Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Utils\Nodes;
 use Tests\Mocks\Named\Customer;
@@ -138,7 +138,7 @@ test('unwrapMetadata strips the wrapper and leaves everything else alone', funct
 test('unwrapMetadata keeps constraints attached, unlike getDeclaringNode', function () {
     $constrained = new Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode(
         new StringNode(),
-        [new Le0daniel\PhpTsBindings\Parser\Constraints\NonEmptyString()],
+        [new \Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NonEmptyString()],
     );
     $wrapped = new MetadataNode($constrained, null, 'tag');
 

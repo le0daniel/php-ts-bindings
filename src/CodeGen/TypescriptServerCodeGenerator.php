@@ -11,7 +11,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Data\IO;
-use Le0daniel\PhpTsBindings\Parser\AstValidator;
+use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;

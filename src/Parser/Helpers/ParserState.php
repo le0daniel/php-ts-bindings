@@ -1,10 +1,9 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Definition;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
-use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Lexer\SourceLocation;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Token;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;

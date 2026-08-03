@@ -6,7 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\ValueObjects\IntValueObject;
 use Le0daniel\PhpTsBindings\Contracts\ValueObjects\StringValueObject;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
-use Le0daniel\PhpTsBindings\Parser\Definition\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;

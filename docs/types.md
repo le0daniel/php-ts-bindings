@@ -496,7 +496,7 @@ By default the parsed AST is not validated, so it is possible to build one that 
 invalid — an intersection of types that cannot intersect, for example. Walk and check it with:
 
 ```php
-use Le0daniel\PhpTsBindings\Parser\AstValidator;
+use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
 
 AstValidator::validate($node);
 ```

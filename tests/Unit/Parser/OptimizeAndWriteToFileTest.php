@@ -3,8 +3,8 @@
 namespace Tests\Unit\Parser;
 
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
-use Le0daniel\PhpTsBindings\Parser\Registry\CachedTypeRegistry;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Tests\Unit\Parser\Data\Stubs\AccountData;
 

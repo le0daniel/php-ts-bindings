@@ -4,7 +4,7 @@ namespace Le0daniel\PhpTsBindings\Server\Operations;
 
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
