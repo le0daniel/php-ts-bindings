@@ -2,7 +2,7 @@
 
 use Le0daniel\PhpTsBindings\Parser\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\AstValidator;
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
@@ -12,30 +12,30 @@ use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
 use Tests\Mocks\Named\ArticleResource;
 use Tests\Mocks\Named\AsymmetricNamed;
 use Tests\Mocks\Named\Customer;
-use Tests\Mocks\Named\PerDirectionNamed;
 use Tests\Mocks\Named\InvalidlyBranded;
 use Tests\Mocks\Named\InvalidlyNamed;
 use Tests\Mocks\Named\NamedValueObject;
 use Tests\Mocks\Named\Order;
 use Tests\Mocks\Named\OrderStatus;
+use Tests\Mocks\Named\PerDirectionNamed;
 use Tests\Mocks\Named\RenamedThing;
 use Tests\Mocks\ValueObjects\Inherited\AccountId;
 use Tests\Mocks\ValueObjects\Inherited\AmbiguousId;
 use Tests\Mocks\ValueObjects\Inherited\BadClosureId;
 use Tests\Mocks\ValueObjects\Inherited\BaseId;
-use Tests\Mocks\ValueObjects\Inherited\ComputedLocally;
-use Tests\Mocks\ValueObjects\Inherited\DisambiguatedId;
-use Tests\Mocks\ValueObjects\Inherited\InvoiceId;
-use Tests\Mocks\ValueObjects\Inherited\ReceiptId;
 use Tests\Mocks\ValueObjects\Inherited\BrandId;
 use Tests\Mocks\ValueObjects\Inherited\ChildId;
+use Tests\Mocks\ValueObjects\Inherited\ComputedLocally;
 use Tests\Mocks\ValueObjects\Inherited\DeepId;
+use Tests\Mocks\ValueObjects\Inherited\DisambiguatedId;
 use Tests\Mocks\ValueObjects\Inherited\GrandChildId;
+use Tests\Mocks\ValueObjects\Inherited\InvoiceId;
 use Tests\Mocks\ValueObjects\Inherited\LegacyId;
 use Tests\Mocks\ValueObjects\Inherited\LocallyOverriddenId;
 use Tests\Mocks\ValueObjects\Inherited\ParentWinsId;
 use Tests\Mocks\ValueObjects\Inherited\PartiallyOverriddenId;
 use Tests\Mocks\ValueObjects\Inherited\PlainId;
+use Tests\Mocks\ValueObjects\Inherited\ReceiptId;
 use Tests\Mocks\ValueObjects\Inherited\SharedExplicitBrandId;
 
 test('resolves #[Named] on a class to the base name, for both directions', function () {

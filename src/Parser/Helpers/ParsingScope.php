@@ -3,7 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Reflection\FileReflector;
 use Le0daniel\PhpTsBindings\Utils;
 use ReflectionClass;

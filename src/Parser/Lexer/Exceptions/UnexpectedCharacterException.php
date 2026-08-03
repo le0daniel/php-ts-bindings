@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Lexer\Exceptions;
 
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Lexer\SourceLocation;
 
 final class UnexpectedCharacterException extends ParserException

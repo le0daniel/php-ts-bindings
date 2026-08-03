@@ -2,7 +2,7 @@
 
 namespace Tests\Unit\Utils;
 
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 
 beforeEach(function () {

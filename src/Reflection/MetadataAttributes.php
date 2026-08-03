@@ -6,7 +6,7 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Brand;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Named;
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use ReflectionClass;

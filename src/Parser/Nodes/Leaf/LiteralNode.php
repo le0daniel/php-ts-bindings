@@ -9,7 +9,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;

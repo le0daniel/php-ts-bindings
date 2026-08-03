@@ -2,8 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
-use Le0daniel\PhpTsBindings\Parser\Exceptions\InvalidSyntaxException;
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Lexer\SourceLocation;
 use Le0daniel\PhpTsBindings\Parser\Lexer\Token;

@@ -2,7 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Parser\Definition;
 
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 
 /**
  * Decodes raw lexemes produced by the Lexer into PHP values.

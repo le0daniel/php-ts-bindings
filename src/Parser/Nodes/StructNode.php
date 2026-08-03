@@ -6,7 +6,7 @@ use Closure;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\ValidatableNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\WrapsNodes;
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use NoDiscard;

@@ -3,7 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Utils;
 
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
-use Le0daniel\PhpTsBindings\Parser\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use UnitEnum;
 
 final readonly class PHPExport
