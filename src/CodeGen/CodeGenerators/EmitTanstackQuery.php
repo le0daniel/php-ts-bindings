@@ -6,7 +6,6 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
