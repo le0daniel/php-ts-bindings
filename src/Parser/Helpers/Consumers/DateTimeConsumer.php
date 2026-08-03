@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Consumers;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
 use DateTimeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;

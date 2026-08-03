@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Parser\Consumers;
+namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
 use Le0daniel\PhpTsBindings\Parser\Constraints\IntRange;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
