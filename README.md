@@ -376,7 +376,10 @@ php artisan operations:codegen resources/js/operations --with=tanstack-query,que
 
 Write your own generator by implementing `GeneratesLibFiles` (gets every operation, writes shared
 lib files) or `GeneratesOperationCode` (gets one operation, writes its code) and passing it with
-`--custom=My\Generator`.
+`--custom=My\Generator`. Add `DependsOn` to declare the generators yours needs: the run fails early
+if one is missing, and hands you the resolved instances through `setDependencies()`. That is how to
+reference what another generator emitted — ask `EmitOperations` for `inputTypeName($operation)`
+rather than rebuilding the name and hoping it matches.
 
 ## Client directives
 

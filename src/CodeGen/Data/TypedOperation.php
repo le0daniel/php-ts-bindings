@@ -17,6 +17,14 @@ final class TypedOperation
     }
 
     /**
+     * An operation without an input renders as the null type, and every generator that emits a
+     * signature for it has to drop the argument.
+     */
+    public bool $hasInput {
+        get => $this->inputDef->type !== 'null';
+    }
+
+    /**
      * Each definition carries its own registry with every alias it relies on: what the operation's
      * file imports, and what the generated types file declares (via the run's shared registry).
      */

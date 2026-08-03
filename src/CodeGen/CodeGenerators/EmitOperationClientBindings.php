@@ -5,12 +5,29 @@ namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Override;
 
 final readonly class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
 {
+    private const string BINDINGS_FILE = "bindings";
+
+    /**
+     * @param list<string> $values
+     * @param list<string> $types
+     * @return TypescriptImport
+     */
+    public static function importFromBindings(array $values = [], array $types = []): TypescriptImport
+    {
+        return new TypescriptImport(
+            Paths::libImport(self::BINDINGS_FILE),
+            values: $values,
+            types: $types,
+        );
+    }
 
     #[Override]
     public function dependsOnGenerator(): array
@@ -18,6 +35,14 @@ final readonly class EmitOperationClientBindings implements GeneratesLibFiles, D
         return [
             EmitTypes::class,
         ];
+    }
+
+    /**
+     * Depends on the types for ordering only, so there is nothing to hold on to.
+     */
+    #[Override]
+    public function setDependencies(array $dependencies): void
+    {
     }
 
     /**
@@ -173,7 +198,7 @@ export class OperationException extends Error {
     }
 }
 TypeScript),
-            "bindings" => new TypescriptFile(<<<TypeScript
+            self::BINDINGS_FILE => new TypescriptFile(<<<TypeScript
 import type { Result, Success, WithClientDirectives } from './types';
 import type { OperationClient, OperationOptions } from './OperationClient';
 import { DefaultClient } from './DefaultClient';

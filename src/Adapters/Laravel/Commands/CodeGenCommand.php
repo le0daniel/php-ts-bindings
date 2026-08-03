@@ -271,8 +271,10 @@ DESCRIPTION;
             $includeGenerator('utils', true) ? new EmitTypeUtils() : null,
             $includeGenerator('operations', true) ? new EmitOperations($namingGenerator) : null,
             $includeGenerator('type-map', false) ? new EmitTypeMap() : null,
-            $includeGenerator('tanstack-query', false) ? new EmitTanstackQuery($namingGenerator) : null,
-            $includeGenerator('query-key', false) ? new EmitQueryKey($namingGenerator) : null,
+            // Only EmitOperations is given the naming rule: it declares the names, the other two
+            // are handed it as a dependency and ask for them.
+            $includeGenerator('tanstack-query', false) ? new EmitTanstackQuery() : null,
+            $includeGenerator('query-key', false) ? new EmitQueryKey() : null,
         ], fn($value) => $value !== null);
 
         $customGenerators = array_map(

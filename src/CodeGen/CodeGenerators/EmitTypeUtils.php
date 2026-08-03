@@ -6,20 +6,46 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Override;
 
 final readonly class EmitTypeUtils implements GeneratesLibFiles, DependsOn
 {
+    private const string UTILS_FILE = 'utils';
+
+    /**
+     * @param list<string> $values
+     * @param list<string> $types
+     * @return TypescriptImport
+     */
+    public static function importFromUtils(array $values = [], array $types = []): TypescriptImport
+    {
+        return new TypescriptImport(
+            Paths::libImport(self::UTILS_FILE),
+            values: $values,
+            types: $types,
+        );
+    }
+
     #[Override]
     public function dependsOnGenerator(): array
     {
         return [
             EmitTypes::class,
         ];
+    }
+
+    /**
+     * Depends on the types for ordering only, so there is nothing to hold on to.
+     */
+    #[Override]
+    public function setDependencies(array $dependencies): void
+    {
     }
 
     /**
@@ -48,7 +74,7 @@ final readonly class EmitTypeUtils implements GeneratesLibFiles, DependsOn
         ));
 
         return [
-            "utils" => new TypescriptFile(<<<TypeScript
+            self::UTILS_FILE => new TypescriptFile(<<<TypeScript
 import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from "./types";
 
 type QueryNamespaces = {$this->generateLiteralUnion($queryNamespaces)};

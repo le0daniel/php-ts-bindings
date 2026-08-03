@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Closure;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
@@ -11,10 +10,17 @@ use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
-final readonly class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
+/**
+ * Not readonly: the EmitOperations it hangs everything off is injected after construction, which is
+ * the only way it can be the same instance the generator runs.
+ */
+final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {
+    private EmitOperations $operations;
+
     #[Override]
     public function dependsOnGenerator(): array
     {
@@ -23,30 +29,30 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
         ];
     }
 
-    /**
-     * @param (Closure(TypedOperation):string)|null $nameGenerator
-     */
-    public function __construct(private ?Closure $nameGenerator = null)
+    #[Override]
+    public function setDependencies(array $dependencies): void
     {
-    }
-
-    private function generateName(TypedOperation $operation): string
-    {
-        return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
+        $this->operations = Assertions::instanceOf(
+            EmitOperations::class,
+            $dependencies[EmitOperations::class] ?? null,
+        );
     }
 
     #[Override]
     public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptFile
     {
-        $definition = $operation->operation->definition;
+        $definition = $operation->definition;
         if ($definition->type !== OperationType::QUERY) {
             return null;
         }
 
-        $name = $this->generateName($operation);
-        $operationBaseTypeName = ucfirst($name);
-        $resultTypeName = $operationBaseTypeName . "Result";
-        $resultInputTypeName = $operationBaseTypeName . "Input";
+        // Everything the emitted hook calls or annotates itself with is declared by EmitOperations
+        // in the same module, so the names come from there.
+        $name = $this->operations->operationName($operation);
+        $operationBaseTypeName = $this->operations->baseTypeName($operation);
+        $resultTypeName = $this->operations->resultTypeName($operation);
+        $resultInputTypeName = $this->operations->inputTypeName($operation);
+
         $queryName = "use" . $operationBaseTypeName . "Query";
         $queryOptionsName = lcfirst($operationBaseTypeName) . "QueryOptions";
         $optionsTypeName = $operationBaseTypeName . "Options";
@@ -57,11 +63,11 @@ final readonly class EmitTanstackQuery implements GeneratesOperationCode, Depend
                 values: ['useQuery', 'queryOptions'],
                 types: ['UseQueryOptions'],
             ),
-            TypescriptImport::values(Paths::libImport("utils"), 'queryKey'),
-            TypescriptImport::values(Paths::libImport("bindings"), 'throwOnFailure'),
+            EmitTypeUtils::importFromUtils(values: ['queryKey']),
+            EmitOperationClientBindings::importFromBindings(values: ['throwOnFailure']),
         ];
 
-        if ($operation->inputDef->type === 'null') {
+        if (!$operation->hasInput) {
             return new TypescriptFile(
                 <<<TypeScript
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;

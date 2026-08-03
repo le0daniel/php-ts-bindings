@@ -30,16 +30,25 @@ final readonly class TypescriptServerCodeGenerator
         private TypescriptGenerator $typescriptGenerator = new TypescriptGenerator(),
     )
     {
-        $this->verifyGeneratorDependencies();
+        $this->resolveGeneratorDependencies();
     }
 
     /**
+     * Every declared dependency is verified before any instance is handed out: a generator asked to
+     * resolve a dependency that is not registered would fail on the missing instance instead of the
+     * message naming what to register.
+     *
      * @throws InvalidGeneratorDependencies
      */
-    private function verifyGeneratorDependencies(): void
+    private function resolveGeneratorDependencies(): void
     {
         $issues = [];
-        $generatorClassNames = array_map(fn(object $generator): string => $generator::class, $this->generators);
+
+        /** @var array<class-string<GeneratesLibFiles|GeneratesOperationCode>, GeneratesLibFiles|GeneratesOperationCode> $instances */
+        $instances = [];
+        foreach ($this->generators as $generator) {
+            $instances[$generator::class] = $generator;
+        }
 
         foreach ($this->generators as $generator) {
             if (!$generator instanceof DependsOn) {
@@ -47,7 +56,7 @@ final readonly class TypescriptServerCodeGenerator
             }
 
             foreach ($generator->dependsOnGenerator() as $className) {
-                if (!in_array($className, $generatorClassNames, true)) {
+                if (!array_key_exists($className, $instances)) {
                     $issues[] = "Generator " . $generator::class . " depends on {$className} which is not registered.";
                 }
             }
@@ -55,6 +64,18 @@ final readonly class TypescriptServerCodeGenerator
 
         if (!empty($issues)) {
             throw new InvalidGeneratorDependencies($issues);
+        }
+
+        foreach ($this->generators as $generator) {
+            if (!$generator instanceof DependsOn) {
+                continue;
+            }
+
+            // Each generator sees what it declared and nothing else, so a dependency it never asked
+            // for cannot quietly become one it relies on.
+            $generator->setDependencies(
+                array_intersect_key($instances, array_flip($generator->dependsOnGenerator())),
+            );
         }
     }
 

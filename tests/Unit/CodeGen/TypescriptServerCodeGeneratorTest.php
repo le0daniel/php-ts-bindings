@@ -9,6 +9,8 @@ use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
@@ -116,6 +118,35 @@ test('merges what every generator imports into one sorted block per module', fun
     import {queryOptions, useQuery} from '@tanstack/react-query';
 
     TypeScript);
+});
+
+test('every generator names an operation the way the one that declares it does', function () {
+    // The naming rule is handed to EmitOperations only. The other two ask it for the names, so a
+    // rule set in one place cannot leave them referencing types and functions no file declares.
+    $operations = generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(fn(TypedOperation $operation): string => "orders" . ucfirst($operation->definition->name)),
+        new EmitQueryKey(),
+        new EmitTanstackQuery(),
+    ])['orders.ts']->toString();
+
+    expect($operations)
+        ->toContain('export type OrdersGetInput = {status:OrderStatus;};')
+        ->toContain('export async function ordersGet(input: OrdersGetInput, options?: OperationOptions)')
+        ->toContain('export function ordersGetQueryKey(input: OrdersGetInput)')
+        ->toContain('export function ordersGetQueryOptions(input: OrdersGetInput, options?: OrdersGetOptions)')
+        ->toContain('export function useOrdersGetQuery(input: OrdersGetInput,')
+        ->toContain('const result = await ordersGet(input, {signal});');
+});
+
+test('fails the run when a generator depends on one that is not registered', function () {
+    expect(fn() => generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTanstackQuery(),
+    ]))->toThrow(InvalidGeneratorDependencies::class);
 });
 
 test('fails the run when two classes resolve to the same name with different shapes', function () {

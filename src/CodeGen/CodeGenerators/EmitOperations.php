@@ -31,9 +31,43 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
         ];
     }
 
-    private function generateName(TypedOperation $operation): string
+    /**
+     * Depends on the bindings for ordering only, so there is nothing to hold on to.
+     */
+    #[Override]
+    public function setDependencies(array $dependencies): void
     {
-        return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
+    }
+
+    /**
+     * The names below are what this generator writes into the operation's module, and the only
+     * place they are defined. Whatever else references them — a query key, a hook — asks here
+     * rather than re-deriving them: the naming rule lives in this instance, so a second derivation
+     * is a second rule waiting to disagree with this one.
+     */
+    public function operationName(TypedOperation $operation): string
+    {
+        return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->definition->name;
+    }
+
+    public function baseTypeName(TypedOperation $operation): string
+    {
+        return ucfirst($this->operationName($operation));
+    }
+
+    public function inputTypeName(TypedOperation $operation): string
+    {
+        return $this->baseTypeName($operation) . 'Input';
+    }
+
+    public function resultTypeName(TypedOperation $operation): string
+    {
+        return $this->baseTypeName($operation) . 'Result';
+    }
+
+    public function errorTypeName(TypedOperation $operation): string
+    {
+        return $this->baseTypeName($operation) . 'Error';
     }
 
     /**
@@ -54,13 +88,11 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
     #[Override]
     public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): TypescriptFile
     {
-        $definition = $operation->operation->definition;
-        $name = $this->generateName($operation);
-
-        $operationBaseTypeName = ucfirst($name);
-        $resultTypeName = $operationBaseTypeName . "Result";
-        $resultInputTypeName = $operationBaseTypeName . "Input";
-        $errorTypeName = $operationBaseTypeName . "Error";
+        $definition = $operation->definition;
+        $name = $this->operationName($operation);
+        $resultTypeName = $this->resultTypeName($operation);
+        $resultInputTypeName = $this->inputTypeName($operation);
+        $errorTypeName = $this->errorTypeName($operation);
 
         $imports = [
             TypescriptImport::values(Paths::libImport("bindings"), "executeOperation"),
@@ -76,7 +108,7 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
  */
 TypeScript;
 
-        if ($operation->inputDef->type === 'null') {
+        if (!$operation->hasInput) {
             return new TypescriptFile(
                 <<<TypeScript
 export type {$resultTypeName} = {$operation->outputDef->type};
