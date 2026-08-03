@@ -60,7 +60,9 @@ export function {$name}QueryKey(input: {$inputTypeName}) {
 }
 TypeScript
             ,
-            [TypescriptImport::values(Paths::libImport("utils"), 'queryKey')],
+            imports: [
+                EmitTypeUtils::importFromUtils(values: ['queryKey']),
+            ],
         );
     }
 }

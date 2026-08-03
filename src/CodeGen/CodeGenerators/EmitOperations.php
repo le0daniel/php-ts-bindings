@@ -95,7 +95,7 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
         $errorTypeName = $this->errorTypeName($operation);
 
         $imports = [
-            TypescriptImport::values(Paths::libImport("bindings"), "executeOperation"),
+            EmitOperationClientBindings::importFromBindings(values: ['executeOperation']),
             TypescriptImport::types(Paths::libImport("OperationClient"), "OperationOptions"),
             ...$this->aliasImports($operation),
         ];
