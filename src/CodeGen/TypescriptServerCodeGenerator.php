@@ -24,6 +24,12 @@ use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 final readonly class TypescriptServerCodeGenerator
 {
     /**
+     * Every name that becomes a file on disk, whether a lib file a generator named or a module a
+     * namespace named, is held to this.
+     */
+    private const string VALID_MODULE_NAME = '/^[a-zA-Z0-9_\-]+$/';
+
+    /**
      * @param array<GeneratesLibFiles|GeneratesOperationCode> $generators
      * @throws InvalidGeneratorDependencies
      */
@@ -165,7 +171,7 @@ final readonly class TypescriptServerCodeGenerator
                 }
 
                 foreach ($codeGenerator->emitFiles($definitions, $metadata, $registry) as $fileName => $fileContent) {
-                    if (preg_match('/^[a-zA-Z0-9_\-]+$/', $fileName) !== 1) {
+                    if (preg_match(self::VALID_MODULE_NAME, $fileName) !== 1) {
                         throw new CodeGenException("Invalid file name '{$fileName}' for lib file. File names must only contain a-z, A-Z, 0-9, - and _.");
                     }
 
@@ -195,7 +201,20 @@ final readonly class TypescriptServerCodeGenerator
         /** @var array<string, TypescriptFile> $operationFiles */
         $operationFiles = [];
         foreach ($definitions as $operationData) {
-            $fileKey = "{$operationData->definition->namespace}.ts";
+            $namespace = $operationData->definition->namespace;
+
+            // Lib file names are validated; this one comes straight from #[Query(namespace: ...)]
+            // and is written verbatim. A `/` or `..` in it is path traversal in a build tool, and
+            // a quote breaks the namespace literal union EmitTypeUtils emits.
+            if (preg_match(self::VALID_MODULE_NAME, $namespace) !== 1) {
+                throw new CodeGenException(
+                    "Invalid namespace '{$namespace}' on "
+                    . "{$operationData->definition->fullyQualifiedClassName}::{$operationData->definition->methodName}. "
+                    . "A namespace becomes a module file name and must only contain a-z, A-Z, 0-9, - and _."
+                );
+            }
+
+            $fileKey = "{$namespace}.ts";
 
             // The file is immutable, so each block produces a new one and the last is kept. It also
             // owns the blank lines between blocks, which is why nothing is appended as a separator.

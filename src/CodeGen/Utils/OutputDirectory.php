@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Utils;
 
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
@@ -19,8 +20,25 @@ final class OutputDirectory
      */
     public static function write(string $directory, array $files): void
     {
+        // A file about to be written that is already there unmarked is hand written TypeScript
+        // whose name collides with a generated module. Overwriting it silently is the one case
+        // the marker cannot recover from, so it is refused before anything is touched.
+        foreach ($files as $fileName => $file) {
+            $filePath = "{$directory}/{$fileName}";
+            if (file_exists($filePath) && !self::isGeneratedFile($filePath)) {
+                throw new CodeGenException(
+                    "Refusing to overwrite {$fileName}: it exists but does not carry the "
+                    . "'" . TypescriptFile::MARKER . "' marker, so it was not written by this "
+                    . "library. Either it is hand written and the output belongs somewhere else, "
+                    . "or it predates the marker - delete the output directory once and generate "
+                    . "again."
+                );
+            }
+        }
+
         // Everything generated is rewritten, so a module left over from an operation that no longer
-        // exists would otherwise keep importing types that are gone.
+        // exists would otherwise keep importing types that are gone. Only files carrying the marker
+        // are removed - the directory may legitimately hold TypeScript nobody here wrote.
         foreach (self::existingFileNames($directory) as $fileName) {
             unlink("{$directory}/{$fileName}");
         }
@@ -73,7 +91,11 @@ final class OutputDirectory
      * Relative, not absolute: the caller's directory may be a relative or symlinked path, and only
      * the part below it can be compared to what the generators named.
      *
-     * @return list<string> Every .ts file below the directory, relative to it.
+     * Only files this library wrote are reported. That is what makes write() safe to run against a
+     * directory holding anything else, and it keeps verify() from calling a hand written module
+     * stale.
+     *
+     * @return list<string> Every generated .ts file below the directory, relative to it.
      */
     private static function existingFileNames(string $directory): array
     {
@@ -94,7 +116,7 @@ final class OutputDirectory
             }
 
             $realPath = $file->getRealPath();
-            if ($realPath === false) {
+            if ($realPath === false || !self::isGeneratedFile($realPath)) {
                 continue;
             }
 
@@ -103,5 +125,14 @@ final class OutputDirectory
 
         sort($fileNames);
         return $fileNames;
+    }
+
+    /**
+     * Reads only as much of the file as the marker needs.
+     */
+    private static function isGeneratedFile(string $filePath): bool
+    {
+        $head = file_get_contents($filePath, length: strlen(TypescriptFile::MARKER) + 2);
+        return $head !== false && TypescriptFile::isGenerated($head);
     }
 }

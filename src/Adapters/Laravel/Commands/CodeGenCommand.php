@@ -21,6 +21,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\OutputDirectory;
@@ -113,6 +114,11 @@ DESCRIPTION;
             // than a placeholder type that fails later inside the generated client.
             $this->error($exception->getMessage());
             return 1;
+        } catch (CodeGenException $exception) {
+            // A bad naming mode, a namespace that cannot be a file name, two operations generating
+            // one name: all of them end the run with a message rather than a stack trace.
+            $this->error($exception->getMessage());
+            return 1;
         }
 
         $target = ArtisanOptions::asString($this->argument('directory')) ?? '';
@@ -131,7 +137,14 @@ DESCRIPTION;
             return $this->verifyContentOnly($directory, $files);
         }
 
-        OutputDirectory::write($directory, $files);
+        try {
+            OutputDirectory::write($directory, $files);
+        } catch (CodeGenException $exception) {
+            // Refusing to overwrite a file this library did not write.
+            $this->error($exception->getMessage());
+            return 1;
+        }
+
         return 0;
     }
 
@@ -174,8 +187,10 @@ DESCRIPTION;
             return $instance->{$parts[1]}(...);
         }
 
-        $this->error("Unknown naming mode {$naming}.");
-        exit(1);
+        throw new CodeGenException(
+            "Unknown naming mode '{$naming}'. Use one of name, fqn, operation-prefix, "
+            . "namespace-postfix, or Class::method naming your own rule."
+        );
     }
 
     /**

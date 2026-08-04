@@ -171,10 +171,12 @@ export class DefaultClient implements OperationClient {
         const route = this.options.paths[type].substring(0, 1) === '/' ? this.options.paths[type].substring(1) : this.options.paths[type];
         const fullPath = `\${this.options.baseUrl ?? ''}/\${route.replace('{fqn}', key)}`;
 
-        const timeoutInMs = this.options?.timeoutMs ?? options?.timeoutMs;
+        // Per call wins over the client wide default, and the timeout signal actually fires: a
+        // fresh AbortController is never aborted by anything.
+        const timeoutInMs = options?.timeoutMs ?? this.options?.timeoutMs;
         const signal = this.joinSignals([
             options?.signal,
-            timeoutInMs ? new AbortController().signal : undefined
+            timeoutInMs ? AbortSignal.timeout(timeoutInMs) : undefined
         ]);
 
         const headers: Record<string, string> = {
@@ -229,24 +231,28 @@ TypeScript, [
                 ),
             ]),
             self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<TypeScript
-export class OperationException extends Error {
-    public readonly cause: Failure<any>;
+/**
+ * Generic over the operation's error union, so `e.cause.type` narrows to the branches the
+ * operation can actually produce rather than to any.
+ */
+export class OperationException<E extends {code: number} = {code: number}> extends Error {
+    public readonly cause: Failure<E>;
 
     get code(): number {
         const code = this.cause.code;
         if (!code || typeof code !== 'number' || Number.isNaN(code)) {
             return 500;
         }
-        
+
         return code;
     }
 
-    constructor(cause: Failure<any>) {
+    constructor(cause: Failure<E>) {
         super(`Operation failed with code \${cause.code}`);
         this.cause = cause;
     }
-    
-    public static is(e: unknown): e is OperationException {
+
+    public static is<E extends {code: number} = {code: number}>(e: unknown): e is OperationException<E> {
         return e instanceof OperationException;
     }
 }
@@ -256,11 +262,14 @@ TypeScript, [
             self::BINDINGS_FILE => new TypescriptFile(<<<TypeScript
 let client: OperationClient|null;
 
-export function createDefaultClient(fetcher?: typeof window.fetch): DefaultClient {
+export function createDefaultClient(
+    fetcher?: typeof window.fetch,
+    options?: {baseUrl?: string; timeoutMs?: number},
+): DefaultClient {
     return new DefaultClient(fetcher ?? fetch, {
         paths: {query: '{$metadata->queryUrl}', command: '{$metadata->commandUrl}'},
-        baseUrl: '',
-        timeoutMs: 10000,
+        baseUrl: options?.baseUrl ?? '',
+        timeoutMs: options?.timeoutMs ?? 10000,
     });
 }
 
@@ -268,6 +277,14 @@ export function setClient(operationClient: OperationClient|null): void {
     client = operationClient;
 }
 
+/**
+ * Narrows a Result to its success branch, throwing otherwise, for call sites that would rather
+ * catch than branch.
+ *
+ * The error union is deliberately not inferred here: a catch clause variable is `unknown` in
+ * TypeScript whatever was thrown, so no signature on this function could carry E to the catch.
+ * Name it there instead - `OperationException.is<ProductError>(e)` types `e.cause` for you.
+ */
 export function throwOnFailure<const T>(result: Result<T, any>): asserts result is Success<T> {
     if (!result.success) {
         throw new OperationException(result);

@@ -6,6 +6,7 @@
  * Nothing here runs. It exists to be typechecked by `composer codegen:fixture`.
  */
 import {find, lock} from '../generated/accounts';
+import type {ProductError} from '../generated/catalog';
 import {prepare, product, productQueryKey, productQueryOptions, restock, search, useProductQuery} from '../generated/catalog';
 import {createDefaultClient, setClient, throwOnFailure} from '../generated/lib/bindings';
 import {OperationException} from '../generated/lib/OperationException';
@@ -50,8 +51,17 @@ export async function readProductOrThrow(): Promise<Product> {
         throwOnFailure(result);
         return result.data;
     } catch (error) {
-        if (OperationException.is(error)) {
-            console.error('operation failed', error.code, error.cause.type);
+        // A catch clause variable is `unknown` whatever was thrown, so the operation's error union
+        // is named here rather than inferred. OperationException is generic over it, which is what
+        // makes `cause.type` the discriminated union instead of any.
+        if (OperationException.is<ProductError>(error)) {
+            const failureType: ProductError['type'] = error.cause.type;
+            console.error('operation failed', error.code, failureType);
+
+            if (error.cause.code === 422) {
+                const fields: Record<string, string[]> = error.cause.details.fields;
+                console.error('invalid input', fields);
+            }
         }
         throw error;
     }

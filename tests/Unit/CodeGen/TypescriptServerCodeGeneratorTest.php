@@ -112,7 +112,7 @@ test('merges what every generator imports into one sorted block per module', fun
     // bindings collects executeOperation and throwOnFailure, utils' queryKey is claimed twice and
     // deduped, and the aliases come from both EmitOperations and EmitQueryKey. Type only exports
     // are on their own line, which is what verbatimModuleSyntax requires.
-    expect($operations)->toStartWith(<<<TypeScript
+    expect($operations)->toStartWith(TypescriptFile::MARKER . "\n\n" . <<<TypeScript
     import type {OperationOptions} from './lib/OperationClient';
     import {executeOperation, throwOnFailure} from './lib/bindings';
     import type {Brand, Customer, Order, OrderStatus} from './lib/types';
@@ -150,7 +150,7 @@ test('a lib file reaches its siblings directly instead of through lib/', functio
     // once it knows where the file went, and the emitters never learn where that is.
     $files = generateFor([NamedOperations::class]);
 
-    expect($files['lib/bindings.ts']->toString())->toStartWith(<<<TypeScript
+    expect($files['lib/bindings.ts']->toString())->toStartWith(TypescriptFile::MARKER . "\n\n" . <<<TypeScript
     import {DefaultClient} from './DefaultClient';
     import type {OperationClient, OperationOptions} from './OperationClient';
     import {OperationException} from './OperationException';
@@ -159,7 +159,8 @@ test('a lib file reaches its siblings directly instead of through lib/', functio
     TypeScript);
 
     expect($files['lib/utils.ts']->toString())->toStartWith(
-        "import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from './types';"
+        TypescriptFile::MARKER . "\n\n"
+        . "import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from './types';"
     );
 
     expect($files['lib/types.ts']->toString())->not->toContain('import ');

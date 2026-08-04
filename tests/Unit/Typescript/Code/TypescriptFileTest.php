@@ -3,16 +3,30 @@
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 
+/**
+ * Every generated file opens with the marker, so the expectations below say only what follows it.
+ * OutputDirectory reads that line to tell what it wrote from what it must not touch.
+ */
+function renderedBody(TypescriptFile $file): string
+{
+    $prefix = TypescriptFile::MARKER . "\n";
+    $rendered = $file->toString();
+
+    expect($rendered)->toStartWith($prefix);
+
+    return $rendered === $prefix ? '' : substr($rendered, strlen($prefix) + 1);
+}
+
 test('renders an empty file as an empty string', function () {
-    expect(new TypescriptFile()->toString())->toBe('');
+    expect(renderedBody(new TypescriptFile()))->toBe('');
 });
 
 test('renders code with no imports', function () {
-    expect(new TypescriptFile('export type A = 1;')->toString())->toBe("export type A = 1;\n");
+    expect(renderedBody(new TypescriptFile('export type A = 1;')))->toBe("export type A = 1;\n");
 });
 
 test('always ends with exactly one newline', function (string $code) {
-    expect(new TypescriptFile($code)->toString())->toBe("const a = 1;\n");
+    expect(renderedBody(new TypescriptFile($code)))->toBe("const a = 1;\n");
 })->with([
     'none' => ['const a = 1;'],
     'one' => ["const a = 1;\n"],
@@ -25,7 +39,7 @@ test('separates the imports from the code with one blank line', function () {
         TypescriptImport::values('./lib/utils', 'queryKey'),
     ]);
 
-    expect($file->toString())->toBe(
+    expect(renderedBody($file))->toBe(
         "import {queryKey} from './lib/utils';\n\nconst a = queryKey();\n"
     );
 });
@@ -33,7 +47,7 @@ test('separates the imports from the code with one blank line', function () {
 test('renders imports alone when there is no code', function () {
     $file = new TypescriptFile('', [TypescriptImport::types('./lib/types', 'Brand')]);
 
-    expect($file->toString())->toBe("import type {Brand} from './lib/types';\n");
+    expect(renderedBody($file))->toBe("import type {Brand} from './lib/types';\n");
 });
 
 test('splits a module into a type line and a value line, type first', function () {
@@ -41,7 +55,7 @@ test('splits a module into a type line and a value line, type first', function (
         new TypescriptImport('./lib/types', values: ['isBrand'], types: ['Brand']),
     ]);
 
-    expect($file->toString())->toBe(
+    expect(renderedBody($file))->toBe(
         "import type {Brand} from './lib/types';\n"
         . "import {isBrand} from './lib/types';\n"
     );
@@ -51,13 +65,13 @@ test('renders only the line it has names for', function () {
     $values = new TypescriptFile('', [TypescriptImport::values('./lib/utils', 'queryKey')]);
     $types = new TypescriptFile('', [TypescriptImport::types('./lib/types', 'Brand')]);
 
-    expect($values->toString())->toBe("import {queryKey} from './lib/utils';\n")
-        ->and($types->toString())->toBe("import type {Brand} from './lib/types';\n");
+    expect(renderedBody($values))->toBe("import {queryKey} from './lib/utils';\n")
+        ->and(renderedBody($types))->toBe("import type {Brand} from './lib/types';\n");
 });
 
 test('quotes module specifiers with single quotes', function () {
     // Syntax::stringLiteral() is json_encode and would produce double quotes here.
-    expect(new TypescriptFile('', [TypescriptImport::types('./lib/types', 'Brand')])->toString())
+    expect(renderedBody(new TypescriptFile('', [TypescriptImport::types('./lib/types', 'Brand')])))
         ->toContain("from './lib/types';")
         ->not->toContain('"./lib/types"');
 });
@@ -65,7 +79,7 @@ test('quotes module specifiers with single quotes', function () {
 test('separates names with a comma and a space and does not pad the braces', function () {
     $file = new TypescriptFile('', [TypescriptImport::types('./lib/types', ['Brand', 'Order'])]);
 
-    expect($file->toString())->toBe("import type {Brand, Order} from './lib/types';\n");
+    expect(renderedBody($file))->toBe("import type {Brand, Order} from './lib/types';\n");
 });
 
 test('sorts the names inside each line', function () {
@@ -73,7 +87,7 @@ test('sorts the names inside each line', function () {
         TypescriptImport::types('./lib/types', ['OrderStatus', 'Brand', 'Customer']),
     ]);
 
-    expect($file->toString())->toBe("import type {Brand, Customer, OrderStatus} from './lib/types';\n");
+    expect(renderedBody($file))->toBe("import type {Brand, Customer, OrderStatus} from './lib/types';\n");
 });
 
 test('sorts modules by specifier', function () {
@@ -83,7 +97,7 @@ test('sorts modules by specifier', function () {
         TypescriptImport::types('./lib/types', 'Brand'),
     ]);
 
-    expect($file->toString())->toBe(
+    expect(renderedBody($file))->toBe(
         "import type {Brand} from './lib/types';\n"
         . "import {queryKey} from './lib/utils';\n"
         . "import {useQuery} from '@tanstack/react-query';\n"
@@ -97,7 +111,7 @@ test('merges two imports of the same module given to the constructor', function 
     ]);
 
     expect($file->imports)->toHaveCount(1)
-        ->and($file->toString())->toBe("import type {Brand, Order} from './lib/types';\n");
+        ->and(renderedBody($file))->toBe("import type {Brand, Order} from './lib/types';\n");
 });
 
 test('test mixed import', function () {
@@ -110,7 +124,7 @@ test('test mixed import', function () {
     ]);
 
     expect($file->imports)->toHaveCount(1)
-        ->and($file->toString())->toBe("import type {Brand, Order} from './lib/types';\nimport {SomeValue} from './lib/types';\n");
+        ->and(renderedBody($file))->toBe("import type {Brand, Order} from './lib/types';\nimport {SomeValue} from './lib/types';\n");
 });
 
 test('merges constructor imports with imports added later', function () {
@@ -118,7 +132,7 @@ test('merges constructor imports with imports added later', function () {
         ->withImports(TypescriptImport::types('./lib/types', 'Brand'));
 
     expect($file->imports)->toHaveCount(1)
-        ->and($file->toString())->toBe("import type {Brand, Order} from './lib/types';\n");
+        ->and(renderedBody($file))->toBe("import type {Brand, Order} from './lib/types';\n");
 });
 
 test('drops an import that names nothing', function () {
@@ -128,7 +142,7 @@ test('drops an import that names nothing', function () {
     ]);
 
     expect($file->imports)->toHaveCount(1)
-        ->and($file->toString())->toBe("import {queryKey} from './lib/utils';\n\nconst a = 1;\n");
+        ->and(renderedBody($file))->toBe("import {queryKey} from './lib/utils';\n\nconst a = 1;\n");
 });
 
 test('never emits a name as both a type and a value import of one module', function () {
@@ -137,7 +151,7 @@ test('never emits a name as both a type and a value import of one module', funct
         TypescriptImport::values('./lib/types', 'Status'),
     ]);
 
-    expect($file->toString())->toBe(
+    expect(renderedBody($file))->toBe(
         "import type {Order} from './lib/types';\n"
         . "import {Status} from './lib/types';\n"
     );
@@ -155,7 +169,7 @@ test('resolves every module specifier and merges what collapses onto one module'
     // The two specifiers name one module once resolved, so they render as one import and not as a
     // duplicated line the resolver would otherwise have introduced.
     expect($file->imports)->toHaveCount(2)
-        ->and($file->toString())->toBe(
+        ->and(renderedBody($file))->toBe(
             "import type {Order} from './types';\n"
             . "import {isOrder} from './types';\n"
             . "import {useQuery} from '@tanstack/react-query';\n"
@@ -183,8 +197,8 @@ test('renders the same bytes whatever order the imports arrived in', function ()
         TypescriptImport::types('./lib/types', 'Order'),
     ];
 
-    expect(new TypescriptFile('const a = 1;', $imports)->toString())
-        ->toBe(new TypescriptFile('const a = 1;', array_reverse($imports))->toString());
+    expect(renderedBody(new TypescriptFile('const a = 1;', $imports)))
+        ->toBe(renderedBody(new TypescriptFile('const a = 1;', array_reverse($imports))));
 });
 
 test('appending a string keeps the existing imports', function () {
@@ -192,7 +206,7 @@ test('appending a string keeps the existing imports', function () {
         ->append('const b = 2;');
 
     expect($file->imports)->toHaveCount(1)
-        ->and($file->toString())->toBe(
+        ->and(renderedBody($file))->toBe(
             "import type {Brand} from './lib/types';\n\nconst a = 1;\n\nconst b = 2;\n"
         );
 });
@@ -204,7 +218,7 @@ test('appending a file merges its imports', function () {
             TypescriptImport::values('./lib/utils', 'queryKey'),
         ]));
 
-    expect($file->toString())->toBe(
+    expect(renderedBody($file))->toBe(
         "import type {Brand, Order} from './lib/types';\n"
         . "import {queryKey} from './lib/utils';\n"
         . "\nconst a = 1;\n\nconst b = 2;\n"
@@ -224,25 +238,25 @@ test('separates appended blocks with a blank line', function () {
         ->append('export type B = 2;')
         ->append('export type C = 3;');
 
-    expect($file->toString())->toBe("export type A = 1;\n\nexport type B = 2;\n\nexport type C = 3;\n");
+    expect(renderedBody($file))->toBe("export type A = 1;\n\nexport type B = 2;\n\nexport type C = 3;\n");
 });
 
 test('strips the newlines around an appended block', function () {
     $file = new TypescriptFile('export type A = 1;')->append("\n\nexport type B = 2;\n\n");
 
-    expect($file->toString())->toBe("export type A = 1;\n\nexport type B = 2;\n");
+    expect(renderedBody($file))->toBe("export type A = 1;\n\nexport type B = 2;\n");
 });
 
 test('keeps the indentation of an appended block', function () {
     $file = new TypescriptFile('function a() {')->append("\n    return 1;\n");
 
-    expect($file->toString())->toBe("function a() {\n\n    return 1;\n");
+    expect(renderedBody($file))->toBe("function a() {\n\n    return 1;\n");
 });
 
 test('appending nothing is a no-op', function (string $code) {
     $file = new TypescriptFile('const a = 1;');
 
-    expect($file->append($code)->toString())->toBe("const a = 1;\n");
+    expect(renderedBody($file->append($code)))->toBe("const a = 1;\n");
 })->with([
     'empty string' => [''],
     'newlines' => ["\n\n"],
@@ -250,13 +264,13 @@ test('appending nothing is a no-op', function (string $code) {
 ]);
 
 test('appending to an empty file does not start it with a blank line', function () {
-    expect(new TypescriptFile()->append('const a = 1;')->toString())->toBe("const a = 1;\n")
-        ->and(new TypescriptFile()->append(new TypescriptFile('const a = 1;'))->toString())
+    expect(renderedBody(new TypescriptFile()->append('const a = 1;')))->toBe("const a = 1;\n")
+        ->and(renderedBody(new TypescriptFile()->append(new TypescriptFile('const a = 1;'))))
         ->toBe("const a = 1;\n");
 });
 
 test('constructing with code is the same as appending it to an empty file', function (string $code) {
-    expect(new TypescriptFile($code)->toString())->toBe(new TypescriptFile()->append($code)->toString());
+    expect(renderedBody(new TypescriptFile($code)))->toBe(renderedBody(new TypescriptFile()->append($code)));
 })->with([
     'plain' => ['const a = 1;'],
     'padded with newlines' => ["\nconst a = 1;\n\n"],
@@ -303,7 +317,7 @@ test('renders a full file: imports, a blank line, then every block', function ()
         [TypescriptImport::types('./lib/types', 'OrderStatus')],
     ));
 
-    expect($file->toString())->toBe(<<<TypeScript
+    expect(renderedBody($file))->toBe(<<<TypeScript
     import type {Brand, Order, OrderStatus} from './lib/types';
     import {queryKey} from './lib/utils';
 
@@ -322,3 +336,28 @@ test('casts to a string', function () {
     expect($file)->toBeInstanceOf(Stringable::class)
         ->and((string)$file)->toBe($file->toString());
 });
+
+test('every rendered file opens with the marker', function (TypescriptFile $file) {
+    expect($file->toString())->toStartWith(TypescriptFile::MARKER . "\n")
+        ->and(TypescriptFile::isGenerated($file->toString()))->toBeTrue();
+})->with([
+    'empty' => [fn() => new TypescriptFile()],
+    'code only' => [fn() => new TypescriptFile('const a = 1;')],
+    'imports only' => [fn() => new TypescriptFile('', [TypescriptImport::types('./lib/types', 'Brand')])],
+    'both' => [fn() => new TypescriptFile('const a = 1;', [TypescriptImport::types('./lib/types', 'Brand')])],
+]);
+
+test('the marker carries nothing that varies between runs', function () {
+    // Generated files are compared byte for byte to decide whether they are stale, so a version,
+    // a timestamp or a path in the marker would report every file as changed on every run.
+    expect(TypescriptFile::MARKER)->toBe('// generated by: php-ts-bindings');
+});
+
+test('a file this library did not write is not recognised as generated', function (string $contents) {
+    expect(TypescriptFile::isGenerated($contents))->toBeFalse();
+})->with([
+    'hand written' => ["export const a = 1;\n"],
+    'empty' => [''],
+    'marker not on the first line' => ["export const a = 1;\n// generated by: php-ts-bindings\n"],
+    'similar comment' => ["// generated by: something-else\n"],
+]);
