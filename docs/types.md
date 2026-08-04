@@ -5,6 +5,7 @@ Everything this library knows how to parse, serialize and emit. The short versio
 
 - [PHP to TypeScript](#php-to-typescript)
 - [Refinement types](#refinement-types)
+- [Not supported](#not-supported)
 - [Utility types](#utility-types)
 - [DateTimeString](#datetimestring)
 - [Value objects](#value-objects)
@@ -45,6 +46,13 @@ Unions and intersections are **always** parenthesised, so a union nested inside 
 never be misread. Members are deduplicated by their rendered form: `int\|string\|int` emits
 `(number|string)`.
 
+Object properties are emitted in a canonical order, sorted by name, so `array{name: string, age: int}`
+emits `{age:number;name:string;}`. Declaration order never reaches the client, which means reordering
+a PHP property or a constructor parameter does not change the generated type.
+
+Intersections join struct shapes of the same kind — all `array{…}` or all `object{…}`. An
+intersection of scalars, or one mixing the two shape kinds, is [not supported](#not-supported).
+
 Enums emit as a union of their **case names**, not their backing values. A backed enum that should
 travel as its backing value opts in by implementing `StringValueObject` — see
 [value objects](#value-objects).
@@ -76,8 +84,8 @@ Some PHPStan types narrow a PHP type further than PHP itself can express: `posit
 A refinement disappears in TypeScript — `positive-int` is `number` — because TypeScript cannot
 express it either. It is enforced on the server.
 
-`int-mask<…>`, `int-mask-of<…>` and `class-string` are **not** supported. Integer refinement is
-`int<min, max>` and the four shorthands above, nothing else.
+Integer refinement is `int<min, max>` and the four shorthands above, nothing else — `int-mask<…>`
+and `int-mask-of<…>` are [not supported](#not-supported).
 
 There is no attribute or annotation for attaching a check of your own: a property is refined by
 its PHPStan type or not at all. That is what keeps a parsed schema equal to the type it was
@@ -99,6 +107,65 @@ library assumes static analysis does its job.
 
 Serialization still enforces *types*: a `string` where an `int` is declared fails either way. Only
 the PHPStan refinement on top of the type is skipped.
+
+## Not supported
+
+The parser implements a subset of PHPStan. The subset is deliberate: every type it accepts has to
+be something it can *both* check at runtime and emit as TypeScript, which rules out anything
+describing PHP-side-only structure (callables, resources) or anything with no runtime
+representation to check (`class-string`, conditional types).
+
+Everything below is valid PHPStan. Writing it in a type this library parses is an error, not a
+silently-degraded `unknown`.
+
+### Rejected outright
+
+```
+array{foo: int, ...}        unsealed array shapes
+array{...}
+array{}                     the empty shape
+callable(int): void
+Closure(int, ...): void     callable signatures
+$this
+Foo::*                      wildcard class-constant reference
+Foo<T = int>                default generic arguments
+($x is int ? string : bool) conditional types
+```
+
+### Not recognised at all
+
+These reach the parser as an unknown identifier and fail with `No parser found.`:
+
+| | |
+|---|---|
+| `class-string`, `class-string<T>` | `literal-string`, `interface-string` |
+| `int-mask<…>`, `int-mask-of<…>` | `key-of<T>`, `value-of<T>` |
+| `iterable`, `resource` | `void`, `never`, `array-key` |
+| `static`, `self`, `parent` | bare `callable`, bare `Closure` |
+
+`int-mask` / `int-mask-of` are the deliberate case: integer refinement stops at `int<min, max>` and
+its shorthands, so a bitmask type has no representation here.
+
+### Supported, but narrower than PHPStan
+
+The traps — each is accepted by PHPStan and rejected here:
+
+| You write | What happens |
+|---|---|
+| `object` | Syntax error, "Expected brace". Bare `object` is not `unknown`; write `object{…}`. |
+| `array<non-empty-string, int>` | Rejected. A refined key type is not silently loosened to `string`. |
+| `array{2: string, 5: int}` | Rejected. Integer-keyed tuples must run sequentially from `0`. |
+| `object{0: string}` | Rejected. Object-shape keys must be identifiers or quoted strings. |
+| `list{int, string}` | Psalm's keyed-list syntax. Write `array{int, string}`. |
+| `A&B` where either side is not a shape | Intersections join struct shapes of the same kind — all `array{…}` or all `object{…}`, never mixed, never scalars. |
+| `Foo<A, B>` on a class declaring one `@template` | Rejected. The generic count must match the declaration. |
+
+### And no custom refinements
+
+Worth repeating here, because it is the same boundary from the other side: there is no attribute
+for attaching a check of your own — see [refinement types](#refinement-types). A property is
+refined by its PHPStan type or not at all, and rules PHPStan cannot express belong in a
+[value object](#value-objects).
 
 ## Utility types
 
@@ -379,8 +446,7 @@ different shapes anywhere in a run. A handful of names the generated types file 
 rejected outright:
 
 `Brand`, `Success`, `Failure`, `Result`, `OperationNamespaces`, `WithClientDirectives`,
-`SPAClientDirectives`, `ClientDirectives`, `ClientToast`, `ClientRedirect`, `ClientInvalidation`,
-`TYPE_MAP`.
+`SPAClientDirectives`, `ClientDirectives`, `ClientToast`, `ClientRedirect`, `ClientInvalidation`.
 
 Brands and names are pure code generation metadata with zero runtime impact: values travel the wire
 in their plain shape, and the metadata is stripped from cached ASTs entirely — TypeScript

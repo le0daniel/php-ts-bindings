@@ -161,6 +161,19 @@ key the server produced, so this only matters when you call the server by hand.
 scanning directories; schemas are parsed lazily, per operation, on first use.
 `CachedOperationRegistry` is the compiled form for production — see [Production](#production).
 
+**`ServerAdapter`** builds your handler classes and middleware. It is two methods —
+`createController()` and `createMiddleware()` — and it is the seam for dependency injection:
+
+| Adapter | Behaviour |
+|---|---|
+| `NewInstanceAdapter` | The default. Plain `new $className()`, so handlers take no constructor arguments. |
+| `PsrContainerAdapter` | Resolves both through a PSR-11 container. |
+
+Laravel wires `PsrContainerAdapter` to the application container for you. Implement the interface
+yourself for a container that is not PSR-11, or to construct handlers some other way. Whatever it
+does, a failure to resolve is caught and returned as an `RpcError` — that is part of what keeps
+`query()` and `command()` total.
+
 **The handler contract.** Your method is called with three arguments and may declare as few of them
 as it needs:
 
@@ -249,28 +262,77 @@ new ServerConfiguration()->withMiddlewares(AuthMiddleware::class, LoggingMiddlew
 `#[Throws]` on a middleware's `handle()` contributes to the error union of every operation it wraps,
 so the generated TypeScript knows about middleware failures too.
 
+### The rest of `ServerConfiguration`
+
+The same object carries the server's other two settings. On Laravel both come from
+`config/operations.php`; everywhere else this is where you set them.
+
+`withExceptions()` maps your exceptions onto the [error categories](#errors). Matching is
+`instanceof`, so listing a base class covers its subclasses, and an omitted category is left
+untouched:
+
+```php
+new ServerConfiguration()->withExceptions(
+    notFound: [EntityNotFoundException::class],
+    unauthenticated: [NotLoggedInException::class],
+    unauthorized: [ForbiddenException::class],
+)
+```
+
+Without this, nothing produces a 401, 403 or 404 except an unknown operation — every other
+exception is a 500.
+
+`coerceQueryInput` (default `false`) applies to queries only, and exists because a URL carries no
+types. The generated client JSON-encodes each value and the Laravel adapter decodes it again, so
+`?id=1` arrives as the integer `1` and nothing needs coercing. Turn this on when requests come from
+somewhere that does not round-trip — a hand-written URL, a form, a transport of your own — and leaf
+primitives are coerced to the declared type before validation instead of failing it:
+
+```php
+new ServerConfiguration(coerceQueryInput: true)
+```
+
 ## Types
 
-Anything PHPStan can express about a shape, this library can parse, serialize and emit:
+Most of what PHPStan can express about a shape, this library can parse, serialize and emit:
 
 | PHPStan | TypeScript |
 |---|---|
 | `string`, `int`, `float`, `bool`, `null`, `mixed` | `string`, `number`, `number`, `boolean`, `null`, `unknown` |
+| `numeric`, `scalar` | `(number)`, `(number\|boolean\|string)` |
 | `'foo'`, `123`, `true`, `MyEnum::CASE` | `"foo"`, `123`, `true`, `"CASE"` |
-| `array{name: string, age?: int}` | `{name:string;age?:number;}` |
+| `array{name: string, age?: int}`, `object{name: string}` | `{age?:number;name:string;}` |
 | `list<T>`, `T[]`, `array<int, T>` | `Array<T>` |
 | `array<string, T>` | `Record<string,T>` |
 | `array{string, int}` | `[string,number]` |
 | `A\|B`, `?T` | `(A\|B)`, `(null\|T)` |
+| `A&B` (shapes of the same kind) | `({a:string;}&{b:number;})` |
 | `MyEnum` | `("OPEN"\|"SHIPPED")` |
 | `DateTimeImmutable`, `DateTimeString<'Y-m-d'>` | `string` |
 | `positive-int`, `non-empty-string`, … | `number`, `string` — refinement enforced server-side |
 
+Object properties are emitted in a canonical order, sorted by name — which is why `age` comes first
+above. Declaration order does not reach the client, so reordering a PHP property is not a change to
+the generated type.
+
 Local and imported types work too: `@phpstan-type` and `@phpstan-import-type` are resolved against
 the declaring class, as are `use` statements and generics.
 
+### Not supported
+
+The parser understands a subset of PHPStan, not all of it. These are valid PHPStan that it rejects,
+with an `InvalidSyntaxException` when the schema is parsed:
+
+`class-string` · `key-of<T>` · `value-of<T>` · `int-mask` · `int-mask-of` · `callable(…)` ·
+`Closure(…): T` · `iterable` · `array{foo: int, ...}` (unsealed) · `array{}` ·
+`($x is int ? A : B)` · `Foo<T = int>` · `$this` · `static` · `self`
+
+One trap worth knowing up front: bare `object` is not an alias for `unknown` — it is a syntax
+error. Write `object{…}` with the shape.
+
 **[→ Full type reference](docs/types.md)** — refinements, utility types (`Pick`, `Omit`,
-`BrandedString`, `DateTimeString`), value objects, `#[Castable]`, brands and named types.
+`BrandedString`, `DateTimeString`), value objects, `#[Castable]`, brands and named types, and the
+[full list of what is not supported](docs/types.md#not-supported).
 
 ## Errors
 
@@ -278,14 +340,16 @@ Every failure the client can see is one of six categories:
 
 | Code | `type` | When |
 |---|---|---|
-| 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* marked `#[ExposeAs]` |
+| 422 | `INVALID_INPUT` | The input did not match its type |
 | 401 | `AUTHENTICATION_ERROR` | An exception you mapped as unauthenticated |
 | 403 | `AUTHORIZATION_ERROR` | An exception you mapped as unauthorized |
 | 404 | `NOT_FOUND` | Unknown operation, or an exception you mapped as not-found |
-| 422 | `INVALID_INPUT` | The input did not match its type |
+| 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* marked `#[ExposeAs]` |
 | 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
 
-The first match wins, in that order. Anything unrecognised is a 500 — an exception is never exposed
+The table is in resolution order, and the first match wins. That order is why `DOMAIN_ERROR` sits
+second to last: an exception you have explicitly mapped onto a category stays in that category even
+when it also carries `#[ExposeAs]`. Anything unrecognised is a 500 — an exception is never exposed
 by accident.
 
 **Exposing a domain error takes two keys.** The operation declares that it can throw it, and the
@@ -339,6 +403,9 @@ code lives in your repo.
   <namespace>.ts           one module per namespace, one function per operation
 ```
 
+That is the default output. The [optional generators](#optional-generators) add to it: `type-map`
+writes one more file, the other two write into the `<namespace>.ts` modules that are already there.
+
 The envelope every call resolves to:
 
 ```typescript
@@ -363,16 +430,20 @@ the per-call `options.client` both take one.
 `throwOnFailure(result)` narrows a `Result` to its success branch and throws an `OperationException`
 otherwise, for call sites that would rather not branch.
 
-**Optional generators**, off by default:
+### Optional generators
+
+Three more generators ship, all off by default:
 
 ```bash
 php artisan operations:codegen resources/js/operations --with=tanstack-query,query-key,type-map
 ```
 
 `tanstack-query` emits `<name>QueryOptions()` and `use<Name>Query()` for `@tanstack/react-query`;
-`query-key` emits standalone query keys; `type-map` emits a `TYPE_MAP` of every operation. Use
-`--without=` to drop a default generator, and `--naming=` to choose how functions are named
-(`name`, `fqn`, `operation-prefix`, `namespace-postfix`, or `Class::method` for your own rule).
+`query-key` emits standalone query keys; `type-map` writes `lib/type-map.ts`, exporting a `TypeMap`
+that maps every operation to its input, output and error types. Use `--without=` to drop a default
+generator, `--ignore=` to skip a namespace (or one operation, as `namespace.name`), and `--naming=`
+to choose how functions are named (`name`, `fqn`, `operation-prefix`, `namespace-postfix`, or
+`Class::method` for your own rule).
 
 Write your own generator by implementing `GeneratesLibFiles` (gets every operation, writes shared
 lib files) or `GeneratesOperationCode` (gets one operation, writes its code) and passing it with
@@ -396,7 +467,7 @@ public function create(array $input, mixed $context, Client $client): array
 {
     $client->success('Saved');
     $client->redirect('/docs/123', reload: true);
-    $client->invalidate('users', $input['id']);
+    $client->invalidate('users', '123');
 
     return ['id' => '123'];
 }
@@ -412,10 +483,15 @@ data:
   "__client": {
     "redirect": {"url": "/docs/123", "reload": true},
     "toasts": [{"type": "success", "message": "Saved"}],
+    "invalidations": [["users", "123"]],
     "type": "operations-spa"
   }
 }
 ```
+
+The full interface is `redirect()`, `invalidate()`, `toast()`, and one shorthand per toast type —
+`success()`, `error()`, `warning()`, `alert()` and `info()`. Keys are only present when something
+called for them.
 
 Otherwise a `NullClient` is used and every call is a no-op, so handlers never need to know which kind
 of client is on the other end. `lib/utils.ts` ships `isSpaClientDirectives()`, `isClientToast()` and
@@ -476,13 +552,32 @@ php artisan operations:codegen resources/js/operations
 |---|---|
 | `operations:list` | Every registered operation with its URI, method and handler. |
 | `operations:codegen {directory}` | Generate the TypeScript client. `--verify` checks for drift instead of writing — use it in CI. |
-| `operations:optimize` | Compile the registry to `bootstrap/cache/operations.php`. |
+| `operations:optimize` | Compile the registry to `bootstrap/cache/operations.php`. `--id-length=` overrides `cache.idLength` for the run. |
 | `operations:clear-optimize` | Remove it. |
 
 The last two are wired into `php artisan optimize` and `optimize:clear`.
 
 > `operations:codegen` removes every `.ts` file under the target directory before writing. Point it
 > at a directory it owns, not at a shared frontend folder.
+
+### Preloading a query
+
+`Preloader` runs a query server-side during the request that renders the page, so the data is in the
+page instead of being fetched after it loads. It is resolved from the container:
+
+```php
+public function show(Preloader $preloader): Response
+{
+    return Inertia::render('Users', [
+        'users' => $preloader->preload('users', 'get', ['id' => 1], $context),
+    ]);
+}
+```
+
+You get back `['response' => …, 'queryKey' => ['users', 'get', ['id' => 1]]]`. The key is built the
+same way the generated `--with=query-key` and `tanstack-query` code builds it, so a TanStack cache
+seeded with that pair will not refetch. Use `preloadMany()` for several at once. A query that fails
+throws — this is your own code calling your own operation, not untrusted input.
 
 ## Production
 
@@ -519,8 +614,10 @@ The core knows nothing about Laravel. Build a server, run an operation, and shap
 however you like:
 
 ```php
+use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
@@ -530,7 +627,13 @@ $server = new Server(
         __DIR__ . '/src/Operations',
         keyGenerator: new PlainlyExposedKeyGenerator(),
     ),
-    container: $psrContainer,   // optional; without it handlers are instantiated with `new`
+    adapter: new PsrContainerAdapter($psrContainer),
+    configuration: new ServerConfiguration()
+        ->withMiddlewares(AuthMiddleware::class)
+        ->withExceptions(
+            notFound: [EntityNotFoundException::class],
+            unauthenticated: [NotLoggedInException::class],
+        ),
 );
 
 $result = $server->command('users.create', $input, $myContext, new NullClient());
