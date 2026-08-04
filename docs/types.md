@@ -35,7 +35,6 @@ Everything this library knows how to parse, serialize and emit. The short versio
 | `array{name?: string}` | `{name?:string;}` |
 | `array{a: array{b: string}}` | `{a:{b:string;};}` |
 | `list<string>`, `string[]`, `array<int, string>` | `Array<string>` |
-| `array` | `Array<unknown>` |
 | `array<string, int>` | `Record<string,number>` |
 | `array{string, int}` | `[string,number]` |
 | `array{name: string}\|string` | `({name:string;}\|string)` |
@@ -105,8 +104,16 @@ being serialized — if your method says it returns `positive-int`, static analy
 that. Re-checking it at runtime would cost you something for a guarantee you already have. This
 library assumes static analysis does its job.
 
-Serialization still enforces *types*: a `string` where an `int` is declared fails either way. Only
-the PHPStan refinement on top of the type is skipped.
+Serialization still enforces *types*: a `string` where an `int` is declared fails either way, and it
+is not repaired into one — a near miss like the numeric string `"1.5"` for a `float` is reported, not
+cast. Only the PHPStan refinement on top of the type is skipped.
+
+`SerializationOptions::$partialFailures` (on by default for direct `SchemaExecutor` callers) is the
+one exception to "a failure fails": with it on, a value that cannot be serialized under a
+null-accepting union is replaced with `null` and the result comes back as a `Success` whose
+`isPartial()` is true. It is there for best-effort serialization you intend to inspect. **The RPC
+server never enables it**, because answering 200 with data the operation did not produce is not
+something a client can detect.
 
 ## Not supported
 
@@ -121,6 +128,9 @@ silently-degraded `unknown`.
 ### Rejected outright
 
 ```
+array                       bare array / list / non-empty-array, without generics
+list
+non-empty-array
 array{foo: int, ...}        unsealed array shapes
 array{...}
 array{}                     the empty shape
@@ -131,6 +141,10 @@ Foo::*                      wildcard class-constant reference
 Foo<T = int>                default generic arguments
 ($x is int ? string : bool) conditional types
 ```
+
+PHPStan reads a bare `array` as `array<mixed, mixed>`, which permits string keys, so there is no one
+TypeScript type it means: `Array<unknown>` would be wrong for a keyed array and would drop its keys
+on the way out. Write `list<T>`, `array<int, T>` or `array<string, T>`.
 
 ### Not recognised at all
 
