@@ -47,11 +47,26 @@ final class Context implements ExecutionContext
         $this->issues[$this->pathAsString()][] = $issue;
     }
 
+    /**
+     * Discards the issues recorded at the current path and everything nested below it - what a
+     * union does once an arm matches, so the arms it rejected leave no diagnostics behind.
+     *
+     * Matching is by path segment, not by string prefix: 'items.0' merely starts with the text
+     * 'item' and must survive, while the root path is spelled '__root' and is a prefix of no
+     * nested path at all, so a raw prefix test would clear nothing there.
+     */
     public function removeCurrentIssues(): void
     {
+        if ($this->path === []) {
+            $this->issues = [];
+            return;
+        }
+
+        $current = $this->pathAsString();
         foreach ($this->issues as $path => $issues) {
             // This is needed as path '0' is transformed to int in php.
-            if (str_starts_with((string) $path, $this->pathAsString())) {
+            $path = (string) $path;
+            if ($path === $current || str_starts_with($path, "{$current}.")) {
                 unset($this->issues[$path]);
             }
         }

@@ -20,4 +20,19 @@ final class TestClass
             'message' => "Hello {$data['name']}",
         ];
     }
+
+    /**
+     * Returns something its own return type does not describe: `name` is an int where a string is
+     * declared. The whole `user` branch is nullable, which is exactly the shape that used to be
+     * answered as a 200 with `user: null`.
+     *
+     * @param array{ping: bool} $data
+     * @return array{id: int, user: array{name: string}|null}
+     */
+    #[Command("test")]
+    public function badOutput(array $data): array
+    {
+        /** @phpstan-ignore-next-line return.type (deliberately wrong, this is the fixture) */
+        return ['id' => 1, 'user' => ['name' => 123]];
+    }
 }

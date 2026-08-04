@@ -118,17 +118,33 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
             return $this->value;
         }
 
-        return $value === $this->enumValue()->name ? $this->value : Value::INVALID;
+        if ($value === $this->enumValue()->name) {
+            return $this->value;
+        }
+
+        return $this->notTheLiteral($this->enumValue()->name, $value, $context);
     }
 
     #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
-        if ($this->type === LiteralType::ENUM_CASE) {
-            return $value === $this->value ? $this->enumValue()->name : Value::INVALID;
+        if ($value !== $this->value) {
+            return $this->notTheLiteral($this->value, $value, $context);
         }
 
-        return $value === $this->value ? $this->value : Value::INVALID;
+        return $this->type === LiteralType::ENUM_CASE ? $this->enumValue()->name : $this->value;
+    }
+
+    private function notTheLiteral(mixed $expected, mixed $value, ExecutionContext $context): Value
+    {
+        $context->addIssue(new Issue(
+            IssueMessage::INVALID_TYPE,
+            [
+                'message' => 'Expected literal value: ' . var_export($expected, true)
+                    . ', got: ' . var_export($value, true),
+            ]
+        ));
+        return Value::INVALID;
     }
 
     #[Override]

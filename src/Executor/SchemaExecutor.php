@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Executor\Handlers\CustomClassHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\IntersectionHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\ListHandler;
@@ -105,7 +106,9 @@ final readonly class SchemaExecutor implements Executor
             array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->serialize($node, $data, $context, $this),
             // Codegen metadata has no runtime effect.
             $node instanceof MetadataNode => $this->executeSerialize($node->node, $data, $context),
-            default => Value::INVALID,
+            // A node class no handler claims is a broken AST, not invalid data. Returning INVALID
+            // here would answer with an empty failure; AstValidator throws for the same case.
+            default => throw new SchemaException("Unexpected node: " . $node::class),
         };
 
         // Allow for catching errors at null boundaries during serialization.
@@ -138,7 +141,8 @@ final readonly class SchemaExecutor implements Executor
             array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
             // Codegen metadata has no runtime effect.
             $node instanceof MetadataNode => $this->executeParse($node->node, $data, $context),
-            default => Value::INVALID,
+            // See executeSerialize(): an unclaimed node class is a broken AST, not invalid input.
+            default => throw new SchemaException("Unexpected node: " . $node::class),
         };
     }
 }

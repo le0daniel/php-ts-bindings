@@ -29,6 +29,18 @@ final readonly class Issue
     }
 
     /**
+     * The value did not have the declared type. Every handler and leaf reports this the same way,
+     * so a failure is never returned without a diagnostic the client can act on.
+     */
+    public static function invalidType(string $expected, mixed $value): self
+    {
+        return new self(
+            IssueMessage::INVALID_TYPE,
+            ['message' => "Expected value of type {$expected}, got: " . gettype($value)],
+        );
+    }
+
+    /**
      * @param list<string> $messages
      * @return list<Issue>
      */

@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Contracts\ServerAdapter;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
+use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Server\Adapters\NewInstanceAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
@@ -122,10 +123,15 @@ final readonly class Server
                         );
                     }
 
+                    // partialFailures is off on purpose: it substitutes null wherever a value fails
+                    // to serialize under a null-accepting union, which would answer 200 with data
+                    // the operation never produced. An output that does not match its declared type
+                    // is a bug in the application, and the client is told so.
                     $serializedResult = $this->executor
                         ->serialize(
                             $operation->outputNode(),
-                            $controllerClass->{$operation->definition->methodName}($inputValidationResult->value, $context, $client)
+                            $controllerClass->{$operation->definition->methodName}($inputValidationResult->value, $context, $client),
+                            new SerializationOptions(partialFailures: false),
                         );
 
                     if ($serializedResult instanceof Failure) {

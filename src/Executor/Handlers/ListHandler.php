@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
+use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Override;
@@ -25,6 +26,7 @@ final readonly class ListHandler implements Handler
         assert($node instanceof ListNode);
 
         if (!is_iterable($value)) {
+            $context->addIssue(Issue::invalidType('iterable', $value));
             return Value::INVALID;
         }
 
@@ -57,6 +59,7 @@ final readonly class ListHandler implements Handler
         assert($node instanceof ListNode);
 
         if (!is_array($value) || !array_is_list($value)) {
+            $context->addIssue(Issue::invalidType('list', $value));
             return Value::INVALID;
         }
 

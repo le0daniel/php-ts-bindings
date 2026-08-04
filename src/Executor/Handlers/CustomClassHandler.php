@@ -56,11 +56,20 @@ final readonly class CustomClassHandler implements Handler
         assert($node instanceof CustomCastingNode);
 
         if ($node->strategy === ObjectCastStrategy::NEVER) {
+            $context->addIssue(Issue::internalError([
+                'message' => "{$node->fullyQualifiedCastingClass} cannot be constructed from input.",
+                'strategy' => $node->strategy->name,
+            ]));
             return Value::INVALID;
         }
 
         $arrayValue = $executor->executeParse($node->node, $value, $context);
-        if ($arrayValue === Value::INVALID || !is_array($arrayValue)) {
+        if ($arrayValue === Value::INVALID) {
+            return Value::INVALID;
+        }
+
+        if (!is_array($arrayValue)) {
+            $context->addIssue(Issue::invalidType('array', $arrayValue));
             return Value::INVALID;
         }
 

@@ -3,6 +3,7 @@
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
@@ -112,4 +113,14 @@ test('the same shape declared in two orders behaves identically', function () {
 test('int and float literal schemas do not merge when pooled', function () {
     expect(executeOperation('pooling.intLiteral', ['value' => 1]))->toBeInstanceOf(RpcSuccess::class)
         ->and(executeOperation('pooling.floatLiteral', ['value' => 1.0]))->toBeInstanceOf(RpcSuccess::class);
+});
+
+test('an output that does not match its declared type is an internal error, not a nulled branch', function () {
+    // partialFailures would substitute null for the whole `user` branch and answer 200 with data
+    // the operation never produced. Server turns it off, so the mismatch surfaces.
+    $result = executeOperation('test.badOutput', ['ping' => true]);
+
+    expect($result)->toBeInstanceOf(RpcError::class)
+        ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
+        ->and($result->cause)->toBeInstanceOf(InvalidOutputException::class);
 });

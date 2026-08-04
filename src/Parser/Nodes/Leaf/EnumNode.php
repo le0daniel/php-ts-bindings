@@ -79,6 +79,7 @@ final class EnumNode implements NodeInterface, LeafNode
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         if (!is_a($value, $this->enumClassName)) {
+            $context->addIssue(Issue::invalidType($this->enumClassName, $value));
             return Value::INVALID;
         }
 

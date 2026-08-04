@@ -24,6 +24,7 @@ final readonly class RecordHandler implements Handler
         assert($node instanceof RecordNode);
 
         if (!is_iterable($value)) {
+            $context->addIssue(Issue::invalidType('iterable', $value));
             return Value::INVALID;
         }
 
@@ -61,6 +62,7 @@ final readonly class RecordHandler implements Handler
         assert($node instanceof RecordNode);
 
         if (!is_array($value)) {
+            $context->addIssue(Issue::invalidType('array', $value));
             return Value::INVALID;
         }
 

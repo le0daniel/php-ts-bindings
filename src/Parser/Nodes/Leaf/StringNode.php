@@ -55,6 +55,9 @@ final readonly class StringNode implements NodeInterface, LeafNode, Coercible
     #[Override]
     public function coerce(mixed $value): mixed
     {
-        return (string) $value;
+        // Only scalars are cast: (string) on an array yields the literal "Array" and on a non
+        // Stringable object it throws, and coerce() runs outside the executor's try/catch. Anything
+        // else is handed on untouched so parseValue() reports it as the type error it is.
+        return is_scalar($value) ? (string)$value : $value;
     }
 }

@@ -63,6 +63,8 @@ final readonly class UnionHandler implements Handler
                 return $result;
             }
         }
+
+        $context->addIssue(Issue::invalidType((string)$node, $value));
         return Value::INVALID;
     }
 
@@ -93,6 +95,15 @@ final readonly class UnionHandler implements Handler
             if ($discriminatedType) {
                 return $executor->executeParse($discriminatedType, $value, $context);
             }
+
+            $context->addIssue(new Issue(
+                IssueMessage::INVALID_TYPE,
+                [
+                    'message' => "No union branch matches the discriminator value.",
+                    'value' => $valueToCheck,
+                    'discriminator' => $discriminator,
+                ]
+            ));
             return Value::INVALID;
         }
 
