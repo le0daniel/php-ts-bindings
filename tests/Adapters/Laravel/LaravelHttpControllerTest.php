@@ -12,6 +12,7 @@ use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
@@ -62,7 +63,7 @@ test('handle successful http query request', function () {
 
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
 
-    $server = new Server($operationRegistry, $app);
+    $server = new Server($operationRegistry, new PsrContainerAdapter(container: $app));
 
     $controller = new LaravelHttpController(
         $server,
@@ -125,7 +126,7 @@ test('an operations-spa request gets the client directives appended', function (
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
 
     $controller = new LaravelHttpController(
-        new Server($operationRegistry, $app),
+        new Server($operationRegistry, new PsrContainerAdapter(container: $app)),
         $exceptionHandler,
         null,
     );
@@ -193,7 +194,7 @@ test('handle invalid input http query request', function () {
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
     $repository->shouldReceive('get')->with('app.debug')->andReturn(false);
 
-    $server = new Server($operationRegistry, $app);
+    $server = new Server($operationRegistry, new PsrContainerAdapter(container: $app));
 
     $controller = new LaravelHttpController(
         $server,

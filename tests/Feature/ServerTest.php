@@ -67,7 +67,7 @@ test("A middleware that does not implement the contract yields an RpcError", fun
 
     expect($result)->toBeInstanceOf(RpcError::class)
         ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($result->cause)->toBeInstanceOf(InvalidMiddlewareException::class);
+        ->and($result->cause)->toBeInstanceOf(TypeError::class);
 });
 
 test("Middleware emits typescript middleware", function () {

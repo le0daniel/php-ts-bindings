@@ -5,9 +5,11 @@ namespace Le0daniel\PhpTsBindings\Server;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Contracts\ServerAdapter;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Le0daniel\PhpTsBindings\Server\Adapters\NewInstanceAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
@@ -38,9 +40,9 @@ final readonly class Server
     private ErrorPresenter $errorPresenter;
 
     public function __construct(
-        public OperationRegistry        $registry,
-        private null|ContainerInterface $container = null,
-        public ServerConfiguration      $configuration = new ServerConfiguration(),
+        public OperationRegistry   $registry,
+        private ServerAdapter      $adapter = new NewInstanceAdapter(),
+        public ServerConfiguration $configuration = new ServerConfiguration(),
     )
     {
         $this->executor = new SchemaExecutor();
@@ -93,10 +95,8 @@ final readonly class Server
         // query()/command() total: a missing container binding or a class that is not a
         // middleware must surface as an RpcError, not as an uncaught exception.
         try {
-            $middlewares = array_map($this->resolveMiddleware(...), $middlewareClassNames);
-            $controllerClass = $this->container
-                ? $this->container->get($operation->definition->fullyQualifiedClassName)
-                : new $operation->definition->fullyQualifiedClassName;
+            $middlewares = array_map(fn($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
+            $controllerClass = $this->adapter->createController($operation->definition->fullyQualifiedClassName);
         } catch (Throwable $throwable) {
             return $this->errorPresenter->present($throwable, $operation->definition, $resolveInfo);
         }
@@ -142,23 +142,5 @@ final readonly class Server
                 }
             },
         )->execute($input, $context, $resolveInfo, $client);
-    }
-
-    /**
-     * @param class-string<MiddlewareContract<mixed>> $className
-     * @return MiddlewareContract<mixed>
-     * @throws ContainerExceptionInterface|NotFoundExceptionInterface
-     */
-    private function resolveMiddleware(string $className): MiddlewareContract
-    {
-        $middleware = $this->container
-            ? $this->container->get($className)
-            : new $className;
-
-        if (!$middleware instanceof MiddlewareContract) {
-            throw InvalidMiddlewareException::notAMiddleware($className);
-        }
-
-        return $middleware;
     }
 }

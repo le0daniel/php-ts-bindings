@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
@@ -64,7 +65,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
         return new Server(
             registry: $operations,
-            container: $app,
+            adapter: new PsrContainerAdapter(container: $app),
             configuration: new ServerConfiguration()
                 ->withMiddlewares(...$config->get('operations.middleware', []))
                 ->withExceptions(
