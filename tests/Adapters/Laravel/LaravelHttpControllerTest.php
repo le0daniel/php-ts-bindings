@@ -220,3 +220,53 @@ test('handle invalid input http query request', function () {
             'type' => 'INVALID_INPUT',
         ]);
 });
+test('a nested query parameter comes back as an RpcError rather than escaping as a TypeError', function () {
+    // ?filter[a]=1 hands back a nested array. A string typed callback raised a TypeError here,
+    // before Server::query() was reached, so it bypassed the guarantee that every Throwable comes
+    // back as an RpcError and produced a raw framework 500. The generated client never emits nested
+    // params, but a hand written one, a bookmarked URL or a crawler will.
+    $fcn = 'docs.method';
+
+    $typeParser = new TypeParser();
+    $operationRegistry = Mockery::mock(OperationRegistry::class);
+    $exceptionHandler = Mockery::mock(ExceptionHandler::class);
+    $app = Mockery::mock(Application::class);
+    $request = Request::create('/query/docs.method', 'GET', ['name' => ['nested' => '1']]);
+
+    $operationDefinition = new Definition(
+        OperationType::QUERY,
+        'MyClass',
+        'someMethod',
+        'method',
+        'docs',
+        [],
+    );
+
+    $operation = new Operation(
+        'somekey',
+        $operationDefinition,
+        fn() => $typeParser->parse('array{name: string}'),
+        fn() => $typeParser->parse('array{id: string, name: string}'),
+    );
+
+    $controllerInstance = new class() {
+        public function someMethod(array $input, null $context, Client $client): array
+        {
+            return ['id' => '123', 'name' => $input['name']];
+        }
+    };
+
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
+    $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
+    $exceptionHandler->shouldReceive('report')->andReturnNull();
+
+    $server = new Server($operationRegistry, new PsrContainerAdapter(container: $app));
+    $response = new LaravelHttpController($server, $exceptionHandler, null)
+        ->handleHttpQueryRequest($fcn, $request);
+
+    // The schema rejects it, which is a 422 and not an unhandled TypeError.
+    expect($response)->toBeInstanceOf(JsonResponse::class)
+        ->and($response->getStatusCode())->toBe(422)
+        ->and($response->getData(true)['type'])->toBe('INVALID_INPUT');
+});

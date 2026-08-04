@@ -1,10 +1,12 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
+namespace Le0daniel\PhpTsBindings\Server;
 
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
+use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Strings;
@@ -47,8 +49,28 @@ final readonly class Preloader
 
         return [
             'response' => $result->data,
-            'queryKey' => $input === null ? [$namespaceAsString, $name] : [$namespaceAsString, $name, $input],
+            'queryKey' => $this->queryKey($namespaceAsString, $name, $input),
         ];
+    }
+
+    /**
+     * Must be the key the generated `queryKey()` builds, or a seeded cache never matches and the
+     * client refetches what was just preloaded.
+     *
+     * Whether the input is part of the key is a property of the schema, not of the value: the
+     * generated code appends it whenever the operation has an input at all. Deciding on
+     * `$input === null` instead meant a nullable-input query preloaded with null produced a
+     * two-element key against the client's three-element one.
+     *
+     * @return list<mixed>
+     */
+    private function queryKey(string $namespace, string $name, mixed $input): array
+    {
+        $operation = $this->server->registry->get(OperationType::QUERY, $this->keyGenerator->generateKey($namespace, $name));
+
+        return $operation->inputNode() instanceof NullNode
+            ? [$namespace, $name]
+            : [$namespace, $name, $input];
     }
 
     /**

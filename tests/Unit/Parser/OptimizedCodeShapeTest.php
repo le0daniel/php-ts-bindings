@@ -56,21 +56,21 @@ test('generation is deterministic: the same input yields byte identical output',
     expect(generateFor($type))->toBe(generateFor($type));
 });
 
-test('an unknown key raises a typed exception naming the regeneration command', function () {
+test('an unknown key raises a typed exception saying the cache has to be regenerated', function () {
     $code = generateFor('array{a: string}');
 
     /** @var CachedTypeRegistry $registry */
     $registry = eval("return {$code};");
 
     expect(fn() => $registry->get('does-not-exist'))
-        ->toThrow(UnknownTypeKeyException::class, 'operations:optimize');
+        ->toThrow(UnknownTypeKeyException::class, 'Regenerate the optimized schema cache');
 });
 
 test('the legacy array shape is rejected rather than silently accepted', function () {
     // A cache written before identity was fixed carries merged schemas; booting it would run with
     // constraints silently dropped, so it must fail loudly instead.
     expect(fn() => new CachedTypeRegistry(['key' => static fn() => new TypeParser()->parse('string')]))
-        ->toThrow(UnknownTypeKeyException::class, 'operations:optimize');
+        ->toThrow(UnknownTypeKeyException::class, 'Regenerate the optimized schema cache');
 });
 
 test('resolved nodes are memoized', function () {

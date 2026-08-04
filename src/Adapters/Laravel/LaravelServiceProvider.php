@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Middleware\LocalMetadataMiddleware;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
+use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
@@ -20,7 +21,10 @@ use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\HashSha256KeyGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
+use Le0daniel\PhpTsBindings\Server\Preloader;
 use Le0daniel\PhpTsBindings\Server\Server;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
+use InvalidArgumentException;
 use Override;
 
 final class LaravelServiceProvider extends ServiceProvider implements DeferrableProvider
@@ -45,6 +49,41 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         ];
     }
 
+    /**
+     * The one place operations.key is read. Preloader has to derive keys exactly as the registry
+     * does or a preloaded query is simply not found, and two copies of this match were how they
+     * would come to disagree.
+     *
+     * Every failure is loud: an unrecognised mode used to fall through to a different pepper than
+     * the configured one, so a typo in the config silently changed every key in the application.
+     */
+    private static function keyGeneratorFrom(Application $app): OperationKeyGenerator
+    {
+        $config = $app->make('config');
+        $mode = $config->get('operations.key.mode', 'obfuscate');
+
+        return match ($mode) {
+            'plain' => new PlainlyExposedKeyGenerator(),
+            'obfuscate' => new HashSha256KeyGenerator($config->get('operations.key.pepper', 'none')),
+            'custom' => self::customKeyGenerator($app, $config->get('operations.key.className')),
+            default => throw new InvalidArgumentException(
+                "Invalid operations.key.mode '{$mode}'. Use 'obfuscate', 'plain' or 'custom'."
+            ),
+        };
+    }
+
+    private static function customKeyGenerator(Application $app, mixed $className): OperationKeyGenerator
+    {
+        if (!is_string($className) || $className === '') {
+            throw new InvalidArgumentException(
+                "operations.key.mode is 'custom', so operations.key.className must name a class "
+                . "implementing " . OperationKeyGenerator::class . "."
+            );
+        }
+
+        return Assertions::instanceOf(OperationKeyGenerator::class, $app->make($className));
+    }
+
     public static function serverFactory(
         Application        $app,
         ?OperationRegistry $operations,
@@ -55,14 +94,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         $operations ??= EagerlyLoadedOperationRegistry::eagerlyDiscover(
             $config->get('operations.discovery_path', []),
             $app->make(TypeParser::class),
-            match ($config->get('operations.key.mode', 'obfuscate')) {
-                'plain' => new PlainlyExposedKeyGenerator(),
-                'obfuscate' => new HashSha256KeyGenerator(
-                    $config->get('operations.key.pepper', 'none')
-                ),
-                "custom" => $app->make($config->get('operations.key.className')),
-                default => new HashSha256KeyGenerator("default"),
-            },
+            self::keyGeneratorFrom($app),
         );
 
         $isDebuggingEnabled = $config->get('app.debug', false);
@@ -108,19 +140,9 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         });
 
         $this->app->singleton(Preloader::class, function (Application $app): Preloader {
-            /** @var Repository $config */
-            $config = $app->make('config');
-
             return new Preloader(
                 server: $app->make(self::DEFAULT_SERVER),
-                keyGenerator: match ($config->get('operations.key.mode', 'obfuscate')) {
-                    'plain' => new PlainlyExposedKeyGenerator(),
-                    'obfuscate' => new HashSha256KeyGenerator(
-                        $config->get('operations.key.pepper', 'none')
-                    ),
-                    "custom" => $app->make($config->get('operations.key.className')),
-                    default => new HashSha256KeyGenerator("default"),
-                },
+                keyGenerator: self::keyGeneratorFrom($app),
             );
         });
 

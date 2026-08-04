@@ -67,9 +67,12 @@ test("A middleware that does not implement the contract yields an RpcError", fun
 
     $result = $server->command('test.run', ['name' => 'Leo'], null, new NullClient());
 
+    // Named, not a TypeError from inside the adapter: the class-string is checked before
+    // anything is constructed, so the message says which class and which contract.
     expect($result)->toBeInstanceOf(RpcError::class)
         ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($result->cause)->toBeInstanceOf(TypeError::class);
+        ->and($result->cause)->toBeInstanceOf(InvalidMiddlewareException::class)
+        ->and($result->cause->getMessage())->toContain(NotAMiddleware::class);
 });
 
 test("Middleware emits typescript middleware", function () {

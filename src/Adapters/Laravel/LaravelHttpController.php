@@ -96,7 +96,15 @@ readonly class LaravelHttpController
     private function gatherInputFromRequest(OperationType $type, Http\Request $request): ?array
     {
         $inputData = match ($type) {
-            OperationType::QUERY => array_map(static function (string $value): mixed {
+            // mixed, not string: ?filter[a]=1 hands back a nested array, and a string parameter
+            // raised a TypeError here - before Server::query() was reached, so it escaped the
+            // guarantee that every Throwable comes back as an RpcError. Anything that is not a
+            // string is passed through untouched for the schema to reject properly.
+            OperationType::QUERY => array_map(static function (mixed $value): mixed {
+                if (!is_string($value)) {
+                    return $value;
+                }
+
                 try {
                     return json_decode($value, flags: JSON_THROW_ON_ERROR);
                 } catch (Throwable) {

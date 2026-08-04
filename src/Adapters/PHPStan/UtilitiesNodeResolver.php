@@ -1,6 +1,6 @@
 <?php declare(strict_types=1);
 
-namespace Le0daniel\PhpTsBindings\PHPStan;
+namespace Le0daniel\PhpTsBindings\Adapters\PHPStan;
 
 
 use DateTimeImmutable;

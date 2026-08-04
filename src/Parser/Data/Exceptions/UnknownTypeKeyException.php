@@ -8,7 +8,12 @@ namespace Le0daniel\PhpTsBindings\Parser\Data\Exceptions;
  */
 final class UnknownTypeKeyException extends ParserException
 {
-    private const string REGENERATE = 'Run: php artisan operations:optimize';
+    /**
+     * Deliberately names the concept rather than a command: the optimizer is usable without any
+     * framework, and telling one of those users to run artisan is telling them to run nothing.
+     * An adapter that has a command for this appends its own.
+     */
+    private const string REGENERATE = 'Regenerate the optimized schema cache.';
 
     public static function forKey(string $key): self
     {
