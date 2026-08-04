@@ -1,0 +1,57 @@
+import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from './types';
+
+type QueryNamespaces = 'accounts'|'catalog'|'shapes';
+
+const TOAST_TYPES = ['success', 'error', 'warning', 'alert', 'info'] as const;
+
+export function queryKey(ns: QueryNamespaces, ...args: unknown[]): [string, ...unknown[]] {
+    return [ns, ...args];
+}
+
+function isArrayOf<V>(value: unknown, predicate: (item: unknown) => item is V): value is V[] {
+    return Array.isArray(value) && value.every(predicate);
+}
+
+export function isClientToast(value: unknown): value is ClientToast {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const toast = value as Partial<ClientToast>;
+    return typeof toast.message === 'string'
+        && typeof toast.type === 'string'
+        && (TOAST_TYPES as readonly string[]).includes(toast.type);
+}
+
+export function isClientRedirect(value: unknown): value is ClientRedirect {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const redirect = value as Partial<ClientRedirect>;
+    return typeof redirect.url === 'string' && typeof redirect.reload === 'boolean';
+}
+
+function isClientInvalidation(value: unknown): value is [string, ...unknown[]] {
+    return Array.isArray(value) && typeof value[0] === 'string';
+}
+
+/**
+ * Narrows to the full directive payload, so it verifies every directive it claims and not just
+ * the discriminator: a server on an older format would otherwise be narrowed to a shape it does
+ * not have. Unknown directive keys are ignored, adding one stays backwards compatible.
+ */
+export function isSpaClientDirectives<const T>(result: WithClientDirectives<T>): result is SPAClientDirectives<T> {
+    if (!result.__client || typeof result.__client !== 'object') {
+        return false;
+    }
+
+    const directives = result.__client as Partial<ClientDirectives>;
+    if (directives.type !== 'operations-spa') {
+        return false;
+    }
+
+    return (directives.redirect === undefined || isClientRedirect(directives.redirect))
+        && (directives.toasts === undefined || isArrayOf(directives.toasts, isClientToast))
+        && (directives.invalidations === undefined || isArrayOf(directives.invalidations, isClientInvalidation));
+}

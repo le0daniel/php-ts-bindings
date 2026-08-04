@@ -1,0 +1,16 @@
+{
+  "name": "php-ts-bindings-output-check",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Typechecks the TypeScript this library generates. Run through `composer codegen:fixture`.",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@tanstack/react-query": "^5.101.4",
+    "@types/react": "^19.2.18",
+    "react": "^19.2.8",
+    "typescript": "^5.9.3"
+  }
+}

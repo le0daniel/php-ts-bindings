@@ -583,3 +583,14 @@ composer test          # pest
 composer check:types   # phpstan, level 8
 composer check:all
 ```
+
+`tests/ts-output/` holds a committed sample of generated client code plus a hand-written consumer of
+it, and `composer test` verifies that the generators still produce exactly those bytes. After
+changing a code generator, regenerate it:
+
+```bash
+composer codegen:fixture   # regenerate tests/ts-output/generated, then tsc --noEmit over it
+```
+
+That step needs node; it is the only one that does. Commit the regenerated files — a change that
+compiles is the point of the fixture.

@@ -3,7 +3,6 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
 use Closure;
-use Generator;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
@@ -24,11 +23,9 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\OutputDirectory;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use SplFileInfo;
 
 final class CodeGenCommand extends Command
 {
@@ -134,7 +131,7 @@ DESCRIPTION;
             return $this->verifyContentOnly($directory, $files);
         }
 
-        $this->writeFiles($directory, $files);
+        OutputDirectory::write($directory, $files);
         return 0;
     }
 
@@ -184,33 +181,11 @@ DESCRIPTION;
     /**
      * @param string $directory
      * @param array<string, TypescriptFile> $files
-     * @return Generator<string, TypescriptFile, mixed, void>
-     */
-    private function iterateFiles(string $directory, array $files): Generator
-    {
-        foreach ($files as $fileName => $file) {
-            $filePath = "{$directory}/{$fileName}";
-            yield $filePath => $file;
-        }
-    }
-
-    /**
-     * @param string $directory
-     * @param array<string, TypescriptFile> $files
      * @return int
      */
     private function verifyContentOnly(string $directory, array $files): int
     {
-        $issues = [];
-        foreach ($this->iterateFiles($directory, $files) as $filePath => $file) {
-            if (!file_exists($filePath)) {
-                $issues[] = "File {$filePath} does not exist";
-                continue;
-            }
-            if (file_get_contents($filePath) !== $file->toString()) {
-                $issues[] = "File {$filePath} does not match";
-            }
-        }
+        $issues = OutputDirectory::verify($directory, $files);
 
         if (!empty($issues)) {
             $count = count($issues);
@@ -224,24 +199,6 @@ DESCRIPTION;
 
         $this->line("All files are correct. No issues found.");
         return 0;
-    }
-
-    /**
-     * @param string $directory
-     * @param array<string, TypescriptFile> $files
-     * @return void
-     */
-    private function writeFiles(string $directory, array $files): void
-    {
-        $this->clearDirectory($directory);
-
-        if (!file_exists("{$directory}/lib") && is_dir("{$directory}/lib") === false) {
-            mkdir("{$directory}/lib", 0777, true);
-        }
-
-        foreach ($this->iterateFiles($directory, $files) as $filePath => $file) {
-            file_put_contents($filePath, $file->toString());
-        }
     }
 
     /**
@@ -289,21 +246,4 @@ DESCRIPTION;
         ]);
     }
 
-    private function clearDirectory(string $directory): void
-    {
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($directory)
-        );
-
-        /** @var SplFileInfo $file */
-        foreach ($iterator as $file) {
-            if ($file->isDir() || !str_ends_with($file->getBasename(), '.ts')) {
-                continue;
-            }
-
-            if ($file->getRealPath()) {
-                unlink($file->getRealPath());
-            }
-        }
-    }
 }

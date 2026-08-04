@@ -1,0 +1,12 @@
+import type {Result, WithClientDirectives} from './types';
+
+export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client?: OperationClient};
+
+export interface OperationClient {
+    execute<O, E extends {code: number}>(
+        type: "command"|"query", 
+        key: string, 
+        input: unknown, 
+        options?: OperationOptions
+    ): Promise<WithClientDirectives<Result<O, E>>>;
+}

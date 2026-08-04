@@ -54,7 +54,15 @@
     "check:all": [
       "@test",
       "@check:types"
+    ],
+    "codegen:fixture": [
+      "@php tests/ts-output/generate.php",
+      "npm --prefix tests/ts-output install --no-audit --no-fund",
+      "npm --prefix tests/ts-output run typecheck"
     ]
+  },
+  "scripts-descriptions": {
+    "codegen:fixture": "Regenerate tests/ts-output/generated and typecheck it with tsc --noEmit. Run after changing a code generator; commit the result."
   },
   "extra": {
     "laravel": {

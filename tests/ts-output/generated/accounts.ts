@@ -1,0 +1,86 @@
+import type {OperationOptions} from './lib/OperationClient';
+import {executeOperation, throwOnFailure} from './lib/bindings';
+import type {Availability, Brand} from './lib/types';
+import {queryKey} from './lib/utils';
+import type {UseQueryOptions} from '@tanstack/react-query';
+import {queryOptions, useQuery} from '@tanstack/react-query';
+
+export type FindResult = {id:number;term:string;};
+export type FindInput = {availability?:(null|Availability);term:string;};
+export type FindError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 400, type: "DOMAIN_ERROR", details: {type: "account_locked"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+
+/**
+ * Type: QUERY
+ * Name: accounts.find 
+ *
+ * @php Tests\Unit\CodeGen\Mocks\TsOutput\AccountOperations::find
+ */
+export async function find(input: FindInput, options?: OperationOptions) {
+    return await executeOperation<FindInput, FindResult, FindError>(
+        'query', 
+        'accounts.find', 
+        input, 
+        options
+    )
+}
+
+type FindOptions = Omit<UseQueryOptions<FindResult>, 'queryKey' | 'queryFn'>;
+
+export function findQueryOptions(input: FindInput, options?: FindOptions) {
+    return queryOptions({
+        queryKey: queryKey('accounts', 'find', input),
+        queryFn: async ({signal}): Promise<FindResult> => {
+            const result = await find(input, {signal});
+            throwOnFailure(result);
+            return result.data;
+        },
+        ... options,
+    });
+}
+
+export function useFindQuery(input: FindInput, queryOptions?: Partial<FindOptions>) {
+    return useQuery(findQueryOptions(input, queryOptions));
+}
+
+/** @pure */
+export function findQueryKey(input: FindInput) {
+    return queryKey('accounts', 'find', input);
+}
+
+export type LockResult = {locked:true;};
+export type LockInput = {id:number;};
+export type LockError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 400, type: "DOMAIN_ERROR", details: {type: "account_locked"}|{type: "quota_exceeded"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+
+/**
+ * Type: COMMAND
+ * Name: accounts.lock 
+ *
+ * @php Tests\Unit\CodeGen\Mocks\TsOutput\AccountOperations::lock
+ */
+export async function lock(input: LockInput, options?: OperationOptions) {
+    return await executeOperation<LockInput, LockResult, LockError>(
+        'command', 
+        'accounts.lock', 
+        input, 
+        options
+    )
+}
+
+export type UnlockResult = {unlocked:true;};
+export type UnlockInput = {id:number;};
+export type UnlockError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+
+/**
+ * Type: COMMAND
+ * Name: accounts.unlock 
+ *
+ * @php Tests\Unit\CodeGen\Mocks\TsOutput\AccountOperations::unlock
+ */
+export async function unlock(input: UnlockInput, options?: OperationOptions) {
+    return await executeOperation<UnlockInput, UnlockResult, UnlockError>(
+        'command', 
+        'accounts.unlock', 
+        input, 
+        options
+    )
+}

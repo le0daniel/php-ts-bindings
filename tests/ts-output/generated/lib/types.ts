@@ -1,0 +1,27 @@
+export type OperationNamespaces = 'accounts'|'catalog'|'shapes';
+
+export type Success<T> = {success: true, data: T}
+export type Failure<E extends {code: number}> = {success: false} & E;
+export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
+export type ClientToast = {type: 'success'|'error'|'warning'|'alert'|'info'; message: string;};
+export type ClientRedirect = {url: string; reload: boolean;};
+export type ClientInvalidation = [string, ...unknown[]];
+export type ClientDirectives = {
+    type: "operations-spa";
+    redirect?: ClientRedirect;
+    toasts?: ClientToast[];
+    invalidations?: ClientInvalidation[];
+};
+export type WithClientDirectives<T> = T & {__client?: unknown}
+export type SPAClientDirectives<T> = T & {__client: ClientDirectives};
+
+declare const __brand: unique symbol;
+export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};
+
+/* All branded and named types exported */
+export type Availability = ("IN_STOCK"|"SOLD_OUT"|"PREORDER")
+export type Draft = {slug:string;}
+export type DraftInput = {title:string;}
+export type Money = {amount:number;currency:string;}
+export type Product = {availability:Availability;id:(number & Brand<"productId">);price:Money;sku:Sku;tags:Array<string>;title:string;}
+export type Sku = (string & Brand<"sku">)
