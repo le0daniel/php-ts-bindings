@@ -8,11 +8,18 @@ final class ReflectionsUtilMock
      * @param string $name
      * @param array{amount: string, birthdate: \DateTime} $age
      * @param object{name: string, other: string} $others
+     * @param array{
+     *   theme: string,
+     *   notifications: array{
+     *     email: bool,
+     *   },
+     * } $settings
      */
     public function __construct(
         public string $name,
         public array $age,
-        object $others
+        object $others,
+        public array $settings = [],
     )
     {
     }
@@ -23,5 +30,16 @@ final class ReflectionsUtilMock
     public function serialize(): array
     {
         return ["", 1];
+    }
+
+    /**
+     * @return array{
+     *   id: non-empty-string,
+     *   roles: list<string>,
+     * }
+     */
+    public function serializeDeeply(): array
+    {
+        return ['id' => 'id', 'roles' => []];
     }
 }

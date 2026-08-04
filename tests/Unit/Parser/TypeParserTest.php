@@ -1005,8 +1005,8 @@ test('A trailing double colon is a syntax error and raises no PHP warning', func
 });
 
 test('Illegal characters raise InvalidSyntaxException, not a lexer exception', function () {
-    // Regexes::findFirstVarDeclaration() leaks the closing */ out of single line
-    // docblocks, so this exact string reaches the parser in the wild.
+    // Regexes::findFirstVarDeclaration() used to leak the closing */ out of single line
+    // docblocks. It no longer does, but the parser stays defensive about it.
     expect(fn() => new TypeParser()->parse('array{id: string} */'))
         ->toThrow(InvalidSyntaxException::class)
         ->and(fn() => new TypeParser()->parse('a#b'))

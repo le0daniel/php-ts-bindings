@@ -30,3 +30,24 @@ test('get doc block extended type', function () {
         )
     )->toBe('array{string, int}');
 });
+
+test('get doc block extended type of multiline declarations', function () {
+
+    $reflectionClass = new ReflectionClass(ReflectionsUtilMock::class);
+
+    expect(
+        Reflections::getDocBlockExtendedType($reflectionClass->getProperty('settings'))
+    )->toBe('array{ theme: string, notifications: array{ email: bool, }, }');
+
+    expect(
+        Reflections::getDocBlockExtendedType(
+            $reflectionClass->getConstructor()->getParameters()[3]
+        )
+    )->toBe('array{ theme: string, notifications: array{ email: bool, }, }');
+
+    expect(
+        Reflections::getReturnType(
+            $reflectionClass->getMethod('serializeDeeply')
+        )
+    )->toBe('array{ id: non-empty-string, roles: list<string>, }');
+});

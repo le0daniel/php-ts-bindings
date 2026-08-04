@@ -10,11 +10,26 @@ final class UserClassMock
     public readonly array $options;
 
     /**
+     * @var array{
+     *   street: string,
+     *   city: non-empty-string,
+     * }
+     */
+    public readonly array $address;
+
+    /**
      * @param non-empty-string $name
+     * @param array{
+     *   theme: string,
+     *   notifications: array{
+     *     email: bool,
+     *   },
+     * } $settings
      */
     public function __construct(
         public readonly string $name,
         public \DateTimeInterface $birthdate,
+        public readonly array $settings = [],
     )
     {
     }
@@ -28,6 +43,17 @@ final class UserClassMock
     }
 
     public function toArray(): array
+    {
+        throw new \Exception();
+    }
+
+    /**
+     * @return array{
+     *   id: non-empty-string,
+     *   roles: list<string>,
+     * }
+     */
+    public function serialize(): array
     {
         throw new \Exception();
     }

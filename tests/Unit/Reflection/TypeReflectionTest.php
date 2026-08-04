@@ -36,3 +36,16 @@ test('from reflection method', function () {
         ->and(TypeReflector::reflectReturnType($classReflection->getMethod('toArray')))
         ->toBe('array');
 });
+
+test('multiline declarations from reflection', function () {
+    $reflection = new ReflectionClass(UserClassMock::class);
+
+    expect(TypeReflector::reflectProperty($reflection->getProperty('address')))
+        ->toBe('array{ street: string, city: non-empty-string, }')
+        ->and(TypeReflector::reflectProperty($reflection->getProperty('settings')))
+        ->toBe('array{ theme: string, notifications: array{ email: bool, }, }')
+        ->and(TypeReflector::reflectParameter($reflection->getConstructor()->getParameters()[2]))
+        ->toBe('array{ theme: string, notifications: array{ email: bool, }, }')
+        ->and(TypeReflector::reflectReturnType($reflection->getMethod('serialize')))
+        ->toBe('array{ id: non-empty-string, roles: list<string>, }');
+});
