@@ -88,7 +88,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         });
 
         $this->app->singleton(self::DEFAULT_SERVER, function (Application $app): Server {
-            $isRepositoryCached = !$this->app->runningInConsole() && file_exists(base_path('bootstrap/cache/operations.php'));
+            $isRepositoryCached = file_exists(base_path('bootstrap/cache/operations.php'));
 
             return self::serverFactory(
                 $app,

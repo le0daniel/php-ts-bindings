@@ -42,8 +42,10 @@ final class EmitTypeMap implements GeneratesLibFiles, DependsOn
                 return "{$type}: {{$typeString}}";
             })) . '}';
 
-        // Written into the types file rather than one of its own: the map inlines the aliases
-        // EmitTypes declares, and they only resolve while it sits next to them.
+        // Written next to the types file rather than standing on its own: the map inlines the
+        // aliases EmitTypes declares, and they only resolve while it sits next to them. Brand is
+        // imported unconditionally — an inlined brand references it, yet it is never a registry
+        // key — and a linter drops it where unused.
         return [
             'type-map' => new TypescriptFile(<<<TypeScript
 /**
@@ -52,7 +54,7 @@ final class EmitTypeMap implements GeneratesLibFiles, DependsOn
 export type TypeMap = {$mapAsTsTypeString};
 TypeScript,
                 imports: [
-                    $this->emitTypes->importFromTypes(types: $registry->usedAliases())
+                    $this->emitTypes->importFromTypes(types: ['Brand', ...$registry->usedAliases()])
                 ]
             )
         ];
