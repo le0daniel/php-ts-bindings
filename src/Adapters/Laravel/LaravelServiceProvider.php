@@ -11,6 +11,8 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Middleware\LocalMetadataMiddleware;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
@@ -63,11 +65,19 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
             },
         );
 
+        $isDebuggingEnabled = $config->get('app.debug', false);
+
+        /** @var list<class-string<MiddlewareContract>> $middlewares */
+        $middlewares = $config->get('operations.middleware', []) |> array_values(...);
+        if ($isDebuggingEnabled) {
+            array_unshift($middlewares, LocalMetadataMiddleware::class);
+        }
+
         return new Server(
             registry: $operations,
             adapter: new PsrContainerAdapter(container: $app),
             configuration: new ServerConfiguration()
-                ->withMiddlewares(...$config->get('operations.middleware', []))
+                ->withMiddlewares(...$middlewares)
                 ->withExceptions(
                     notFound: $config->get('operations.exceptions.not_found', []),
                     unauthenticated: $config->get('operations.exceptions.unauthenticated', []),
