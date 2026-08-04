@@ -10,7 +10,7 @@ use Illuminate\Session\TokenMismatchException;
 return [
 
     /**
-     * Define the path where to locate all query and mutations.
+     * Define the path where to locate all queries and mutations.
      */
     "discovery_path" => app_path('Operations'),
 
@@ -22,6 +22,10 @@ return [
      */
     "context" => null,
 
+    /**
+     * Defines the ID length to use for the cache keys. Usually 10 is enough. If you face
+     * collisions, increase the number
+     */
     "cache" => [
         "idLength" => 10,
     ],
@@ -36,6 +40,12 @@ return [
      * - custom: MUST define className
      */
     "key" => [
+        /**
+         * Options: obfuscate, plain, custom
+         *
+         * For obfuscate: you can define a pepper(string) to add randomness
+         * For custom: MUST define className
+         */
         "mode" => "obfuscate",
 
         /**
@@ -46,6 +56,7 @@ return [
         /**
          * Only relevantly for mode custom
          * Class must implement: Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator
+         * @see Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator
          */
         "className" => null,
     ],
