@@ -2,16 +2,40 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
+use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
-final readonly class EmitTypeMap implements GeneratesLibFiles
+/**
+ * Not readonly: the EmitTypes whose file it writes into is injected after construction, which is the
+ * only way it can be the same instance the generator runs.
+ */
+final class EmitTypeMap implements GeneratesLibFiles, DependsOn
 {
+    private EmitTypes $types;
+
+    #[Override]
+    public function dependsOnGenerator(): array
+    {
+        return [
+            EmitTypes::class,
+        ];
+    }
+
+    #[Override]
+    public function setDependencies(array $dependencies): void
+    {
+        $this->types = Assertions::instanceOf(
+            EmitTypes::class,
+            $dependencies[EmitTypes::class] ?? null,
+        );
+    }
 
     #[Override]
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
@@ -35,8 +59,10 @@ final readonly class EmitTypeMap implements GeneratesLibFiles
             return "{$type}: {{$typeString}}";
         })) . '}';
 
+        // Written into the types file rather than one of its own: the map inlines the aliases
+        // EmitTypes declares, and they only resolve while it sits next to them.
         return [
-            'types' => new TypescriptFile(<<<TypeScript
+            $this->types->fileName() => new TypescriptFile(<<<TypeScript
 /**
  * Full type map of all operations, input and output types.
  */

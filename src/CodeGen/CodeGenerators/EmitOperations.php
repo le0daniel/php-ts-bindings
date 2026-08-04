@@ -7,18 +7,25 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
-final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
+/**
+ * Not readonly: the generators it imports from are injected after construction, which is the only
+ * way they can be the same instances the generator runs.
+ */
+final class EmitOperations implements GeneratesOperationCode, DependsOn
 {
+    private EmitTypes $types;
+    private EmitOperationClientBindings $bindings;
+
     /**
      * @param (Closure(TypedOperation):string)|null $nameGenerator
      */
     public function __construct(
-        private ?Closure $nameGenerator = null,
+        private readonly ?Closure $nameGenerator = null,
     )
     {
     }
@@ -27,16 +34,22 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
     public function dependsOnGenerator(): array
     {
         return [
+            EmitTypes::class,
             EmitOperationClientBindings::class,
         ];
     }
 
-    /**
-     * Depends on the bindings for ordering only, so there is nothing to hold on to.
-     */
     #[Override]
     public function setDependencies(array $dependencies): void
     {
+        $this->types = Assertions::instanceOf(
+            EmitTypes::class,
+            $dependencies[EmitTypes::class] ?? null,
+        );
+        $this->bindings = Assertions::instanceOf(
+            EmitOperationClientBindings::class,
+            $dependencies[EmitOperationClientBindings::class] ?? null,
+        );
     }
 
     /**
@@ -81,7 +94,7 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
     private function aliasImports(TypedOperation $operation): array
     {
         return [
-            TypescriptImport::types(Paths::libImport("types"), ['Brand', ...$operation->usedAliases()]),
+            $this->types->importFromTypes(types: ['Brand', ...$operation->usedAliases()]),
         ];
     }
 
@@ -95,8 +108,8 @@ final readonly class EmitOperations implements GeneratesOperationCode, DependsOn
         $errorTypeName = $this->errorTypeName($operation);
 
         $imports = [
-            EmitOperationClientBindings::importFromBindings(values: ['executeOperation']),
-            TypescriptImport::types(Paths::libImport("OperationClient"), "OperationOptions"),
+            $this->bindings->importFromBindings(values: ['executeOperation']),
+            $this->bindings->importFromOperationClient(types: ['OperationOptions']),
             ...$this->aliasImports($operation),
         ];
         $docBlock = <<<TypeScript

@@ -3,8 +3,10 @@
 namespace Tests\Unit\CodeGen;
 
 use Closure;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -24,7 +26,11 @@ use Tests\Mocks\ValueObjects\Email;
 function tanstackCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator = null): ?TypescriptFile
 {
     $emitter = new EmitTanstackQuery();
-    $emitter->setDependencies([EmitOperations::class => new EmitOperations($nameGenerator)]);
+    $emitter->setDependencies([
+        EmitOperations::class => new EmitOperations($nameGenerator),
+        EmitTypeUtils::class => new EmitTypeUtils(),
+        EmitOperationClientBindings::class => new EmitOperationClientBindings(),
+    ]);
 
     return $emitter->generateOperationCode(
         $typedOperation,

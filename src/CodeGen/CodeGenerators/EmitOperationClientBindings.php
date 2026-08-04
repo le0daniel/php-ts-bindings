@@ -9,21 +9,73 @@ use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
-final readonly class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
+/**
+ * Not readonly: the EmitTypes its files import from is injected after construction, which is the
+ * only way it can be the same instance the generator runs.
+ */
+final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
 {
     private const string BINDINGS_FILE = "bindings";
+    private const string OPERATION_CLIENT_FILE = "OperationClient";
+    private const string DEFAULT_CLIENT_FILE = "DefaultClient";
+    private const string OPERATION_EXCEPTION_FILE = "OperationException";
+
+    private EmitTypes $types;
+
+    /**
+     * One method per file this generator writes, so nothing outside spells a file name it does not
+     * own. Not static: reaching them means declaring the dependency, and a declared dependency that
+     * is not registered fails the run before a line is generated.
+     *
+     * @param list<string> $values
+     * @param list<string> $types
+     */
+    public function importFromBindings(array $values = [], array $types = []): TypescriptImport
+    {
+        return new TypescriptImport(
+            Paths::libImport(self::BINDINGS_FILE),
+            values: $values,
+            types: $types,
+        );
+    }
 
     /**
      * @param list<string> $values
      * @param list<string> $types
-     * @return TypescriptImport
      */
-    public static function importFromBindings(array $values = [], array $types = []): TypescriptImport
+    public function importFromOperationClient(array $values = [], array $types = []): TypescriptImport
     {
         return new TypescriptImport(
-            Paths::libImport(self::BINDINGS_FILE),
+            Paths::libImport(self::OPERATION_CLIENT_FILE),
+            values: $values,
+            types: $types,
+        );
+    }
+
+    /**
+     * @param list<string> $values
+     * @param list<string> $types
+     */
+    public function importFromDefaultClient(array $values = [], array $types = []): TypescriptImport
+    {
+        return new TypescriptImport(
+            Paths::libImport(self::DEFAULT_CLIENT_FILE),
+            values: $values,
+            types: $types,
+        );
+    }
+
+    /**
+     * @param list<string> $values
+     * @param list<string> $types
+     */
+    public function importFromOperationException(array $values = [], array $types = []): TypescriptImport
+    {
+        return new TypescriptImport(
+            Paths::libImport(self::OPERATION_EXCEPTION_FILE),
             values: $values,
             types: $types,
         );
@@ -37,12 +89,13 @@ final readonly class EmitOperationClientBindings implements GeneratesLibFiles, D
         ];
     }
 
-    /**
-     * Depends on the types for ordering only, so there is nothing to hold on to.
-     */
     #[Override]
     public function setDependencies(array $dependencies): void
     {
+        $this->types = Assertions::instanceOf(
+            EmitTypes::class,
+            $dependencies[EmitTypes::class] ?? null,
+        );
     }
 
     /**
@@ -52,9 +105,7 @@ final readonly class EmitOperationClientBindings implements GeneratesLibFiles, D
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         return [
-            "OperationClient" => new TypescriptFile(<<<TypeScript
-import type {Result, WithClientDirectives} from "./types";
-
+            self::OPERATION_CLIENT_FILE => new TypescriptFile(<<<TypeScript
 export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client?: OperationClient};
 
 export interface OperationClient {
@@ -65,11 +116,10 @@ export interface OperationClient {
         options?: OperationOptions
     ): Promise<WithClientDirectives<Result<O, E>>>;
 }
-TypeScript),
-            "DefaultClient" => new TypescriptFile(<<<TypeScript
-import type {OperationClient, OperationOptions} from "./OperationClient";
-import type {Failure, Result, Success, WithClientDirectives} from "./types";
-
+TypeScript, [
+                $this->types->importFromTypes(types: ['Result', 'WithClientDirectives']),
+            ]),
+            self::DEFAULT_CLIENT_FILE => new TypescriptFile(<<<TypeScript
 export type Hook = (result: WithClientDirectives<Result<unknown, {code: number}>>) => Promise<void> | void;
 
 export class DefaultClient implements OperationClient {
@@ -172,10 +222,13 @@ export class DefaultClient implements OperationClient {
     }
 
 }
-TypeScript),
-            "OperationException" => new TypescriptFile(<<<TypeScript
-import type {Failure} from "./types";
-
+TypeScript, [
+                $this->importFromOperationClient(types: ['OperationClient', 'OperationOptions']),
+                $this->types->importFromTypes(
+                    types: ['Failure', 'Result', 'Success', 'WithClientDirectives'],
+                ),
+            ]),
+            self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<TypeScript
 export class OperationException extends Error {
     public readonly cause: Failure<any>;
 
@@ -197,13 +250,10 @@ export class OperationException extends Error {
         return e instanceof OperationException;
     }
 }
-TypeScript),
+TypeScript, [
+                $this->types->importFromTypes(types: ['Failure']),
+            ]),
             self::BINDINGS_FILE => new TypescriptFile(<<<TypeScript
-import type { Result, Success, WithClientDirectives } from './types';
-import type { OperationClient, OperationOptions } from './OperationClient';
-import { DefaultClient } from './DefaultClient';
-import { OperationException } from './OperationException';
-
 let client: OperationClient|null;
 
 export function createDefaultClient(fetcher?: typeof window.fetch): DefaultClient {
@@ -235,7 +285,14 @@ export async function executeOperation<I, O, E extends {code: number}>(type: 'qu
 
     throw new Error('No client set');
 }
-TypeScript),
+TypeScript, [
+                $this->types->importFromTypes(types: ['Result', 'Success', 'WithClientDirectives']),
+                $this->importFromOperationClient(types: ['OperationClient', 'OperationOptions']),
+                // Both are constructed, not just annotated: a type only import would leave
+                // `new DefaultClient(...)` referencing nothing at runtime.
+                $this->importFromDefaultClient(values: ['DefaultClient']),
+                $this->importFromOperationException(values: ['OperationException']),
+            ]),
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace Tests\Unit\CodeGen;
 
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
@@ -31,7 +32,12 @@ function emitUtilsFor(OperationType $type = OperationType::QUERY, string $namesp
     $input = $generator->toTypescript($operation->inputNode(), IO::INPUT, $registry);
     $output = $generator->toTypescript($operation->outputNode(), IO::OUTPUT, $registry);
 
-    $files = new EmitTypeUtils()->emitFiles(
+    // The directive types it narrows to are declared by EmitTypes, so the dependency is wired up
+    // the way the generator does it.
+    $emitter = new EmitTypeUtils();
+    $emitter->setDependencies([EmitTypes::class => new EmitTypes()]);
+
+    $files = $emitter->emitFiles(
         [new TypedOperation($input, $output, Typescript::fromRawString(''), $operation)],
         new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
         $registry,
@@ -70,6 +76,9 @@ test('the directive guard verifies every directive it narrows, not just the disc
 });
 
 test('the guard imports the named directive types instead of restating their shape', function () {
+    // './lib/types' is what an emitter writes — the way a module at the output root reaches the
+    // types file. utils.ts lands inside lib/ and reaches it as './types', which the orchestrator
+    // resolves; that form is pinned in TypescriptServerCodeGeneratorTest.
     expect(emitUtilsFor())
-        ->toContain('import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from "./types";');
+        ->toContain("import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from './lib/types';");
 });

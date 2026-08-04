@@ -10,6 +10,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
@@ -160,8 +161,13 @@ final readonly class TypescriptServerCodeGenerator
 
                     // Several generators may contribute to one lib file, so they accumulate rather
                     // than overwrite.
+                    //
+                    // An emitter names a lib file the way a module at the output root reaches it,
+                    // because it cannot know where its own output lands. Here it is known: this one
+                    // goes into lib/, one directory deeper, where a sibling is reached directly.
                     $fileKey = "lib/{$fileName}.ts";
-                    $carry[$fileKey] = ($carry[$fileKey] ?? new TypescriptFile())->append($fileContent);
+                    $carry[$fileKey] = ($carry[$fileKey] ?? new TypescriptFile())
+                        ->append($fileContent->withModulesResolvedBy(Paths::fromInsideLib(...)));
                 }
                 return $carry;
             },

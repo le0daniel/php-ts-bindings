@@ -6,26 +6,26 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
-use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
 /**
- * Not readonly: the EmitOperations it takes its names from is injected after construction, which is
- * the only way it can be the same instance the generator runs.
+ * Not readonly: the generators it takes its names and its imports from are injected after
+ * construction, which is the only way they can be the same instances the generator runs.
  */
 final class EmitQueryKey implements DependsOn, GeneratesOperationCode
 {
     private EmitOperations $operations;
+    private EmitTypeUtils $utils;
 
     #[Override]
     public function dependsOnGenerator(): array
     {
         return [
             EmitOperations::class,
+            EmitTypeUtils::class,
         ];
     }
 
@@ -35,6 +35,10 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
         $this->operations = Assertions::instanceOf(
             EmitOperations::class,
             $dependencies[EmitOperations::class] ?? null,
+        );
+        $this->utils = Assertions::instanceOf(
+            EmitTypeUtils::class,
+            $dependencies[EmitTypeUtils::class] ?? null,
         );
     }
 
@@ -61,7 +65,7 @@ export function {$name}QueryKey(input: {$inputTypeName}) {
 TypeScript
             ,
             imports: [
-                EmitTypeUtils::importFromUtils(values: ['queryKey']),
+                $this->utils->importFromUtils(values: ['queryKey']),
             ],
         );
     }

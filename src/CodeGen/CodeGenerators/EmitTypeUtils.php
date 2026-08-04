@@ -12,18 +12,27 @@ use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
-final readonly class EmitTypeUtils implements GeneratesLibFiles, DependsOn
+/**
+ * Not readonly: the EmitTypes whose directive types the guards narrow to is injected after
+ * construction, which is the only way it can be the same instance the generator runs.
+ */
+final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
 {
     private const string UTILS_FILE = 'utils';
 
+    private EmitTypes $types;
+
     /**
+     * Not static: reaching this means declaring the dependency, and a declared dependency that is
+     * not registered fails the run before a line is generated.
+     *
      * @param list<string> $values
      * @param list<string> $types
-     * @return TypescriptImport
      */
-    public static function importFromUtils(array $values = [], array $types = []): TypescriptImport
+    public function importFromUtils(array $values = [], array $types = []): TypescriptImport
     {
         return new TypescriptImport(
             Paths::libImport(self::UTILS_FILE),
@@ -40,12 +49,13 @@ final readonly class EmitTypeUtils implements GeneratesLibFiles, DependsOn
         ];
     }
 
-    /**
-     * Depends on the types for ordering only, so there is nothing to hold on to.
-     */
     #[Override]
     public function setDependencies(array $dependencies): void
     {
+        $this->types = Assertions::instanceOf(
+            EmitTypes::class,
+            $dependencies[EmitTypes::class] ?? null,
+        );
     }
 
     /**
@@ -75,8 +85,6 @@ final readonly class EmitTypeUtils implements GeneratesLibFiles, DependsOn
 
         return [
             self::UTILS_FILE => new TypescriptFile(<<<TypeScript
-import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from "./types";
-
 type QueryNamespaces = {$this->generateLiteralUnion($queryNamespaces)};
 
 const TOAST_TYPES = [{$toastTypes}] as const;
@@ -132,7 +140,15 @@ export function isSpaClientDirectives<const T>(result: WithClientDirectives<T>):
         && (directives.toasts === undefined || isArrayOf(directives.toasts, isClientToast))
         && (directives.invalidations === undefined || isArrayOf(directives.invalidations, isClientInvalidation));
 }
-TypeScript)
+TypeScript, [
+                $this->types->importFromTypes(types: [
+                    'ClientDirectives',
+                    'ClientRedirect',
+                    'ClientToast',
+                    'SPAClientDirectives',
+                    'WithClientDirectives',
+                ]),
+            ])
         ];
     }
 

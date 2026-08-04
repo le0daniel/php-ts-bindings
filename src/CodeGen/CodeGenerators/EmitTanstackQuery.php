@@ -13,18 +13,22 @@ use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
 /**
- * Not readonly: the EmitOperations it hangs everything off is injected after construction, which is
- * the only way it can be the same instance the generator runs.
+ * Not readonly: the generators it hangs everything off are injected after construction, which is the
+ * only way they can be the same instances the generator runs.
  */
 final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {
     private EmitOperations $operations;
+    private EmitTypeUtils $utils;
+    private EmitOperationClientBindings $bindings;
 
     #[Override]
     public function dependsOnGenerator(): array
     {
         return [
             EmitOperations::class,
+            EmitTypeUtils::class,
+            EmitOperationClientBindings::class,
         ];
     }
 
@@ -34,6 +38,14 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
         $this->operations = Assertions::instanceOf(
             EmitOperations::class,
             $dependencies[EmitOperations::class] ?? null,
+        );
+        $this->utils = Assertions::instanceOf(
+            EmitTypeUtils::class,
+            $dependencies[EmitTypeUtils::class] ?? null,
+        );
+        $this->bindings = Assertions::instanceOf(
+            EmitOperationClientBindings::class,
+            $dependencies[EmitOperationClientBindings::class] ?? null,
         );
     }
 
@@ -62,8 +74,8 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
                 values: ['useQuery', 'queryOptions'],
                 types: ['UseQueryOptions'],
             ),
-            EmitTypeUtils::importFromUtils(values: ['queryKey']),
-            EmitOperationClientBindings::importFromBindings(values: ['throwOnFailure']),
+            $this->utils->importFromUtils(values: ['queryKey']),
+            $this->bindings->importFromBindings(values: ['throwOnFailure']),
         ];
 
         if (!$operation->hasInput) {

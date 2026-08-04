@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeMap;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
@@ -141,12 +142,79 @@ test('every generator names an operation the way the one that declares it does',
         ->toContain('const result = await ordersGet(input, {signal});');
 });
 
+test('a lib file reaches its siblings directly instead of through lib/', function () {
+    // What an emitter writes is './lib/x' — the way a module at the output root reaches it. A file
+    // that lands in lib/ itself is one directory deeper, so the orchestrator resolves the specifier
+    // once it knows where the file went, and the emitters never learn where that is.
+    $files = generateFor([NamedOperations::class]);
+
+    expect($files['lib/bindings.ts']->toString())->toStartWith(<<<TypeScript
+    import {DefaultClient} from './DefaultClient';
+    import type {OperationClient, OperationOptions} from './OperationClient';
+    import {OperationException} from './OperationException';
+    import type {Result, Success, WithClientDirectives} from './types';
+
+    TypeScript);
+
+    expect($files['lib/utils.ts']->toString())->toStartWith(
+        "import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from './types';"
+    );
+
+    expect($files['lib/types.ts']->toString())->not->toContain('import ');
+});
+
+test('no lib file names a module through lib/', function () {
+    $files = generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(),
+        new EmitTypeMap(),
+        new EmitQueryKey(),
+        new EmitTanstackQuery(),
+    ]);
+
+    $wrong = [];
+    foreach ($files as $path => $file) {
+        if (str_starts_with($path, 'lib/') && str_contains($file->toString(), "'./lib/")) {
+            $wrong[] = $path;
+        }
+    }
+
+    expect($wrong)->toBe([]);
+});
+
+test('the type map is written into the types file the types generator owns', function () {
+    $files = generateFor([NamedOperations::class], [new EmitTypes(), new EmitTypeMap()]);
+
+    // One file, not two: TYPE_MAP inlines the aliases EmitTypes declares, so it only resolves while
+    // it sits next to them.
+    expect($files)->not->toHaveKey('lib/type-map.ts')
+        ->and($files['lib/types.ts']->toString())
+        ->toContain('export type Brand<TBrand extends string>')
+        ->toContain('export type TYPE_MAP = {');
+});
+
 test('fails the run when a generator depends on one that is not registered', function () {
     expect(fn() => generateFor([NamedOperations::class], [
         new EmitTypes(),
         new EmitOperationClientBindings(),
         new EmitTanstackQuery(),
     ]))->toThrow(InvalidGeneratorDependencies::class);
+});
+
+test('fails the run when a generator imports from one that is not registered', function () {
+    // Nothing declares './lib/types' by hand any more: the import comes from EmitTypes, so a run
+    // without it cannot silently emit an operation module pointing at a file no one writes.
+    expect(fn() => generateFor([NamedOperations::class], [
+        new EmitOperationClientBindings(),
+        new EmitOperations(),
+    ]))->toThrow(InvalidGeneratorDependencies::class);
+});
+
+test('fails the run when the type map has no types file to write into', function () {
+    expect(fn() => generateFor([NamedOperations::class], [new EmitTypeMap()]))
+        ->toThrow(InvalidGeneratorDependencies::class);
 });
 
 test('fails the run when two classes resolve to the same name with different shapes', function () {

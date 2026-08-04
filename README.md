@@ -379,7 +379,12 @@ lib files) or `GeneratesOperationCode` (gets one operation, writes its code) and
 `--custom=My\Generator`. Add `DependsOn` to declare the generators yours needs: the run fails early
 if one is missing, and hands you the resolved instances through `setDependencies()`. That is how to
 reference what another generator emitted — ask `EmitOperations` for `inputTypeName($operation)`
-rather than rebuilding the name and hoping it matches.
+rather than rebuilding the name and hoping it matches, and ask `EmitTypes` for
+`importFromTypes(types: ['Order'])` rather than writing the module specifier yourself. Because those
+methods are not static, an import can only ever name a file a registered generator actually writes.
+Hand your imports to `TypescriptFile` instead of writing `import` lines into the code: only then are
+they merged with what the other generators contribute to the same file, and only then is the path
+resolved for a file that lands in `lib/`.
 
 ## Client directives
 

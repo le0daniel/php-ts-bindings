@@ -5,6 +5,7 @@ namespace Tests\Unit\CodeGen;
 use Closure;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
@@ -26,7 +27,10 @@ use Tests\Mocks\ValueObjects\Email;
 function queryKeyCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator = null): array
 {
     $emitter = new EmitQueryKey();
-    $emitter->setDependencies([EmitOperations::class => new EmitOperations($nameGenerator)]);
+    $emitter->setDependencies([
+        EmitOperations::class => new EmitOperations($nameGenerator),
+        EmitTypeUtils::class => new EmitTypeUtils(),
+    ]);
 
     $file = $emitter->generateOperationCode(
         $typedOperation,

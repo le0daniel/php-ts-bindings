@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\Typescript\Code;
 
+use Closure;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 use Le0daniel\PhpTsBindings\Utils\Lists;
 use NoDiscard;
@@ -55,6 +56,29 @@ final readonly class TypescriptFile implements Stringable
     public function withImports(TypescriptImport ...$imports): self
     {
         return new self($this->code, [...$this->imports, ...$imports] |> array_values(...));
+    }
+
+    /**
+     * The same file with every module specifier rewritten. Imports are re-merged afterwards, so two
+     * specifiers that resolve onto one module become one import rather than two lines naming the
+     * same file.
+     *
+     * A specifier is written before it is known where the file writing it ends up, and what it has
+     * to say depends on that. Whoever does know hands the rule in here.
+     *
+     * @param Closure(string): string $resolve
+     */
+    #[NoDiscard]
+    public function withModulesResolvedBy(Closure $resolve): self
+    {
+        return new self($this->code, array_map(
+            fn(TypescriptImport $import): TypescriptImport => new TypescriptImport(
+                $resolve($import->from),
+                $import->values,
+                $import->types,
+            ),
+            $this->imports,
+        ));
     }
 
     /**

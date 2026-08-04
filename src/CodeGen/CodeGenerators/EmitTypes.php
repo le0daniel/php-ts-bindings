@@ -5,8 +5,10 @@ namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
@@ -14,6 +16,8 @@ use Override;
 
 final readonly class EmitTypes implements GeneratesLibFiles
 {
+    private const string TYPES_FILE = 'types';
+
     /**
      * Declarations this file always contains. An alias claiming one of these names would generate
      * a second, conflicting declaration right next to them.
@@ -32,6 +36,32 @@ final readonly class EmitTypes implements GeneratesLibFiles
         'ClientInvalidation',
         'TYPE_MAP',
     ];
+
+    /**
+     * The name of the file this generator writes, for whoever contributes to it rather than to one
+     * of their own — EmitTypeMap declares TYPE_MAP next to the aliases it inlines.
+     */
+    public function fileName(): string
+    {
+        return self::TYPES_FILE;
+    }
+
+    /**
+     * Every declaration above lives in this file, so importing one is asking here for it. Not
+     * static: a generator can only reach this through a dependency it declared, which is what makes
+     * an import of a file no registered generator writes impossible.
+     *
+     * @param list<string> $values
+     * @param list<string> $types
+     */
+    public function importFromTypes(array $values = [], array $types = []): TypescriptImport
+    {
+        return new TypescriptImport(
+            Paths::libImport(self::TYPES_FILE),
+            values: $values,
+            types: $types,
+        );
+    }
 
     /**
      * @return array<string, TypescriptFile>
@@ -68,7 +98,7 @@ final readonly class EmitTypes implements GeneratesLibFiles
         ));
 
         return [
-            "types" => new TypescriptFile(<<<TypeScript
+            self::TYPES_FILE => new TypescriptFile(<<<TypeScript
 export type OperationNamespaces = {$this->generateNamespaceUnion($uniqueNamespaces)};
 
 export type Success<T> = {success: true, data: T}

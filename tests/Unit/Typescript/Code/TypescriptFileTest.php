@@ -143,6 +143,38 @@ test('never emits a name as both a type and a value import of one module', funct
     );
 });
 
+test('resolves every module specifier and merges what collapses onto one module', function () {
+    $file = new TypescriptFile('const a = 1;', [
+        TypescriptImport::types('./lib/types', 'Order'),
+        TypescriptImport::values('./types', 'isOrder'),
+        TypescriptImport::values('@tanstack/react-query', 'useQuery'),
+    ])->withModulesResolvedBy(
+        fn(string $from): string => str_starts_with($from, './lib/') ? './' . substr($from, 6) : $from,
+    );
+
+    // The two specifiers name one module once resolved, so they render as one import and not as a
+    // duplicated line the resolver would otherwise have introduced.
+    expect($file->imports)->toHaveCount(2)
+        ->and($file->toString())->toBe(
+            "import type {Order} from './types';\n"
+            . "import {isOrder} from './types';\n"
+            . "import {useQuery} from '@tanstack/react-query';\n"
+            . "\nconst a = 1;\n"
+        );
+});
+
+test('withModulesResolvedBy returns a new file and leaves the original untouched', function () {
+    $original = new TypescriptFile('const a = 1;', [TypescriptImport::types('./lib/types', 'Brand')]);
+
+    $resolved = $original->withModulesResolvedBy(fn(string $from): string => './types');
+
+    expect($resolved)->not->toBe($original)
+        ->and($original->imports[0]->from)->toBe('./lib/types')
+        ->and($resolved->imports[0]->from)->toBe('./types')
+        ->and($resolved->imports[0]->types)->toBe(['Brand'])
+        ->and($resolved->code)->toBe('const a = 1;');
+});
+
 test('renders the same bytes whatever order the imports arrived in', function () {
     $imports = [
         TypescriptImport::values('@tanstack/react-query', 'useQuery'),
