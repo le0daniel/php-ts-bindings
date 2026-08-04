@@ -197,12 +197,38 @@ final class FileReflector
                 continue;
             }
 
-            if (in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM])) {
-                $nextToken = self::peekNextSignificantToken($tokens, $i, $count);
-                if ($nextToken && $nextToken[0] === T_STRING) {
-                    return $nextToken[1];
-                }
+            if (!in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM])) {
+                continue;
             }
+
+            // `Foo::class` tokenizes as T_CLASS too. Only a T_CLASS that is not preceded by `::`
+            // introduces a declaration.
+            $previousToken = self::previousSignificantToken($tokens, $i);
+            if ($token[0] === T_CLASS && $previousToken !== null && $previousToken[0] === T_DOUBLE_COLON) {
+                continue;
+            }
+
+            $nextToken = self::peekNextSignificantToken($tokens, $i, $count);
+            if ($nextToken && $nextToken[0] === T_STRING) {
+                return $nextToken[1];
+            }
+        }
+        return null;
+    }
+
+    /**
+     * @param list<string|array{int, string, int}> $tokens
+     * @return (array{int, string, int})|null Null when the preceding token is punctuation, which
+     *   token_get_all() reports as a plain string rather than an array.
+     */
+    private static function previousSignificantToken(array $tokens, int $currentIndex): ?array
+    {
+        for ($i = $currentIndex - 1; $i >= 0; $i--) {
+            $token = $tokens[$i];
+            if (is_array($token) && $token[0] === T_WHITESPACE) {
+                continue;
+            }
+            return is_array($token) ? $token : null;
         }
         return null;
     }
@@ -215,9 +241,13 @@ final class FileReflector
     {
         for ($i = $currentIndex + 1; $i < $maxIndex; $i++) {
             $token = $tokens[$i];
-            if (is_array($token) && $token[0] !== T_WHITESPACE) {
-                return $token;
+            if (is_array($token) && $token[0] === T_WHITESPACE) {
+                continue;
             }
+
+            // Punctuation arrives as a plain string, and it always ends the construct being read:
+            // `new class {` must not scan on into the body looking for a name.
+            return is_array($token) ? $token : null;
         }
         return null;
     }

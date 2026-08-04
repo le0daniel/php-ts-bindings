@@ -377,7 +377,6 @@ test('non-empty-array keeps its minimum over both key types', function (string $
 })->with([
     ['non-empty-array<string, int>', RecordNode::class],
     ['non-empty-array<int, int>', ListNode::class],
-    ['non-empty-array', ListNode::class],
 ]);
 
 test('the plain list and array types carry no constraint', function (string $type) {
@@ -386,7 +385,14 @@ test('the plain list and array types carry no constraint', function (string $typ
     expect($node)->not->toBeInstanceOf(ConstraintNode::class);
 
     compareToOptimizedAst($node);
-})->with(['list<int>', 'array<string, int>', 'array<int, int>', 'array']);
+})->with(['list<int>', 'array<string, int>', 'array<int, int>']);
+
+test('a bare array or list is rejected rather than degraded', function (string $type) {
+    // PHPStan's bare `array` is array<mixed, mixed> and permits string keys. Modelling it as a
+    // list would drop those keys on the way out, so it fails like bare `object` does.
+    expect(fn() => new TypeParser()->parse($type))
+        ->toThrow(InvalidSyntaxException::class, 'has no single representation');
+})->with(['array', 'list', 'non-empty-array', 'non-empty-list']);
 
 test('object struct', function () {
     $parser = new TypeParser();

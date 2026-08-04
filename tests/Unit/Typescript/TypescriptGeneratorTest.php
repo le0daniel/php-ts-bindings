@@ -123,7 +123,6 @@ test('emits collection types', function (string $type, string $expected) {
     'list' => ['list<string>', 'Array<string>'],
     'array shorthand' => ['string[]', 'Array<string>'],
     'int keyed array' => ['array<int, string>', 'Array<string>'],
-    'bare array' => ['array', 'Array<unknown>'],
     'record' => ['array<string, int>', 'Record<string,number>'],
     'tuple' => ['array{string, int}', '[string,number]'],
     'explicitly keyed tuple' => ['array{0: string, 1: int}', '[string,number]'],

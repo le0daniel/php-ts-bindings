@@ -85,9 +85,14 @@ final readonly class ArrayConsumer implements TypeConsumer
         // Consuming of the array type identifier
         $state->advance();
 
-        // No generics
+        // No generics. PHPStan reads a bare `array` as array<mixed, mixed>, which permits string
+        // keys - modelling it as a list is not a widening but a different type, and serialization
+        // would silently reindex a keyed array. Bare `object` and `iterable` already fail here,
+        // so this does too rather than emit Array<unknown> and drop keys on the way out.
         if (!$state->currentTokenIs(TokenType::LT)) {
-            return $this->applyEmptiness(new ListNode(new MixedNode()), $isNonEmpty);
+            $state->produceSyntaxError(
+                "Bare '{$keyword}' has no single representation. Write list<T>, array<int, T> or array<string, T>."
+            );
         }
 
         $generics = $this->consumeGenerics($state, $parser, min: 1, max: $maxGenerics);

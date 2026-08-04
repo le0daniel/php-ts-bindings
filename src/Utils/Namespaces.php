@@ -58,24 +58,38 @@ final readonly class Namespaces
             return self::withoutLeadingSlash($className);
         }
 
-        $lookupKey = explode('\\', $className)[0];
+        // The map holds alias => the full name it was imported as, so only the segments *after*
+        // the alias are appended: `use App\Models;` plus `Models\User` is App\Models\User, not
+        // App\Models\Models\User.
+        $segments = explode('\\', $className);
+        $lookupKey = $segments[0];
         if (array_key_exists($lookupKey, $namespacesMap)) {
-            $classNameOrNameSpace = $namespacesMap[$lookupKey];
-            return str_contains($className, '\\')
-                ? $classNameOrNameSpace . '\\' . $className
-                : $classNameOrNameSpace;
+            $remaining = array_slice($segments, 1);
+            return $remaining === []
+                ? $namespacesMap[$lookupKey]
+                : $namespacesMap[$lookupKey] . '\\' . implode('\\', $remaining);
         }
 
         // If reflection->getType()->getName() is used, it already returns a fully qualified class name.
         // In case we did not find an import match, we check if the classname is imported anywhere already. If this is the case, we return it.
-        if (array_any($namespacesMap, fn(string $usedClass) => str_starts_with($className, $usedClass))) {
+        if (array_any($namespacesMap, fn(string $usedClass) => self::isWithin($className, $usedClass))) {
             return $className;
         }
 
-        if ($namespace !== null && !str_starts_with($className, $namespace)) {
+        if ($namespace !== null && !self::isWithin($className, $namespace)) {
             return $namespace . '\\' . $className;
         }
 
         return $className;
+    }
+
+    /**
+     * Whether $className is $parent itself or sits below it, compared on a namespace boundary.
+     * A raw prefix test would put `Application` inside `App`, and `App\Models\UserProfile` inside
+     * `App\Models\User`.
+     */
+    private static function isWithin(string $className, string $parent): bool
+    {
+        return $className === $parent || str_starts_with($className, "{$parent}\\");
     }
 }

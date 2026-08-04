@@ -20,7 +20,6 @@ test('non-empty-array rejects the empty array', function (string $type) {
 })->with([
     'non-empty-array<string, int>',
     'non-empty-array<int, int>',
-    'non-empty-array',
 ]);
 
 test('non-empty-array accepts a populated array', function () {
