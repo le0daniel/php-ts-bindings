@@ -16,8 +16,9 @@ use Override;
  * Not readonly: the EmitTypes whose file it writes into is injected after construction, which is the
  * only way it can be the same instance the generator runs.
  */
-final class EmitTypeMap implements GeneratesLibFiles
+final class EmitTypeMap implements GeneratesLibFiles, DependsOn
 {
+    private EmitTypes $emitTypes;
 
     #[Override]
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
@@ -35,11 +36,11 @@ final class EmitTypeMap implements GeneratesLibFiles
         }, []);
 
         $mapAsTsTypeString = '{' . implode(';', Arrays::mapWithKeys($map, function (string $type, array $operations) {
-            $typeString = implode(';', Arrays::mapWithKeys($operations, function (string $operation, array $definition) {
-                return "'{$operation}': {input: {$definition['input']}, output: {$definition['output']}, errors: {$definition['errors']}}";
-            }));
-            return "{$type}: {{$typeString}}";
-        })) . '}';
+                $typeString = implode(';', Arrays::mapWithKeys($operations, function (string $operation, array $definition) {
+                    return "'{$operation}': {input: {$definition['input']}, output: {$definition['output']}, errors: {$definition['errors']}}";
+                }));
+                return "{$type}: {{$typeString}}";
+            })) . '}';
 
         // Written into the types file rather than one of its own: the map inlines the aliases
         // EmitTypes declares, and they only resolve while it sits next to them.
@@ -49,8 +50,26 @@ final class EmitTypeMap implements GeneratesLibFiles
  * Full type map of all operations, input and output types.
  */
 export type TypeMap = {$mapAsTsTypeString};
-TypeScript
+TypeScript,
+                imports: [
+                    $this->emitTypes->importFromTypes(types: $registry->usedAliases())
+                ]
             )
         ];
+    }
+
+    #[Override]
+    public function dependsOnGenerator(): array
+    {
+        return [EmitTypes::class];
+    }
+
+    #[Override]
+    public function setDependencies(array $dependencies): void
+    {
+        $this->emitTypes = Assertions::instanceOf(
+            EmitTypes::class,
+            $dependencies[EmitTypes::class] ?? null,
+        );
     }
 }
