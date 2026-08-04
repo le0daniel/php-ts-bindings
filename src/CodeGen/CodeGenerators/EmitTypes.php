@@ -34,17 +34,7 @@ final readonly class EmitTypes implements GeneratesLibFiles
         'ClientToast',
         'ClientRedirect',
         'ClientInvalidation',
-        'TYPE_MAP',
     ];
-
-    /**
-     * The name of the file this generator writes, for whoever contributes to it rather than to one
-     * of their own — EmitTypeMap declares TYPE_MAP next to the aliases it inlines.
-     */
-    public function fileName(): string
-    {
-        return self::TYPES_FILE;
-    }
 
     /**
      * Every declaration above lives in this file, so importing one is asking here for it. Not

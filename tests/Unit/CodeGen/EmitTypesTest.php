@@ -57,7 +57,6 @@ test('rejects an alias colliding with a declaration the types file always contai
 })->with([
     'the Brand helper generic' => ['Brand'],
     'the Result envelope' => ['Result'],
-    'the TYPE_MAP constant' => ['TYPE_MAP'],
     'the client directive wrapper' => ['WithClientDirectives'],
     'the SPA client directives' => ['SPAClientDirectives'],
     'the directive payload' => ['ClientDirectives'],

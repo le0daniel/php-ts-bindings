@@ -187,12 +187,11 @@ test('no lib file names a module through lib/', function () {
 test('the type map is written into the types file the types generator owns', function () {
     $files = generateFor([NamedOperations::class], [new EmitTypes(), new EmitTypeMap()]);
 
-    // One file, not two: TYPE_MAP inlines the aliases EmitTypes declares, so it only resolves while
+    // Two files: typemap inlines the aliases EmitTypes declares, so it only resolves while
     // it sits next to them.
-    expect($files)->not->toHaveKey('lib/type-map.ts')
-        ->and($files['lib/types.ts']->toString())
-        ->toContain('export type Brand<TBrand extends string>')
-        ->toContain('export type TYPE_MAP = {');
+    expect($files)->toHaveKey('lib/type-map.ts')
+        ->and($files['lib/type-map.ts']->toString())
+        ->toContain('export type TypeMap = {');
 });
 
 test('fails the run when a generator depends on one that is not registered', function () {
@@ -210,11 +209,6 @@ test('fails the run when a generator imports from one that is not registered', f
         new EmitOperationClientBindings(),
         new EmitOperations(),
     ]))->toThrow(InvalidGeneratorDependencies::class);
-});
-
-test('fails the run when the type map has no types file to write into', function () {
-    expect(fn() => generateFor([NamedOperations::class], [new EmitTypeMap()]))
-        ->toThrow(InvalidGeneratorDependencies::class);
 });
 
 test('fails the run when two classes resolve to the same name with different shapes', function () {

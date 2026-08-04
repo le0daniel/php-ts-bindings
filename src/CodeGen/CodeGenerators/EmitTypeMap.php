@@ -16,26 +16,8 @@ use Override;
  * Not readonly: the EmitTypes whose file it writes into is injected after construction, which is the
  * only way it can be the same instance the generator runs.
  */
-final class EmitTypeMap implements GeneratesLibFiles, DependsOn
+final class EmitTypeMap implements GeneratesLibFiles
 {
-    private EmitTypes $types;
-
-    #[Override]
-    public function dependsOnGenerator(): array
-    {
-        return [
-            EmitTypes::class,
-        ];
-    }
-
-    #[Override]
-    public function setDependencies(array $dependencies): void
-    {
-        $this->types = Assertions::instanceOf(
-            EmitTypes::class,
-            $dependencies[EmitTypes::class] ?? null,
-        );
-    }
 
     #[Override]
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
@@ -62,11 +44,11 @@ final class EmitTypeMap implements GeneratesLibFiles, DependsOn
         // Written into the types file rather than one of its own: the map inlines the aliases
         // EmitTypes declares, and they only resolve while it sits next to them.
         return [
-            $this->types->fileName() => new TypescriptFile(<<<TypeScript
+            'type-map' => new TypescriptFile(<<<TypeScript
 /**
  * Full type map of all operations, input and output types.
  */
-export type TYPE_MAP = {$mapAsTsTypeString};
+export type TypeMap = {$mapAsTsTypeString};
 TypeScript
             )
         ];
