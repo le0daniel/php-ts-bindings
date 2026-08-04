@@ -45,21 +45,31 @@ final readonly class ErrorPresenter
         try {
             [$type, $details] = $this->resolve($throwable, $definition);
             return new RpcError($type, $throwable, $details, $info);
-        } catch (Throwable) {
-            return self::internalError($throwable, $info);
+        } catch (Throwable $presentationFailure) {
+            // Losing this one is expensive to debug: a stale middleware class name makes
+            // ExposedExceptions throw, and from then on every exception from the operation
+            // degrades to an internal error with no #[Throws] mapping ever applying again, with
+            // nothing anywhere saying why. $cause stays the exception the application threw; the
+            // presentation failure rides alongside it for the reporter.
+            return self::internalError($throwable, $info, $presentationFailure);
         }
     }
 
     /**
      * The last resort shape, for when presenting itself fails.
      */
-    public static function internalError(Throwable $throwable, ?ResolveInfo $info): RpcError
+    public static function internalError(
+        Throwable  $throwable,
+        ?ResolveInfo $info,
+        ?Throwable $presentationFailure = null,
+    ): RpcError
     {
         return new RpcError(
             ErrorType::INTERNAL_ERROR,
             $throwable,
             ['type' => 'INTERNAL_SERVER_ERROR'],
             $info,
+            presentationFailure: $presentationFailure,
         );
     }
 
@@ -109,6 +119,6 @@ final readonly class ErrorPresenter
      */
     private function exposedTypeOf(Throwable $throwable, Definition $definition): ?string
     {
-        return ExposedExceptions::declaredFor($definition)[$throwable::class] ?? null;
+        return ExposedExceptions::declaredFor($definition, $this->configuration)[$throwable::class] ?? null;
     }
 }

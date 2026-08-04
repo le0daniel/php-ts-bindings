@@ -44,7 +44,7 @@ final readonly class ErrorTypescript
 
         $branches[] = self::branch(ErrorType::NOT_FOUND, self::NOT_FOUND_DETAILS);
 
-        if ($domainDetails = self::domainDetails($definition)) {
+        if ($domainDetails = self::domainDetails($configuration, $definition)) {
             $branches[] = self::branch(ErrorType::DOMAIN_ERROR, $domainDetails);
         }
 
@@ -56,9 +56,9 @@ final readonly class ErrorTypescript
     /**
      * @throws ReflectionException
      */
-    private static function domainDetails(Definition $definition): ?string
+    private static function domainDetails(ServerConfiguration $configuration, Definition $definition): ?string
     {
-        $exposedTypes = ExposedExceptions::exposedTypesFor($definition);
+        $exposedTypes = ExposedExceptions::exposedTypesFor($definition, $configuration);
         if (empty($exposedTypes)) {
             return null;
         }

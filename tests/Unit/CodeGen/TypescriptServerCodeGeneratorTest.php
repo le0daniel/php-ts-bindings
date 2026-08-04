@@ -11,6 +11,7 @@ use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
@@ -21,6 +22,7 @@ use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Tests\Unit\CodeGen\Mocks\AsymmetricNamedOperations;
 use Tests\Unit\CodeGen\Mocks\ConflictingNamedOperations;
+use Tests\Unit\CodeGen\Mocks\NameClashOperations;
 use Tests\Unit\CodeGen\Mocks\NamedOperations;
 use Tests\Unit\CodeGen\Mocks\PerDirectionNamedOperations;
 use Tests\Unit\CodeGen\Mocks\UnrepresentableOperations;
@@ -243,4 +245,29 @@ test('a name per direction declares both shapes; a single shape is referenced bo
         ->toContain('export type RoundtripResult = PerDirectionNamed;')
         ->toContain('export type CustomerInput = Customer;')
         ->toContain('export type CustomerResult = Customer;');
+});
+
+test('a query and a command generating the same name in one module is an error', function () {
+    // Both would emit `export async function get` and `export type GetResult` into clash.ts.
+    // Previously this produced invalid TypeScript without a warning.
+    expect(fn() => generateFor([NameClashOperations::class]))
+        ->toThrow(CodeGenException::class, "Two operations generate the name 'get'");
+});
+
+test('a naming rule that distinguishes them is accepted', function () {
+    // The check asks the generator that owns naming, so a rule which already separates the two
+    // is not rejected for a clash it does not produce.
+    $files = generateFor([NameClashOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(
+            fn(TypedOperation $operation): string => $operation->definition->type->lowerCase()
+                . ucfirst($operation->definition->name),
+        ),
+    ]);
+
+    expect($files['clash.ts']->toString())
+        ->toContain('function queryGet')
+        ->toContain('function commandGet');
 });

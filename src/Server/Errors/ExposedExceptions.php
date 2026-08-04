@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\Server\Errors;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Utils\Lists;
 use ReflectionClass;
 use ReflectionException;
@@ -27,16 +28,27 @@ final readonly class ExposedExceptions
      * each of its middlewares, mapped to the name the client sees - or null where it stays
      * internal. handle() is guaranteed to exist: every middleware implements MiddlewareContract.
      *
+     * Both the middleware the operation declares with #[Middleware] and the middleware the server
+     * is configured with are read, because both wrap the operation and either can be the thing
+     * that throws. They are reflected in that order so an operation's own declaration keeps
+     * winning over a server wide one.
+     *
      * @param Definition $definition
+     * @param ServerConfiguration $configuration
      * @return array<class-string<Throwable>, string|null>
      * @throws ReflectionException
      */
-    public static function declaredFor(Definition $definition): array
+    public static function declaredFor(Definition $definition, ServerConfiguration $configuration): array
     {
         $attributes = new ReflectionMethod($definition->fullyQualifiedClassName, $definition->methodName)
             ->getAttributes(Throws::class);
 
-        foreach ($definition->middleware as $middlewareClassName) {
+        $middlewareClassNames = [
+            ... $definition->middleware,
+            ... $configuration->middleware,
+        ];
+
+        foreach ($middlewareClassNames as $middlewareClassName) {
             $middlewareAttributes = new ReflectionMethod($middlewareClassName, 'handle')
                 ->getAttributes(Throws::class);
 
@@ -76,12 +88,13 @@ final readonly class ExposedExceptions
      * The exposed names of every exception the operation declares, in declaration order.
      *
      * @param Definition $definition
+     * @param ServerConfiguration $configuration
      * @return list<string>
      * @throws ReflectionException
      */
-    public static function exposedTypesFor(Definition $definition): array
+    public static function exposedTypesFor(Definition $definition, ServerConfiguration $configuration): array
     {
-        return array_values(self::declaredFor($definition))
+        return array_values(self::declaredFor($definition, $configuration))
             |> Lists::filterNullValues(...)
             |> Lists::unique(...);
     }

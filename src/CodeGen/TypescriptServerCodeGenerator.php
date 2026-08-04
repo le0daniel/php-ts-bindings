@@ -2,6 +2,7 @@
 
 namespace Le0daniel\PhpTsBindings\CodeGen;
 
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
@@ -128,6 +129,15 @@ final readonly class TypescriptServerCodeGenerator
                 "{$b->definition->fullyQualifiedName()}#{$b->definition->type->name}",
             );
         });
+
+        // Asked of the generator that owns the naming rule, so a custom --naming that already
+        // distinguishes the two is not rejected for a clash it does not produce. After the sort,
+        // so which of a clashing pair is named first does not depend on discovery order.
+        foreach ($this->generators as $codeGenerator) {
+            if ($codeGenerator instanceof EmitOperations) {
+                $codeGenerator->assertNamesAreUnique($definitions);
+            }
+        }
 
         return [
             ...$this->generateLibFiles($definitions, $metadata, $registry),

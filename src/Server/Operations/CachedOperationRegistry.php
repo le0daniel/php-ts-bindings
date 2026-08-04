@@ -28,7 +28,7 @@ final class CachedOperationRegistry implements OperationRegistry
     public function has(OperationType $type, string $fullyQualifiedKey): bool
     {
         return array_key_exists(
-            self::key($type, $fullyQualifiedKey),
+            $type->registryKey($fullyQualifiedKey),
             $this->operations
         );
     }
@@ -36,14 +36,10 @@ final class CachedOperationRegistry implements OperationRegistry
     #[Override]
     public function get(OperationType $type, string $fullyQualifiedKey): Operation
     {
-        $key = self::key($type, $fullyQualifiedKey);
+        $key = $type->registryKey($fullyQualifiedKey);
         return $this->instances[$key] ??= $this->operations[$key]();
     }
 
-    private static function key(OperationType $type, string $fullyQualifiedKey): string
-    {
-        return "{$type->name}:{$fullyQualifiedKey}";
-    }
 
     #[Override]
     public function all(): array
@@ -75,7 +71,7 @@ final class CachedOperationRegistry implements OperationRegistry
             $exportedDefinition = $endpoint->definition->exportPhpCode();
 
             // The key is computed based on the endpoint key from the operation registry provided.
-            $key = self::key($operation->type, $endpoint->key);
+            $key = $operation->type->registryKey($endpoint->key);
 
             $endpoints[] =
                 "'{$key}' => fn() => new {$endpointClass}('{$endpoint->key}', $exportedDefinition, fn() => \$typeRegistry->get('{$inputAstName}'), fn() => \$typeRegistry->get('{$outputAstName}'))";

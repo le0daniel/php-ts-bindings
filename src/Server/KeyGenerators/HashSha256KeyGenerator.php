@@ -16,11 +16,16 @@ final readonly class HashSha256KeyGenerator implements OperationKeyGenerator
     {
     }
 
+    /**
+     * The name segment is hashed over the namespace as well. Hashing it on its own gave every
+     * `get` in the application the identical segment, so learning one key told you the segment for
+     * that method name in every other namespace - the structure the obfuscation is meant to hide.
+     */
     #[Override]
     public function generateKey(string $namespace, string $name): string
     {
         $namespaceHash = Hashs::base64UrlEncodedSha256("{$namespace}|{$this->pepper}");
-        $fnHash = Hashs::base64UrlEncodedSha256("{$name}|{$this->pepper}");
+        $fnHash = Hashs::base64UrlEncodedSha256("{$namespace}|{$name}|{$this->pepper}");
 
         $namespace = substr($namespaceHash, 0, $this->namespaceLength);
         $fnName = substr($fnHash, 0, $this->fnNameLength);

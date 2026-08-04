@@ -7,6 +7,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Utils\Assertions;
@@ -61,6 +62,39 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
     public function operationName(TypedOperation $operation): string
     {
         return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->definition->name;
+    }
+
+    /**
+     * A query and a command may legitimately share a namespace.name - the registry keys them by
+     * type - but both land in the same generated module, and under the default naming rule both
+     * emit `export async function get` and `export type GetResult`. That is invalid TypeScript,
+     * and it used to be written without a word. The check lives here because the naming rule does.
+     *
+     * @param list<TypedOperation> $operations
+     * @throws CodeGenException
+     */
+    public function assertNamesAreUnique(array $operations): void
+    {
+        /** @var array<string, TypedOperation> $seen */
+        $seen = [];
+        foreach ($operations as $operation) {
+            $name = $this->operationName($operation);
+            $key = "{$operation->definition->namespace}/{$name}";
+
+            if (array_key_exists($key, $seen)) {
+                $first = $seen[$key]->definition;
+                $second = $operation->definition;
+                throw new CodeGenException(
+                    "Two operations generate the name '{$name}' in module "
+                    . "'{$operation->definition->namespace}.ts': "
+                    . "{$first->fullyQualifiedClassName}::{$first->methodName} ({$first->type->lowerCase()}) and "
+                    . "{$second->fullyQualifiedClassName}::{$second->methodName} ({$second->type->lowerCase()}). "
+                    . "Rename one, or generate with a naming mode that distinguishes them."
+                );
+            }
+
+            $seen[$key] = $operation;
+        }
     }
 
     public function baseTypeName(TypedOperation $operation): string

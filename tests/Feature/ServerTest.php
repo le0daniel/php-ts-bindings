@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
+use Tests\Feature\Mocks\GloballyThrowingMiddleware;
 use Tests\Feature\Mocks\NotAMiddleware;
 
 function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
@@ -123,4 +124,43 @@ test('an output that does not match its declared type is an internal error, not 
     expect($result)->toBeInstanceOf(RpcError::class)
         ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
         ->and($result->cause)->toBeInstanceOf(InvalidOutputException::class);
+});
+
+test('a globally configured middleware contributes its #[Throws] to the runtime and the codegen', function () {
+    // Definition::$middleware only ever held what #[Middleware] put there, so a #[Throws] on a
+    // middleware registered through ServerConfiguration was ignored by both the presenter and the
+    // generated error union - the exception surfaced as a 500.
+    $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(
+        __DIR__ . '/Operations',
+        keyGenerator: new PlainlyExposedKeyGenerator(),
+    );
+    $configuration = new ServerConfiguration()->withMiddlewares(GloballyThrowingMiddleware::class);
+    $server = new Server($registry, configuration: $configuration);
+
+    $error = $server->command('test.run', ['name' => 'global-boom'], null, new NullClient());
+
+    expect($error)->toBeInstanceOf(RpcError::class)
+        ->and($error->type)->toBe(ErrorType::DOMAIN_ERROR)
+        ->and($error->details)->toEqual(['type' => 'global_middleware_failed']);
+
+    $errorUnion = ErrorTypescript::forOperation(
+        $configuration,
+        $registry->get(OperationType::COMMAND, 'test.run')->definition,
+    );
+
+    expect($errorUnion)->toContain('"global_middleware_failed"');
+});
+
+test('an operation level declaration still wins over a global one for the same exception', function () {
+    $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(
+        __DIR__ . '/Operations',
+        keyGenerator: new PlainlyExposedKeyGenerator(),
+    );
+    $configuration = new ServerConfiguration()->withMiddlewares(GloballyThrowingMiddleware::class);
+
+    // test.run declares InvalidNameException itself; the global middleware must not displace it.
+    $error = new Server($registry, configuration: $configuration)
+        ->command('test.run', ['name' => 'invalid'], null, new NullClient());
+
+    expect($error->details)->toEqual(['type' => 'invalid_name']);
 });

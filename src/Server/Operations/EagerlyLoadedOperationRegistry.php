@@ -5,6 +5,7 @@ namespace Le0daniel\PhpTsBindings\Server\Operations;
 use Closure;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\FileReflector;
@@ -85,7 +86,17 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
         $factories = [];
         foreach ($discovery->operations as $definition) {
             $key = $keyGenerator->generateKey($definition->namespace, $definition->name);
-            $fullyQualifiedKey = self::key($definition->type, $key);
+            $fullyQualifiedKey = $definition->type->registryKey($key);
+
+            // Keys can be truncated hashes, so two operations can collide on one. Assigning over
+            // the entry would leave an operation silently unreachable; ASTOptimizer throws for the
+            // same reason.
+            if (array_key_exists($fullyQualifiedKey, $factories)) {
+                throw new SchemaException(
+                    "Operation key collision on '{$key}' for {$definition->fullyQualifiedName()}. "
+                    . "Two operations hash to the same key - increase the key generator's length."
+                );
+            }
 
             // Lazily execute the parsing.
             $factories[$fullyQualifiedKey] = static function () use ($definition, $parser, $key) {
@@ -120,15 +131,11 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
         return self::registryFromDiscovery($parser, $keyGenerator, $discovery);
     }
 
-    private static function key(OperationType $type, string $fullyQualifiedKey): string
-    {
-        return "{$type->name}@{$fullyQualifiedKey}";
-    }
 
     #[Override]
     public function has(OperationType $type, string $fullyQualifiedKey): bool
     {
-        $key = self::key($type, $fullyQualifiedKey);
+        $key = $type->registryKey($fullyQualifiedKey);
         return array_key_exists($key, $this->factories);
     }
 
@@ -138,7 +145,7 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
     #[Override]
     public function get(OperationType $type, string $fullyQualifiedKey): Operation
     {
-        $key = self::key($type, $fullyQualifiedKey);
+        $key = $type->registryKey($fullyQualifiedKey);
         return $this->instances[$key] ??= $this->factories[$key]();
     }
 
