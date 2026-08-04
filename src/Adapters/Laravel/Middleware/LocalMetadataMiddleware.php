@@ -3,6 +3,7 @@
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Middleware;
 
 use Closure;
+use Illuminate\Container\Attributes\Config;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
@@ -15,10 +16,16 @@ use Override;
  */
 final readonly class LocalMetadataMiddleware implements MiddlewareContract
 {
+    public function __construct(
+        #[Config('app.debug')] private bool $isDebuggingEnabled
+    )
+    {
+    }
+
     #[Override]
     public function handle(mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
     {
-        if (config('app.debug') !== true) {
+        if (!$this->isDebuggingEnabled) {
             return $next($input);
         }
 
