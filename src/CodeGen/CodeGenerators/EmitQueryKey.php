@@ -56,11 +56,27 @@ final class EmitQueryKey implements DependsOn, GeneratesOperationCode
         $name = $this->operations->operationName($operation);
         $inputTypeName = $this->operations->inputTypeName($operation);
 
-        return new TypescriptFile(
-            <<<TypeScript
+        // Query key needs to support both input and no input
+        if ($operation->hasInput) {
+            return new TypescriptFile(
+                <<<TypeScript
 /** @pure */
 export function {$name}QueryKey(input: {$inputTypeName}) {
     return queryKey('{$definition->namespace}', '{$definition->name}', input);
+}
+TypeScript
+                ,
+                imports: [
+                    $this->utils->importFromUtils(values: ['queryKey']),
+                ],
+            );
+        }
+
+        return new TypescriptFile(
+            <<<TypeScript
+/** @pure */
+export function {$name}QueryKey() {
+    return queryKey('{$definition->namespace}', '{$definition->name}');
 }
 TypeScript
             ,
