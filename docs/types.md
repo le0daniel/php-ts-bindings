@@ -581,5 +581,5 @@ use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
 AstValidator::validate($node);
 ```
 
-Code generation does this for every operation already, so a schema that survives
-`operations:codegen` is valid. Call it yourself when you parse types outside the server.
+Code generation does this for every operation already, so a schema that survives code generation is
+valid. Call it yourself when you parse types outside the server.

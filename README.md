@@ -30,23 +30,24 @@ them. Not an ORM serializer. Not a schema DSL. If a rule cannot be expressed as 
 library will not check it for you; [value objects](docs/types.md#value-objects) are where such rules
 belong.
 
-Requires **PHP 8.5** and nothing else — the core has no dependencies and no framework coupling. A
-first-party Laravel adapter ships in the box and is entirely optional.
+Requires **PHP 8.5** and nothing else — no dependencies, no framework coupling. A first-party
+[Laravel adapter](docs/laravel.md) ships in the box and is entirely optional.
 
 ---
 
 - [Install](#install)
+- [Laravel](#laravel)
 - [Quickstart](#quickstart)
 - [Core concepts](#core-concepts)
 - [Defining operations](#defining-operations)
 - [Middleware](#middleware)
 - [Types](#types)
 - [Errors](#errors)
+- [Serving operations over HTTP](#serving-operations-over-http)
 - [The generated TypeScript client](#the-generated-typescript-client)
 - [Client directives](#client-directives)
-- [Laravel setup](#laravel-setup)
+- [Preloading a query](#preloading-a-query)
 - [Production](#production)
-- [Without a framework](#without-a-framework)
 - [Extension points and exceptions](#extension-points-and-exceptions)
 
 ## Install
@@ -65,8 +66,16 @@ includes:
     - vendor/le0daniel/php-ts-bindings/extension.neon
 ```
 
-On Laravel the service provider is auto-discovered; there is nothing else to register. See
-[Laravel setup](#laravel-setup).
+## Laravel
+
+A first-party adapter ships with the library. The service provider is auto-discovered,
+`config/operations.php` is publishable, and four `operations:*` artisan commands handle discovery,
+code generation and the production cache. Routes stay yours to register.
+
+Everything below applies on Laravel too — the adapter wires this library up, it does not replace it.
+What it decides on your behalf is documented separately.
+
+**[→ The Laravel adapter](docs/laravel.md)**
 
 ## Quickstart
 
@@ -110,11 +119,40 @@ final class UserOperations
 single primitive. `UserId` and `Email` carry a `#[Brand]`, so they are not interchangeable with a
 plain `number` or `string` on the TypeScript side.
 
-Generate the client:
+Build a server over them, and generate the client:
 
-```bash
-php artisan operations:codegen resources/js/operations
+```php
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
+use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\OutputDirectory;
+use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
+use Le0daniel\PhpTsBindings\Server\Server;
+
+$server = new Server(
+    EagerlyLoadedOperationRegistry::eagerlyDiscover(
+        __DIR__ . '/app/Operations',
+        keyGenerator: new PlainlyExposedKeyGenerator(),
+    ),
+);
+
+$files = new TypescriptServerCodeGenerator([
+    new EmitTypes(),
+    new EmitOperationClientBindings(),
+    new EmitTypeUtils(),
+    new EmitOperations(),
+])->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
+
+OutputDirectory::write(__DIR__ . '/resources/js/operations', $files);
 ```
+
+The two URLs are the routes *your* transport serves; `{fqn}` is where the operation key goes, and
+both are required to contain it. Run this from a script you commit — it is a build step, not
+something the server does at runtime.
 
 You get a `users.ts` module, matching the namespace:
 
@@ -142,6 +180,8 @@ if (result.success) {
 Passing `{id: 1}` is a compile error: `number` is not assignable to `UserId`'s branded type. Sending
 it anyway is a 422 at runtime, because the server proves the same type it published.
 
+What remains is [serving those two routes](#serving-operations-over-http).
+
 ## Core concepts
 
 **`Server`** takes a registry of operations and runs one. Both methods are total — every
@@ -153,11 +193,14 @@ public function command(string $name, mixed $input, mixed $context, Client $clie
 ```
 
 **`$name` is the operation's *key*, not its plain name.** An `OperationKeyGenerator` turns
-`namespace` + `name` into what the client calls. The default is
-`HashSha256KeyGenerator`, whose first constructor argument — a pepper — is **required**; it hashes
-both parts, so a discovered `users.get` is reachable as an opaque key rather than as `users.get`.
-Use `PlainlyExposedKeyGenerator` for literal keys. The generated TypeScript always embeds whichever
-key the server produced, so this only matters when you call the server by hand.
+`namespace` + `name` into what the client calls. `HashSha256KeyGenerator` hashes both parts, so a
+discovered `users.get` is reachable as an opaque key rather than as `users.get`; its first
+constructor argument is a pepper, and it has no default. `PlainlyExposedKeyGenerator` gives literal
+keys instead. The generated TypeScript always embeds whichever key the server produced, so this only
+matters when you call the server by hand.
+
+> **Pass one explicitly.** `eagerlyDiscover()` falls back to `HashSha256KeyGenerator` peppered with
+> the string `'default'` — obfuscated keys, from a pepper anyone reading this page knows.
 
 Obfuscation is not a security boundary: it keeps your operation names out of the shipped bundle, and
 that is all. Two operations colliding on a truncated hash is an error at discovery, not a silent
@@ -175,10 +218,10 @@ scanning directories; schemas are parsed lazily, per operation, on first use.
 | `NewInstanceAdapter` | The default. Plain `new $className()`, so handlers take no constructor arguments. |
 | `PsrContainerAdapter` | Resolves both through a PSR-11 container. |
 
-Laravel wires `PsrContainerAdapter` to the application container for you. Implement the interface
-yourself for a container that is not PSR-11, or to construct handlers some other way. Whatever it
-does, a failure to resolve is caught and returned as an `RpcError` — that is part of what keeps
-`query()` and `command()` total.
+`PsrContainerAdapter` needs `psr/container`, which is a `suggest` rather than a dependency; the
+default needs nothing at all. Implement the interface yourself for a container that is not PSR-11,
+or to construct handlers some other way. Whatever it does, a failure to resolve is caught and
+returned as an `RpcError` — that is part of what keeps `query()` and `command()` total.
 
 **The handler contract.** Your method is called with exactly three arguments, positionally:
 
@@ -191,9 +234,30 @@ type is the whole input contract**, so the first parameter is the one that matte
 whatever you passed to `Server::query()`; the library never touches it. `$client` is the
 [side channel](#client-directives) back to the frontend.
 
-You may declare a **prefix** of those three — `($input)` and `($input, $context)` are both fine — but
-not a subset. `($input, Client $client)` receives the context in the client slot, so discovery
-rejects it rather than letting it fail at runtime.
+**The input parameter is never optional.** A handler declaring no parameters is rejected at
+discovery, and the one it does declare must carry a native type — an untyped parameter cannot be
+reflected. A `@param` in the docblock overrides that native type, and is how you say anything PHP
+itself cannot express.
+
+**An operation that takes no input types it as `null`.** The parameter stays; only its type changes:
+
+```php
+/**
+ * @return array{ok: bool}
+ */
+#[Query('system')]
+public function ping(null $input): array
+{
+    return ['ok' => true];
+}
+```
+
+Every generator drops the argument for such an operation, so the TypeScript is `ping()` rather than
+`ping(input)`. There is no way to omit the parameter itself.
+
+You may declare a **prefix** of the three — `($input)` and `($input, $context)` are both fine — but
+not a subset, and the prefix always starts at the input. `($input, Client $client)` receives the
+context in the client slot, so discovery rejects it rather than letting it fail at runtime.
 
 Middleware receives `ResolveInfo` alongside the input, describing the operation being run:
 `namespace`, `name`, `operationType`, `className`, `methodName`, `middleware` (every class in the
@@ -205,8 +269,8 @@ it is a bug in your code, not something the client can fix. The PHPStan *refinem
 type are not re-checked, because static analysis already established those. See
 [refinements run on input, never on output](docs/types.md#refinements-run-on-input-never-on-output).
 
-Both results carry metadata a middleware can attach with `withMetadata()` / `appendMetadata()`; the
-Laravel adapter surfaces it as a `__metadata` key on the response.
+Both results carry metadata a middleware can attach with `withMetadata()` / `appendMetadata()`. What
+becomes of it is the transport's decision — nothing in the core writes it to a response.
 
 ## Defining operations
 
@@ -229,8 +293,8 @@ case name, so adding `: string` to an existing namespace enum changes every gene
 wire key. `name` defaults to the method name and is a string only.
 
 Two operations of the same type resolving to the same `namespace.name` fail discovery. A query and a
-command *may* share one, but both land in the same generated module, so unless `--naming` tells them
-apart the code generator rejects them rather than emit two functions of the same name.
+command *may* share one, but both land in the same generated module, so unless the naming rule tells
+them apart the code generator rejects them rather than emit two functions of the same name.
 
 `#[Brand]`, `#[Named]`, `#[Castable]` and `#[Optional]` are covered in
 [the type reference](docs/types.md).
@@ -295,12 +359,7 @@ its middleware declare the same exception, the operation's name wins.
 
 ### The rest of `ServerConfiguration`
 
-The same object carries the server's other settings.
-
-On Laravel, `withMiddlewares()` and `withExceptions()` are populated from `config/operations.php`.
-`coerceQueryInput` is not, and deliberately: the Laravel transport JSON-encodes each query parameter
-and decodes it again, so values arrive already typed and there is nothing to coerce. Everywhere else,
-this object is where all three are set.
+The same object carries the server's other settings, and is where all three are set.
 
 `withExceptions()` maps your exceptions onto the [error categories](#errors). Matching is
 `instanceof`, so listing a base class covers its subclasses, and an omitted category is left
@@ -318,10 +377,10 @@ Without this, nothing produces a 401, 403 or 404 except an unknown operation —
 exception is a 500.
 
 `coerceQueryInput` (default `false`) applies to **queries only**, and exists because a URL carries no
-types. The generated client JSON-encodes each value and the Laravel adapter decodes it again, so
-`?id=1` arrives as the integer `1` and nothing needs coercing. Turn this on when requests come from
-somewhere that does not round-trip — a hand-written URL, a form, a transport of your own — and leaf
-primitives are coerced to the declared type before validation instead of failing it:
+types. The generated client JSON-encodes each query value, so a transport that decodes it again
+receives `?id=1` as the integer `1` and has nothing to coerce. Turn this on when requests reach you
+from somewhere that does not round-trip — a hand-written URL, a form, a transport of your own — and
+leaf primitives are coerced to the declared type before validation instead of failing it:
 
 ```php
 new ServerConfiguration(coerceQueryInput: true)
@@ -451,10 +510,79 @@ validator, but the 422 shape is a perfectly good transport for the rules it will
 field-to-message map. Throw it from a handler or a middleware and the client reads it exactly like a
 type failure.
 
+## Serving operations over HTTP
+
+The server runs an operation; turning that into an HTTP response is yours to write. Two routes are
+enough — one GET for queries, one POST for commands — and both must carry the operation key.
+
+```php
+use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
+use Le0daniel\PhpTsBindings\Server\Client\NullClient;
+use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
+use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
+use Le0daniel\PhpTsBindings\Server\Server;
+
+$server = new Server(
+    EagerlyLoadedOperationRegistry::eagerlyDiscover(
+        __DIR__ . '/src/Operations',
+        keyGenerator: new PlainlyExposedKeyGenerator(),
+    ),
+    adapter: new PsrContainerAdapter($psrContainer),
+    configuration: new ServerConfiguration()
+        ->withMiddlewares(AuthMiddleware::class)
+        ->withExceptions(
+            notFound: [EntityNotFoundException::class],
+            unauthenticated: [NotLoggedInException::class],
+        ),
+);
+
+$result = $server->command('users.create', $input, $myContext, new NullClient());
+
+if ($result instanceof RpcSuccess) {
+    respondJson(200, ['success' => true, 'data' => $result->data]);
+} else {
+    respondJson($result->type->value, [
+        'success' => false,
+        'code' => $result->type->value,
+        'type' => $result->type->name,
+        'details' => $result->details,
+    ]);
+}
+```
+
+`ErrorType` doubles as the status code: `$result->type->value` is the HTTP code and
+`$result->type->name` the string the client matches on, so the two cannot disagree.
+
+`$result->cause` is the underlying `Throwable` on every error, ready to hand to your reporter. On the
+rare occasion that working out how to present an error *itself* failed — a stale middleware class
+name, say — `$result->presentationFailure` holds that second exception; it is null otherwise.
+
+Whatever your transport does with the input, the shape it hands the server has to match what the
+generated client sends: for queries, each value JSON-encoded into its own query parameter; for
+commands, a JSON body. Decoding query values back is what lets you leave
+[`coerceQueryInput`](#the-rest-of-serverconfiguration) off.
+
+To emit client directives, pass an `OperationSPAClient` instead of a `NullClient` and ask it for the
+payload:
+
+```php
+use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
+
+$client = new OperationSPAClient();
+$result = $server->command('users.create', $input, $myContext, $client);
+
+$body = ['success' => true, 'data' => $result->data];
+if ($client instanceof SerializableClient && $directives = $client->serializeToArray()) {
+    $body['__client'] = $directives;
+}
+```
+
 ## The generated TypeScript client
 
-`operations:codegen <directory>` writes a self-contained client. Nothing is published to npm; the
-code lives in your repo.
+`TypescriptServerCodeGenerator` writes a self-contained client, and `OutputDirectory::write()` puts
+it on disk. Nothing is published to npm; the code lives in your repo.
 
 ```
 <directory>/
@@ -467,12 +595,16 @@ code lives in your repo.
   <namespace>.ts           one module per namespace, one function per operation
 ```
 
-That is the default output. The [optional generators](#optional-generators) add to it: `type-map`
-writes one more file, the other two write into the `<namespace>.ts` modules that are already there.
+That is what the four default generators produce. The [optional ones](#optional-generators) add to
+it: `EmitTypeMap` writes one more file, the other two write into the `<namespace>.ts` modules that
+are already there.
 
 Every generated file opens with `// generated by: php-ts-bindings`. That marker is what
-`operations:codegen` uses to tell its own output from anything else in the directory: it removes
-only files carrying it, and refuses to overwrite one that does not.
+`OutputDirectory` uses to tell its own output from anything else in the directory: it removes only
+files carrying it, and refuses to overwrite one that does not.
+`OutputDirectory::verify()` applies the same rules without writing — it returns one message per
+problem, and an empty list means the directory is up to date. Run it in CI to catch a frontend that
+has drifted from the backend.
 
 The envelope every call resolves to:
 
@@ -530,35 +662,28 @@ try {
 
 ### Optional generators
 
-Three more generators ship, all off by default:
+The generator list you hand `TypescriptServerCodeGenerator` *is* the configuration — there is no
+separate switch. Seven ship:
 
-```bash
-php artisan operations:codegen resources/js/operations --with=tanstack-query,query-key,type-map
-```
+| Generator | In the quickstart | Emits |
+|---|---|---|
+| `EmitTypes` | yes | `lib/types.ts` — the envelope, `Brand`, every `#[Named]` alias |
+| `EmitOperationClientBindings` | yes | `lib/bindings.ts`, `lib/OperationClient.ts`, `lib/DefaultClient.ts`, `lib/OperationException.ts` |
+| `EmitTypeUtils` | yes | `lib/utils.ts` — `queryKey` and the client-directive guards |
+| `EmitOperations` | yes | one `<namespace>.ts` module per namespace |
+| `EmitTanstackQuery` | no | `<name>QueryOptions()` and `use<Name>Query()` for `@tanstack/react-query` |
+| `EmitQueryKey` | no | standalone query keys |
+| `EmitTypeMap` | no | `lib/type-map.ts` — a `TypeMap` of every operation's input, output and error types, split into `{query: …, command: …}` and keyed by `namespace.name` |
 
-`tanstack-query` emits `<name>QueryOptions()` and `use<Name>Query()` for `@tanstack/react-query`, and
-`query-key` emits standalone query keys — both **only for queries**, since a command has nothing to
-cache. `type-map` writes `lib/type-map.ts`, exporting a `TypeMap` that maps every operation to its
-input, output and error types, split into `{query: …, command: …}` and keyed by `namespace.name`.
+`EmitTanstackQuery` and `EmitQueryKey` emit **only for queries**, since a command has nothing to
+cache.
 
-`--without=` drops a default generator, named as `types`, `bindings`, `utils` or `operations`.
-`--ignore=` skips a namespace, or one operation as `namespace.name`.
+`new EmitOperations($closure)` takes a `Closure(TypedOperation): string` that names the generated
+functions; the default is the operation's bare name. `generate()` takes a third argument, a list of
+namespaces (or `namespace.name` operations) to skip.
 
-`--naming=` chooses how functions are named:
-
-| Mode | `#[Query('users', 'get')]` becomes |
-|---|---|
-| `name` (default) | `get` |
-| `fqn`, `operation-prefix` | `usersGet` — the two are the same rule |
-| `namespace-postfix` | `getUsers` |
-| `Class::method` | whatever your rule returns |
-
-`Class::method` resolves `Class` through the container and calls it as an **instance** method with
-the `TypedOperation`, despite the static-looking syntax.
-
-Write your own generator by implementing `GeneratesLibFiles` (gets every operation, writes shared
-lib files) or `GeneratesOperationCode` (gets one operation, writes its code) and passing it with
-`--custom=My\Generator`. It is resolved through the container, so it may take constructor arguments.
+Write your own by implementing `GeneratesLibFiles` (gets every operation, writes shared lib files) or
+`GeneratesOperationCode` (gets one operation, writes its code), and adding it to the list.
 
 Add `DependsOn` to declare the generators yours needs: the run fails early if one is missing, and
 hands you the resolved instances through `setDependencies()`. That is how to reference what another
@@ -576,8 +701,9 @@ A few contracts worth knowing when writing one:
 - A `GeneratesLibFiles` key is a bare module name — `[a-zA-Z0-9_-]+`, no `.ts` — and always lands in
   `lib/`. Several generators may return the same key; their output accumulates rather than
   overwriting.
-- `TypedOperation::$hasInput` is false when the operation's input type is `null`. Every generator
-  that emits a signature has to drop the argument in that case.
+- `TypedOperation::$hasInput` is false when the operation's input type is `null` — the
+  [no-input form](#core-concepts). Every generator that emits a signature has to drop the argument
+  in that case.
 - Return `null` from `generateOperationCode()` to emit nothing for an operation.
 
 ## Client directives
@@ -597,10 +723,11 @@ public function create(array $input, mixed $context, Client $client): array
 ```
 
 This is the one place the library ships a specific implementation of an extension point rather than
-a contract. `OperationSPAClient` is picked when the request carries `X-Client-Id: operations-spa` —
-exactly that header, exactly that value. Any other request gets a `NullClient` whose every method is
-a no-op, so handlers never need to know which kind is on the other end, and nothing warns when a
-directive goes nowhere.
+a contract. `OperationSPAClient` is meant to be picked when the request carries
+`X-Client-Id: operations-spa` — exactly that header, exactly that value — and any other request gets
+a `NullClient` whose every method is a no-op, so handlers never need to know which kind is on the
+other end, and nothing warns when a directive goes nowhere. Choosing between them is the transport's
+job; the core never inspects a request.
 
 Under `operations-spa` those calls land in a `__client` key next to the data:
 
@@ -619,7 +746,7 @@ Under `operations-spa` those calls land in a `__client` key next to the data:
 
 The full interface is `redirect()`, `invalidate()`, `toast()`, and one shorthand per toast type —
 `success()`, `error()`, `warning()`, `alert()` and `info()`. Keys are only present when something
-called for them. A transport of your own emits the same payload by asking the client for it:
+called for them. A transport emits that payload by asking the client for it:
 `SerializableClient::serializeToArray()`.
 
 **`__client` is typed `unknown` on purpose.** `Client` is an extension point — your own
@@ -629,153 +756,45 @@ this library deems useful and ships, and `lib/utils.ts` narrows to it with `isSp
 `isClientToast()` and `isClientRedirect()`. Write your own guard for your own directives; that is the
 same "no dishonest types" rule that makes the generator throw rather than emit a placeholder.
 
-## Laravel setup
-
-**1. The provider is auto-discovered.** Nothing to register.
-
-**2. Publish the config.**
-
-```bash
-php artisan vendor:publish --provider="Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider"
-```
-
-`config/operations.php`:
-
-| Key | Default | Purpose |
-|---|---|---|
-| `discovery_path` | `app_path('Operations')` | Where operations are discovered. |
-| `context` | `null` | A `ContextFactory` class, building the `$context` every handler receives from the request. |
-| `key.mode` | `obfuscate` | `obfuscate`, `plain`, or `custom` with `key.className`. |
-| `key.pepper` | `"none"` | Salt for `obfuscate` — the literal string `none`, not "no pepper". |
-| `middleware` | `[]` | Global `MiddlewareContract` classes, run on every operation. |
-| `exceptions.not_found` | Laravel's model-not-found exceptions | Mapped to 404. |
-| `exceptions.unauthenticated` | `AuthenticationException` | Mapped to 401. |
-| `exceptions.unauthorized` | `AuthorizationException`, `TokenMismatchException` | Mapped to 403. |
-| `cache.idLength` | `10` | Id length used by the production cache. |
-
-Exception matching is `instanceof`, so listing a base class covers its subclasses. An unrecognised
-`key.mode` is an error rather than a fallback, because silently picking a different one would change
-every key in the application.
-
-`context` names a class implementing `ContextFactory`, whose single method builds the `$context`
-every handler and middleware receives:
-
-```php
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
-
-final class OperationContextFactory implements ContextFactory
-{
-    public function createContextFromHttpRequest(Request $request): mixed
-    {
-        return new MyContext(user: $request->user());
-    }
-}
-```
-
-Leave it `null` and every handler receives `null` as its context.
-
-> **Debug mode changes behaviour.** With `app.debug` on, a `LocalMetadataMiddleware` is prepended to
-> every operation and responses gain a `__metadata` key with the raw input, the context class and
-> per-middleware timings; failures additionally carry `__info` and `__debug` with the exception
-> message, file, line and full stack trace. None of that is emitted in production, and none of it is
-> in the generated types.
-
-**3. Register the routes.** Nothing is registered for you — put this in your routes file, inside
-whatever middleware group the operations belong to:
-
-```php
-use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
-
-Route::middleware('web')->group(function () {
-    LaravelHttpController::registerQueries();    // GET  /query/{fqn}
-    LaravelHttpController::registerCommands();   // POST /command/{fqn}
-});
-```
-
-Both take a route prefix, defaulting to `query` and `command`. `operations:codegen` reads the
-registered URIs to build the client, and fails with *"The operation routes are not registered"* if
-you skip this step.
-
-**The route parameter must stay named `{fqn}`.** The generated client substitutes the operation key
-into that placeholder literally, so a hand-registered route using any other name yields a client
-requesting URLs that still contain `{fqn}` — no error anywhere, just 404s.
-
-**4. Write an operation** in `app/Operations`, as in the [quickstart](#quickstart).
-
-**5. Generate the client.**
-
-```bash
-php artisan operations:codegen resources/js/operations
-```
-
-### Commands
-
-| Command | Purpose |
-|---|---|
-| `operations:list` | Every registered operation with its URI, method and handler. |
-| `operations:codegen {directory}` | Generate the TypeScript client. `--verify` checks for drift instead of writing — use it in CI. |
-| `operations:optimize` | Compile the registry to `bootstrap/cache/operations.php`. `--id-length=` overrides `cache.idLength` for the run. |
-| `operations:clear-optimize` | Remove it. |
-
-The last two are wired into `php artisan optimize` and `optimize:clear`.
-
-> `operations:codegen` removes every file it previously wrote under the target directory, identified
-> by the `// generated by: php-ts-bindings` marker on the first line. Anything else is left alone,
-> and a generated module colliding with an unmarked file of the same name is refused rather than
-> overwritten. Upgrading from a version that predates the marker means deleting the output directory
-> once.
-
-### Preloading a query
+## Preloading a query
 
 `Preloader` runs a query server-side during the request that renders the page, so the data is in the
-page instead of being fetched after it loads. It is a core class —
-`Le0daniel\PhpTsBindings\Server\Preloader` — and on Laravel it is resolved from the container:
+page instead of being fetched after it loads. It takes the `Server` and an `OperationKeyGenerator` —
+which has to be the one the server's registry uses, or the key it derives names no operation and
+every preload throws:
 
 ```php
-public function show(Preloader $preloader): Response
-{
-    return Inertia::render('Users', [
-        'users' => $preloader->preload('users', 'get', ['id' => 1], $context),
-    ]);
-}
+use Le0daniel\PhpTsBindings\Server\Preloader;
+
+$preloader = new Preloader($server, $keyGenerator);
+
+$users = $preloader->preload('users', 'get', ['id' => 1], $context);
 ```
 
 You get back `['response' => …, 'queryKey' => ['users', 'get', ['id' => 1]]]`. The key is built the
-same way the generated `--with=query-key` and `tanstack-query` code builds it, so a TanStack cache
-seeded with that pair will not refetch. The input is part of the key whenever the operation has one,
-even when the value is `null`; an operation whose input type *is* `null` gets a two-element key.
+same way `EmitQueryKey` and `EmitTanstackQuery` build it, so a TanStack cache seeded with that pair
+will not refetch. The input is part of the key whenever the operation has one, even when the value is
+`null`; an operation whose input type *is* `null` gets a two-element key.
 
 `preloadMany()` takes several at once, as
 `[['namespace' => …, 'name' => …, 'input' => …], …]`. A query that fails throws a `SchemaException` —
 this is your own code calling your own operation, not untrusted input.
 
-Constructed by hand, `Preloader` takes the `Server` and an `OperationKeyGenerator`. That generator
-has to be the one the server's registry uses, or the key it derives names no operation and every
-preload throws.
-
 ## Production
 
-Reflecting and parsing every schema on every request is real overhead. Compile the whole registry
-once, at deploy time:
-
-```bash
-php artisan operations:optimize
-```
-
-This writes `bootstrap/cache/operations.php` with every schema pre-parsed, deduplicated and pooled —
-shared structs are emitted once and referenced, and unions are reordered for faster dispatch. The
-service provider picks the file up automatically when it exists. Run `operations:codegen --verify` in
-CI to catch a frontend that has drifted from the backend.
+Reflecting and parsing every schema on every request is real overhead. `CachedOperationRegistry` is
+the compiled form of a registry: every schema pre-parsed, deduplicated and pooled — shared structs
+emitted once and referenced, and unions reordered for faster dispatch. Compile it once, at deploy
+time, and load it instead of discovering.
 
 A cache that no longer matches the code asking it fails loudly, at runtime, with an
-`UnknownTypeKeyException` — regenerate it with `operations:optimize`, or drop it with
-`operations:clear-optimize`.
+`UnknownTypeKeyException` — recompile it, or drop it and fall back to discovery.
 
-> Operation keys are derived from `key.mode` and `key.pepper`, so changing either — including
-> upgrading a version that changed how they are derived — invalidates both the cache and the
-> generated client. Run `operations:optimize` and `operations:codegen` together.
+> Operation keys are derived from the key generator, so changing it — including upgrading a version
+> that changed how keys are derived — invalidates both the cache and the generated client.
+> Recompile and regenerate together.
 
-Outside Laravel, or for schemas that are not operations, the same optimizer is available directly:
+The same optimizer is available directly, for schemas that are not operations:
 
 ```php
 use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
@@ -794,103 +813,6 @@ $ast = $registry->get('MyClass@method@input');
 Keys are interned as truncated hashes; `new ASTOptimizer(idLength: 12)` widens them if a run ever
 reports a collision, which it does by throwing rather than by merging two schemas.
 
-## Without a framework
-
-The core knows nothing about Laravel — nothing outside `src/Adapters/` does. Build a server, run an
-operation, and shape the response however you like.
-
-The example below uses `PsrContainerAdapter`, which needs `psr/container` (a `suggest`, not a
-dependency). Drop it and the default `NewInstanceAdapter` constructs handlers with `new`, which needs
-nothing at all.
-
-```php
-use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
-use Le0daniel\PhpTsBindings\Server\Client\NullClient;
-use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
-use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
-use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
-use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
-use Le0daniel\PhpTsBindings\Server\Server;
-
-$server = new Server(
-    EagerlyLoadedOperationRegistry::eagerlyDiscover(
-        __DIR__ . '/src/Operations',
-        keyGenerator: new PlainlyExposedKeyGenerator(),
-    ),
-    adapter: new PsrContainerAdapter($psrContainer),
-    configuration: new ServerConfiguration()
-        ->withMiddlewares(AuthMiddleware::class)
-        ->withExceptions(
-            notFound: [EntityNotFoundException::class],
-            unauthenticated: [NotLoggedInException::class],
-        ),
-);
-
-$result = $server->command('users.create', $input, $myContext, new NullClient());
-
-if ($result instanceof RpcSuccess) {
-    respondJson(200, ['success' => true, 'data' => $result->data]);
-} else {
-    respondJson($result->type->value, [
-        'success' => false,
-        'code' => $result->type->value,
-        'type' => $result->type->name,
-        'details' => $result->details,
-    ]);
-}
-```
-
-`$result->cause` is the underlying `Throwable` on every error, ready to hand to your reporter. On the
-rare occasion that working out how to present an error *itself* failed — a stale middleware class
-name, say — `$result->presentationFailure` holds that second exception; it is null otherwise.
-
-To emit client directives, pass an `OperationSPAClient` instead of a `NullClient` and ask it for the
-payload:
-
-```php
-use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
-
-$client = new OperationSPAClient();
-$result = $server->command('users.create', $input, $myContext, $client);
-
-$body = ['success' => true, 'data' => $result->data];
-if ($client instanceof SerializableClient && $directives = $client->serializeToArray()) {
-    $body['__client'] = $directives;
-}
-```
-
-To generate the client, hand the same `Server` to `TypescriptServerCodeGenerator` with the URL
-patterns your router uses:
-
-```php
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
-use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\OutputDirectory;
-
-$files = new TypescriptServerCodeGenerator([
-    new EmitTypes(),
-    new EmitOperationClientBindings(),
-    new EmitTypeUtils(),
-    // Takes an optional Closure(TypedOperation): string — the framework-free --naming.
-    new EmitOperations(),
-])->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
-
-// Creates lib/, prunes the modules it wrote for operations that no longer exist, and leaves
-// anything it did not write alone. OutputDirectory::verify() is the same rules without writing —
-// it returns one message per problem, and an empty list means the directory is up to date.
-OutputDirectory::write('resources/js/operations', $files);
-```
-
-`generate()` takes a third argument, a list of namespaces (or `namespace.name` operations) to skip —
-the equivalent of `--ignore=`.
-
-The lower-level `TypeParser`, `SchemaExecutor` and `TypescriptGenerator` are public too, if you want
-to parse and emit types without the RPC layer at all — see [the type reference](docs/types.md).
-
 ## Extension points and exceptions
 
 The interfaces meant to be implemented by you:
@@ -904,11 +826,13 @@ The interfaces meant to be implemented by you:
 | `Client` / `SerializableClient` | Your own side channel and its wire payload. |
 | `StringValueObject` / `IntValueObject` | A class that travels as one primitive. |
 | `GeneratesLibFiles` / `GeneratesOperationCode` / `DependsOn` | Adding to the generated client. |
-| `ContextFactory` | Building `$context` from a request (Laravel adapter only). |
 
 Two more knobs on discovery: `new OperationDiscovery($filterFn)` takes a closure returning `false` to
 keep an operation out of the registry, and `EagerlyLoadedOperationRegistry::withClasses([...])`
 registers a list of classes instead of scanning directories.
+
+The lower-level `TypeParser`, `SchemaExecutor` and `TypescriptGenerator` are public too, if you want
+to parse and emit types without the RPC layer at all — see [the type reference](docs/types.md).
 
 **Exceptions.** Everything this library throws implements `PhpTsBindingsException`, so one `catch`
 covers all of it. Below that are three subsystem bases:
