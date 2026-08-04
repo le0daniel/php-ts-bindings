@@ -12,6 +12,7 @@ use Tests\Mocks\Errors\ErrorOperations;
 use Tests\Mocks\Errors\ExposedDomainException;
 use Tests\Mocks\Errors\MiddlewareDomainException;
 use Tests\Mocks\Errors\RecordMissingException;
+use Tests\Mocks\Errors\RenamingMiddleware;
 use Tests\Mocks\Errors\ThrowingMiddleware;
 use Tests\Mocks\Errors\UndeclaredExposedException;
 use Tests\Mocks\Errors\UnexposedException;
@@ -114,6 +115,55 @@ test('an exposed exception declared on a middleware yields a 400', function () {
 
     expect($error->type)->toBe(ErrorType::DOMAIN_ERROR)
         ->and($error->details)->toEqual(['type' => 'middleware_failure']);
+});
+
+test('the as name of a Throws exposes an exception that carries no ExposeAs', function () {
+    $error = new ErrorPresenter(new ServerConfiguration())
+        ->present(new UnexposedException(), errorDefinition('declaresRenamedThrows'), null);
+
+    expect($error->type)->toBe(ErrorType::DOMAIN_ERROR)
+        ->and($error->details)->toEqual(['type' => 'renamed_failure']);
+});
+
+test('the as name of a Throws wins over the ExposeAs on the exception', function () {
+    $error = new ErrorPresenter(new ServerConfiguration())
+        ->present(new ExposedDomainException(), errorDefinition('declaresRenamedThrows'), null);
+
+    expect($error->type)->toBe(ErrorType::DOMAIN_ERROR)
+        ->and($error->details)->toEqual(['type' => 'overridden_failure']);
+});
+
+test('a middleware can name the exceptions it declares too', function () {
+    $error = new ErrorPresenter(new ServerConfiguration())
+        ->present(new MiddlewareDomainException(), errorDefinition('declaresNothing', [RenamingMiddleware::class]), null);
+
+    expect($error->type)->toBe(ErrorType::DOMAIN_ERROR)
+        ->and($error->details)->toEqual(['type' => 'renamed_middleware_failure']);
+});
+
+test('the operation names an exception before the middleware wrapping it does', function () {
+    $error = new ErrorPresenter(new ServerConfiguration())
+        ->present(new ExposedDomainException(), errorDefinition('declaresRenamedThrows', [RenamingMiddleware::class]), null);
+
+    expect($error->details)->toEqual(['type' => 'overridden_failure']);
+});
+
+test('a Throws without a name never silences one that has a name', function () {
+    // declaresThrows declares UnexposedException without naming it; the middleware does name it.
+    $error = new ErrorPresenter(new ServerConfiguration())
+        ->present(new UnexposedException(), errorDefinition('declaresThrows', [RenamingMiddleware::class]), null);
+
+    expect($error->type)->toBe(ErrorType::DOMAIN_ERROR)
+        ->and($error->details)->toEqual(['type' => 'middleware_named_it']);
+});
+
+test('an as name does not exempt an exception from the configured categories', function () {
+    $configuration = new ServerConfiguration()->withExceptions(notFound: [UnexposedException::class]);
+
+    $error = new ErrorPresenter($configuration)
+        ->present(new UnexposedException(), errorDefinition('declaresRenamedThrows'), null);
+
+    expect($error->type)->toBe(ErrorType::NOT_FOUND);
 });
 
 test('a declared exception without ExposeAs falls through to the catch all', function () {

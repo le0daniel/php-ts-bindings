@@ -197,8 +197,8 @@ are not re-checked — static analysis already established those. See
 | `#[Query(namespace, name)]` | method | A read operation, served over GET. |
 | `#[Command(namespace, name)]` | method | A write operation, served over POST. |
 | `#[Middleware(class or list)]` | class, method | Middleware to run around this operation. |
-| `#[Throws(ExceptionClass)]` | method, repeatable | Declares an exception the operation may throw. |
-| `#[ExposeAs(type)]` | exception class | Opts that exception into being shown to the client. |
+| `#[Throws(ExceptionClass, as: ?string)]` | method, repeatable | Declares an exception the operation may throw, optionally naming it for the client. |
+| `#[ExposeAs(type)]` | exception class | The exception's own name, for every operation that declares it. |
 | `#[Optional]` | property, parameter | The field may be absent from input. |
 | `#[Castable(strategy)]` | class | A plain class may be built from input. |
 | `#[Brand(name)]` | class | Makes the generated TypeScript type opaque. |
@@ -260,7 +260,9 @@ new ServerConfiguration()->withMiddlewares(AuthMiddleware::class, LoggingMiddlew
 ```
 
 `#[Throws]` on a middleware's `handle()` contributes to the error union of every operation it wraps,
-so the generated TypeScript knows about middleware failures too.
+so the generated TypeScript knows about middleware failures too. It takes `as` like any other
+declaration, and when an operation and its middleware declare the same exception, the operation's
+name wins.
 
 ### The rest of `ServerConfiguration`
 
@@ -344,16 +346,17 @@ Every failure the client can see is one of six categories:
 | 401 | `AUTHENTICATION_ERROR` | An exception you mapped as unauthenticated |
 | 403 | `AUTHORIZATION_ERROR` | An exception you mapped as unauthorized |
 | 404 | `NOT_FOUND` | Unknown operation, or an exception you mapped as not-found |
-| 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* marked `#[ExposeAs]` |
+| 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* gave a name |
 | 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
 
 The table is in resolution order, and the first match wins. That order is why `DOMAIN_ERROR` sits
 second to last: an exception you have explicitly mapped onto a category stays in that category even
-when it also carries `#[ExposeAs]`. Anything unrecognised is a 500 — an exception is never exposed
-by accident.
+when it is named for the client. Anything unrecognised is a 500 — an exception is never exposed by
+accident.
 
-**Exposing a domain error takes two keys.** The operation declares that it can throw it, and the
-exception itself declares what the client should see:
+**Exposing a domain error takes a declaration and a name.** The operation declares that it can
+throw the exception, and something gives that exception a name the client sees. The exception can
+carry its own:
 
 ```php
 #[ExposeAs('invalid_name')]
@@ -368,8 +371,18 @@ public function create(array $input): array { /* ... */ }
 {"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"type": "invalid_name"}}
 ```
 
-An exception declared with `#[Throws]` but not marked `#[ExposeAs]` stays a 500, and so does one
-marked `#[ExposeAs]` that no operation declares.
+Or the declaration can name it on the spot with `as`, which needs no `#[ExposeAs]` at all — the
+point being that the exception does not have to be yours to annotate:
+
+```php
+#[Command('users')]
+#[Throws(InvalidNameException::class, as: 'invalid-name')]
+public function create(array $input): array { /* ... */ }
+```
+
+`as` always wins over `#[ExposeAs]`, so the same exception can read differently per operation. What
+`as` does not do is skip the declaration: an exception no operation declares with `#[Throws]` is
+still a 500, and so is one that is declared but named nowhere.
 
 Because both the runtime and the code generator read those attributes from the same place, the
 generated error union cannot drift from the responses it describes. An operation that declares

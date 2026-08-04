@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Tests\Mocks\Errors\ErrorOperations;
 use Tests\Mocks\Errors\RecordMissingException;
+use Tests\Mocks\Errors\RenamingMiddleware;
 use Tests\Mocks\Errors\ThrowingMiddleware;
 
 /**
@@ -75,6 +76,23 @@ test('the domain branch lists every exposed exception the operation declares, ju
         '{code: 400, type: "DOMAIN_ERROR", details: {type: "domain_failure"}|{type: "middleware_failure"}}',
         INTERNAL_BRANCH,
     ]));
+});
+
+test('the domain branch is named by the as of a Throws, not by the ExposeAs it overrides', function () {
+    $union = ErrorTypescript::forOperation(new ServerConfiguration(), typescriptDefinition('declaresRenamedThrows'));
+
+    expect($union)->toContain('{code: 400, type: "DOMAIN_ERROR", details: {type: "renamed_failure"}|{type: "overridden_failure"}}')
+        ->and($union)->not->toContain('domain_failure');
+});
+
+test('an exception declared by both the operation and a middleware appears once', function () {
+    $union = ErrorTypescript::forOperation(
+        new ServerConfiguration(),
+        typescriptDefinition('declaresRenamedThrows', [RenamingMiddleware::class]),
+    );
+
+    expect($union)->toContain('{code: 400, type: "DOMAIN_ERROR", details: {type: "renamed_failure"}|{type: "overridden_failure"}|{type: "renamed_middleware_failure"}}')
+        ->and($union)->not->toContain('middleware_name');
 });
 
 test('an operation declaring nothing exposable emits no domain branch', function () {

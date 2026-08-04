@@ -84,7 +84,8 @@ return [
 
     /**
      * Map your exceptions onto the server's built-in error categories. Anything not listed here and
-     * not marked with #[ExposeAs] is reported to the client as an internal error.
+     * neither marked with #[ExposeAs] nor named via #[Throws(..., as: ...)] is reported to the
+     * client as an internal error.
      *
      * Matching is instanceof: listing a base class covers every subclass of it.
      */

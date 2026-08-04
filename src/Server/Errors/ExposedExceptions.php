@@ -6,7 +6,6 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Throws;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Utils\Lists;
-use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionException;
 use ReflectionMethod;
@@ -15,20 +14,21 @@ use Throwable;
 /**
  * Which exceptions an operation may surface to the client, and under what name.
  *
- * #[Throws] declares what an operation can throw; #[ExposeAs] on the exception itself decides
- * whether that is something the client is allowed to see. Both the runtime presenter and the
- * TypeScript code generator answer that question here, so a generated error union and the
- * responses it describes can never drift apart.
+ * #[Throws] declares what an operation can throw and may name it right there via `as`; #[ExposeAs]
+ * on the exception itself is the name to fall back on. An exception with neither is declared but
+ * unnamed, and stays internal. Both the runtime presenter and the TypeScript code generator answer
+ * that question here, so a generated error union and the responses it describes can never drift
+ * apart.
  */
 final readonly class ExposedExceptions
 {
     /**
      * Every exception declared via #[Throws], on the operation method and on the handle() method of
-     * each of its middlewares. handle() is guaranteed to exist: every middleware implements
-     * MiddlewareContract.
+     * each of its middlewares, mapped to the name the client sees - or null where it stays
+     * internal. handle() is guaranteed to exist: every middleware implements MiddlewareContract.
      *
      * @param Definition $definition
-     * @return list<class-string<Throwable>>
+     * @return array<class-string<Throwable>, string|null>
      * @throws ReflectionException
      */
     public static function declaredFor(Definition $definition): array
@@ -45,18 +45,26 @@ final readonly class ExposedExceptions
             }
         }
 
-        return array_map(function (ReflectionAttribute $attribute): string {
-            /** @var Throws $instance */
-            $instance = $attribute->newInstance();
-            return $instance->exceptionClass;
-        }, $attributes);
+        $declared = [];
+        foreach ($attributes as $attribute) {
+            /** @var Throws $throws */
+            $throws = $attribute->newInstance();
+
+            // The first name given wins. The operation is reflected before the middleware wrapping
+            // it, so an operation states its own contract first; and because only a name displaces
+            // null, a bare #[Throws] never silences an `as` declared elsewhere for the same class.
+            $declared[$throws->exceptionClass] ??= $throws->as ?? self::exposeAsOf($throws->exceptionClass);
+        }
+
+        return $declared;
     }
 
     /**
+     * The name an exception class gives itself, used when no #[Throws] names it.
+     *
      * @param class-string $exceptionClass
-     * @return string|null
      */
-    public static function exposedTypeOf(string $exceptionClass): ?string
+    private static function exposeAsOf(string $exceptionClass): ?string
     {
         $attributes = new ReflectionClass($exceptionClass)->getAttributes(ExposeAs::class);
         return count($attributes) === 0
@@ -73,7 +81,7 @@ final readonly class ExposedExceptions
      */
     public static function exposedTypesFor(Definition $definition): array
     {
-        return array_map(self::exposedTypeOf(...), self::declaredFor($definition))
+        return array_values(self::declaredFor($definition))
             |> Lists::filterNullValues(...)
             |> Lists::unique(...);
     }

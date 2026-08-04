@@ -21,7 +21,7 @@ use Throwable;
  *
  * Resolution is top to bottom and the first match wins, so the exposed domain error sits last,
  * just before the catch all: an exception that is explicitly categorised stays categorised even
- * when it also carries #[ExposeAs].
+ * when it is named by #[Throws(..., as: ...)] or carries #[ExposeAs].
  *
  * The TypeScript counterpart of this catalogue lives in CodeGen\Utils\ErrorTypescript.
  */
@@ -103,13 +103,12 @@ final readonly class ErrorPresenter
     }
 
     /**
-     * An exception is a domain error only if the operation declares it via #[Throws] and the
-     * exception itself opts into being shown via #[ExposeAs].
+     * An exception is a domain error only if the operation declares it via #[Throws] and that
+     * declaration resolves to a name - from its own `as`, or from #[ExposeAs] on the exception.
+     * Declared but unnamed is null, and falls through to the catch all.
      */
     private function exposedTypeOf(Throwable $throwable, Definition $definition): ?string
     {
-        return in_array($throwable::class, ExposedExceptions::declaredFor($definition), true)
-            ? ExposedExceptions::exposedTypeOf($throwable::class)
-            : null;
+        return ExposedExceptions::declaredFor($definition)[$throwable::class] ?? null;
     }
 }

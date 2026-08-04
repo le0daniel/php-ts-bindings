@@ -14,7 +14,8 @@ use ReflectionException;
  * The runtime counterpart is Server\Errors\ErrorPresenter, and the branches below appear in its
  * resolution order. Only reachable branches are emitted: the two auth categories exist solely
  * because exceptions were mapped onto them, and a domain error only exists where an operation
- * declares an #[ExposeAs] exception via #[Throws]. Everything else the server produces on its own.
+ * declares an exception via #[Throws] that resolves to a name - its own `as`, or #[ExposeAs] on the
+ * exception class. Everything else the server produces on its own.
  */
 final readonly class ErrorTypescript
 {
