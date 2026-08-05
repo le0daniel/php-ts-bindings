@@ -3,31 +3,49 @@
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
 use Le0daniel\PhpTsBindings\Contracts\RpcResult;
+use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
 use Le0daniel\PhpTsBindings\Utils\Dicts;
 use NoDiscard;
 use Override;
 use Throwable;
 
-final readonly class RpcError implements RpcResult
+final class RpcError implements RpcResult
 {
+    public int $statusCode {
+        get => $this->type->value;
+    }
+
     /**
-     * @param Throwable $cause The exception the application threw. Always the original, so it can
-     *   be handed straight to a reporter.
-     * @param Throwable|null $presentationFailure Set only when working out how to present $cause
-     *   itself failed - a stale #[Middleware] class name makes ExposedExceptions throw, for
-     *   instance. When this is non null the category is INTERNAL_ERROR because the catalogue could
-     *   not be consulted, not because $cause deserved a 500.
+     * @param Throwable $cause The most recent failure - the one that decided this result. On an
+     *   ordinary error that is simply the exception the application threw.
+     * @param list<Throwable> $previous Everything that failed before $cause, oldest first. Empty on
+     *   every ordinary error, and non empty only when handling one failure produced another: a
+     *   stale #[Middleware] class name makes ExposedExceptions throw while categorising, and the
+     *   result is then an INTERNAL_ERROR because the catalogue could not be consulted, not because
+     *   the original deserved a 500. Reporters want all of them.
      * @param array<string, mixed> $metadata
+     * @internal Constructed by the server. Applications receive one, they do not build one.
      */
     public function __construct(
-        public ErrorType    $type,
-        public Throwable    $cause,
-        public mixed        $details,
-        public ?ResolveInfo $resolveInfo,
-        public array        $metadata = [],
-        public ?Throwable   $presentationFailure = null,
+        public readonly ErrorType    $type,
+        public readonly Throwable    $cause,
+        public readonly mixed        $details,
+        public readonly ?ResolveInfo $resolveInfo,
+        public readonly array        $metadata = [],
+        public readonly array        $previous = [],
     )
     {
+    }
+
+    /**
+     * Every failure that led here, oldest first, with $cause last.
+     *
+     * @return non-empty-list<Throwable>
+     * @api
+     */
+    public function throwableChain(): array
+    {
+        return [...$this->previous, $this->cause];
     }
 
     /**
@@ -59,6 +77,7 @@ final readonly class RpcError implements RpcResult
     /**
      * @return array<string, mixed>
      */
+    #[Override]
     public function jsonSerialize(): array
     {
         return Dicts::filterNullValues([

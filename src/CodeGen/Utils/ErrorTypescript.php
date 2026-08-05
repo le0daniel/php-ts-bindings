@@ -19,11 +19,7 @@ use ReflectionException;
  */
 final readonly class ErrorTypescript
 {
-    private const string INVALID_INPUT_DETAILS = '{type: "INVALID_INPUT"; fields: Record<string, string[]>}';
-    private const string UNAUTHENTICATED_DETAILS = '{type: "UNAUTHENTICATED"}';
-    private const string UNAUTHORIZED_DETAILS = '{type: "UNAUTHORIZED"}';
-    private const string NOT_FOUND_DETAILS = '{type: "NOT_FOUND"}';
-    private const string INTERNAL_ERROR_DETAILS = '{type: "INTERNAL_SERVER_ERROR"}';
+    private const string INVALID_INPUT_DETAILS = '{fields: Record<string, string[]>}';
 
     /**
      * @throws ReflectionException
@@ -35,20 +31,20 @@ final readonly class ErrorTypescript
         ];
 
         if (!empty($configuration->unauthenticatedExceptions)) {
-            $branches[] = self::branch(ErrorType::AUTHENTICATION_ERROR, self::UNAUTHENTICATED_DETAILS);
+            $branches[] = self::branch(ErrorType::AUTHENTICATION_ERROR);
         }
 
         if (!empty($configuration->unauthorizedExceptions)) {
-            $branches[] = self::branch(ErrorType::AUTHORIZATION_ERROR, self::UNAUTHORIZED_DETAILS);
+            $branches[] = self::branch(ErrorType::AUTHORIZATION_ERROR);
         }
 
-        $branches[] = self::branch(ErrorType::NOT_FOUND, self::NOT_FOUND_DETAILS);
+        $branches[] = self::branch(ErrorType::NOT_FOUND);
 
         if ($domainDetails = self::domainDetails($configuration, $definition)) {
             $branches[] = self::branch(ErrorType::DOMAIN_ERROR, $domainDetails);
         }
 
-        $branches[] = self::branch(ErrorType::INTERNAL_ERROR, self::INTERNAL_ERROR_DETAILS);
+        $branches[] = self::branch(ErrorType::INTERNAL_ERROR);
 
         return implode('|', $branches);
     }
@@ -69,9 +65,16 @@ final readonly class ErrorTypescript
         }, $exposedTypes));
     }
 
-    private static function branch(ErrorType $type, string $details): string
+    /**
+     * No `details` at all where the category is the whole answer: the server omits the key rather
+     * than restate the type under it, and the branch has to say so or narrowing on `type` would
+     * hand back a property that is never on the wire.
+     */
+    private static function branch(ErrorType $type, ?string $details = null): string
     {
         $name = json_encode($type->name, JSON_THROW_ON_ERROR);
-        return "{code: {$type->value}, type: {$name}, details: {$details}}";
+        return $details === null
+            ? "{code: {$type->value}, type: {$name}}"
+            : "{code: {$type->value}, type: {$name}, details: {$details}}";
     }
 }

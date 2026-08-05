@@ -49,59 +49,67 @@ final readonly class ErrorPresenter
             // Losing this one is expensive to debug: a stale middleware class name makes
             // ExposedExceptions throw, and from then on every exception from the operation
             // degrades to an internal error with no #[Throws] mapping ever applying again, with
-            // nothing anywhere saying why. $cause stays the exception the application threw; the
-            // presentation failure rides alongside it for the reporter.
-            return self::internalError($throwable, $info, $presentationFailure);
+            // nothing anywhere saying why. It is the most recent failure and the one that decided
+            // the category, so it is the cause; what the application threw is what came before it.
+            return self::internalError($presentationFailure, $info, [$throwable]);
         }
     }
 
     /**
      * The last resort shape, for when presenting itself fails.
+     *
+     * @param list<Throwable> $previous
      */
     public static function internalError(
-        Throwable  $throwable,
+        Throwable    $throwable,
         ?ResolveInfo $info,
-        ?Throwable $presentationFailure = null,
+        array        $previous = [],
     ): RpcError
     {
         return new RpcError(
             ErrorType::INTERNAL_ERROR,
             $throwable,
-            ['type' => 'INTERNAL_SERVER_ERROR'],
-            $info,
-            presentationFailure: $presentationFailure,
+            details: null,
+            resolveInfo: $info,
+            previous: $previous,
         );
     }
 
     /**
-     * @return array{ErrorType, array<string, mixed>}
+     * `details` carries what the category alone cannot say, and nothing else. Only two categories
+     * have anything to add: which fields failed validation, and which domain error this is. For the
+     * rest the category *is* the whole answer, and restating it under `details.type` would be the
+     * same string twice on the wire - so they get null, and Dicts::filterNullValues() drops the key.
+     *
+     * @return array{ErrorType, array<string, mixed>|null}
      */
     private function resolve(Throwable $throwable, ?Definition $definition): array
     {
         if ($throwable instanceof InvalidInputException) {
             return [ErrorType::INVALID_INPUT, [
-                'type' => 'INVALID_INPUT',
                 'fields' => $throwable->failure->issues->serializeToFieldsArray(),
             ]];
         }
 
         if ($this->matchesAny($throwable, $this->configuration->unauthenticatedExceptions)) {
-            return [ErrorType::AUTHENTICATION_ERROR, ['type' => 'UNAUTHENTICATED']];
+            return [ErrorType::AUTHENTICATION_ERROR, null];
         }
 
         if ($this->matchesAny($throwable, $this->configuration->unauthorizedExceptions)) {
-            return [ErrorType::AUTHORIZATION_ERROR, ['type' => 'UNAUTHORIZED']];
+            return [ErrorType::AUTHORIZATION_ERROR, null];
         }
 
         if ($throwable instanceof OperationNotFoundException || $this->matchesAny($throwable, $this->configuration->notFoundExceptions)) {
-            return [ErrorType::NOT_FOUND, ['type' => 'NOT_FOUND']];
+            return [ErrorType::NOT_FOUND, null];
         }
 
+        // The one place a `type` under details is not a repeat: the category is DOMAIN_ERROR for
+        // all of them, and this is which one.
         if ($definition && $exposedType = $this->exposedTypeOf($throwable, $definition)) {
             return [ErrorType::DOMAIN_ERROR, ['type' => $exposedType]];
         }
 
-        return [ErrorType::INTERNAL_ERROR, ['type' => 'INTERNAL_SERVER_ERROR']];
+        return [ErrorType::INTERNAL_ERROR, null];
     }
 
     /**

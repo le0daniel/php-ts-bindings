@@ -11,6 +11,8 @@ use Override;
 
 final readonly class RpcSuccess implements RpcResult
 {
+    public int $statusCode;
+
     /**
      * @param array<string, mixed> $metadata
      * @internal
@@ -22,6 +24,7 @@ final readonly class RpcSuccess implements RpcResult
         public array       $metadata = [],
     )
     {
+        $this->statusCode = 200;
     }
 
     /**
@@ -53,13 +56,18 @@ final readonly class RpcSuccess implements RpcResult
     /**
      * @return array<string, mixed>
      */
+    #[Override]
     public function jsonSerialize(): array
     {
-        return Dicts::filterNullValues([
-            'success' => true,
-            'data' => $this->data,
+        $metadata = Dicts::filterNullValues([
             '__client' => $this->client instanceof SerializableClient ? $this->client->serializeToArray() : null,
             '__metadata' => count($this->metadata) > 0 ? $this->metadata : null,
         ]);
+
+        return [
+            ...$metadata,
+            'success' => true,
+            'data' => $this->data,
+        ];
     }
 }

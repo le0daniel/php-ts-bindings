@@ -202,7 +202,10 @@ test('the pipeline still returns an RpcError when the error handler itself fails
 
     expect($result)->toBeInstanceOf(RpcError::class)
         ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($result->details)->toBe(['type' => 'INTERNAL_SERVER_ERROR'])
+        ->and($result->details)->toBeNull()
         ->and($result->cause->getMessage())->toBe('the presenter is broken too')
+        // The failure that got the presenter called is not lost just because the presenter failed.
+        ->and($result->previous)->toHaveCount(1)
+        ->and($result->previous[0]->getMessage())->toBe('inner exploded')
         ->and($result->resolveInfo?->fullyQualifiedName)->toBe('test.operation');
 });

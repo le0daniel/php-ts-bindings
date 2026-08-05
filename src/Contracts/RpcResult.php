@@ -14,6 +14,10 @@ use NoDiscard;
  */
 interface RpcResult extends JsonSerializable
 {
+    public int $statusCode {
+        get;
+    }
+
     public ResolveInfo|null $resolveInfo {
         get;
     }

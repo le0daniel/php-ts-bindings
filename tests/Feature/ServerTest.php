@@ -69,10 +69,16 @@ test("A middleware that does not implement the contract yields an RpcError", fun
 
     // Named, not a TypeError from inside the adapter: the class-string is checked before
     // anything is constructed, so the message says which class and which contract.
+    //
+    // Two things fail here, and the chain keeps both: the class is rejected as a middleware, and
+    // then reflecting the same class to work out what the operation exposes fails as well. The
+    // second one is the most recent and is what made this a 500, so it is the cause.
     expect($result)->toBeInstanceOf(RpcError::class)
         ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($result->cause)->toBeInstanceOf(InvalidMiddlewareException::class)
-        ->and($result->cause->getMessage())->toContain(NotAMiddleware::class);
+        ->and($result->cause)->toBeInstanceOf(ReflectionException::class)
+        ->and($result->previous)->toHaveCount(1)
+        ->and($result->previous[0])->toBeInstanceOf(InvalidMiddlewareException::class)
+        ->and($result->previous[0]->getMessage())->toContain(NotAMiddleware::class);
 });
 
 test("Middleware emits typescript middleware", function () {

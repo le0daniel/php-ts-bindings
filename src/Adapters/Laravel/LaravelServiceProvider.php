@@ -2,7 +2,6 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
-use Illuminate\Config\Repository;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
@@ -11,7 +10,6 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
-use Le0daniel\PhpTsBindings\Adapters\Laravel\Middleware\LocalMetadataMiddleware;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
@@ -97,13 +95,8 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
             self::keyGeneratorFrom($app),
         );
 
-        $isDebuggingEnabled = $config->get('app.debug', false);
-
         /** @var list<class-string<MiddlewareContract>> $middlewares */
         $middlewares = $config->get('operations.middleware', []) |> array_values(...);
-        if ($isDebuggingEnabled) {
-            array_unshift($middlewares, LocalMetadataMiddleware::class);
-        }
 
         return new Server(
             registry: $operations,

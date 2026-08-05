@@ -2,6 +2,7 @@
 
 namespace Tests\Adapters\Laravel;
 
+use Closure;
 use Illuminate\Config\Repository;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
@@ -10,15 +11,17 @@ use Illuminate\Http\Request;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
-use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Mockery;
+use ReflectionException;
+use Throwable;
 
 test('handle successful http query request', function () {
     // Arrange
@@ -211,7 +214,6 @@ test('handle invalid input http query request', function () {
         ->and($response->getData(true))->toEqual([
             'success' => false,
             'details' => [
-                'type' => 'INVALID_INPUT',
                 'fields' => [
                     '__root' => ['validation.missing_property']
                 ],
@@ -269,4 +271,121 @@ test('a nested query parameter comes back as an RpcError rather than escaping as
     expect($response)->toBeInstanceOf(JsonResponse::class)
         ->and($response->getStatusCode())->toBe(422)
         ->and($response->getData(true)['type'])->toBe('INVALID_INPUT');
+});
+
+/**
+ * A stale middleware class name is the case the previous chain exists for: the name fails
+ * assertIsMiddleware, and then reflecting the same name to work out what the operation exposes
+ * fails too. Two failures, and the one that decided the response is the second.
+ *
+ * @return array{LaravelHttpController, Request, string, Closure(): list<Throwable>}
+ */
+function staleMiddlewareController(bool $debug): array
+{
+    $fcn = 'docs.method';
+    $reported = [];
+
+    $typeParser = new TypeParser();
+    $operationRegistry = Mockery::mock(OperationRegistry::class);
+    $exceptionHandler = Mockery::mock(ExceptionHandler::class);
+    $app = Mockery::mock(Application::class);
+    $request = Request::create('/query/docs.method', 'GET', ['name' => 'some_value']);
+
+    $operationDefinition = new Definition(
+        OperationType::QUERY,
+        'MyClass',
+        'someMethod',
+        'method',
+        'docs',
+        ['Tests\Adapters\Laravel\DoesNotExistMiddleware'],
+    );
+
+    $operation = new Operation(
+        'somekey',
+        $operationDefinition,
+        fn() => $typeParser->parse('array{name: string}'),
+        fn() => $typeParser->parse('array{id: string, name: string}'),
+    );
+
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
+    $exceptionHandler->shouldReceive('report')->andReturnUsing(function (Throwable $throwable) use (&$reported): void {
+        $reported[] = $throwable;
+    });
+
+    $controller = new LaravelHttpController(
+        new Server($operationRegistry, new PsrContainerAdapter(container: $app)),
+        $exceptionHandler,
+        null,
+        debug: $debug,
+    );
+
+    // By reference on purpose: the reports only land once the request below is handled.
+    return [$controller, $request, $fcn, static function () use (&$reported): array {
+        return $reported;
+    }];
+}
+
+test('every throwable in the chain is reported, oldest first', function () {
+    [$controller, $request, $fcn, $reportedSoFar] = staleMiddlewareController(debug: false);
+
+    $response = $controller->handleHttpQueryRequest($fcn, $request);
+    $reported = $reportedSoFar();
+
+    expect($response->getStatusCode())->toBe(500)
+        ->and($reported)->toHaveCount(2)
+        // The middleware that could not be resolved comes first; the reflection failure that
+        // followed it - and that is the RpcError's cause - comes last.
+        ->and($reported[0])->toBeInstanceOf(InvalidMiddlewareException::class)
+        ->and($reported[1])->toBeInstanceOf(ReflectionException::class);
+});
+
+test('debug mode describes the previous failures alongside the cause', function () {
+    [$controller, $request, $fcn] = staleMiddlewareController(debug: true);
+
+    $debug = $controller->handleHttpQueryRequest($fcn, $request)->getData(true)['__debug'];
+
+    expect($debug['class'])->toBe(ReflectionException::class)
+        ->and($debug['previous'])->toHaveCount(1)
+        ->and($debug['previous'][0]['class'])->toBe(InvalidMiddlewareException::class)
+        ->and($debug['previous'][0]['message'])->toContain('DoesNotExistMiddleware');
+});
+
+test('an ordinary error carries no previous key in debug mode', function () {
+    $fcn = 'docs.method';
+
+    $typeParser = new TypeParser();
+    $operationRegistry = Mockery::mock(OperationRegistry::class);
+    $exceptionHandler = Mockery::mock(ExceptionHandler::class);
+    $app = Mockery::mock(Application::class);
+    $request = Request::create('/query/docs.method', 'GET', ['none' => 'value']);
+
+    $operationDefinition = new Definition(OperationType::QUERY, 'MyClass', 'someMethod', 'method', 'docs', []);
+    $operation = new Operation(
+        'somekey',
+        $operationDefinition,
+        fn() => $typeParser->parse('array{name: string}'),
+        fn() => $typeParser->parse('array{id: string, name: string}'),
+    );
+
+    $controllerInstance = new class() {
+        public function someMethod(array $input, null $context, Client $client): array
+        {
+            return ['id' => '123', 'name' => $input['name']];
+        }
+    };
+
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
+    $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
+    $exceptionHandler->shouldReceive('report')->andReturnNull();
+
+    $response = new LaravelHttpController(
+        new Server($operationRegistry, new PsrContainerAdapter(container: $app)),
+        $exceptionHandler,
+        null,
+        debug: true,
+    )->handleHttpQueryRequest($fcn, $request);
+
+    expect($response->getData(true)['__debug'])->not->toHaveKey('previous');
 });

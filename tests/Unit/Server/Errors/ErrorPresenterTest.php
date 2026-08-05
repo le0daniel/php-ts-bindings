@@ -47,8 +47,8 @@ test('invalid input yields a 422 carrying the field issues', function () {
 
     expect($error->type)->toBe(ErrorType::INVALID_INPUT)
         ->and($error->cause)->toBe($exception)
+        // The fields and nothing else: the category already says this is INVALID_INPUT.
         ->and($error->details)->toEqual([
-            'type' => 'INVALID_INPUT',
             'fields' => $exception->failure->issues->serializeToFieldsArray(),
         ]);
 });
@@ -60,7 +60,7 @@ test('a configured unauthenticated exception yields a 401', function () {
         ->present(new RecordMissingException(), errorDefinition(), null);
 
     expect($error->type)->toBe(ErrorType::AUTHENTICATION_ERROR)
-        ->and($error->details)->toEqual(['type' => 'UNAUTHENTICATED']);
+        ->and($error->details)->toBeNull();
 });
 
 test('a configured unauthorized exception yields a 403', function () {
@@ -70,7 +70,7 @@ test('a configured unauthorized exception yields a 403', function () {
         ->present(new RecordMissingException(), errorDefinition(), null);
 
     expect($error->type)->toBe(ErrorType::AUTHORIZATION_ERROR)
-        ->and($error->details)->toEqual(['type' => 'UNAUTHORIZED']);
+        ->and($error->details)->toBeNull();
 });
 
 test('a configured not found exception yields a 404', function () {
@@ -80,7 +80,7 @@ test('a configured not found exception yields a 404', function () {
         ->present(new RecordMissingException(), errorDefinition(), null);
 
     expect($error->type)->toBe(ErrorType::NOT_FOUND)
-        ->and($error->details)->toEqual(['type' => 'NOT_FOUND']);
+        ->and($error->details)->toBeNull();
 });
 
 test('subclasses of a configured exception match, matching is instanceof and not exact class', function () {
@@ -97,7 +97,7 @@ test('an unknown operation yields a 404 without a definition to reflect on', fun
         ->present(new OperationNotFoundException('nope'), null, null);
 
     expect($error->type)->toBe(ErrorType::NOT_FOUND)
-        ->and($error->details)->toEqual(['type' => 'NOT_FOUND'])
+        ->and($error->details)->toBeNull()
         ->and($error->resolveInfo)->toBeNull();
 });
 
@@ -171,7 +171,7 @@ test('a declared exception without ExposeAs falls through to the catch all', fun
         ->present(new UnexposedException(), errorDefinition(), null);
 
     expect($error->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($error->details)->toEqual(['type' => 'INTERNAL_SERVER_ERROR']);
+        ->and($error->details)->toBeNull();
 });
 
 test('an ExposeAs exception the operation never declares falls through to the catch all', function () {
@@ -188,8 +188,9 @@ test('an unmapped exception yields a 500 and keeps its cause and resolve info', 
     $error = new ErrorPresenter(new ServerConfiguration())->present($exception, errorDefinition(), $info);
 
     expect($error->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($error->details)->toEqual(['type' => 'INTERNAL_SERVER_ERROR'])
+        ->and($error->details)->toBeNull()
         ->and($error->cause)->toBe($exception)
+        ->and($error->previous)->toBe([])
         ->and($error->resolveInfo)->toBe($info);
 });
 
@@ -219,7 +220,19 @@ test('a definition that cannot be reflected yields a 500 instead of escaping', f
         ->present(new ExposedDomainException(), errorDefinition('declaresNothing', ['Tests\Mocks\Errors\DoesNotExist']), null);
 
     expect($error->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($error->details)->toEqual(['type' => 'INTERNAL_SERVER_ERROR']);
+        ->and($error->details)->toBeNull();
+});
+
+test('a failure to present becomes the cause and pushes the original into previous', function () {
+    $exception = new ExposedDomainException();
+
+    $error = new ErrorPresenter(new ServerConfiguration())
+        ->present($exception, errorDefinition('declaresNothing', ['Tests\Mocks\Errors\DoesNotExist']), null);
+
+    // The reflection failure is the most recent thing that went wrong, so it is the cause; the
+    // exception the application threw is what came before it.
+    expect($error->cause)->not->toBe($exception)
+        ->and($error->previous)->toBe([$exception]);
 });
 
 test('internalError produces the last resort shape', function () {
@@ -229,7 +242,19 @@ test('internalError produces the last resort shape', function () {
     $error = ErrorPresenter::internalError($exception, $info);
 
     expect($error->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($error->details)->toEqual(['type' => 'INTERNAL_SERVER_ERROR'])
+        ->and($error->details)->toBeNull()
         ->and($error->cause)->toBe($exception)
+        ->and($error->previous)->toBe([])
         ->and($error->resolveInfo)->toBe($info);
+});
+
+test('internalError carries the previous failures oldest first', function () {
+    $original = new RuntimeException('the application blew up');
+    $latest = new RuntimeException('presenting it blew up too');
+
+    $error = ErrorPresenter::internalError($latest, errorResolveInfo(), [$original]);
+
+    expect($error->cause)->toBe($latest)
+        ->and($error->previous)->toBe([$original])
+        ->and($error->throwableChain())->toBe([$original, $latest]);
 });

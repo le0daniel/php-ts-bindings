@@ -25,11 +25,13 @@ function typescriptDefinition(string $methodName = 'declaresThrows', array $midd
     );
 }
 
-const INVALID_INPUT_BRANCH = '{code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}';
-const UNAUTHENTICATED_BRANCH = '{code: 401, type: "AUTHENTICATION_ERROR", details: {type: "UNAUTHENTICATED"}}';
-const UNAUTHORIZED_BRANCH = '{code: 403, type: "AUTHORIZATION_ERROR", details: {type: "UNAUTHORIZED"}}';
-const NOT_FOUND_BRANCH = '{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}';
-const INTERNAL_BRANCH = '{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}}';
+// Only the two categories that have something to add carry details; for the rest the category is
+// the whole answer and the server omits the key.
+const INVALID_INPUT_BRANCH = '{code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}';
+const UNAUTHENTICATED_BRANCH = '{code: 401, type: "AUTHENTICATION_ERROR"}';
+const UNAUTHORIZED_BRANCH = '{code: 403, type: "AUTHORIZATION_ERROR"}';
+const NOT_FOUND_BRANCH = '{code: 404, type: "NOT_FOUND"}';
+const INTERNAL_BRANCH = '{code: 500, type: "INTERNAL_ERROR"}';
 
 test('an unconfigured server only emits the branches it can actually produce', function () {
     $union = ErrorTypescript::forOperation(new ServerConfiguration(), typescriptDefinition('declaresNothing'));

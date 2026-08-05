@@ -494,15 +494,22 @@ nothing gets:
 
 ```typescript
 export type CreateError =
-    {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}
-  | {code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}
-  | {code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+    {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}
+  | {code: 404, type: "NOT_FOUND"}
+  | {code: 500, type: "INTERNAL_ERROR"};
 ```
 
 The 401 and 403 branches appear only once you have actually mapped exceptions onto them, so the
-union describes what this server can really produce. Validation failures carry `fields`, keyed by
-dotted path (`__root` for the top level) with localization keys as values, e.g.
-`{"email": ["validation.not_empty_string"]}`.
+union describes what this server can really produce.
+
+**`details` only appears where the category cannot say everything on its own**, which is exactly two
+of the six: `INVALID_INPUT` carries `fields`, and `DOMAIN_ERROR` carries the `type` naming which
+domain error it is. For the other four, `code` and `type` are the whole answer and restating it
+under `details` would put the same string on the wire twice, so the key is absent — and the
+generated branch has no such property, so narrowing on `type` will not offer you one.
+
+Validation failures carry `fields`, keyed by dotted path (`__root` for the top level) with
+localization keys as values, e.g. `{"email": ["validation.not_empty_string"]}`.
 
 **Your own validation can ride the same wire.** This library proves types and refuses to grow into a
 validator, but the 422 shape is a perfectly good transport for the rules it will not check for you:
@@ -518,7 +525,6 @@ enough — one GET for queries, one POST for commands — and both must carry th
 ```php
 use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
-use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
@@ -540,24 +546,28 @@ $server = new Server(
 
 $result = $server->command('users.create', $input, $myContext, new NullClient());
 
-if ($result instanceof RpcSuccess) {
-    respondJson(200, ['success' => true, 'data' => $result->data]);
-} else {
-    respondJson($result->type->value, [
-        'success' => false,
-        'code' => $result->type->value,
-        'type' => $result->type->name,
-        'details' => $result->details,
-    ]);
-}
+// jsonSerialize() is the envelope the generated client reads, and the only thing that gets it
+// exactly right: `details` is omitted rather than sent as null on the categories that have none,
+// which is what the generated union declares.
+respondJson($result->statusCode, $result->jsonSerialize());
 ```
 
-`ErrorType` doubles as the status code: `$result->type->value` is the HTTP code and
-`$result->type->name` the string the client matches on, so the two cannot disagree.
+`$result->statusCode` is the HTTP code for both outcomes — 200 on success, and the error category's
+own code otherwise. `ErrorType` doubles as that code, so `$result->type->value` is the same number
+and `$result->type->name` the string the client matches on: the two cannot disagree.
 
-`$result->cause` is the underlying `Throwable` on every error, ready to hand to your reporter. On the
-rare occasion that working out how to present an error *itself* failed — a stale middleware class
-name, say — `$result->presentationFailure` holds that second exception; it is null otherwise.
+`$result->cause` is the most recent `Throwable` on every error, ready to hand to your reporter, and
+`$result->previous` is a list of everything that failed before it, oldest first. It is empty on an
+ordinary error. On the rare occasion that working out how to present an error *itself* failed — a
+stale middleware class name, say — that second exception is the `cause`, and the one your
+application threw is in `previous`. `$result->throwableChain()` gives you all of them in order, which
+is what you want to loop over when reporting:
+
+```php
+foreach ($result->throwableChain() as $throwable) {
+    $reporter->report($throwable);
+}
+```
 
 Whatever your transport does with the input, the shape it hands the server has to match what the
 generated client sends: for queries, each value JSON-encoded into its own query parameter; for

@@ -163,12 +163,13 @@ Everything the provider and the HTTP controller pick without asking.
 - `__client` is added when the client produced directives, `__metadata` when a middleware attached
   any.
 - **Exception rendering bypasses Laravel entirely.** Nothing is thrown out of the controller. Every
-  `RpcError` is handed to `ExceptionHandler::report()` — so logging, Sentry and friends still fire —
-  and then serialized by hand. Laravel's `render()`, `renderable()` handlers, `abort()` pages and the
-  419 CSRF redirect never run for an operation.
+  throwable behind an `RpcError` is handed to `ExceptionHandler::report()` — the cause, plus anything
+  in `previous`, oldest first — so logging, Sentry and friends still fire, and then it is serialized
+  by hand. Laravel's `render()`, `renderable()` handlers, `abort()` pages and the 419 CSRF redirect
+  never run for an operation.
 - **Validation errors are not Laravel's shape.** A 422 carries
-  `{"type": "INVALID_INPUT", "fields": {"<dotted.path>": ["message"]}}`, not
-  `{"message": …, "errors": …}`. `Illuminate\Validation\ValidationException` is **not** mapped by
+  `{"code": 422, "type": "INVALID_INPUT", "details": {"fields": {"<dotted.path>": ["message"]}}}`,
+  not `{"message": …, "errors": …}`. `Illuminate\Validation\ValidationException` is **not** mapped by
   default, so a `$request->validate()` inside a handler lands in a 500. Map it onto a category
   yourself, or throw
   [`InvalidInputException::createFromMessages()`](../README.md#errors) instead.
@@ -187,7 +188,8 @@ HTML redirect.
 > **`app.debug` changes behaviour.** With it on, `LocalMetadataMiddleware` is prepended to every
 > operation and responses gain a `__metadata` key with **the raw input**, the context class, the
 > handler, the middleware stack and per-middleware timings. Failures additionally carry `__info` and
-> `__debug` with the exception class, message, file, line and **full stack trace**.
+> `__debug` with the exception class, message, file, line and **full stack trace** — and a `previous`
+> list describing the earlier failures, on the rare error that has any.
 >
 > None of it is emitted in production, and none of it appears in the generated types — but any
 > environment with `APP_DEBUG=true` and a reachable route is handing all of that to whoever calls it.

@@ -40,6 +40,11 @@ export async function readProduct(): Promise<Product | null> {
             return null;
         case 404:
         case 500:
+            // `details` only exists where the category cannot say everything on its own. Here it
+            // can, so the server omits the key and the branch has no such property. The directive
+            // below is the guard: putting one back makes the access legal and fails this build.
+            // @ts-expect-error
+            console.debug(result.details);
             return null;
     }
 }

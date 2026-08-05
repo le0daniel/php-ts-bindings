@@ -9,7 +9,7 @@ import {queryOptions, useQuery} from '@tanstack/react-query';
 
 export type DefaultsResult = {always:true;answer:42;anything:unknown;count:number;createdAt:string;day:string;either:(string|number);enabled:boolean;literal:"fixed";lookup:Record<string,number>;maybe:(null|Availability);nested:{deep:{value:string;};};nothing:null;pair:[string,number];products:Array<Product>;ratio:number;tags:Array<string>;text:string;};
 export type DefaultsInput = null;
-export type DefaultsError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type DefaultsError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: QUERY
@@ -51,7 +51,7 @@ export function defaultsQueryKey() {
 
 export type RoundtripResult = {filters:Record<string,Array<string>>;page?:number;term:string;};
 export type RoundtripInput = {filters:Record<string,Array<string>>;page?:number;term:string;};
-export type RoundtripError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type RoundtripError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: QUERY
@@ -93,7 +93,7 @@ export function roundtripQueryKey(input: RoundtripInput) {
 
 export type SubmitResult = {accepted:boolean;id:(number & Brand<"productId">);};
 export type SubmitInput = {dryRun?:boolean;payload:{id:(number & Brand<"productId">);when:string;};};
-export type SubmitError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type SubmitError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: COMMAND

@@ -9,7 +9,7 @@ import {queryOptions, useQuery} from '@tanstack/react-query';
 
 export type PrepareResult = Draft;
 export type PrepareInput = DraftInput;
-export type PrepareError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type PrepareError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: QUERY
@@ -51,7 +51,7 @@ export function prepareQueryKey(input: PrepareInput) {
 
 export type ProductResult = Product;
 export type ProductInput = {id:(number & Brand<"productId">);};
-export type ProductError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type ProductError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: QUERY
@@ -93,7 +93,7 @@ export function productQueryKey(input: ProductInput) {
 
 export type RestockResult = {product:Product;restockedAt:string;};
 export type RestockInput = {amount:number;price:Money;sku:Sku;};
-export type RestockError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type RestockError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: COMMAND
@@ -112,7 +112,7 @@ export async function restock(input: RestockInput, options?: OperationOptions) {
 
 export type SearchResult = {results:Array<Product>;total:number;};
 export type SearchInput = {availability?:Availability;limit?:number;term:string;};
-export type SearchError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type SearchError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: QUERY

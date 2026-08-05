@@ -10,13 +10,11 @@ use Illuminate\Support\Facades;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\RpcResult;
-use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
-use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Dicts;
 use Throwable;
@@ -81,7 +79,12 @@ readonly class LaravelHttpController
     private function reportExceptions(RpcResult $result): RpcResult
     {
         if ($result instanceof RpcError) {
-            $this->exceptionHandler->report($result->cause);
+            // The whole chain, oldest first. On an ordinary error that is the one exception the
+            // application threw; when presenting it failed too, reporting only the cause would
+            // hide the failure that actually needs fixing.
+            foreach ($result->throwableChain() as $throwable) {
+                $this->exceptionHandler->report($throwable);
+            }
         }
         return $result;
     }
@@ -122,17 +125,32 @@ readonly class LaravelHttpController
         return empty($inputData) ? null : $inputData;
     }
 
+    /**
+     * getTraceAsString() rather than getTrace(): the latter carries the actual call arguments, and
+     * a pure enum among them makes json_encode() refuse the whole response - which turned debug
+     * mode into a 500 of its own. The string form is a full stack trace, always encodable, and does
+     * not put argument values on the wire.
+     *
+     * @return array<string, mixed>
+     */
+    private static function describeThrowable(Throwable $throwable): array
+    {
+        return Dicts::filterNullValues([
+            'class' => $throwable::class,
+            'message' => $throwable->getMessage(),
+            'code' => $throwable->getCode(),
+            'file' => $throwable->getFile(),
+            'line' => $throwable->getLine(),
+            'trace' => $throwable->getTraceAsString(),
+            'issues' => $throwable instanceof InvalidOutputException ? $throwable->issues->serializeToDebugFields() : null,
+        ]);
+    }
+
     private function produceJsonResponse(RpcResult $result): JsonResponse
     {
-        $httpStatusCode = match (true) {
-            $result instanceof RpcSuccess => 200,
-            $result instanceof RpcError => $result->type->value,
-            default => throw new \RuntimeException('Unexpected result type'),
-        };
-
         $jsonResponse = $result->jsonSerialize();
         if (!$this->debug) {
-            return new JsonResponse($jsonResponse, status: $httpStatusCode);
+            return new JsonResponse($jsonResponse, status: $result->statusCode);
         }
 
         // We append some general debug information
@@ -147,21 +165,19 @@ readonly class LaravelHttpController
 
         // We append debug info for failed operations
         if ($result instanceof RpcError) {
-            $exception = $result->cause;
             $jsonResponse['__debug'] = Dicts::filterNullValues([
-                'class' => $exception::class,
-                'message' => $exception->getMessage(),
-                'code' => $exception->getCode(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'trace' => $exception->getTrace(),
-                'issues' => $exception instanceof InvalidOutputException ? $exception->issues->serializeToDebugFields() : null,
+                ...self::describeThrowable($result->cause),
+                // Only ever set when handling one failure produced another, so filterNullValues
+                // keeps it out of the response on every ordinary error.
+                'previous' => count($result->previous) > 0
+                    ? array_map(self::describeThrowable(...), $result->previous)
+                    : null,
             ]);
         }
 
         return new JsonResponse(
             $jsonResponse,
-            status: $httpStatusCode
+            status: $result->statusCode
         );
     }
 }

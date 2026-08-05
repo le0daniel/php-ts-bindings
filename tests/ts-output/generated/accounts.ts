@@ -9,7 +9,7 @@ import {queryOptions, useQuery} from '@tanstack/react-query';
 
 export type FindResult = {id:number;term:string;};
 export type FindInput = {availability?:(null|Availability);term:string;};
-export type FindError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 400, type: "DOMAIN_ERROR", details: {type: "account_locked"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type FindError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 400, type: "DOMAIN_ERROR", details: {type: "account_locked"}}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: QUERY
@@ -51,7 +51,7 @@ export function findQueryKey(input: FindInput) {
 
 export type LockResult = {locked:true;};
 export type LockInput = {id:number;};
-export type LockError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 400, type: "DOMAIN_ERROR", details: {type: "account_locked"}|{type: "quota_exceeded"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type LockError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 400, type: "DOMAIN_ERROR", details: {type: "account_locked"}|{type: "quota_exceeded"}}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: COMMAND
@@ -70,7 +70,7 @@ export async function lock(input: LockInput, options?: OperationOptions) {
 
 export type UnlockResult = {unlocked:true;};
 export type UnlockInput = {id:number;};
-export type UnlockError = {code: 422, type: "INVALID_INPUT", details: {type: "INVALID_INPUT"; fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND", details: {type: "NOT_FOUND"}}|{code: 500, type: "INTERNAL_ERROR", details: {type: "INTERNAL_SERVER_ERROR"}};
+export type UnlockError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
 
 /**
  * Type: COMMAND

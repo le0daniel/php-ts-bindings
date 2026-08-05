@@ -21,7 +21,8 @@ use Throwable;
  *
  * The conversion goes through $onError, so failures are presented the same way whether they come
  * from a middleware or from the operation itself. If $onError fails too there is nobody left to
- * ask, so the pipeline falls back to a bare INTERNAL_ERROR rather than letting the request crash.
+ * ask, so the pipeline falls back to a bare INTERNAL_ERROR rather than letting the request crash -
+ * carrying the failure it was asked to present in `previous`, so neither of the two is lost.
  *
  * @phpstan-import-type Next from MiddlewareContract
  * @template-contravariant TContext = mixed
@@ -83,7 +84,7 @@ final readonly class ContextualPipeline
         try {
             return ($this->onError)($throwable);
         } catch (Throwable $failedToPresent) {
-            return ErrorPresenter::internalError($failedToPresent, $info);
+            return ErrorPresenter::internalError($failedToPresent, $info, [$throwable]);
         }
     }
 }
