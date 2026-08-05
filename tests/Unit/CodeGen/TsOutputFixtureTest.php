@@ -35,6 +35,7 @@ test('the fixture covers every generated file kind', function () {
         ->toContain('lib/OperationException.ts')
         ->toContain('lib/bindings.ts')
         ->toContain('lib/utils.ts')
+        ->toContain('lib/client-operations-spa.ts')
         ->toContain('lib/type-map.ts')
         // One module per namespace, so cross-module imports of the shared aliases are compiled too.
         ->toContain('accounts.ts')

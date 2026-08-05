@@ -224,6 +224,7 @@ The names accepted by `--with` and `--without` map onto the
 | `types` | `EmitTypes` | on |
 | `bindings` | `EmitOperationClientBindings` | on |
 | `utils` | `EmitTypeUtils` | on |
+| `operations-spa` | `EmitOperationsSpaClient` | on |
 | `operations` | `EmitOperations` | on |
 | `type-map` | `EmitTypeMap` | off |
 | `tanstack-query` | `EmitTanstackQuery` | off |

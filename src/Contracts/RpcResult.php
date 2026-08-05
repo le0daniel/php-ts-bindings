@@ -2,6 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
+use JsonSerializable;
+use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use NoDiscard;
 
 /**
@@ -10,8 +12,19 @@ use NoDiscard;
  * Signatures keep spelling out the `RpcSuccess|RpcError` union so the narrow type survives; this
  * interface exists so that middleware can decorate a result it has not inspected yet.
  */
-interface RpcResult
+interface RpcResult extends JsonSerializable
 {
+    public ResolveInfo|null $resolveInfo {
+        get;
+    }
+
+    /**
+     * @var array<string, mixed>
+     */
+    public array $metadata {
+        get;
+    }
+
     /**
      * Overwrite all existing metadata.
      * @param array<string, mixed> $metadata

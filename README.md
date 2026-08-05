@@ -590,12 +590,13 @@ it on disk. Nothing is published to npm; the code lives in your repo.
   lib/OperationClient.ts   the transport interface
   lib/DefaultClient.ts     a fetch implementation of it
   lib/OperationException.ts
-  lib/bindings.ts          createDefaultClient, setClient, executeOperation, throwOnFailure
-  lib/utils.ts             queryKey and the client-directive type guards
+  lib/bindings.ts          createDefaultClient, setClient, executeOperation
+  lib/utils.ts             queryKey, throwOnFailure
+  lib/client-operations-spa.ts   the OperationSPAClient payload and its guard
   <namespace>.ts           one module per namespace, one function per operation
 ```
 
-That is what the four default generators produce. The [optional ones](#optional-generators) add to
+That is what the five default generators produce. The [optional ones](#optional-generators) add to
 it: `EmitTypeMap` writes one more file, the other two write into the `<namespace>.ts` modules that
 are already there.
 
@@ -612,10 +613,11 @@ The envelope every call resolves to:
 export type Success<T> = {success: true, data: T}
 export type Failure<E extends {code: number}> = {success: false} & E;
 export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
-
-// what a generated function actually returns — see Client directives
-export type WithClientDirectives<T> = T & {__client?: unknown};
 ```
+
+That is the whole envelope. A server may put more next to it — [client
+directives](#client-directives) arrive under `__client` — and it travels through the transport
+untouched rather than being described here; see that section for how to get at it.
 
 Wire it up once:
 
@@ -642,9 +644,10 @@ runs a callback on every response and returns a function that unregisters it. Sw
 transport by implementing `OperationClient` — `setClient()` and the per-call `options.client` both
 take one.
 
-`throwOnFailure(result)` narrows a `Result` to its success branch and throws an `OperationException`
-otherwise, for call sites that would rather not branch. A `catch` variable is `unknown` in TypeScript
-whatever was thrown, so name the operation's error union at the guard to get it back:
+`throwOnFailure(result)`, from `lib/utils.ts`, narrows a `Result` to its success branch and throws an
+`OperationException` otherwise, for call sites that would rather not branch. A `catch` variable is
+`unknown` in TypeScript whatever was thrown, so name the operation's error union at the guard to get
+it back:
 
 ```typescript
 try {
@@ -663,13 +666,14 @@ try {
 ### Optional generators
 
 The generator list you hand `TypescriptServerCodeGenerator` *is* the configuration — there is no
-separate switch. Seven ship:
+separate switch. Eight ship:
 
 | Generator | In the quickstart | Emits |
 |---|---|---|
 | `EmitTypes` | yes | `lib/types.ts` — the envelope, `Brand`, every `#[Named]` alias |
 | `EmitOperationClientBindings` | yes | `lib/bindings.ts`, `lib/OperationClient.ts`, `lib/DefaultClient.ts`, `lib/OperationException.ts` |
-| `EmitTypeUtils` | yes | `lib/utils.ts` — `queryKey` and the client-directive guards |
+| `EmitTypeUtils` | yes | `lib/utils.ts` — `queryKey` and `throwOnFailure` |
+| `EmitOperationsSpaClient` | yes | `lib/client-operations-spa.ts` — the `OperationSPAClient` payload and `containsOperationSpaPayload()` |
 | `EmitOperations` | yes | one `<namespace>.ts` module per namespace |
 | `EmitTanstackQuery` | no | `<name>QueryOptions()` and `use<Name>Query()` for `@tanstack/react-query` |
 | `EmitQueryKey` | no | standalone query keys |
@@ -749,12 +753,34 @@ The full interface is `redirect()`, `invalidate()`, `toast()`, and one shorthand
 called for them. A transport emits that payload by asking the client for it:
 `SerializableClient::serializeToArray()`.
 
-**`__client` is typed `unknown` on purpose.** `Client` is an extension point — your own
-implementation may define an entirely different set of directives under a different schema — so the
-generated types decline to commit to a shape they cannot know. `OperationSPAClient` is the subset
-this library deems useful and ships, and `lib/utils.ts` narrows to it with `isSpaClientDirectives()`,
-`isClientToast()` and `isClientRedirect()`. Write your own guard for your own directives; that is the
-same "no dishonest types" rule that makes the generator throw rather than emit a placeholder.
+**The envelope says nothing about `__client`, on purpose.** `Client` is an extension point — your own
+implementation may define an entirely different set of directives under a different schema — so
+neither `lib/types.ts` nor the transport interface commits to a shape it cannot know. The payload
+still travels through `DefaultClient` untouched; what is missing is only the claim about what it is.
+
+`OperationSPAClient` is the subset this library deems useful and ships, and it gets its own file.
+`lib/client-operations-spa.ts` declares `OperationsClientPayload` — the same schema
+`serializeToArray()` emits — and one guard that puts it on a result:
+
+```typescript
+import {containsOperationSpaPayload} from './operations/lib/client-operations-spa';
+
+const result = await create({name: 'Leo'});
+
+if (containsOperationSpaPayload(result)) {
+    for (const toast of result.__client.toasts ?? []) { … }   // ClientToast, fully typed
+    result.__client.redirect?.url;
+}
+```
+
+The check is the discriminator alone. The payload is assembled in one pass, so a server that wrote
+`type: "operations-spa"` wrote the rest of it to the same schema, and unknown keys are ignored either
+way — adding a directive stays backwards compatible.
+
+The file is emitted by `EmitOperationsSpaClient`, on by default. Drop it with
+`--without operations-spa` and nothing else changes; write your own guard against your own
+directives, which is the same "no dishonest types" rule that makes the generator throw rather than
+emit a placeholder.
 
 ## Preloading a query
 

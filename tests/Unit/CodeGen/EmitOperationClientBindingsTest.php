@@ -43,24 +43,40 @@ test('declares exactly the imports its body needs', function (string $file, arra
     expect($imports)->toBe($expected);
 })->with([
     'OperationClient' => ['OperationClient', [
-        './lib/types' => ['values' => [], 'types' => ['Result', 'WithClientDirectives']],
+        './lib/types' => ['values' => [], 'types' => ['Result']],
     ]],
     'DefaultClient' => ['DefaultClient', [
         './lib/OperationClient' => ['values' => [], 'types' => ['OperationClient', 'OperationOptions']],
-        './lib/types' => ['values' => [], 'types' => ['Failure', 'Result', 'Success', 'WithClientDirectives']],
+        './lib/types' => ['values' => [], 'types' => ['Failure', 'Result', 'Success']],
     ]],
     'OperationException' => ['OperationException', [
         './lib/types' => ['values' => [], 'types' => ['Failure']],
     ]],
-    // DefaultClient and OperationException are constructed, so they are value imports; a type only
-    // import of either would leave `new DefaultClient(...)` referencing nothing at runtime.
+    // DefaultClient is constructed, so it is a value import; a type only import would leave
+    // `new DefaultClient(...)` referencing nothing at runtime.
     'bindings' => ['bindings', [
         './lib/DefaultClient' => ['values' => ['DefaultClient'], 'types' => []],
         './lib/OperationClient' => ['values' => [], 'types' => ['OperationClient', 'OperationOptions']],
-        './lib/OperationException' => ['values' => ['OperationException'], 'types' => []],
-        './lib/types' => ['values' => [], 'types' => ['Result', 'Success', 'WithClientDirectives']],
+        './lib/types' => ['values' => [], 'types' => ['Result']],
     ]],
 ]);
+
+/**
+ * The transport moves a request and returns the envelope. Whatever a Client implementation puts next
+ * to the data is that implementation's business, and naming it here would make the interface an
+ * accomplice to one particular schema.
+ */
+test('the transport knows nothing about client directives', function () {
+    foreach (bindingFiles() as $file) {
+        expect($file->toString())
+            ->not->toContain('WithClientDirectives')
+            ->not->toContain('__client');
+    }
+});
+
+test('throwOnFailure is not here — it narrows the envelope, not the transport', function () {
+    expect(bindingFiles()['bindings']->toString())->not->toContain('throwOnFailure');
+});
 
 test('imports nothing its body does not reference', function () {
     $unused = [];

@@ -2,8 +2,7 @@
 
 import {DefaultClient} from './DefaultClient';
 import type {OperationClient, OperationOptions} from './OperationClient';
-import {OperationException} from './OperationException';
-import type {Result, Success, WithClientDirectives} from './types';
+import type {Result} from './types';
 
 let client: OperationClient|null;
 
@@ -22,21 +21,7 @@ export function setClient(operationClient: OperationClient|null): void {
     client = operationClient;
 }
 
-/**
- * Narrows a Result to its success branch, throwing otherwise, for call sites that would rather
- * catch than branch.
- *
- * The error union is deliberately not inferred here: a catch clause variable is `unknown` in
- * TypeScript whatever was thrown, so no signature on this function could carry E to the catch.
- * Name it there instead - `OperationException.is<ProductError>(e)` types `e.cause` for you.
- */
-export function throwOnFailure<const T>(result: Result<T, any>): asserts result is Success<T> {
-    if (!result.success) {
-        throw new OperationException(result);
-    }
-}
-
-export async function executeOperation<I, O, E extends {code: number}>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<WithClientDirectives<Result<O, E>>> {
+export async function executeOperation<I, O, E extends {code: number}>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, E>> {
     if (options?.client) {
         return await options.client.execute(type, key, input, options);
     }

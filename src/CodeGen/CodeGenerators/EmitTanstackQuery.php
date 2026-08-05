@@ -20,7 +20,6 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
 {
     private EmitOperations $operations;
     private EmitTypeUtils $utils;
-    private EmitOperationClientBindings $bindings;
 
     #[Override]
     public function dependsOnGenerator(): array
@@ -28,7 +27,6 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
         return [
             EmitOperations::class,
             EmitTypeUtils::class,
-            EmitOperationClientBindings::class,
         ];
     }
 
@@ -42,10 +40,6 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
         $this->utils = Assertions::instanceOf(
             EmitTypeUtils::class,
             $dependencies[EmitTypeUtils::class] ?? null,
-        );
-        $this->bindings = Assertions::instanceOf(
-            EmitOperationClientBindings::class,
-            $dependencies[EmitOperationClientBindings::class] ?? null,
         );
     }
 
@@ -74,8 +68,7 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
                 values: ['useQuery', 'queryOptions'],
                 types: ['UseQueryOptions'],
             ),
-            $this->utils->importFromUtils(values: ['queryKey']),
-            $this->bindings->importFromBindings(values: ['throwOnFailure']),
+            $this->utils->importFromUtils(values: ['queryKey', 'throwOnFailure']),
         ];
 
         if (!$operation->hasInput) {

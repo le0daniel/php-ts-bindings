@@ -10,7 +10,6 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
@@ -57,40 +56,25 @@ test('rejects an alias colliding with a declaration the types file always contai
 })->with([
     'the Brand helper generic' => ['Brand'],
     'the Result envelope' => ['Result'],
-    'the client directive wrapper' => ['WithClientDirectives'],
-    'the SPA client directives' => ['SPAClientDirectives'],
-    'the directive payload' => ['ClientDirectives'],
-    'the toast directive' => ['ClientToast'],
-    'the redirect directive' => ['ClientRedirect'],
-    'the invalidation directive' => ['ClientInvalidation'],
+    'the success branch' => ['Success'],
+    'the failure branch' => ['Failure'],
+    'the namespace union' => ['OperationNamespaces'],
 ]);
 
-test('the SPA client directives mirror the PHP client contract', function () {
+test('the envelope commits to nothing a specific client puts next to the data', function () {
     $types = emitTypesFor(
         'array{id: \\' . UserId::class . '}',
         'array{email: \\' . Email::class . '}',
     );
 
-    $toastTypes = implode('|', array_map(
-        fn(ToastType $type): string => "'{$type->value}'",
-        ToastType::cases(),
-    ));
-
+    // Client is an extension point: a directive payload belongs to the implementation that emits
+    // it, which for the one this library ships is lib/client-operations-spa.ts.
     expect($types)
-        ->toContain("export type ClientToast = {type: {$toastTypes}; message: string;};")
-        ->toContain('export type ClientRedirect = {url: string; reload: boolean;};')
-        ->toContain('export type ClientInvalidation = [string, ...unknown[]];')
-        ->toContain('export type SPAClientDirectives<T> = T & {__client: ClientDirectives};')
-        ->not->toContain('"soft"|"hard"')
-        ->not->toContain('hardRedirect');
-});
-
-test('an invalidation is a namespace followed by any number of keys, matching queryKey and PHP', function () {
-    $types = emitTypesFor('array{id: string}', 'array{id: string}');
-
-    // Client::invalidate($namespace) emits a single element array, so requiring a second
-    // string would describe a payload the server never produces.
-    expect($types)->not->toContain('[string, string, ...unknown[]]');
+        ->toContain('export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;')
+        ->not->toContain('__client')
+        ->not->toContain('operations-spa')
+        ->not->toContain('WithClientDirectives')
+        ->not->toContain('ClientToast');
 });
 
 test('attribute brands stay inline and declare no alias, only the Brand helper is exported', function () {

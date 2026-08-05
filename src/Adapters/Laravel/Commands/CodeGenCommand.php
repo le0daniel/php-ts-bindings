@@ -12,6 +12,7 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Utils\ArtisanOptions;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeMap;
@@ -241,6 +242,10 @@ DESCRIPTION;
             $includeGenerator('types', true) ? new EmitTypes() : null,
             $includeGenerator('bindings', true) ? new EmitOperationClientBindings() : null,
             $includeGenerator('utils', true) ? new EmitTypeUtils() : null,
+            // On by default: the adapter picks OperationSPAClient for a request carrying the
+            // matching header, so the client that reads its payload ships with it. A project
+            // using a Client of its own drops the file with --without operations-spa.
+            $includeGenerator('operations-spa', true) ? new EmitOperationsSpaClient() : null,
             $includeGenerator('operations', true) ? new EmitOperations($namingGenerator) : null,
             $includeGenerator('type-map', false) ? new EmitTypeMap() : null,
             // Only EmitOperations is given the naming rule: it declares the names, the other two

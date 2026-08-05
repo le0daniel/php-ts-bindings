@@ -4,6 +4,7 @@ namespace Tests\Unit\CodeGen;
 
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeMap;
@@ -58,6 +59,7 @@ final class TsOutputFixture
             new EmitTypes(),
             new EmitOperationClientBindings(),
             new EmitTypeUtils(),
+            new EmitOperationsSpaClient(),
             new EmitOperations(),
             new EmitTypeMap(),
             new EmitTanstackQuery(),

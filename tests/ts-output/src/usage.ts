@@ -8,11 +8,13 @@
 import {find, lock} from '../generated/accounts';
 import type {ProductError} from '../generated/catalog';
 import {prepare, product, productQueryKey, productQueryOptions, restock, search, useProductQuery} from '../generated/catalog';
-import {createDefaultClient, setClient, throwOnFailure} from '../generated/lib/bindings';
+import {createDefaultClient, setClient} from '../generated/lib/bindings';
+import type {OperationsClientPayload} from '../generated/lib/client-operations-spa';
+import {containsOperationSpaPayload} from '../generated/lib/client-operations-spa';
 import {OperationException} from '../generated/lib/OperationException';
-import type {Brand, Product, SPAClientDirectives} from '../generated/lib/types';
+import type {Brand, Product} from '../generated/lib/types';
 import type {TypeMap} from '../generated/lib/type-map';
-import {isClientRedirect, isClientToast, isSpaClientDirectives} from '../generated/lib/utils';
+import {throwOnFailure} from '../generated/lib/utils';
 import {defaults, submit, useDefaultsQuery} from '../generated/shapes';
 
 setClient(createDefaultClient(fetch));
@@ -110,9 +112,11 @@ export async function readDefaults(): Promise<string> {
 }
 
 /**
- * Commands go over POST and can carry client directives back, which the emitted guards narrow.
+ * Commands go over POST and can carry client directives back. The envelope says nothing about
+ * `__client` — the transport never committed to a schema — so one guard from the client that emits
+ * the payload is what puts it on the result, fully typed, for the rest of the function.
  */
-export async function lockAccount(id: number): Promise<SPAClientDirectives<unknown> | null> {
+export async function lockAccount(id: number): Promise<OperationsClientPayload | null> {
     const result = await lock({id});
 
     if (!result.success && result.code === 400) {
@@ -122,21 +126,24 @@ export async function lockAccount(id: number): Promise<SPAClientDirectives<unkno
         return null;
     }
 
-    if (!isSpaClientDirectives(result)) {
+    if (!containsOperationSpaPayload(result)) {
         return null;
     }
 
+    // No second round of guards: past the check every directive has its declared type.
     for (const toast of result.__client.toasts ?? []) {
-        if (isClientToast(toast)) {
-            console.info(toast.type, toast.message);
-        }
+        console.info(toast.type, toast.message);
     }
 
-    if (result.__client.redirect && isClientRedirect(result.__client.redirect)) {
+    if (result.__client.redirect) {
         window.location.href = result.__client.redirect.url;
     }
 
-    return result;
+    for (const [namespace, ...key] of result.__client.invalidations ?? []) {
+        console.debug('invalidate', namespace, key);
+    }
+
+    return result.__client;
 }
 
 /**

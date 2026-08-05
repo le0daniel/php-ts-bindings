@@ -4,6 +4,7 @@ namespace Tests\Unit\CodeGen;
 
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeMap;
@@ -109,14 +110,14 @@ test('merges what every generator imports into one sorted block per module', fun
     ])['orders.ts']->toString();
 
     // Modules are sorted by specifier and each appears exactly once, however the generators ran:
-    // bindings collects executeOperation and throwOnFailure, utils' queryKey is claimed twice and
-    // deduped, and the aliases come from both EmitOperations and EmitQueryKey. Type only exports
-    // are on their own line, which is what verbatimModuleSyntax requires.
+    // utils collects queryKey — claimed twice and deduped — alongside throwOnFailure, and the
+    // aliases come from both EmitOperations and EmitQueryKey. Type only exports are on their own
+    // line, which is what verbatimModuleSyntax requires.
     expect($operations)->toStartWith(TypescriptFile::MARKER . "\n\n" . <<<TypeScript
     import type {OperationOptions} from './lib/OperationClient';
-    import {executeOperation, throwOnFailure} from './lib/bindings';
+    import {executeOperation} from './lib/bindings';
     import type {Brand, Customer, Order, OrderStatus} from './lib/types';
-    import {queryKey} from './lib/utils';
+    import {queryKey, throwOnFailure} from './lib/utils';
     import type {UseQueryOptions} from '@tanstack/react-query';
     import {queryOptions, useQuery} from '@tanstack/react-query';
 
@@ -153,17 +154,45 @@ test('a lib file reaches its siblings directly instead of through lib/', functio
     expect($files['lib/bindings.ts']->toString())->toStartWith(TypescriptFile::MARKER . "\n\n" . <<<TypeScript
     import {DefaultClient} from './DefaultClient';
     import type {OperationClient, OperationOptions} from './OperationClient';
-    import {OperationException} from './OperationException';
-    import type {Result, Success, WithClientDirectives} from './types';
+    import type {Result} from './types';
 
     TypeScript);
 
-    expect($files['lib/utils.ts']->toString())->toStartWith(
-        TypescriptFile::MARKER . "\n\n"
-        . "import type {ClientDirectives, ClientRedirect, ClientToast, SPAClientDirectives, WithClientDirectives} from './types';"
-    );
+    expect($files['lib/utils.ts']->toString())->toStartWith(TypescriptFile::MARKER . "\n\n" . <<<TypeScript
+    import {OperationException} from './OperationException';
+    import type {Result, Success} from './types';
+
+    TypeScript);
 
     expect($files['lib/types.ts']->toString())->not->toContain('import ');
+});
+
+test('the operations-spa client is one self-contained file, and nothing else mentions it', function () {
+    $files = generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperationsSpaClient(),
+        new EmitOperations(),
+        new EmitTypeMap(),
+        new EmitQueryKey(),
+        new EmitTanstackQuery(),
+    ]);
+
+    // Dropping the generator drops the directive support and nothing else, which is what makes
+    // `--without operations-spa` a real option rather than a broken build.
+    expect($files)->toHaveKey('lib/client-operations-spa.ts')
+        ->and($files['lib/client-operations-spa.ts']->toString())
+        ->toContain('export function containsOperationSpaPayload')
+        ->not->toContain('import ');
+
+    foreach ($files as $path => $file) {
+        if ($path === 'lib/client-operations-spa.ts') {
+            continue;
+        }
+
+        expect($file->toString())->not->toContain('client-operations-spa');
+    }
 });
 
 test('no lib file names a module through lib/', function () {

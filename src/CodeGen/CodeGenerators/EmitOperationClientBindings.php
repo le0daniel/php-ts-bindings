@@ -108,19 +108,24 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
             self::OPERATION_CLIENT_FILE => new TypescriptFile(<<<TypeScript
 export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client?: OperationClient};
 
+/**
+ * Moves a request and resolves to the envelope. A server may put more next to the data, and it
+ * travels through untouched — describing it here would tie every transport to one Client
+ * implementation's schema. Reach for the guard the implementation ships instead.
+ */
 export interface OperationClient {
     execute<O, E extends {code: number}>(
-        type: "command"|"query", 
-        key: string, 
-        input: unknown, 
+        type: "command"|"query",
+        key: string,
+        input: unknown,
         options?: OperationOptions
-    ): Promise<WithClientDirectives<Result<O, E>>>;
+    ): Promise<Result<O, E>>;
 }
 TypeScript, [
-                $this->types->importFromTypes(types: ['Result', 'WithClientDirectives']),
+                $this->types->importFromTypes(types: ['Result']),
             ]),
             self::DEFAULT_CLIENT_FILE => new TypescriptFile(<<<TypeScript
-export type Hook = (result: WithClientDirectives<Result<unknown, {code: number}>>) => Promise<void> | void;
+export type Hook = (result: Result<unknown, {code: number}>) => Promise<void> | void;
 
 export class DefaultClient implements OperationClient {
 
@@ -157,7 +162,7 @@ export class DefaultClient implements OperationClient {
             }).join('&');
     }
 
-    private async callHooks<const T extends Result<unknown, {code: number}>>(result: WithClientDirectives<T>) {
+    private async callHooks<const T extends Result<unknown, {code: number}>>(result: T) {
         try {
             await Promise.all(this.hooks.map(hook => hook(result)));
             return result;
@@ -167,7 +172,7 @@ export class DefaultClient implements OperationClient {
         }
     }
 
-    async execute<O, E extends {code: number}>(type: "command" | "query", key: string, input: unknown, options?: OperationOptions): Promise<WithClientDirectives<Result<O, E>>> {
+    async execute<O, E extends {code: number}>(type: "command" | "query", key: string, input: unknown, options?: OperationOptions): Promise<Result<O, E>> {
         const route = this.options.paths[type].substring(0, 1) === '/' ? this.options.paths[type].substring(1) : this.options.paths[type];
         const fullPath = `\${this.options.baseUrl ?? ''}/\${route.replace('{fqn}', key)}`;
 
@@ -204,8 +209,10 @@ export class DefaultClient implements OperationClient {
             throw new Error('Invalid response body. Could not parse json correctly.');
         }
 
+        // Spread first: whatever the server put next to the envelope — a client's directives, say —
+        // rides along untyped rather than being dropped by a transport that never knew about it.
         if (response.ok) {
-            return await this.callHooks({...json, success: true} as WithClientDirectives<Success<O>>);
+            return await this.callHooks({...json, success: true} as Success<O>);
         }
 
         return await this.callHooks({
@@ -213,7 +220,7 @@ export class DefaultClient implements OperationClient {
             success: false,
             code: json?.code ?? response.status,
             type: json?.type ?? 'INTERNAL_ERROR'
-        } as WithClientDirectives<Failure<E>>);
+        } as Failure<E>);
     }
 
     registerHook(hook: Hook): () => void {
@@ -226,9 +233,7 @@ export class DefaultClient implements OperationClient {
 }
 TypeScript, [
                 $this->importFromOperationClient(types: ['OperationClient', 'OperationOptions']),
-                $this->types->importFromTypes(
-                    types: ['Failure', 'Result', 'Success', 'WithClientDirectives'],
-                ),
+                $this->types->importFromTypes(types: ['Failure', 'Result', 'Success']),
             ]),
             self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<TypeScript
 /**
@@ -277,21 +282,7 @@ export function setClient(operationClient: OperationClient|null): void {
     client = operationClient;
 }
 
-/**
- * Narrows a Result to its success branch, throwing otherwise, for call sites that would rather
- * catch than branch.
- *
- * The error union is deliberately not inferred here: a catch clause variable is `unknown` in
- * TypeScript whatever was thrown, so no signature on this function could carry E to the catch.
- * Name it there instead - `OperationException.is<ProductError>(e)` types `e.cause` for you.
- */
-export function throwOnFailure<const T>(result: Result<T, any>): asserts result is Success<T> {
-    if (!result.success) {
-        throw new OperationException(result);
-    }
-}
-
-export async function executeOperation<I, O, E extends {code: number}>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<WithClientDirectives<Result<O, E>>> {
+export async function executeOperation<I, O, E extends {code: number}>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, E>> {
     if (options?.client) {
         return await options.client.execute(type, key, input, options);
     }
@@ -303,12 +294,11 @@ export async function executeOperation<I, O, E extends {code: number}>(type: 'qu
     throw new Error('No client set');
 }
 TypeScript, [
-                $this->types->importFromTypes(types: ['Result', 'Success', 'WithClientDirectives']),
+                $this->types->importFromTypes(types: ['Result']),
                 $this->importFromOperationClient(types: ['OperationClient', 'OperationOptions']),
-                // Both are constructed, not just annotated: a type only import would leave
+                // Constructed, not just annotated: a type only import would leave
                 // `new DefaultClient(...)` referencing nothing at runtime.
                 $this->importFromDefaultClient(values: ['DefaultClient']),
-                $this->importFromOperationException(values: ['OperationException']),
             ]),
         ];
     }

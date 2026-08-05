@@ -9,6 +9,7 @@ use Illuminate\Routing\Route;
 use Illuminate\Support\Facades;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\RpcResult;
 use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
@@ -52,16 +53,14 @@ readonly class LaravelHttpController
      */
     public function handleHttpQueryRequest(string $fqn, Http\Request $request): JsonResponse
     {
-        $client = $this->createClient($request);
-
-        $result = $this->server->query(
-            $fqn,
-            $this->gatherInputFromRequest(OperationType::QUERY, $request),
-            $this->contextFactory?->createContextFromHttpRequest($request),
-            $client,
-        );
-
-        return $this->produceJsonResponse($result, $client);
+        return $this->server->query(
+                $fqn,
+                input: $this->gatherInputFromRequest(OperationType::QUERY, $request),
+                context: $this->contextFactory?->createContextFromHttpRequest($request),
+                client: $this->createClient($request),
+            )
+                |> $this->reportExceptions(...)
+                |> $this->produceJsonResponse(...);
     }
 
     /**
@@ -69,16 +68,22 @@ readonly class LaravelHttpController
      */
     public function handleHttpCommandRequest(string $fqn, Http\Request $request): JsonResponse
     {
-        $client = $this->createClient($request);
+        return $this->server->command(
+                $fqn,
+                input: $this->gatherInputFromRequest(OperationType::COMMAND, $request),
+                context:$this->contextFactory?->createContextFromHttpRequest($request),
+                client: $this->createClient($request),
+            )
+                |> $this->reportExceptions(...)
+                |> $this->produceJsonResponse(...);
+    }
 
-        $result = $this->server->command(
-            $fqn,
-            $this->gatherInputFromRequest(OperationType::COMMAND, $request),
-            $this->contextFactory?->createContextFromHttpRequest($request),
-            $client,
-        );
-
-        return $this->produceJsonResponse($result, $client);
+    private function reportExceptions(RpcResult $result): RpcResult
+    {
+        if ($result instanceof RpcError) {
+            $this->exceptionHandler->report($result->cause);
+        }
+        return $result;
     }
 
     private function createClient(Http\Request $request): Client
@@ -117,67 +122,33 @@ readonly class LaravelHttpController
         return empty($inputData) ? null : $inputData;
     }
 
-    /**
-     * @param array<string, mixed> $response
-     * @param Client $client
-     * @return array<string, mixed>
-     */
-    private function appendClientDirectives(array $response, Client $client): array
+    private function produceJsonResponse(RpcResult $result): JsonResponse
     {
-        if (!$client instanceof SerializableClient) {
-            return $response;
+        $httpStatusCode = match (true) {
+            $result instanceof RpcSuccess => 200,
+            $result instanceof RpcError => $result->type->value,
+            default => throw new \RuntimeException('Unexpected result type'),
+        };
+
+        $jsonResponse = $result->jsonSerialize();
+        if (!$this->debug) {
+            return new JsonResponse($jsonResponse, status: $httpStatusCode);
         }
 
-        $clientData = $client->serializeToArray();
-        if ($clientData === null) {
-            return $response;
+        // We append some general debug information
+        if ($result->resolveInfo) {
+            $jsonResponse['__resolveInfo'] = [
+                "handler" => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
+                "middleware" => $result->resolveInfo->middleware,
+                "fqn" => $result->resolveInfo->fullyQualifiedName,
+                "type" => $result->resolveInfo->operationType->name,
+            ];
         }
 
-        $response['__client'] = $clientData;
-        return $response;
-    }
-
-    private function produceJsonResponse(RpcSuccess|RpcError $result, Client $client): JsonResponse
-    {
-        if ($result instanceof RpcSuccess) {
-            $data = $this->appendClientDirectives([
-                'success' => true,
-                'data' => $result->data,
-            ], $client);
-
-            if (!empty($result->metadata)) {
-                $data['__metadata'] = $result->metadata;
-            }
-
-            if ($this->debug) {
-                $data['__info'] = [
-                    "handler" => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
-                    "middleware" => $result->resolveInfo->middleware,
-                    "fqn" => $result->resolveInfo->fullyQualifiedName,
-                    "type" => $result->resolveInfo->operationType->name,
-                ];
-            }
-
-            return new JsonResponse($data, 200);
-        }
-
-        $this->exceptionHandler->report($result->cause);
-        $content = $this->appendClientDirectives([
-            'success' => false,
-            'code' => $result->type->value,
-            // The discriminant the generated error union is narrowed on. The status code carries the
-            // same information, but only the client that reads the body can rely on it.
-            'type' => $result->type->name,
-            'details' => $result->details
-        ], $client);
-
-        if (!empty($result->metadata)) {
-            $content['__metadata'] = $result->metadata;
-        }
-
-        if ($this->debug) {
+        // We append debug info for failed operations
+        if ($result instanceof RpcError) {
             $exception = $result->cause;
-            $content['__debug'] = Dicts::filterNullValues([
+            $jsonResponse['__debug'] = Dicts::filterNullValues([
                 'class' => $exception::class,
                 'message' => $exception->getMessage(),
                 'code' => $exception->getCode(),
@@ -186,20 +157,11 @@ readonly class LaravelHttpController
                 'trace' => $exception->getTrace(),
                 'issues' => $exception instanceof InvalidOutputException ? $exception->issues->serializeToDebugFields() : null,
             ]);
-
-            $content['__info'] = $result->resolveInfo ? [
-                "handler" => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
-                "middleware" => $result->resolveInfo->middleware,
-                "fqn" => $result->resolveInfo->fullyQualifiedName,
-                "type" => $result->resolveInfo->operationType->name,
-            ] : [
-                "message" => "No handler found for operation.",
-            ];
         }
 
         return new JsonResponse(
-            $content,
-            $result->type->value
+            $jsonResponse,
+            status: $httpStatusCode
         );
     }
 }

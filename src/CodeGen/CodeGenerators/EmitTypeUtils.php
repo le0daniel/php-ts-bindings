@@ -8,7 +8,6 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
@@ -16,14 +15,19 @@ use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
 /**
- * Not readonly: the EmitTypes whose directive types the guards narrow to is injected after
- * construction, which is the only way it can be the same instance the generator runs.
+ * The helpers an application reaches for that belong to no single transport: a cache key, and the
+ * assertion that turns a failed envelope into a throw.
+ *
+ * Not readonly: the generators declaring the envelope it narrows and the exception it throws are
+ * injected after construction, which is the only way they can be the same instances the generator
+ * runs.
  */
 final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
 {
     private const string UTILS_FILE = 'utils';
 
     private EmitTypes $types;
+    private EmitOperationClientBindings $bindings;
 
     /**
      * Not static: reaching this means declaring the dependency, and a declared dependency that is
@@ -46,6 +50,7 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
     {
         return [
             EmitTypes::class,
+            EmitOperationClientBindings::class,
         ];
     }
 
@@ -55,6 +60,10 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
         $this->types = Assertions::instanceOf(
             EmitTypes::class,
             $dependencies[EmitTypes::class] ?? null,
+        );
+        $this->bindings = Assertions::instanceOf(
+            EmitOperationClientBindings::class,
+            $dependencies[EmitOperationClientBindings::class] ?? null,
         );
     }
 
@@ -77,77 +86,32 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
             }
         }
 
-        // Derived from the enum, so the values the guard accepts can never drift from ToastType.
-        $toastTypes = implode(', ', array_map(
-            fn(ToastType $type): string => "'{$type->value}'",
-            ToastType::cases(),
-        ));
-
         return [
             self::UTILS_FILE => new TypescriptFile(<<<TypeScript
 type QueryNamespaces = {$this->generateLiteralUnion($queryNamespaces)};
-
-const TOAST_TYPES = [{$toastTypes}] as const;
 
 export function queryKey(ns: QueryNamespaces, ...args: unknown[]): [string, ...unknown[]] {
     return [ns, ...args];
 }
 
-function isArrayOf<V>(value: unknown, predicate: (item: unknown) => item is V): value is V[] {
-    return Array.isArray(value) && value.every(predicate);
-}
-
-export function isClientToast(value: unknown): value is ClientToast {
-    if (!value || typeof value !== 'object') {
-        return false;
-    }
-
-    const toast = value as Partial<ClientToast>;
-    return typeof toast.message === 'string'
-        && typeof toast.type === 'string'
-        && (TOAST_TYPES as readonly string[]).includes(toast.type);
-}
-
-export function isClientRedirect(value: unknown): value is ClientRedirect {
-    if (!value || typeof value !== 'object') {
-        return false;
-    }
-
-    const redirect = value as Partial<ClientRedirect>;
-    return typeof redirect.url === 'string' && typeof redirect.reload === 'boolean';
-}
-
-function isClientInvalidation(value: unknown): value is [string, ...unknown[]] {
-    return Array.isArray(value) && typeof value[0] === 'string';
-}
-
 /**
- * Narrows to the full directive payload, so it verifies every directive it claims and not just
- * the discriminator: a server on an older format would otherwise be narrowed to a shape it does
- * not have. Unknown directive keys are ignored, adding one stays backwards compatible.
+ * Narrows a Result to its success branch, throwing otherwise, for call sites that would rather
+ * catch than branch.
+ *
+ * The error union is deliberately not inferred here: a catch clause variable is `unknown` in
+ * TypeScript whatever was thrown, so no signature on this function could carry E to the catch.
+ * Name it there instead - `OperationException.is<ProductError>(e)` types `e.cause` for you.
  */
-export function isSpaClientDirectives<const T>(result: WithClientDirectives<T>): result is SPAClientDirectives<T> {
-    if (!result.__client || typeof result.__client !== 'object') {
-        return false;
+export function throwOnFailure<const T>(result: Result<T, any>): asserts result is Success<T> {
+    if (!result.success) {
+        throw new OperationException(result);
     }
-
-    const directives = result.__client as Partial<ClientDirectives>;
-    if (directives.type !== 'operations-spa') {
-        return false;
-    }
-
-    return (directives.redirect === undefined || isClientRedirect(directives.redirect))
-        && (directives.toasts === undefined || isArrayOf(directives.toasts, isClientToast))
-        && (directives.invalidations === undefined || isArrayOf(directives.invalidations, isClientInvalidation));
 }
 TypeScript, [
-                $this->types->importFromTypes(types: [
-                    'ClientDirectives',
-                    'ClientRedirect',
-                    'ClientToast',
-                    'SPAClientDirectives',
-                    'WithClientDirectives',
-                ]),
+                $this->types->importFromTypes(types: ['Result', 'Success']),
+                // Constructed, not just annotated: a type only import would leave
+                // `new OperationException(...)` referencing nothing at runtime.
+                $this->bindings->importFromOperationException(values: ['OperationException']),
             ])
         ];
     }

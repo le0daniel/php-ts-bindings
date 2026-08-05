@@ -459,8 +459,7 @@ The same conflicting-alias error protects against two classes resolving to the s
 different shapes anywhere in a run. A handful of names the generated types file always declares are
 rejected outright:
 
-`Brand`, `Success`, `Failure`, `Result`, `OperationNamespaces`, `WithClientDirectives`,
-`SPAClientDirectives`, `ClientDirectives`, `ClientToast`, `ClientRedirect`, `ClientInvalidation`.
+`Brand`, `Success`, `Failure`, `Result`, `OperationNamespaces`.
 
 Brands and names are pure code generation metadata with zero runtime impact: values travel the wire
 in their plain shape, and the metadata is stripped from cached ASTs entirely — TypeScript
