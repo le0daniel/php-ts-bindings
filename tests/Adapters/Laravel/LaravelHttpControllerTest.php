@@ -389,3 +389,54 @@ test('an ordinary error carries no previous key in debug mode', function () {
 
     expect($response->getData(true)['__debug'])->not->toHaveKey('previous');
 });
+
+test('directives queued before a failure never reach the client', function () {
+    // The reason RpcError holds no Client: a handler that toasts "Saved" and then throws would
+    // otherwise have the browser announce work that did not happen. Whatever the client collected
+    // before the failure is dropped with the request.
+    $fcn = 'docs.method';
+
+    $typeParser = new TypeParser();
+    $operationRegistry = Mockery::mock(OperationRegistry::class);
+    $exceptionHandler = Mockery::mock(ExceptionHandler::class);
+    $app = Mockery::mock(Application::class);
+    $request = Request::create('/query/docs.method', 'GET', ['name' => 'some_value']);
+    $request->headers->set(LaravelHttpController::CLIENT_ID_HEADER, 'operations-spa');
+
+    $operationDefinition = new Definition(OperationType::QUERY, 'MyClass', 'someMethod', 'method', 'docs', []);
+    $operation = new Operation(
+        'somekey',
+        $operationDefinition,
+        fn() => $typeParser->parse('array{name: string}'),
+        fn() => $typeParser->parse('array{id: string, name: string}'),
+    );
+
+    $controllerInstance = new class() {
+        public function someMethod(array $input, null $context, Client $client): array
+        {
+            $client->success('Saved');
+            $client->redirect('/docs/123');
+            $client->invalidate('docs');
+
+            throw new RuntimeException('the save did not happen after all');
+        }
+    };
+
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
+    $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
+    $exceptionHandler->shouldReceive('report')->andReturnNull();
+
+    $response = new LaravelHttpController(
+        new Server($operationRegistry, new PsrContainerAdapter(container: $app)),
+        $exceptionHandler,
+        null,
+    )->handleHttpQueryRequest($fcn, $request);
+
+    expect($response->getStatusCode())->toBe(500)
+        ->and($response->getData(true))->toEqual([
+            'success' => false,
+            'code' => 500,
+            'type' => 'INTERNAL_ERROR',
+        ]);
+});

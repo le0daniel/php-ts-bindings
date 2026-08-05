@@ -2,8 +2,8 @@
 
 export type OperationNamespaces = 'accounts'|'catalog'|'shapes';
 
-export type Success<T> = {success: true, data: T}
-export type Failure<E extends {code: number}> = {success: false} & E;
+export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
+export type Failure<E extends {code: number}> = {success: false, __metadata?: Record<string, unknown>} & E;
 export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
 
 declare const __brand: unique symbol;

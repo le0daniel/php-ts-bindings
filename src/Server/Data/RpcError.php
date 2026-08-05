@@ -3,7 +3,6 @@
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
 use Le0daniel\PhpTsBindings\Contracts\RpcResult;
-use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
 use Le0daniel\PhpTsBindings\Utils\Dicts;
 use NoDiscard;
 use Override;

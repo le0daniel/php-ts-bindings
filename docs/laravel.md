@@ -160,13 +160,16 @@ Everything the provider and the HTTP controller pick without asking.
 
 - **Success is always HTTP 200**, with `{"success": true, "data": …}`. Failures use the error
   category's own status: 400, 401, 403, 404, 422 or 500.
-- `__client` is added when the client produced directives, `__metadata` when a middleware attached
-  any.
+- **The body is `RpcResult::jsonSerialize()`**, unchanged. The controller adds nothing to it outside
+  [debug mode](#debug-mode), so what the generated client reads is what the core defined.
+- `__metadata` is added when a middleware attached any, on either outcome. `__client` is added when
+  the client produced directives — **on success only**: a handler that toasts and then throws must
+  not have the browser announce work that did not happen, so a failure carries no directives at all.
 - **Exception rendering bypasses Laravel entirely.** Nothing is thrown out of the controller. Every
   throwable behind an `RpcError` is handed to `ExceptionHandler::report()` — the cause, plus anything
-  in `previous`, oldest first — so logging, Sentry and friends still fire, and then it is serialized
-  by hand. Laravel's `render()`, `renderable()` handlers, `abort()` pages and the 419 CSRF redirect
-  never run for an operation.
+  in `previous`, oldest first — so logging, Sentry and friends still fire, and then the error is
+  serialized as the envelope above. Laravel's `render()`, `renderable()` handlers, `abort()` pages
+  and the 419 CSRF redirect never run for an operation.
 - **Validation errors are not Laravel's shape.** A 422 carries
   `{"code": 422, "type": "INVALID_INPUT", "details": {"fields": {"<dotted.path>": ["message"]}}}`,
   not `{"message": …, "errors": …}`. `Illuminate\Validation\ValidationException` is **not** mapped by
@@ -185,13 +188,13 @@ HTML redirect.
 
 ### Debug mode
 
-> **`app.debug` changes behaviour.** With it on, `LocalMetadataMiddleware` is prepended to every
-> operation and responses gain a `__metadata` key with **the raw input**, the context class, the
-> handler, the middleware stack and per-middleware timings. Failures additionally carry `__info` and
-> `__debug` with the exception class, message, file, line and **full stack trace** — and a `previous`
-> list describing the earlier failures, on the rare error that has any.
+> **`app.debug` changes behaviour.** With it on, every response gains a `__resolveInfo` key naming
+> the handler, the middleware stack, the operation's fully qualified name and its type — successes
+> included. Failures additionally carry `__debug` with the exception class, message, code, file,
+> line and **full stack trace**, plus a `previous` list describing the earlier failures on the rare
+> error that has any.
 >
-> None of it is emitted in production, and none of it appears in the generated types — but any
+> Neither key is emitted in production, and neither appears in the generated types — but any
 > environment with `APP_DEBUG=true` and a reachable route is handing all of that to whoever calls it.
 
 ## Artisan commands

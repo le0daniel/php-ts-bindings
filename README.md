@@ -269,8 +269,16 @@ it is a bug in your code, not something the client can fix. The PHPStan *refinem
 type are not re-checked, because static analysis already established those. See
 [refinements run on input, never on output](docs/types.md#refinements-run-on-input-never-on-output).
 
-Both results carry metadata a middleware can attach with `withMetadata()` / `appendMetadata()`. What
-becomes of it is the transport's decision — nothing in the core writes it to a response.
+**`RpcResult`** is the interface both outcomes implement, for the code that does not care which one
+it is holding. It carries `statusCode` — 200 on success, the error category's own code otherwise —
+`resolveInfo`, `metadata`, and it is `JsonSerializable`: `jsonSerialize()` produces the whole
+envelope the generated client reads. A transport needs nothing else, which is why
+[serving operations](#serving-operations-over-http) is two lines.
+
+Both results carry metadata a middleware can attach with `withMetadata()` / `appendMetadata()`. It
+travels to the client under `__metadata`, and the generated envelope declares it as
+`__metadata?: Record<string, unknown>` — optional because the key is left off entirely when nothing
+was attached. It is yours to shape; the library puts nothing in it.
 
 ## Defining operations
 
@@ -574,20 +582,20 @@ generated client sends: for queries, each value JSON-encoded into its own query 
 commands, a JSON body. Decoding query values back is what lets you leave
 [`coerceQueryInput`](#the-rest-of-serverconfiguration) off.
 
-To emit client directives, pass an `OperationSPAClient` instead of a `NullClient` and ask it for the
-payload:
+To emit client directives, pass an `OperationSPAClient` instead of a `NullClient`. There is nothing
+else to do: the success carries the client, so `jsonSerialize()` asks it for its payload and puts it
+under `__client` for you.
 
 ```php
-use Le0daniel\PhpTsBindings\Contracts\SerializableClient;
+$result = $server->command('users.create', $input, $myContext, new OperationSPAClient());
 
-$client = new OperationSPAClient();
-$result = $server->command('users.create', $input, $myContext, $client);
-
-$body = ['success' => true, 'data' => $result->data];
-if ($client instanceof SerializableClient && $directives = $client->serializeToArray()) {
-    $body['__client'] = $directives;
-}
+respondJson($result->statusCode, $result->jsonSerialize());
 ```
+
+**Directives ride the success branch only.** A failure carries none, even for the directives that
+were queued before it — a handler that toasts `'Saved'` and then throws must not have the browser
+announce work that did not happen. That is why `RpcError` holds no client at all, rather than
+leaving it to each transport to remember.
 
 ## The generated TypeScript client
 
@@ -620,14 +628,21 @@ has drifted from the backend.
 The envelope every call resolves to:
 
 ```typescript
-export type Success<T> = {success: true, data: T}
-export type Failure<E extends {code: number}> = {success: false} & E;
+export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
+export type Failure<E extends {code: number}> = {success: false, __metadata?: Record<string, unknown>} & E;
 export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
 ```
 
-That is the whole envelope. A server may put more next to it — [client
-directives](#client-directives) arrive under `__client` — and it travels through the transport
-untouched rather than being described here; see that section for how to get at it.
+That is the whole envelope, and both extra keys are the library's own — `jsonSerialize()` writes
+them, so the generated types name them rather than leaving you to discover them on the wire. Each is
+optional, because the key is left off entirely when there is nothing to say.
+
+They differ in how much they can honestly claim. `__metadata` is `Record<string, unknown>` on both
+branches: whatever a middleware attached, always a string-keyed bag, serialized the same way on
+either outcome. `__client` is `unknown` and success-only — the *key* is first-party, but its shape
+belongs to whichever [`Client`](#client-directives) produced it, and a failure carries no directives
+at all. Naming it without describing it is the honest half: you know to look there, and the guard
+that shipped with your client is what makes it typed.
 
 Wire it up once:
 
@@ -743,7 +758,8 @@ a `NullClient` whose every method is a no-op, so handlers never need to know whi
 other end, and nothing warns when a directive goes nowhere. Choosing between them is the transport's
 job; the core never inspects a request.
 
-Under `operations-spa` those calls land in a `__client` key next to the data:
+Under `operations-spa` those calls land in a `__client` key next to the data, on a **successful**
+response:
 
 ```json
 {
@@ -760,13 +776,20 @@ Under `operations-spa` those calls land in a `__client` key next to the data:
 
 The full interface is `redirect()`, `invalidate()`, `toast()`, and one shorthand per toast type —
 `success()`, `error()`, `warning()`, `alert()` and `info()`. Keys are only present when something
-called for them. A transport emits that payload by asking the client for it:
-`SerializableClient::serializeToArray()`.
+called for them. `RpcSuccess::jsonSerialize()` puts the payload on the response by asking the client
+for it — `SerializableClient::serializeToArray()` — so a transport that serializes the result gets
+this for free, and one that builds its own body calls the same method.
 
-**The envelope says nothing about `__client`, on purpose.** `Client` is an extension point — your own
-implementation may define an entirely different set of directives under a different schema — so
-neither `lib/types.ts` nor the transport interface commits to a shape it cannot know. The payload
-still travels through `DefaultClient` untouched; what is missing is only the claim about what it is.
+**A failure carries no directives**, including the ones queued before it: a toast for work that was
+rolled back is worse than no toast, so `RpcError` holds no client and there is nothing to serialize.
+Tell the user about a failure from the error branch the generated union already gives you.
+
+**The envelope names `__client` but declares it `unknown`, on purpose.** The key is the library's —
+`RpcSuccess::jsonSerialize()` writes it, so `lib/types.ts` says it may be there. The *shape* is not:
+`Client` is an extension point, and your own implementation may define an entirely different set of
+directives under a different schema, so neither `lib/types.ts` nor the transport interface commits to
+one it cannot know. The payload travels through `DefaultClient` untouched; what is withheld is only
+the claim about what it is.
 
 `OperationSPAClient` is the subset this library deems useful and ships, and it gets its own file.
 `lib/client-operations-spa.ts` declares `OperationsClientPayload` — the same schema

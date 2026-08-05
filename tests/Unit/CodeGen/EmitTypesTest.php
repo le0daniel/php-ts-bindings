@@ -61,20 +61,38 @@ test('rejects an alias colliding with a declaration the types file always contai
     'the namespace union' => ['OperationNamespaces'],
 ]);
 
-test('the envelope commits to nothing a specific client puts next to the data', function () {
+test('the envelope names the client side channel without describing what is in it', function () {
     $types = emitTypesFor(
         'array{id: \\' . UserId::class . '}',
         'array{email: \\' . Email::class . '}',
     );
 
-    // Client is an extension point: a directive payload belongs to the implementation that emits
-    // it, which for the one this library ships is lib/client-operations-spa.ts.
+    // The key is the library's own - RpcSuccess::jsonSerialize() writes it - so the envelope says
+    // it may be there. The value is not: Client is an extension point, and a directive payload
+    // belongs to the implementation that emits it, which for the one this library ships is
+    // lib/client-operations-spa.ts.
     expect($types)
         ->toContain('export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;')
-        ->not->toContain('__client')
+        ->toContain('__client?: unknown')
         ->not->toContain('operations-spa')
+        ->not->toContain('OperationsClientPayload')
         ->not->toContain('WithClientDirectives')
         ->not->toContain('ClientToast');
+});
+
+test('the branches declare exactly what jsonSerialize can put on each of them', function () {
+    $types = emitTypesFor(
+        'array{id: \\' . UserId::class . '}',
+        'array{email: \\' . Email::class . '}',
+    );
+
+    // __metadata rides both outcomes: it is the core's own, always array<string, mixed>, written
+    // only through withMetadata()/appendMetadata(). __client rides success alone, because RpcError
+    // holds no Client - a toast queued before a throw must not reach the browser. Both optional,
+    // because jsonSerialize() leaves either key off when there is nothing to say.
+    expect($types)
+        ->toContain('export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}')
+        ->toContain('export type Failure<E extends {code: number}> = {success: false, __metadata?: Record<string, unknown>} & E;');
 });
 
 test('attribute brands stay inline and declare no alias, only the Brand helper is exported', function () {

@@ -117,9 +117,10 @@ export async function readDefaults(): Promise<string> {
 }
 
 /**
- * Commands go over POST and can carry client directives back. The envelope says nothing about
- * `__client` — the transport never committed to a schema — so one guard from the client that emits
- * the payload is what puts it on the result, fully typed, for the rest of the function.
+ * Commands go over POST and can carry client directives back. The envelope names `__client` but
+ * declares it `unknown` — the key is the library's, the schema is whichever Client emitted it — so
+ * one guard from that client is what puts it on the result, fully typed, for the rest of the
+ * function.
  */
 export async function lockAccount(id: number): Promise<OperationsClientPayload | null> {
     const result = await lock({id});
@@ -191,3 +192,55 @@ export function useProduct() {
 export type ProductInputFromMap = TypeMap['query']['catalog.product']['input'];
 export type ProductOutputFromMap = TypeMap['query']['catalog.product']['output'];
 export type LockErrorsFromMap = TypeMap['command']['accounts.lock']['errors'];
+
+/**
+ * `__metadata` is declared on both branches, so a middleware's bag is readable without narrowing
+ * first and without a guard — unlike `__client`, whose schema belongs to whichever Client is
+ * plugged in. Optional, because the server leaves the key off when nothing was attached.
+ */
+export async function readMetadata(): Promise<unknown> {
+    const result = await product({id: productId});
+
+    // Before the union is narrowed: both branches agree it may be there.
+    const durationMs: unknown = result.__metadata?.durationMs;
+
+    if (!result.success) {
+        // Still there on the failure branch, alongside the error's own keys.
+        console.debug(result.code, result.__metadata);
+        return durationMs;
+    }
+
+    // Values are `unknown`: the bag is the application's to shape, so the envelope refuses to
+    // guess. Reading one as a string has to be a deliberate assertion.
+    // @ts-expect-error
+    const handler: string = result.__metadata?.fullyQualifiedHandler;
+    console.debug(handler, result.data.sku);
+
+    return durationMs;
+}
+
+/**
+ * `__client` is declared, but only as `unknown`, and only on the success branch. Both halves of that
+ * are load bearing, so both are pinned here.
+ */
+export async function clientChannelIsNamedButNotDescribed(id: number): Promise<void> {
+    const result = await lock({id});
+
+    if (!result.success) {
+        // A failure carries no directives at all — RpcError holds no Client, so a toast queued
+        // before the throw never reaches the browser. The branch has no such property to read.
+        // @ts-expect-error
+        console.debug(result.__client);
+        return;
+    }
+
+    // Present on success, and `unknown`: reading a directive off it without narrowing first is
+    // exactly the claim the envelope refuses to make.
+    // @ts-expect-error
+    console.debug(result.__client?.toasts);
+
+    // The guard is the way through, and it is the shipped client's, not the envelope's.
+    if (containsOperationSpaPayload(result)) {
+        console.debug(result.__client.type satisfies 'operations-spa');
+    }
+}
