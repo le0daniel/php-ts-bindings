@@ -35,20 +35,24 @@ Requires **PHP 8.5** and nothing else — no dependencies, no framework coupling
 
 ---
 
-- [Install](#install)
-- [Laravel](#laravel)
-- [Quickstart](#quickstart)
-- [Core concepts](#core-concepts)
-- [Defining operations](#defining-operations)
-- [Middleware](#middleware)
-- [Types](#types)
-- [Errors](#errors)
-- [Serving operations over HTTP](#serving-operations-over-http)
-- [The generated TypeScript client](#the-generated-typescript-client)
-- [Client directives](#client-directives)
-- [Preloading a query](#preloading-a-query)
-- [Production](#production)
-- [Extension points and exceptions](#extension-points-and-exceptions)
+## Documentation
+
+This page is the overview: install it, run it without a framework, and understand why it behaves the
+way it does. Each subsystem has its own reference.
+
+| Document | Covers |
+|---|---|
+| [Types](docs/types.md) | The supported PHPStan subset, refinements, utility types, value objects, `#[Castable]`, brands and named types. |
+| [Operations](docs/operations.md) | The attributes, the handler contract, middleware, `ServerConfiguration`. |
+| [Errors](docs/errors.md) | The six categories, exposing a domain error, the generated union, and the exceptions this library throws. |
+| [The server](docs/server.md) | `Server`, operation keys, registries, DI, serving HTTP, preloading, the production cache, extension points. |
+| [The TypeScript client](docs/typescript-client.md) | What codegen writes, the envelope, the transport, all eight generators, writing your own. |
+| [Client directives](docs/client-directives.md) | The optional `Client` side channel for toasts, redirects and cache invalidation. |
+| [The Laravel adapter](docs/laravel.md) | Config, routes, context, the `operations:*` artisan commands. |
+
+On this page: [Install](#install) · [Quickstart](#quickstart) · [Core concepts](#core-concepts) ·
+[Design decisions](#design-decisions) · [Errors](#errors) · [Types](#types) ·
+[Contributing](#contributing)
 
 ## Install
 
@@ -66,15 +70,9 @@ includes:
     - vendor/le0daniel/php-ts-bindings/extension.neon
 ```
 
-## Laravel
-
-A first-party adapter ships with the library. The service provider is auto-discovered,
-`config/operations.php` is publishable, and four `operations:*` artisan commands handle discovery,
-code generation and the production cache. Routes stay yours to register.
-
-Everything below applies on Laravel too — the adapter wires this library up, it does not replace it.
-What it decides on your behalf is documented separately.
-
+**On Laravel**, the service provider is auto-discovered, `config/operations.php` is publishable, and
+four `operations:*` artisan commands handle discovery, code generation and the production cache. The
+adapter wires this library up, it does not replace it — everything on this page still applies.
 **[→ The Laravel adapter](docs/laravel.md)**
 
 ## Quickstart
@@ -119,11 +117,13 @@ final class UserOperations
 single primitive. `UserId` and `Email` carry a `#[Brand]`, so they are not interchangeable with a
 plain `number` or `string` on the TypeScript side.
 
-Build a server over them, and generate the client:
+**Build a server over them, and generate the client.** Run this from a script you commit — it is a
+build step, not something the server does at runtime.
 
 ```php
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
@@ -144,6 +144,7 @@ $files = new TypescriptServerCodeGenerator([
     new EmitTypes(),
     new EmitOperationClientBindings(),
     new EmitTypeUtils(),
+    new EmitOperationsSpaClient(),
     new EmitOperations(),
 ])->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
 
@@ -151,10 +152,27 @@ OutputDirectory::write(__DIR__ . '/resources/js/operations', $files);
 ```
 
 The two URLs are the routes *your* transport serves; `{fqn}` is where the operation key goes, and
-both are required to contain it. Run this from a script you commit — it is a build step, not
-something the server does at runtime.
+both are required to contain it.
 
-You get a `users.ts` module, matching the namespace:
+**Serve those two routes.** One GET for queries, one POST for commands. `jsonSerialize()` is the
+whole envelope the generated client reads, so a transport is two lines:
+
+```php
+use Le0daniel\PhpTsBindings\Server\Client\NullClient;
+
+// GET /query/{fqn}  — each query parameter JSON-decoded back into a value
+$result = $server->query($fqn, $input, $myContext, new NullClient());
+
+// POST /command/{fqn}  — the JSON body
+$result = $server->command($fqn, $input, $myContext, new NullClient());
+
+respondJson($result->statusCode, $result->jsonSerialize());
+```
+
+Neither call ever throws — see [the server](docs/server.md#serving-operations-over-http) for the
+full wiring, dependency injection and error reporting.
+
+**You get a `users.ts` module**, matching the namespace:
 
 ```typescript
 export type GetResult = {email:(string & Brand<"email">);slug:string;};
@@ -180,8 +198,6 @@ if (result.success) {
 Passing `{id: 1}` is a compile error: `number` is not assignable to `UserId`'s branded type. Sending
 it anyway is a 422 at runtime, because the server proves the same type it published.
 
-What remains is [serving those two routes](#serving-operations-over-http).
-
 ## Core concepts
 
 **`Server`** takes a registry of operations and runs one. Both methods are total — every
@@ -193,35 +209,20 @@ public function command(string $name, mixed $input, mixed $context, Client $clie
 ```
 
 **`$name` is the operation's *key*, not its plain name.** An `OperationKeyGenerator` turns
-`namespace` + `name` into what the client calls. `HashSha256KeyGenerator` hashes both parts, so a
-discovered `users.get` is reachable as an opaque key rather than as `users.get`; its first
-constructor argument is a pepper, and it has no default. `PlainlyExposedKeyGenerator` gives literal
-keys instead. The generated TypeScript always embeds whichever key the server produced, so this only
-matters when you call the server by hand.
-
-> **Pass one explicitly.** `eagerlyDiscover()` falls back to `HashSha256KeyGenerator` peppered with
-> the string `'default'` — obfuscated keys, from a pepper anyone reading this page knows.
-
-Obfuscation is not a security boundary: it keeps your operation names out of the shipped bundle, and
-that is all. Two operations colliding on a truncated hash is an error at discovery, not a silent
-overwrite — widen `fnNameLength` if a real application ever hits it.
+`namespace` + `name` into what the client calls: `PlainlyExposedKeyGenerator` gives literal keys,
+`HashSha256KeyGenerator` opaque ones. The generated TypeScript always embeds whichever key the server
+produced, so this only matters when you call the server by hand — but
+[pass one explicitly](docs/server.md#operation-keys), because the discovery default is peppered with
+a publicly known string.
 
 **`OperationRegistry`** holds the operations. `EagerlyLoadedOperationRegistry` discovers them by
 scanning directories; schemas are parsed lazily, per operation, on first use.
-`CachedOperationRegistry` is the compiled form for production — see [Production](#production).
+`CachedOperationRegistry` is the compiled form for [production](docs/server.md#production).
 
-**`ServerAdapter`** builds your handler classes and middleware. It is two methods —
-`createController()` and `createMiddleware()` — and it is the seam for dependency injection:
-
-| Adapter | Behaviour |
-|---|---|
-| `NewInstanceAdapter` | The default. Plain `new $className()`, so handlers take no constructor arguments. |
-| `PsrContainerAdapter` | Resolves both through a PSR-11 container. |
-
-`PsrContainerAdapter` needs `psr/container`, which is a `suggest` rather than a dependency; the
-default needs nothing at all. Implement the interface yourself for a container that is not PSR-11,
-or to construct handlers some other way. Whatever it does, a failure to resolve is caught and
-returned as an `RpcError` — that is part of what keeps `query()` and `command()` total.
+**`ServerAdapter`** builds your handler classes and middleware — two methods, and the seam for
+dependency injection. `NewInstanceAdapter` is the default (`new $className()`, no constructor
+arguments); `PsrContainerAdapter` resolves both through a PSR-11 container. A failure to resolve is
+caught and returned as an `RpcError`, which is part of what keeps the server total.
 
 **The handler contract.** Your method is called with exactly three arguments, positionally:
 
@@ -230,173 +231,122 @@ public function get(array $input, MyContext $context, Client $client): array
 ```
 
 `$input` is the parsed, validated input — already hydrated into whatever your type declares. **Its
-type is the whole input contract**, so the first parameter is the one that matters. `$context` is
-whatever you passed to `Server::query()`; the library never touches it. `$client` is the
-[side channel](#client-directives) back to the frontend.
-
-**The input parameter is never optional.** A handler declaring no parameters is rejected at
-discovery, and the one it does declare must carry a native type — an untyped parameter cannot be
-reflected. A `@param` in the docblock overrides that native type, and is how you say anything PHP
-itself cannot express.
-
-**An operation that takes no input types it as `null`.** The parameter stays; only its type changes:
-
-```php
-/**
- * @return array{ok: bool}
- */
-#[Query('system')]
-public function ping(null $input): array
-{
-    return ['ok' => true];
-}
-```
-
-Every generator drops the argument for such an operation, so the TypeScript is `ping()` rather than
-`ping(input)`. There is no way to omit the parameter itself.
-
-You may declare a **prefix** of the three — `($input)` and `($input, $context)` are both fine — but
-not a subset, and the prefix always starts at the input. `($input, Client $client)` receives the
-context in the client slot, so discovery rejects it rather than letting it fail at runtime.
-
-Middleware receives `ResolveInfo` alongside the input, describing the operation being run:
-`namespace`, `name`, `operationType`, `className`, `methodName`, `middleware` (every class in the
-stack) and `fullyQualifiedName`.
+type is the whole input contract.** `$context` is whatever you passed to `Server::query()`; the
+library never touches it. `$client` is the [side channel](docs/client-directives.md) back to the
+frontend. You may declare a prefix of the three, but not a subset. An operation that takes no input
+types its parameter as `null`, and every generator drops the argument.
 
 **Input is parsed, output is serialized.** Input is untrusted, so every claim its type makes is
-proven. Output is checked against its declared type too, and an output that does not match is a 500 —
-it is a bug in your code, not something the client can fix. The PHPStan *refinements* on top of the
-type are not re-checked, because static analysis already established those. See
-[refinements run on input, never on output](docs/types.md#refinements-run-on-input-never-on-output).
+proven. Output is checked against its declared type too, and an output that does not match is a 500.
+The PHPStan *refinements* on top of the type are not re-checked on the way out, because static
+analysis already established those.
 
-**`RpcResult`** is the interface both outcomes implement, for the code that does not care which one
-it is holding. It carries `statusCode` — 200 on success, the error category's own code otherwise —
-`resolveInfo`, `metadata`, and it is `JsonSerializable`: `jsonSerialize()` produces the whole
-envelope the generated client reads. A transport needs nothing else, which is why
-[serving operations](#serving-operations-over-http) is two lines.
+**`RpcResult`** is the interface both outcomes implement. It carries `statusCode` — 200 on success,
+the error category's own code otherwise — `resolveInfo`, `metadata`, and it is `JsonSerializable`:
+`jsonSerialize()` produces the whole envelope the generated client reads. A middleware can attach
+metadata with `withMetadata()` / `appendMetadata()`; it travels under `__metadata` and the library
+puts nothing in it.
 
-Both results carry metadata a middleware can attach with `withMetadata()` / `appendMetadata()`. It
-travels to the client under `__metadata`, and the generated envelope declares it as
-`__metadata?: Record<string, unknown>` — optional because the key is left off entirely when nothing
-was attached. It is yours to shape; the library puts nothing in it.
+**[→ Operations](docs/operations.md)** for the attributes, the full signature rules and middleware.
+**[→ The server](docs/server.md)** for keys, registries, HTTP, preloading and the production cache.
 
-## Defining operations
+## Design decisions
 
-| Attribute | Target | What it does |
+**The PHPStan type is the contract.** No schema DSL, no resource class, no generated PHP to keep
+beside your code. The annotation you already wrote for static analysis is the one the runtime proves
+and the generator emits, so there is no second source of truth that can drift.
+
+**It is not a validator.** It proves the types your code declares and nothing beyond them. A rule
+that is not a type — "this email is not already taken" — belongs in a
+[value object](docs/types.md#value-objects) or your own code, and can still
+[ride the same 422](docs/errors.md#your-own-validation).
+
+**Input is parsed, output is serialized.** Input arrives from outside and every claim its type makes
+is proven before your handler sees it. Output is your own code, so a mismatch is a 500 rather than
+something the client is asked to handle — and refinements are checked on the way in only, because
+static analysis already established them on the way out.
+
+**`query()` and `command()` are total.** Every `Throwable` — including one thrown while resolving
+your handler, or while working out how to present another error — comes back as an `RpcError`.
+`$next()` inside a middleware never throws either, so post-processing runs whether the operation
+succeeded or failed. A transport never needs a `try`.
+
+**Six error categories, and nothing is exposed by accident.** Surfacing a domain error takes a
+`#[Throws]` declaration *and* a name; everything unrecognised is a 500. The category list is closed
+on purpose — it is what the server needs to run, not an extension point.
+
+**Runtime and codegen read the same attributes.** `ErrorPresenter` and the TypeScript error union
+consult one source, so the generated union cannot describe responses the server does not produce.
+
+**Codegen is a build step.** The client lives in your repo, nothing is published to npm, and
+`OutputDirectory` only ever touches files carrying its own marker — so it cannot delete or overwrite
+something you wrote. `verify()` runs the same rules without writing, which is your CI drift check.
+
+**No dishonest types.** Generation throws rather than emit a placeholder for something it cannot
+represent. That is also why the envelope names `__client` but types it `unknown`: the key is
+first-party, the schema belongs to whichever `Client` produced it, and claiming to know it would be
+a lie.
+
+**Directives ride the success branch only.** A handler that toasts `'Saved'` and then throws must not
+have the browser announce work that did not happen, so `RpcError` holds no client at all rather than
+leaving each transport to remember.
+
+**Property order is canonical.** Struct keys are sorted by name, so reordering a PHP property or a
+constructor parameter is not a change to the generated type. Enums travel as their **case names**,
+not their backing values, unless the class opts in by implementing `StringValueObject`.
+
+**Zero dependencies, no framework coupling.** Every integration point is an interface —
+`ServerAdapter`, `OperationKeyGenerator`, `OperationRegistry`, `Client`, and the generator contracts.
+Laravel is an adapter over those seams, not a requirement.
+
+One thing obfuscated operation keys are *not* is a security boundary: they keep your operation names
+out of the shipped bundle, and that is all. See [operation keys](docs/server.md#operation-keys).
+
+## Errors
+
+Every failure the client can see is one of six categories:
+
+| Code | `type` | When |
 |---|---|---|
-| `#[Query(namespace, name)]` | method | A read operation, served over GET. |
-| `#[Command(namespace, name)]` | method | A write operation, served over POST. |
-| `#[Middleware(class)]` | class, method, repeatable | Middleware to run around this operation. |
-| `#[Throws(ExceptionClass, as: ?string)]` | method, repeatable | Declares an exception the operation may throw, optionally naming it for the client. |
-| `#[ExposeAs(type)]` | exception class | The exception's own name, for every operation that declares it. |
-| `#[Optional]` | property, parameter | The field may be absent from input. |
-| `#[Castable(strategy)]` | class | A plain class may be built from input. |
-| `#[Brand(name)]` | class | Makes the generated TypeScript type opaque. |
-| `#[Named(name)]` | class | Exports the type once by name instead of inlining it. |
+| 422 | `INVALID_INPUT` | The input did not match its type |
+| 401 | `AUTHENTICATION_ERROR` | An exception you mapped as unauthenticated |
+| 403 | `AUTHORIZATION_ERROR` | An exception you mapped as unauthorized |
+| 404 | `NOT_FOUND` | Unknown operation, or an exception you mapped as not-found |
+| 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* gave a name |
+| 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
 
-`namespace` defaults to `global` and becomes the generated TypeScript module, so it has to be a
-usable file name: letters, digits, `-` and `_`. It accepts a `UnitEnum` as well as a string, so you
-can keep namespaces in an enum — note that a *backed* enum contributes its value and a pure enum its
-case name, so adding `: string` to an existing namespace enum changes every generated module and
-wire key. `name` defaults to the method name and is a string only.
+The table is in resolution order, and the first match wins. That order is why `DOMAIN_ERROR` sits
+second to last: an exception you have explicitly mapped onto a category stays in that category even
+when it is named for the client.
 
-Two operations of the same type resolving to the same `namespace.name` fail discovery. A query and a
-command *may* share one, but both land in the same generated module, so unless the naming rule tells
-them apart the code generator rejects them rather than emit two functions of the same name.
-
-`#[Brand]`, `#[Named]`, `#[Castable]` and `#[Optional]` are covered in
-[the type reference](docs/types.md).
-
-## Middleware
-
-A middleware wraps the operation. Implement `MiddlewareContract`:
-
-```php
-use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
-
-/**
- * @implements MiddlewareContract<mixed>
- */
-final class NameCheckingMiddleware implements MiddlewareContract
-{
-    #[Throws(InvalidNameException::class)]
-    public function handle(
-        mixed $input,
-        Closure $next,
-        mixed $context,
-        ResolveInfo $info,
-        Client $client,
-    ): RpcSuccess|RpcError
-    {
-        if (is_array($input) && ($input['name'] ?? null) === 'invalid') {
-            throw new InvalidNameException();
-        }
-
-        return $next($input);
-    }
-}
-```
-
-**`$next()` never throws.** A failure deeper in the pipeline is converted to an `RpcError` at the
-ring where it happened and handed back to you as `$next()`'s return value, so post-processing runs
-whether the operation succeeded or not.
-
-Attach it per operation or per class. `#[Middleware]` takes one class and is repeatable, so stack it:
+Exposing a domain error takes both a declaration and a name — `#[Throws]` on the operation, and
+either `as:` on that declaration or `#[ExposeAs]` on the exception class:
 
 ```php
 #[Command('users')]
-#[Middleware(AuthMiddleware::class)]
-#[Middleware(NameCheckingMiddleware::class)]
+#[Throws(InvalidNameException::class, as: 'invalid-name')]
 public function create(array $input): array { /* ... */ }
 ```
 
-or globally, for every operation on the server:
-
-```php
-new ServerConfiguration()->withMiddlewares(AuthMiddleware::class, LoggingMiddleware::class)
+```json
+{"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"type": "invalid-name"}}
 ```
 
-**Order is outermost first.** Global middleware wraps class-level `#[Middleware]`, which wraps
-method-level, and within each group they run in declaration order. The first one listed is the first
-to see the input and the last to see the result.
+Which categories an operation can produce is what the generated union says, and it says nothing else:
 
-`#[Throws]` on a middleware's `handle()` contributes to the error union of every operation it wraps —
-globally configured or attached with `#[Middleware]`, both count — so the generated TypeScript knows
-about middleware failures too. It takes `as` like any other declaration, and when an operation and
-its middleware declare the same exception, the operation's name wins.
-
-### The rest of `ServerConfiguration`
-
-The same object carries the server's other settings, and is where all three are set.
-
-`withExceptions()` maps your exceptions onto the [error categories](#errors). Matching is
-`instanceof`, so listing a base class covers its subclasses, and an omitted category is left
-untouched:
-
-```php
-new ServerConfiguration()->withExceptions(
-    notFound: [EntityNotFoundException::class],
-    unauthenticated: [NotLoggedInException::class],
-    unauthorized: [ForbiddenException::class],
-)
+```typescript
+export type CreateError =
+    {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}
+  | {code: 404, type: "NOT_FOUND"}
+  | {code: 500, type: "INTERNAL_ERROR"};
 ```
 
-Without this, nothing produces a 401, 403 or 404 except an unknown operation — every other
-exception is a 500.
+`details` appears only where the category cannot say everything on its own — `INVALID_INPUT` carries
+`fields`, `DOMAIN_ERROR` carries `type` — and is absent everywhere else, which is exactly what the
+generated branches declare.
 
-`coerceQueryInput` (default `false`) applies to **queries only**, and exists because a URL carries no
-types. The generated client JSON-encodes each query value, so a transport that decodes it again
-receives `?id=1` as the integer `1` and has nothing to coerce. Turn this on when requests reach you
-from somewhere that does not round-trip — a hand-written URL, a form, a transport of your own — and
-leaf primitives are coerced to the declared type before validation instead of failing it:
-
-```php
-new ServerConfiguration(coerceQueryInput: true)
-```
-
-Because it applies to queries only, the same input shape validates differently depending on whether
-it is reached through `#[Query]` or `#[Command]`. Coercion never invents a value: only scalars are
-cast, and anything else is left for the schema to reject.
+**[→ Errors](docs/errors.md)** — the full mechanics, `InvalidInputException::createFromMessages()`
+for your own validation, and the exception hierarchy this library throws at build time.
 
 ## Types
 
@@ -423,488 +373,21 @@ the generated type.
 
 **An enum travels as its case names, not its backing values.** `MyEnum` emits `("OPEN"|"SHIPPED")`
 even when it is `enum MyEnum: string { case OPEN = 'open'; }`. A backed enum that should travel as
-its backing value opts in by implementing `StringValueObject` — see
-[value objects](docs/types.md#value-objects).
+its backing value opts in by implementing `StringValueObject`.
 
 Local and imported types work too: `@phpstan-type` and `@phpstan-import-type` are resolved against
 the declaring class, as are `use` statements and generics.
 
-### Not supported
-
-The parser understands a subset of PHPStan, not all of it. These are valid PHPStan that it rejects,
-with an `InvalidSyntaxException` when the schema is parsed:
-
-`class-string` · `key-of<T>` · `value-of<T>` · `int-mask` · `int-mask-of` · `callable(…)` ·
-`Closure(…): T` · `iterable` · `array{foo: int, ...}` (unsealed) · `array{}` ·
-`($x is int ? A : B)` · `Foo<T = int>` · `$this` · `static` · `self` ·
-bare `array` / `list` / `non-empty-array` (without generics)
-
-Two traps worth knowing up front. Bare `object` is not an alias for `unknown` — it is a syntax
-error; write `object{…}` with the shape. And bare `array` is not `Array<unknown>`: PHPStan reads it
-as `array<mixed, mixed>`, which permits string keys, so there is no one TypeScript type it means.
-Write `list<T>`, `array<int, T>` or `array<string, T>`.
+**Not everything.** The parser understands a subset of PHPStan, and rejects the rest with an
+`InvalidSyntaxException` when the schema is parsed — `class-string`, `key-of<T>`, `callable(…)`,
+unsealed `array{foo: int, ...}`, conditional types and more. Two traps worth knowing up front: bare
+`object` is a syntax error, not an alias for `unknown` (write `object{…}` with the shape), and bare
+`array` is not `Array<unknown>` — PHPStan reads it as `array<mixed, mixed>`, which permits string
+keys, so write `list<T>`, `array<int, T>` or `array<string, T>`.
 
 **[→ Full type reference](docs/types.md)** — refinements, utility types (`Pick`, `Omit`,
 `BrandedString`, `DateTimeString`), value objects, `#[Castable]`, brands and named types, and the
 [full list of what is not supported](docs/types.md#not-supported).
-
-## Errors
-
-Every failure the client can see is one of six categories:
-
-| Code | `type` | When |
-|---|---|---|
-| 422 | `INVALID_INPUT` | The input did not match its type |
-| 401 | `AUTHENTICATION_ERROR` | An exception you mapped as unauthenticated |
-| 403 | `AUTHORIZATION_ERROR` | An exception you mapped as unauthorized |
-| 404 | `NOT_FOUND` | Unknown operation, or an exception you mapped as not-found |
-| 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* gave a name |
-| 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
-
-The table is in resolution order, and the first match wins. That order is why `DOMAIN_ERROR` sits
-second to last: an exception you have explicitly mapped onto a category stays in that category even
-when it is named for the client. Anything unrecognised is a 500 — an exception is never exposed by
-accident.
-
-**Exposing a domain error takes a declaration and a name.** The operation declares that it can
-throw the exception, and something gives that exception a name the client sees. The exception can
-carry its own:
-
-```php
-#[ExposeAs('invalid_name')]
-final class InvalidNameException extends Exception {}
-
-#[Command('users')]
-#[Throws(InvalidNameException::class)]
-public function create(array $input): array { /* ... */ }
-```
-
-```json
-{"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"type": "invalid_name"}}
-```
-
-Or the declaration can name it on the spot with `as`, which needs no `#[ExposeAs]` at all — the
-point being that the exception does not have to be yours to annotate:
-
-```php
-#[Command('users')]
-#[Throws(InvalidNameException::class, as: 'invalid-name')]
-public function create(array $input): array { /* ... */ }
-```
-
-`as` always wins over `#[ExposeAs]`, so the same exception can read differently per operation. What
-`as` does not do is skip the declaration: an exception no operation declares with `#[Throws]` is
-still a 500, and so is one that is declared but named nowhere.
-
-Because both the runtime and the code generator read those attributes from the same place, the
-generated error union cannot drift from the responses it describes. An operation that declares
-nothing gets:
-
-```typescript
-export type CreateError =
-    {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}
-  | {code: 404, type: "NOT_FOUND"}
-  | {code: 500, type: "INTERNAL_ERROR"};
-```
-
-The 401 and 403 branches appear only once you have actually mapped exceptions onto them, so the
-union describes what this server can really produce.
-
-**`details` only appears where the category cannot say everything on its own**, which is exactly two
-of the six: `INVALID_INPUT` carries `fields`, and `DOMAIN_ERROR` carries the `type` naming which
-domain error it is. For the other four, `code` and `type` are the whole answer and restating it
-under `details` would put the same string on the wire twice, so the key is absent — and the
-generated branch has no such property, so narrowing on `type` will not offer you one.
-
-Validation failures carry `fields`, keyed by dotted path (`__root` for the top level) with
-localization keys as values, e.g. `{"email": ["validation.not_empty_string"]}`.
-
-**Your own validation can ride the same wire.** This library proves types and refuses to grow into a
-validator, but the 422 shape is a perfectly good transport for the rules it will not check for you:
-`InvalidInputException::createFromMessages(['email' => ['Already taken']])` produces one from any
-field-to-message map. Throw it from a handler or a middleware and the client reads it exactly like a
-type failure.
-
-## Serving operations over HTTP
-
-The server runs an operation; turning that into an HTTP response is yours to write. Two routes are
-enough — one GET for queries, one POST for commands — and both must carry the operation key.
-
-```php
-use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
-use Le0daniel\PhpTsBindings\Server\Client\NullClient;
-use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
-use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
-use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
-use Le0daniel\PhpTsBindings\Server\Server;
-
-$server = new Server(
-    EagerlyLoadedOperationRegistry::eagerlyDiscover(
-        __DIR__ . '/src/Operations',
-        keyGenerator: new PlainlyExposedKeyGenerator(),
-    ),
-    adapter: new PsrContainerAdapter($psrContainer),
-    configuration: new ServerConfiguration()
-        ->withMiddlewares(AuthMiddleware::class)
-        ->withExceptions(
-            notFound: [EntityNotFoundException::class],
-            unauthenticated: [NotLoggedInException::class],
-        ),
-);
-
-$result = $server->command('users.create', $input, $myContext, new NullClient());
-
-// jsonSerialize() is the envelope the generated client reads, and the only thing that gets it
-// exactly right: `details` is omitted rather than sent as null on the categories that have none,
-// which is what the generated union declares.
-respondJson($result->statusCode, $result->jsonSerialize());
-```
-
-`$result->statusCode` is the HTTP code for both outcomes — 200 on success, and the error category's
-own code otherwise. `ErrorType` doubles as that code, so `$result->type->value` is the same number
-and `$result->type->name` the string the client matches on: the two cannot disagree.
-
-`$result->cause` is the most recent `Throwable` on every error, ready to hand to your reporter, and
-`$result->previous` is a list of everything that failed before it, oldest first. It is empty on an
-ordinary error. On the rare occasion that working out how to present an error *itself* failed — a
-stale middleware class name, say — that second exception is the `cause`, and the one your
-application threw is in `previous`. `$result->throwableChain()` gives you all of them in order, which
-is what you want to loop over when reporting:
-
-```php
-foreach ($result->throwableChain() as $throwable) {
-    $reporter->report($throwable);
-}
-```
-
-Whatever your transport does with the input, the shape it hands the server has to match what the
-generated client sends: for queries, each value JSON-encoded into its own query parameter; for
-commands, a JSON body. Decoding query values back is what lets you leave
-[`coerceQueryInput`](#the-rest-of-serverconfiguration) off.
-
-To emit client directives, pass an `OperationSPAClient` instead of a `NullClient`. There is nothing
-else to do: the success carries the client, so `jsonSerialize()` asks it for its payload and puts it
-under `__client` for you.
-
-```php
-$result = $server->command('users.create', $input, $myContext, new OperationSPAClient());
-
-respondJson($result->statusCode, $result->jsonSerialize());
-```
-
-**Directives ride the success branch only.** A failure carries none, even for the directives that
-were queued before it — a handler that toasts `'Saved'` and then throws must not have the browser
-announce work that did not happen. That is why `RpcError` holds no client at all, rather than
-leaving it to each transport to remember.
-
-## The generated TypeScript client
-
-`TypescriptServerCodeGenerator` writes a self-contained client, and `OutputDirectory::write()` puts
-it on disk. Nothing is published to npm; the code lives in your repo.
-
-```
-<directory>/
-  lib/types.ts             Success/Failure/Result, Brand, every #[Named] alias
-  lib/OperationClient.ts   the transport interface
-  lib/DefaultClient.ts     a fetch implementation of it
-  lib/OperationException.ts
-  lib/bindings.ts          createDefaultClient, setClient, executeOperation
-  lib/utils.ts             queryKey, throwOnFailure
-  lib/client-operations-spa.ts   the OperationSPAClient payload and its guard
-  <namespace>.ts           one module per namespace, one function per operation
-```
-
-That is what the five default generators produce. The [optional ones](#optional-generators) add to
-it: `EmitTypeMap` writes one more file, the other two write into the `<namespace>.ts` modules that
-are already there.
-
-Every generated file opens with `// generated by: php-ts-bindings`. That marker is what
-`OutputDirectory` uses to tell its own output from anything else in the directory: it removes only
-files carrying it, and refuses to overwrite one that does not.
-`OutputDirectory::verify()` applies the same rules without writing — it returns one message per
-problem, and an empty list means the directory is up to date. Run it in CI to catch a frontend that
-has drifted from the backend.
-
-The envelope every call resolves to:
-
-```typescript
-export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
-export type Failure<E extends {code: number}> = {success: false, __metadata?: Record<string, unknown>} & E;
-export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
-```
-
-That is the whole envelope, and both extra keys are the library's own — `jsonSerialize()` writes
-them, so the generated types name them rather than leaving you to discover them on the wire. Each is
-optional, because the key is left off entirely when there is nothing to say.
-
-They differ in how much they can honestly claim. `__metadata` is `Record<string, unknown>` on both
-branches: whatever a middleware attached, always a string-keyed bag, serialized the same way on
-either outcome. `__client` is `unknown` and success-only — the *key* is first-party, but its shape
-belongs to whichever [`Client`](#client-directives) produced it, and a failure carries no directives
-at all. Naming it without describing it is the honest half: you know to look there, and the guard
-that shipped with your client is what makes it typed.
-
-Wire it up once:
-
-```typescript
-import {createDefaultClient, setClient} from './operations/lib/bindings';
-
-setClient(createDefaultClient());
-setClient(createDefaultClient(fetch, {baseUrl: 'https://api.example.com', timeoutMs: 5_000}));
-```
-
-`setClient()` sets one module-global client, so it has to run before the first call — otherwise you
-get `Error('No client set')` at whichever call site happened to be first.
-
-Every generated function takes an optional second argument:
-
-```typescript
-export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client?: OperationClient};
-```
-
-`DefaultClient` sends queries as GET with each input value JSON-encoded into a query parameter, and
-commands as POST with a JSON body. `signal` and `timeoutMs` are joined into one `AbortSignal`, and a
-per-call `timeoutMs` overrides the client's default (10s unless you set one). `registerHook(hook)`
-runs a callback on every response and returns a function that unregisters it. Swap the whole
-transport by implementing `OperationClient` — `setClient()` and the per-call `options.client` both
-take one.
-
-`throwOnFailure(result)`, from `lib/utils.ts`, narrows a `Result` to its success branch and throws an
-`OperationException` otherwise, for call sites that would rather not branch. A `catch` variable is
-`unknown` in TypeScript whatever was thrown, so name the operation's error union at the guard to get
-it back:
-
-```typescript
-try {
-    const result = await get({id: userId});
-    throwOnFailure(result);
-    return result.data;
-} catch (e) {
-    if (OperationException.is<GetError>(e)) {
-        e.cause.type;   // "INVALID_INPUT" | "NOT_FOUND" | ...
-        e.code;         // the HTTP code, 500 if the payload had none
-    }
-    throw e;
-}
-```
-
-### Optional generators
-
-The generator list you hand `TypescriptServerCodeGenerator` *is* the configuration — there is no
-separate switch. Eight ship:
-
-| Generator | In the quickstart | Emits |
-|---|---|---|
-| `EmitTypes` | yes | `lib/types.ts` — the envelope, `Brand`, every `#[Named]` alias |
-| `EmitOperationClientBindings` | yes | `lib/bindings.ts`, `lib/OperationClient.ts`, `lib/DefaultClient.ts`, `lib/OperationException.ts` |
-| `EmitTypeUtils` | yes | `lib/utils.ts` — `queryKey` and `throwOnFailure` |
-| `EmitOperationsSpaClient` | yes | `lib/client-operations-spa.ts` — the `OperationSPAClient` payload and `containsOperationSpaPayload()` |
-| `EmitOperations` | yes | one `<namespace>.ts` module per namespace |
-| `EmitTanstackQuery` | no | `<name>QueryOptions()` and `use<Name>Query()` for `@tanstack/react-query` |
-| `EmitQueryKey` | no | standalone query keys |
-| `EmitTypeMap` | no | `lib/type-map.ts` — a `TypeMap` of every operation's input, output and error types, split into `{query: …, command: …}` and keyed by `namespace.name` |
-
-`EmitTanstackQuery` and `EmitQueryKey` emit **only for queries**, since a command has nothing to
-cache.
-
-`new EmitOperations($closure)` takes a `Closure(TypedOperation): string` that names the generated
-functions; the default is the operation's bare name. `generate()` takes a third argument, a list of
-namespaces (or `namespace.name` operations) to skip.
-
-Write your own by implementing `GeneratesLibFiles` (gets every operation, writes shared lib files) or
-`GeneratesOperationCode` (gets one operation, writes its code), and adding it to the list.
-
-Add `DependsOn` to declare the generators yours needs: the run fails early if one is missing, and
-hands you the resolved instances through `setDependencies()`. That is how to reference what another
-generator emitted — ask `EmitOperations` for `inputTypeName($operation)` rather than rebuilding the
-name and hoping it matches, and ask `EmitTypes` for `importFromTypes(types: ['Order'])` rather than
-writing the module specifier yourself. Because those methods are not static, an import can only ever
-name a file a registered generator actually writes.
-
-Hand your imports to `TypescriptFile` instead of writing `import` lines into the code: only then are
-they merged with what the other generators contribute to the same file, and only then is the path
-resolved for a file that lands in `lib/`.
-
-A few contracts worth knowing when writing one:
-
-- A `GeneratesLibFiles` key is a bare module name — `[a-zA-Z0-9_-]+`, no `.ts` — and always lands in
-  `lib/`. Several generators may return the same key; their output accumulates rather than
-  overwriting.
-- `TypedOperation::$hasInput` is false when the operation's input type is `null` — the
-  [no-input form](#core-concepts). Every generator that emits a signature has to drop the argument
-  in that case.
-- Return `null` from `generateOperationCode()` to emit nothing for an operation.
-
-## Client directives
-
-Optional, and unrelated to type safety: the `Client` passed to every handler is a side channel for
-telling a single-page app what to do alongside the data.
-
-```php
-public function create(array $input, mixed $context, Client $client): array
-{
-    $client->success('Saved');
-    $client->redirect('/docs/123', reload: true);
-    $client->invalidate('users', '123');
-
-    return ['id' => '123'];
-}
-```
-
-This is the one place the library ships a specific implementation of an extension point rather than
-a contract. `OperationSPAClient` is meant to be picked when the request carries
-`X-Client-Id: operations-spa` — exactly that header, exactly that value — and any other request gets
-a `NullClient` whose every method is a no-op, so handlers never need to know which kind is on the
-other end, and nothing warns when a directive goes nowhere. Choosing between them is the transport's
-job; the core never inspects a request.
-
-Under `operations-spa` those calls land in a `__client` key next to the data, on a **successful**
-response:
-
-```json
-{
-  "success": true,
-  "data": {"id": "123"},
-  "__client": {
-    "redirect": {"url": "/docs/123", "reload": true},
-    "toasts": [{"type": "success", "message": "Saved"}],
-    "invalidations": [["users", "123"]],
-    "type": "operations-spa"
-  }
-}
-```
-
-The full interface is `redirect()`, `invalidate()`, `toast()`, and one shorthand per toast type —
-`success()`, `error()`, `warning()`, `alert()` and `info()`. Keys are only present when something
-called for them. `RpcSuccess::jsonSerialize()` puts the payload on the response by asking the client
-for it — `SerializableClient::serializeToArray()` — so a transport that serializes the result gets
-this for free, and one that builds its own body calls the same method.
-
-**A failure carries no directives**, including the ones queued before it: a toast for work that was
-rolled back is worse than no toast, so `RpcError` holds no client and there is nothing to serialize.
-Tell the user about a failure from the error branch the generated union already gives you.
-
-**The envelope names `__client` but declares it `unknown`, on purpose.** The key is the library's —
-`RpcSuccess::jsonSerialize()` writes it, so `lib/types.ts` says it may be there. The *shape* is not:
-`Client` is an extension point, and your own implementation may define an entirely different set of
-directives under a different schema, so neither `lib/types.ts` nor the transport interface commits to
-one it cannot know. The payload travels through `DefaultClient` untouched; what is withheld is only
-the claim about what it is.
-
-`OperationSPAClient` is the subset this library deems useful and ships, and it gets its own file.
-`lib/client-operations-spa.ts` declares `OperationsClientPayload` — the same schema
-`serializeToArray()` emits — and one guard that puts it on a result:
-
-```typescript
-import {containsOperationSpaPayload} from './operations/lib/client-operations-spa';
-
-const result = await create({name: 'Leo'});
-
-if (containsOperationSpaPayload(result)) {
-    for (const toast of result.__client.toasts ?? []) { … }   // ClientToast, fully typed
-    result.__client.redirect?.url;
-}
-```
-
-The check is the discriminator alone. The payload is assembled in one pass, so a server that wrote
-`type: "operations-spa"` wrote the rest of it to the same schema, and unknown keys are ignored either
-way — adding a directive stays backwards compatible.
-
-The file is emitted by `EmitOperationsSpaClient`, on by default. Drop it with
-`--without operations-spa` and nothing else changes; write your own guard against your own
-directives, which is the same "no dishonest types" rule that makes the generator throw rather than
-emit a placeholder.
-
-## Preloading a query
-
-`Preloader` runs a query server-side during the request that renders the page, so the data is in the
-page instead of being fetched after it loads. It takes the `Server` and an `OperationKeyGenerator` —
-which has to be the one the server's registry uses, or the key it derives names no operation and
-every preload throws:
-
-```php
-use Le0daniel\PhpTsBindings\Server\Preloader;
-
-$preloader = new Preloader($server, $keyGenerator);
-
-$users = $preloader->preload('users', 'get', ['id' => 1], $context);
-```
-
-You get back `['response' => …, 'queryKey' => ['users', 'get', ['id' => 1]]]`. The key is built the
-same way `EmitQueryKey` and `EmitTanstackQuery` build it, so a TanStack cache seeded with that pair
-will not refetch. The input is part of the key whenever the operation has one, even when the value is
-`null`; an operation whose input type *is* `null` gets a two-element key.
-
-`preloadMany()` takes several at once, as
-`[['namespace' => …, 'name' => …, 'input' => …], …]`. A query that fails throws a `SchemaException` —
-this is your own code calling your own operation, not untrusted input.
-
-## Production
-
-Reflecting and parsing every schema on every request is real overhead. `CachedOperationRegistry` is
-the compiled form of a registry: every schema pre-parsed, deduplicated and pooled — shared structs
-emitted once and referenced, and unions reordered for faster dispatch. Compile it once, at deploy
-time, and load it instead of discovering.
-
-A cache that no longer matches the code asking it fails loudly, at runtime, with an
-`UnknownTypeKeyException` — recompile it, or drop it and fall back to discovery.
-
-> Operation keys are derived from the key generator, so changing it — including upgrading a version
-> that changed how keys are derived — invalidates both the cache and the generated client.
-> Recompile and regenerate together.
-
-The same optimizer is available directly, for schemas that are not operations:
-
-```php
-use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
-use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
-
-new ASTOptimizer()->optimizeAndWriteToFile('asts.php', [
-    'MyClass@method@input' => $inputAst,
-    'MyClass@method@output' => $outputAst,
-]);
-
-/** @var CachedTypeRegistry $registry */
-$registry = require 'asts.php';
-$ast = $registry->get('MyClass@method@input');
-```
-
-Keys are interned as truncated hashes; `new ASTOptimizer(idLength: 12)` widens them if a run ever
-reports a collision, which it does by throwing rather than by merging two schemas.
-
-## Extension points and exceptions
-
-The interfaces meant to be implemented by you:
-
-| Contract | For |
-|---|---|
-| `MiddlewareContract` | Wrapping an operation. |
-| `ServerAdapter` | Constructing handlers and middleware — the DI seam. |
-| `OperationKeyGenerator` | Turning `namespace` + `name` into the key the client calls. |
-| `OperationRegistry` | Holding operations, if neither shipped registry fits. |
-| `Client` / `SerializableClient` | Your own side channel and its wire payload. |
-| `StringValueObject` / `IntValueObject` | A class that travels as one primitive. |
-| `GeneratesLibFiles` / `GeneratesOperationCode` / `DependsOn` | Adding to the generated client. |
-
-Two more knobs on discovery: `new OperationDiscovery($filterFn)` takes a closure returning `false` to
-keep an operation out of the registry, and `EagerlyLoadedOperationRegistry::withClasses([...])`
-registers a list of classes instead of scanning directories.
-
-The lower-level `TypeParser`, `SchemaExecutor` and `TypescriptGenerator` are public too, if you want
-to parse and emit types without the RPC layer at all — see [the type reference](docs/types.md).
-
-**Exceptions.** Everything this library throws implements `PhpTsBindingsException`, so one `catch`
-covers all of it. Below that are three subsystem bases:
-
-| Exception | Thrown when |
-|---|---|
-| `ParserException` | A schema cannot be built — includes `InvalidSyntaxException` (the type is not in the supported subset), `UnexpectedCharacterException` (it does not lex) and `UnknownTypeKeyException` (the optimized cache no longer matches the code). |
-| `SchemaException` | An operation is malformed — a name or key collision, a bad handler signature, a class that is not middleware. `InvalidInputException`, `InvalidOutputException` and `OperationNotFoundException` extend it and reach you as `RpcError::$cause`. |
-| `CodeGenException` | Generation cannot produce valid output — includes `UnsupportedTypeException` (no honest TypeScript for a schema), `InvalidStringLiteralException` (a brand or alias is not an identifier) and `InvalidGeneratorDependencies` (whose `$messages` names each missing generator). |
-
-Nothing is thrown out of `Server::query()` or `Server::command()` — both are total, and every
-`Throwable` comes back as an `RpcError`. The exceptions above surface at discovery, at parse time or
-during code generation instead, which is to say: at build time, not at request time.
 
 ## Contributing
 

@@ -4,8 +4,9 @@ A first-party adapter for [php-ts-bindings](../README.md). It is optional: the l
 nothing but PHP 8.5, and everything Laravel-aware lives under `src/Adapters/Laravel/`.
 
 This document covers what the adapter *adds* and what it *decides on your behalf*. For what an
-operation is, how middleware works, what the error categories mean and what the generated client
-looks like, see the [README](../README.md).
+operation is see [operations](operations.md), for what the error categories mean see
+[errors](errors.md), and for what the generated client looks like see
+[the TypeScript client](typescript-client.md).
 
 - [Setup](#setup)
 - [Configuration](#configuration)
@@ -132,7 +133,7 @@ Everything the provider and the HTTP controller pick without asking.
   `key.mode` to `plain` if you would rather read your own URLs.
 - **`coerceQueryInput` stays `false` and is not configurable.** It does not need to be: the transport
   JSON-decodes every query parameter, so values arrive already typed. See
-  [`ServerConfiguration`](../README.md#the-rest-of-serverconfiguration) for what the flag does.
+  [`ServerConfiguration`](operations.md#serverconfiguration) for what the flag does.
 - **Discovery scans `discovery_path` recursively**, reflecting every declared class, and assumes one
   class per file. If the config key is missing entirely the provider falls back to `[]` — an empty
   registry, not an error.
@@ -153,7 +154,7 @@ Everything the provider and the HTTP controller pick without asking.
   yields an empty array, which becomes a `null` input and almost certainly a 422.
 - Empty input of either kind becomes `null`.
 - **`X-Client-Id: operations-spa`** — exactly that value — selects `OperationSPAClient`. Every other
-  request gets a `NullClient`, and [client directives](../README.md#client-directives) go nowhere
+  request gets a `NullClient`, and [client directives](client-directives.md) go nowhere
   without warning. The generated client sends the header on every call.
 
 ### Responses
@@ -175,7 +176,7 @@ Everything the provider and the HTTP controller pick without asking.
   not `{"message": …, "errors": …}`. `Illuminate\Validation\ValidationException` is **not** mapped by
   default, so a `$request->validate()` inside a handler lands in a 500. Map it onto a category
   yourself, or throw
-  [`InvalidInputException::createFromMessages()`](../README.md#errors) instead.
+  [`InvalidInputException::createFromMessages()`](errors.md#your-own-validation) instead.
 
 ### CSRF and cookies
 
@@ -222,7 +223,7 @@ php artisan operations:codegen resources/js/operations --with=tanstack-query,que
 | `--verify` | Check for drift instead of writing, exiting 1 on any difference. Use it in CI. |
 
 The names accepted by `--with` and `--without` map onto the
-[generators](../README.md#optional-generators):
+[generators](typescript-client.md#generators):
 
 | Name | Generator | Default |
 |---|---|---|
@@ -287,11 +288,11 @@ A cache that no longer matches the code asking it fails loudly, at runtime, with
 > upgrading a version that changed how they are derived — invalidates both the cache and the
 > generated client. Run `operations:optimize` and `operations:codegen` together.
 
-See [Production](../README.md#production) for the optimizer underneath, which is usable on its own.
+See [Production](server.md#production) for the optimizer underneath, which is usable on its own.
 
 ## Preloading
 
-[`Preloader`](../README.md#preloading-a-query) is registered as a container singleton, built with the
+[`Preloader`](server.md#preloading-a-query) is registered as a container singleton, built with the
 same key generator as the registry, so injecting it is all that is needed:
 
 ```php
