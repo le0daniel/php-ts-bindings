@@ -19,10 +19,11 @@ use Override;
 final readonly class UnionHandler implements Handler
 {
 
-    /** @param UnionNode<NodeInterface> $node */
     #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
+        /** @var UnionNode<NodeInterface> $node */
+
         // Quick check for nullability.
         if ($value === null && $node->acceptsNull()) {
             return null;
@@ -68,10 +69,11 @@ final readonly class UnionHandler implements Handler
         return Value::INVALID;
     }
 
-    /** @param UnionNode<NodeInterface> $node */
     #[Override]
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
+        assert($node instanceof UnionNode);
+
         if ($value === null && $node->acceptsNull()) {
             return null;
         }

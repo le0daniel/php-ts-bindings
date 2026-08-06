@@ -99,9 +99,10 @@ final readonly class Regexes
     private static function lines(string $docBlock): array
     {
         $withoutDelimiters = preg_replace('#^\s*/\*\*?|\*/\s*$#', '', $docBlock) ?? $docBlock;
+        $lines = preg_split('/\R/', $withoutDelimiters);
         return array_map(
             static fn(string $line): string => trim(preg_replace('/^\s*\*/', '', $line) ?? $line),
-            preg_split('/\R/', $withoutDelimiters) ?: [$withoutDelimiters],
+            $lines === false ? [$withoutDelimiters] : $lines,
         );
     }
 
