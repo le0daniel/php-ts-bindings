@@ -63,22 +63,22 @@ An enum with no cases has no TypeScript representation and fails generation.
 Some PHPStan types narrow a PHP type further than PHP itself can express: `positive-int` is an
 `int` to PHP, `non-empty-list<T>` is an `array`. Those refinements are checked at runtime.
 
-| PHPStan type | PHP type | Checked |
-| --- | --- | --- |
+| PHPStan type | PHP type | Checked on Input                               |
+| --- | --- |------------------------------------------------|
 | `int<min, max>` | `int` | inclusive bounds; `min` / `max` mean unbounded |
-| `positive-int` | `int` | `>= 1` |
-| `non-negative-int` | `int` | `>= 0` |
-| `negative-int` | `int` | `<= -1` |
-| `non-positive-int` | `int` | `<= 0` |
-| `non-empty-string` | `string` | `!== ''` — note `"0"` is valid |
-| `non-falsy-string`, `truthy-string` | `string` | truthy — `"0"` is not |
-| `numeric-string` | `string` | `is_numeric()` |
-| `lowercase-string` | `string` | `strtolower($v) === $v` |
-| `uppercase-string` | `string` | `strtoupper($v) === $v` |
-| `non-empty-lowercase-string` | `string` | both of the above |
-| `non-empty-uppercase-string` | `string` | both of the above |
-| `non-empty-list<T>` | `array` | at least one element |
-| `non-empty-array<K, V>` | `array` | at least one element |
+| `positive-int` | `int` | `>= 1`                                         |
+| `non-negative-int` | `int` | `>= 0`                                         |
+| `negative-int` | `int` | `<= -1`                                        |
+| `non-positive-int` | `int` | `<= 0`                                         |
+| `non-empty-string` | `string` | `!== ''` — note `"0"` is valid                 |
+| `non-falsy-string`, `truthy-string` | `string` | truthy — `"0"` is not                          |
+| `numeric-string` | `string` | `is_numeric()`                                 |
+| `lowercase-string` | `string` | `strtolower($v) === $v`                        |
+| `uppercase-string` | `string` | `strtoupper($v) === $v`                        |
+| `non-empty-lowercase-string` | `string` | both of the above                              |
+| `non-empty-uppercase-string` | `string` | both of the above                              |
+| `non-empty-list<T>` | `array` | at least one element                           |
+| `non-empty-array<K, V>` | `array` | at least one element                           |
 
 A refinement disappears in TypeScript — `positive-int` is `number` — because TypeScript cannot
 express it either. It is enforced on the server.

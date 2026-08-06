@@ -120,16 +120,16 @@ The generator list you hand `TypescriptServerCodeGenerator` *is* the configurati
 default set. Eight ship, and the "default" column below is what
 [`php artisan operations:codegen`](laravel.md#operationscodegen) turns on when you pass it no flags:
 
-| Generator | Default | Emits |
-|---|---|---|
-| `EmitTypes` | on | `lib/types.ts` — the envelope, `Brand`, every `#[Named]` alias |
-| `EmitOperationClientBindings` | on | `lib/bindings.ts`, `lib/OperationClient.ts`, `lib/DefaultClient.ts`, `lib/OperationException.ts` |
-| `EmitTypeUtils` | on | `lib/utils.ts` — `queryKey` and `throwOnFailure` |
-| `EmitOperationsSpaClient` | on | `lib/client-operations-spa.ts` — the `OperationSPAClient` payload and `containsOperationSpaPayload()` |
-| `EmitOperations` | on | one `<namespace>.ts` module per namespace |
-| `EmitTanstackQuery` | off | `<name>QueryOptions()` and `use<Name>Query()` for `@tanstack/react-query` |
-| `EmitQueryKey` | off | standalone query keys |
-| `EmitTypeMap` | off | `lib/type-map.ts` — a `TypeMap` of every operation's input, output and error types, split into `{query: …, command: …}` and keyed by `namespace.name` |
+| Generator | Laravel Default | Emits |
+|---|-----------------|---|
+| `EmitTypes` | on              | `lib/types.ts` — the envelope, `Brand`, every `#[Named]` alias |
+| `EmitOperationClientBindings` | on              | `lib/bindings.ts`, `lib/OperationClient.ts`, `lib/DefaultClient.ts`, `lib/OperationException.ts` |
+| `EmitTypeUtils` | on              | `lib/utils.ts` — `queryKey` and `throwOnFailure` |
+| `EmitOperationsSpaClient` | on              | `lib/client-operations-spa.ts` — the `OperationSPAClient` payload and `containsOperationSpaPayload()` |
+| `EmitOperations` | on              | one `<namespace>.ts` module per namespace |
+| `EmitTanstackQuery` | off             | `<name>QueryOptions()` and `use<Name>Query()` for `@tanstack/react-query` |
+| `EmitQueryKey` | off             | standalone query keys |
+| `EmitTypeMap` | off             | `lib/type-map.ts` — a `TypeMap` of every operation's input, output and error types, split into `{query: …, command: …}` and keyed by `namespace.name` |
 
 `EmitTanstackQuery` and `EmitQueryKey` emit **only for queries**, since a command has nothing to
 cache.
