@@ -102,11 +102,12 @@ final readonly class CodeGenerators
         $generators = [];
 
         foreach (self::DEFAULT_GENERATORS as $name => ['class' => $classString, 'defaultEnabled' => $defaultEnabled]) {
-            if ($defaultEnabled && in_array($name, $without, true)) {
-                continue;
-            }
+            // Asking for a generator always wins: a name in both lists turns it on, so a caller
+            // building on top of someone else's $without never has to unpick it first.
+            $isEnabled = in_array($name, $with, true)
+                || ($defaultEnabled && !in_array($name, $without, true));
 
-            if (!$defaultEnabled && !in_array($name, $with, true)) {
+            if (!$isEnabled) {
                 continue;
             }
 

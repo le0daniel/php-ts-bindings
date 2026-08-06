@@ -121,11 +121,7 @@ plain `number` or `string` on the TypeScript side.
 build step, not something the server does at runtime.
 
 ```php
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\OutputDirectory;
@@ -140,16 +136,17 @@ $server = new Server(
     ),
 );
 
-$files = new TypescriptServerCodeGenerator([
-    new EmitTypes(),
-    new EmitOperationClientBindings(),
-    new EmitTypeUtils(),
-    new EmitOperationsSpaClient(),
-    new EmitOperations(),
-])->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
+$files = new TypescriptServerCodeGenerator(
+    CodeGenerators::fromDefaults('name'),
+)->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
 
 OutputDirectory::write(__DIR__ . '/resources/js/operations', $files);
 ```
+
+`CodeGenerators::fromDefaults()` builds the five generators that are on by default, and `'name'` is
+the rule that names the generated functions. `with:` and `without:` change the set — three more ship
+opt-in — and what it returns is a plain list, so you can append your own or skip the factory and pass
+your own array. See [the generators](docs/typescript-client.md#generators) for the whole menu.
 
 The two URLs are the routes *your* transport serves; `{fqn}` is where the operation key goes, and
 both are required to contain it.
@@ -281,6 +278,8 @@ consult one source, so the generated union cannot describe responses the server 
 **Codegen is a build step.** The client lives in your repo, nothing is published to npm, and
 `OutputDirectory` only ever touches files carrying its own marker — so it cannot delete or overwrite
 something you wrote. `verify()` runs the same rules without writing, which is your CI drift check.
+Which generators run is still your list; `CodeGenerators::fromDefaults()` is a factory over the same
+contracts that spares you writing out the sensible one.
 
 **No dishonest types.** Generation throws rather than emit a placeholder for something it cannot
 represent. That is also why the envelope names `__client` but types it `unknown`: the key is

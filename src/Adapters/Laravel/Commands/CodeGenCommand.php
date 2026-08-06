@@ -2,11 +2,11 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
+use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Routing\Router;
-use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Utils\ArtisanOptions;
@@ -22,7 +22,6 @@ use Le0daniel\PhpTsBindings\CodeGen\Utils\OutputDirectory;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Utils\Assertions;
-use function sprintf;
 
 final class CodeGenCommand extends Command
 {
@@ -41,14 +40,17 @@ Generate the typescript bindings for all operations
   Use --with=tanstack-query,... or --with=.* --with=.* to include a specific generators like tanstack-query operations.
   
   Following types are available:
-    - types (default: true) 
-    - bindings (default: true) 
-    - utils (default: true) 
-    - operations (default: true) 
+    - types (default: true)
+    - bindings (default: true)
+    - utils (default: true)
+    - operations-spa (default: true)
+    - operations (default: true)
     - type-map (default: false)
     - tanstack-query (default: false)
     - query-key (default: false)
-    
+
+  A name given to both --with and --without is turned on: --with wins.
+
   To provide custom generators, create a class that implements at least one of the following interfaces:
     - GeneratesLibFiles (gets all operations and can write multiple lib files)
     - GeneratesOperationCode (gets each operation as input and writes code for it)
@@ -180,12 +182,7 @@ DESCRIPTION;
 
         $namingGenerator = match($namingGeneratorName) {
             'fqn','operation-prefix','namespace-postfix','name' => CodeGenerators::namingGenerator($namingGeneratorName),
-            default => static function (TypedOperation $operation) use ($namingGeneratorName) {
-                if (!is_callable($namingGeneratorName)) {
-                    throw new InvalidArgumentException(sprintf('Expected callable, got %s', gettype($namingGeneratorName)));
-                }
-                return $namingGeneratorName($operation);
-            }
+            default => $this->customNamingGenerator($application, $namingGeneratorName),
         };
 
         $defaultGenerators = CodeGenerators::fromDefaults(
@@ -206,4 +203,28 @@ DESCRIPTION;
         ]);
     }
 
+    /**
+     * Anything that is not one of the built-in modes is read as Class::method naming your own rule.
+     * The class goes through the container and the method is called on the instance, despite the
+     * static-looking syntax, so a rule is free to depend on whatever the container can build.
+     *
+     * @return Closure(TypedOperation): string
+     * @throws BindingResolutionException
+     */
+    private function customNamingGenerator(Application $application, string $naming): Closure
+    {
+        $parts = explode('::', $naming, 2);
+
+        if (count($parts) === 2 && class_exists($parts[0]) && method_exists($parts[0], $parts[1])) {
+            $instance = $application->make($parts[0]);
+            return $instance->{$parts[1]}(...);
+        }
+
+        // Thrown here rather than from inside the closure: getGeneratorsFromInput() runs inside
+        // handle()'s try, so a typo ends the run with this message instead of a stack trace.
+        throw new CodeGenException(
+            "Unknown naming mode '{$naming}'. Use one of name, fqn, operation-prefix, "
+            . "namespace-postfix, or Class::method naming your own rule."
+        );
+    }
 }

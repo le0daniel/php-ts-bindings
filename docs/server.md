@@ -256,5 +256,8 @@ The interfaces meant to be implemented by you:
 | `StringValueObject` / `IntValueObject` | [A class that travels as one primitive](types.md#value-objects). |
 | `GeneratesLibFiles` / `GeneratesOperationCode` / `DependsOn` | [Adding to the generated client](typescript-client.md#writing-your-own-generator). |
 
+`CodeGenerators::fromDefaults()` builds the default generator set for you, and returns a plain list
+you can add yours to — see [the generators](typescript-client.md#generators).
+
 The lower-level `TypeParser`, `SchemaExecutor` and `TypescriptGenerator` are public too, if you want
 to parse and emit types without the RPC layer at all — see [the type reference](types.md).

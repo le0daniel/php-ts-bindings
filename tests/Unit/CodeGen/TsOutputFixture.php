@@ -2,14 +2,7 @@
 
 namespace Tests\Unit\CodeGen;
 
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeMap;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
@@ -24,7 +17,7 @@ use Tests\Unit\CodeGen\Mocks\TsOutput\ShapeOperations;
  * The one definition of what tests/ts-output/generated holds. The script that writes it and the
  * test that verifies it both come here, so neither can drift into checking something else.
  *
- * Every generator is registered, including the three that are opt-in on the artisan command: the
+ * Every generator is registered — the defaults plus the three the `with:` list opts into: the
  * fixture exists to hand the TypeScript compiler as much generated code as this library can emit.
  */
 final class TsOutputFixture
@@ -55,15 +48,8 @@ final class TsOutputFixture
             ),
         );
 
-        return new TypescriptServerCodeGenerator([
-            new EmitTypes(),
-            new EmitOperationClientBindings(),
-            new EmitTypeUtils(),
-            new EmitOperationsSpaClient(),
-            new EmitOperations(),
-            new EmitTypeMap(),
-            new EmitTanstackQuery(),
-            new EmitQueryKey(),
-        ])->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
+        return new TypescriptServerCodeGenerator(
+            CodeGenerators::fromDefaults('name', with: ['type-map', 'tanstack-query', 'query-key']),
+        )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
     }
 }

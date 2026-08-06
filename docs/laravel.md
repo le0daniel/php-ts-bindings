@@ -224,8 +224,9 @@ php artisan operations:codegen resources/js/operations --with=tanstack-query,que
 | `--naming=` | How the generated functions are named. Default `name`. |
 | `--verify` | Check for drift instead of writing, exiting 1 on any difference. Use it in CI. |
 
-The names accepted by `--with` and `--without` map onto the
-[generators](typescript-client.md#generators):
+The command is a pass-through to `CodeGenerators::fromDefaults()`, so its flags are the names and
+modes that class defines — see [the generators](typescript-client.md#generators) for what each one
+writes. The names accepted by `--with` and `--without`:
 
 | Name | Generator | Default |
 |---|---|---|
@@ -238,7 +239,8 @@ The names accepted by `--with` and `--without` map onto the
 | `tanstack-query` | `EmitTanstackQuery` | off |
 | `query-key` | `EmitQueryKey` | off |
 
-`--naming=` chooses how functions are named:
+`--naming=` chooses how functions are named. Every mode but the last is one
+`CodeGenerators::namingGenerator()` knows; `Class::method` is this command's own:
 
 | Mode | `#[Query('users', 'get')]` becomes |
 |---|---|
