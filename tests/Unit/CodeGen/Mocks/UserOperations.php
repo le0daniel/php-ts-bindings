@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks;
 
@@ -15,7 +17,7 @@ use Tests\Mocks\ValueObjects\UserId;
 final class UserOperations
 {
     /**
-     * @param array{id: UserId} $input
+     * @param  array{id: UserId}  $input
      * @return array{email: Email, slug: Slug}
      */
     #[Query('users')]
@@ -28,7 +30,7 @@ final class UserOperations
     }
 
     /**
-     * @param array{name: string} $input
+     * @param  array{name: string}  $input
      * @return array{id: UserId}
      */
     #[Command('users')]

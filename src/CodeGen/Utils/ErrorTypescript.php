@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Utils;
 
@@ -61,6 +63,7 @@ final readonly class ErrorTypescript
 
         return implode('|', array_map(static function (string $exposedType): string {
             $type = json_encode($exposedType, JSON_THROW_ON_ERROR);
+
             return "{type: {$type}}";
         }, $exposedTypes));
     }
@@ -73,6 +76,7 @@ final readonly class ErrorTypescript
     private static function branch(ErrorType $type, ?string $details = null): string
     {
         $name = json_encode($type->name, JSON_THROW_ON_ERROR);
+
         return $details === null
             ? "{code: {$type->value}, type: {$name}}"
             : "{code: {$type->value}, type: {$name}, details: {$details}}";

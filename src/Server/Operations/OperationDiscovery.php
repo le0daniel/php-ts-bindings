@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Operations;
 
@@ -20,12 +22,12 @@ final class OperationDiscovery
     private const string DEFAULT_NAMESPACE = 'global';
 
     /** @var array<string, Definition> */
-    private(set) array $operations = [];
+    public private(set) array $operations = [];
 
     /**
-     * @param Closure(ReflectionClass<object>, ReflectionMethod, Query|Command): bool|null $filterFn
+     * @param  Closure(ReflectionClass<object>, ReflectionMethod, Query|Command): bool|null  $filterFn
      */
-    public function __construct(private readonly Closure|null $filterFn = null)
+    public function __construct(private readonly ?Closure $filterFn = null)
     {
     }
 
@@ -33,7 +35,7 @@ final class OperationDiscovery
      * The extension point is the $filterFn closure, not a subclass - this class is final. Return
      * false from it to keep an operation out of the registry.
      *
-     * @param ReflectionClass<object> $class
+     * @param  ReflectionClass<object>  $class
      */
     private function filter(ReflectionClass $class, ReflectionMethod $method, Query|Command $attribute): bool
     {
@@ -58,7 +60,7 @@ final class OperationDiscovery
                     /** @var Query|Command $instance */
                     $instance = $attribute->newInstance();
 
-                    if (!$this->filter($class, $method, $instance)) {
+                    if (! $this->filter($class, $method, $instance)) {
                         continue;
                     }
 
@@ -85,7 +87,7 @@ final class OperationDiscovery
      * The first parameter also defines the entire published input contract, so getting it wrong
      * publishes a type the client can never satisfy rather than failing.
      *
-     * @param ReflectionClass<object> $class
+     * @param  ReflectionClass<object>  $class
      */
     private static function assertHandlerSignature(ReflectionClass $class, ReflectionMethod $method): void
     {
@@ -95,14 +97,14 @@ final class OperationDiscovery
         if (count($parameters) < 1) {
             throw new SchemaException(
                 "Operation {$signature} must declare at least one parameter: the first one is the "
-                . "input, and its type is the contract the client must satisfy."
+                .'input, and its type is the contract the client must satisfy.'
             );
         }
 
         if (count($parameters) > 3) {
             throw new SchemaException(
-                "Operation {$signature} declares " . count($parameters) . " parameters. A handler is "
-                . "called with (\$input, \$context, \$client) and may declare a prefix of those."
+                "Operation {$signature} declares ".count($parameters).' parameters. A handler is '
+                .'called with ($input, $context, $client) and may declare a prefix of those.'
             );
         }
 
@@ -112,8 +114,8 @@ final class OperationDiscovery
         if ($secondParameterType instanceof ReflectionNamedType && is_a($secondParameterType->getName(), Client::class, true)) {
             throw new SchemaException(
                 "Operation {$signature} declares {$secondParameterType->getName()} as its second "
-                . "parameter, but the second argument is the context. Declare the client third: "
-                . "(\$input, \$context, Client \$client)."
+                .'parameter, but the second argument is the context. Declare the client third: '
+                .'($input, $context, Client $client).'
             );
         }
 
@@ -123,20 +125,17 @@ final class OperationDiscovery
 
             // is_a() this way round asks whether a Client satisfies what was declared, so Client
             // itself and any interface it implements are accepted.
-            if ($declared !== 'mixed' && !is_a(Client::class, $declared, true)) {
+            if ($declared !== 'mixed' && ! is_a(Client::class, $declared, true)) {
                 throw new SchemaException(
                     "Operation {$signature} declares {$declared} as its third parameter, which is "
-                    . "the client. It has to accept " . Client::class . "."
+                    .'the client. It has to accept '.Client::class.'.'
                 );
             }
         }
     }
 
     /**
-     * @param Query|Command $attribute
-     * @param ReflectionClass<object> $class
-     * @param ReflectionMethod $method
-     * @return Definition
+     * @param  ReflectionClass<object>  $class
      */
     private function toDefinition(Query|Command $attribute, ReflectionClass $class, ReflectionMethod $method): Definition
     {
@@ -151,8 +150,8 @@ final class OperationDiscovery
         // is the order ContextualPipeline nests them in, so class-level middleware wraps
         // method-level middleware.
         $middlewareAttributes = [
-            ... $class->getAttributes(Middleware::class),
-            ... $method->getAttributes(Middleware::class),
+            ...$class->getAttributes(Middleware::class),
+            ...$method->getAttributes(Middleware::class),
         ];
 
         /** @var list<class-string<MiddlewareContract<mixed>>> $middlewares */

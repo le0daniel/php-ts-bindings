@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
@@ -18,9 +20,8 @@ final readonly class Query
 {
     public function __construct(
         public string|UnitEnum|null $namespace = null,
-        public ?string              $name = null,
-    )
-    {
+        public ?string $name = null,
+    ) {
     }
 
     public function namespaceAsString(): ?string

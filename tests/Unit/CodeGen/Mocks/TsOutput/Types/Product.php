@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks\TsOutput\Types;
 
@@ -14,9 +16,13 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Named;
 final class Product
 {
     public ProductId $id;
+
     public Sku $sku;
+
     public string $title;
+
     public Money $price;
+
     public Availability $availability;
 
     /** @var list<non-empty-string> */

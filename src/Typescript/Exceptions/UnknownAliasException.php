@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Typescript\Exceptions;
 
@@ -15,7 +17,7 @@ final class UnknownAliasException extends CodeGenException
     }
 
     /**
-     * @param list<string> $knownAliases
+     * @param  list<string>  $knownAliases
      */
     public static function forAlias(string $alias, array $knownAliases): self
     {

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
@@ -8,7 +10,7 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 
-final readonly class MixedNode implements NodeInterface, LeafNode
+final readonly class MixedNode implements LeafNode, NodeInterface
 {
     #[Override]
     public function __toString(): string
@@ -19,7 +21,7 @@ final readonly class MixedNode implements NodeInterface, LeafNode
     #[Override]
     public function exportPhpCode(): string
     {
-        return 'new ' . PHPExport::absolute(self::class) . '()';
+        return 'new '.PHPExport::absolute(self::class).'()';
     }
 
     #[Override]

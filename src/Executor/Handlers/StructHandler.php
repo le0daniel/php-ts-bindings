@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Handlers;
 
@@ -38,7 +40,7 @@ final readonly class StructHandler implements Handler
         foreach ($node->properties as $propertyNode) {
             assert($propertyNode instanceof PropertyNode, self::REFERENCE_INVARIANT);
 
-            if (!$propertyNode->propertyType->isOutput()) {
+            if (! $propertyNode->propertyType->isOutput()) {
                 continue;
             }
 
@@ -47,12 +49,14 @@ final readonly class StructHandler implements Handler
 
             if ($propertyValue === Value::INVALID) {
                 $context->leavePath();
+
                 return Value::INVALID;
             }
 
             if ($propertyValue === Value::UNDEFINED) {
                 if ($propertyNode->isOptional) {
                     $context->leavePath();
+
                     continue;
                 }
 
@@ -63,6 +67,7 @@ final readonly class StructHandler implements Handler
                     ]
                 ));
                 $context->leavePath();
+
                 return Value::INVALID;
             }
 
@@ -89,7 +94,7 @@ final readonly class StructHandler implements Handler
     {
         assert($node instanceof StructNode);
 
-        if (!is_array($value) && !$value instanceof stdClass) {
+        if (! is_array($value) && ! $value instanceof stdClass) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
                 [
@@ -97,6 +102,7 @@ final readonly class StructHandler implements Handler
                     'value' => $value,
                 ]
             ));
+
             return Value::INVALID;
         }
 
@@ -104,7 +110,7 @@ final readonly class StructHandler implements Handler
         foreach ($node->properties as $propertyNode) {
             assert($propertyNode instanceof PropertyNode, self::REFERENCE_INVARIANT);
 
-            if (!$propertyNode->propertyType->isInput()) {
+            if (! $propertyNode->propertyType->isInput()) {
                 continue;
             }
 
@@ -122,12 +128,14 @@ final readonly class StructHandler implements Handler
                     ]
                 ));
                 $context->leavePath();
+
                 return Value::INVALID;
             }
 
             if ($propertyValue === Value::UNDEFINED) {
                 if ($propertyNode->isOptional) {
                     $context->leavePath();
+
                     continue;
                 } else {
                     $context->leavePath();
@@ -137,6 +145,7 @@ final readonly class StructHandler implements Handler
                             'message' => "Missing property: {$propertyNode->name}",
                         ]
                     ));
+
                     return Value::INVALID;
                 }
             }
@@ -168,7 +177,7 @@ final readonly class StructHandler implements Handler
             return $input->offsetExists($key) ? $input[$key] : Value::UNDEFINED;
         }
 
-        if (!is_object($input)) {
+        if (! is_object($input)) {
             return Value::INVALID;
         }
 

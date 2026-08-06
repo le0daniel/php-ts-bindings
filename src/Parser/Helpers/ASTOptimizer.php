@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
@@ -39,12 +41,11 @@ final class ASTOptimizer
     public function __construct(
         private readonly string $registryVariableName = 'r',
         private readonly int $idLength = 10,
-    )
-    {
+    ) {
         if ($this->registryVariableName === self::KEY_VARIABLE_NAME) {
             throw new ParserException(
-                "The registry variable cannot be named '" . self::KEY_VARIABLE_NAME
-                . "'; it would collide with the generated factory's key parameter.",
+                "The registry variable cannot be named '".self::KEY_VARIABLE_NAME
+                ."'; it would collide with the generated factory's key parameter.",
             );
         }
     }
@@ -60,7 +61,7 @@ final class ASTOptimizer
     private function intern(string $prefix, NodeInterface $node, string $originalTypeString): ReferencedNode
     {
         $exported = $node->exportPhpCode();
-        $identifier = '#' . $prefix . substr(sha1($exported), 0, $this->idLength);
+        $identifier = '#'.$prefix.substr(sha1($exported), 0, $this->idLength);
 
         if (isset($this->dedupedNodes[$identifier]) && $this->dedupedNodes[$identifier][1] !== $exported) {
             throw new ParserException(
@@ -74,7 +75,7 @@ final class ASTOptimizer
     }
 
     /**
-     * @param array<string, NodeInterface> $nodes
+     * @param  array<string, NodeInterface>  $nodes
      */
     public function optimizeAndWriteToFile(string $fileName, array $nodes): void
     {
@@ -85,18 +86,18 @@ PHP);
     }
 
     /**
-     * @param array<string, NodeInterface|Closure(): NodeInterface> $nodes
+     * @param  array<string, NodeInterface|Closure(): NodeInterface>  $nodes
      */
     public function generateOptimizedCode(array $nodes): string
     {
-        if (array_any(array_keys($nodes), fn(string $key) => str_starts_with($key, '#'))) {
+        if (array_any(array_keys($nodes), fn (string $key) => str_starts_with($key, '#'))) {
             throw new ParserException('The keys of the nodes MUST not start with a # character');
         }
 
         $this->dedupedNodes = [];
 
         $optimizedNodes = array_map(
-            fn(Closure|NodeInterface $node) => $this->dedupeNode($node instanceof Closure ? $node() : $node),
+            fn (Closure|NodeInterface $node) => $this->dedupeNode($node instanceof Closure ? $node() : $node),
             $nodes
         );
 
@@ -106,21 +107,21 @@ PHP);
 
         $internedArms = Arrays::mapWithKeys(
             $this->dedupedNodes,
-            fn(string $key, array $entry) => PHPExport::export($key) . " => {$entry[1]},",
+            fn (string $key, array $entry) => PHPExport::export($key)." => {$entry[1]},",
         );
 
         $schemaArms = Arrays::mapWithKeys(
             $optimizedNodes,
-            fn(string $key, NodeInterface $ast) => PHPExport::export($key) . " => {$ast->exportPhpCode()},"
+            fn (string $key, NodeInterface $ast) => PHPExport::export($key)." => {$ast->exportPhpCode()},"
         );
 
-        $arms = implode(PHP_EOL, [... $internedArms, ... $schemaArms]);
+        $arms = implode(PHP_EOL, [...$internedArms, ...$schemaArms]);
         $key = self::KEY_VARIABLE_NAME;
 
         // One match arm per entry rather than one closure per entry: arms are only evaluated when
         // their key is requested, so this stays lazy while allocating nothing per entry.
         return "new {$registryClass}(static function (string \${$key}, {$registryClass} \${$this->registryVariableName}): {$nodeInterface} { "
-            . "return match (\${$key}) { {$arms} default => throw {$unknownKeyException}::forKey(\${$key}) }; })";
+            ."return match (\${$key}) { {$arms} default => throw {$unknownKeyException}::forKey(\${$key}) }; })";
     }
 
     private static function asCastableNode(NodeInterface $node): StructNode|ListNode|RecordNode|ReferencedNode
@@ -131,6 +132,7 @@ PHP);
             || $node instanceof RecordNode
             || $node instanceof ReferencedNode
         );
+
         return $node;
     }
 
@@ -152,7 +154,7 @@ PHP);
         }
 
         if ($node instanceof LeafNode) {
-            return $this->intern('l', $node, (string)$node);
+            return $this->intern('l', $node, (string) $node);
         }
 
         // Children are deduped first, so the interned node exports its children as short
@@ -163,7 +165,7 @@ PHP);
                 $this->dedupeNode($node->node),
                 $node->isOptional,
                 $node->propertyType
-            ), (string)$node);
+            ), (string) $node);
         }
 
         // Deep optimization
@@ -171,7 +173,7 @@ PHP);
             /** @var non-empty-list<PropertyNode|ReferencedNode> $properties */
             $properties = array_map($this->dedupeNode(...), $node->properties);
 
-            return $this->intern('s', new StructNode($node->phpType, $properties), (string)$node);
+            return $this->intern('s', new StructNode($node->phpType, $properties), (string) $node);
         }
 
         // Composite nodes are rebuilt inline rather than interned: a single use composite costs
@@ -202,7 +204,7 @@ PHP);
             IntersectionNode::class => new IntersectionNode(
                 array_map($this->dedupeNode(...), $node->nodes),
             ),
-            default => throw new ParserException('Unknown node type: ' . $node::class),
+            default => throw new ParserException('Unknown node type: '.$node::class),
         };
     }
 

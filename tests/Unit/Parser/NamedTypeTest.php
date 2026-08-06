@@ -1,8 +1,11 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\EnumNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
@@ -19,6 +22,7 @@ use Tests\Mocks\Named\Order;
 use Tests\Mocks\Named\OrderStatus;
 use Tests\Mocks\Named\PerDirectionNamed;
 use Tests\Mocks\Named\RenamedThing;
+use Tests\Mocks\ValueObjects\CreateAccountInput;
 use Tests\Mocks\ValueObjects\Inherited\AccountId;
 use Tests\Mocks\ValueObjects\Inherited\AmbiguousId;
 use Tests\Mocks\ValueObjects\Inherited\BadClosureId;
@@ -59,7 +63,7 @@ test('an explicit name wins over the base name', function () {
 });
 
 test('a class without codegen attributes carries no metadata wrapper', function () {
-    $node = new TypeParser()->parse(\Tests\Mocks\ValueObjects\CreateAccountInput::class);
+    $node = new TypeParser()->parse(CreateAccountInput::class);
 
     expect($node)->toBeInstanceOf(CustomCastingNode::class);
 });
@@ -89,26 +93,26 @@ test('metadata is transparent in the string form and eliminated from the optimiz
     $node = new TypeParser()->parse(Order::class);
 
     expect($node)->toBeInstanceOf(MetadataNode::class)
-        ->and((string)$node)->toBe((string)$node->node)
+        ->and((string) $node)->toBe((string) $node->node)
         ->and($node->exportPhpCode())->not->toContain('MetadataNode');
 
     $optimizedCode = new ASTOptimizer()->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
+    /** @var CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     expect($optimizedCode)->not->toContain('MetadataNode')
         ->and($registry->get('node'))->not->toBeInstanceOf(MetadataNode::class)
-        ->and((string)$registry->get('node'))->toBe((string)$node);
+        ->and((string) $registry->get('node'))->toBe((string) $node);
 });
 
 test('rejects a name that is not a valid TypeScript identifier', function () {
-    expect(fn() => new TypeParser()->parse(InvalidlyNamed::class))
+    expect(fn () => new TypeParser()->parse(InvalidlyNamed::class))
         ->toThrow(InvalidStringLiteralException::class, 'not a valid TypeScript identifier');
 });
 
 test('rejects a brand tag that is not a valid TypeScript identifier', function () {
-    expect(fn() => new TypeParser()->parse(InvalidlyBranded::class))
+    expect(fn () => new TypeParser()->parse(InvalidlyBranded::class))
         ->toThrow(InvalidStringLiteralException::class, 'not a valid TypeScript identifier');
 });
 
@@ -207,7 +211,7 @@ test('a value object implementing an attribute free interface stays a bare node'
 
 test('rejects a fixed name on an inherited declaration', function () {
     // Every implementor would share the brand "sharedId" and collapse into one TypeScript type.
-    expect(fn() => new TypeParser()->parse(SharedExplicitBrandId::class))
+    expect(fn () => new TypeParser()->parse(SharedExplicitBrandId::class))
         ->toThrow(ParserException::class, 'cannot carry a fixed name');
 });
 
@@ -218,7 +222,7 @@ test('inheritance is scoped to value objects: a plain class implementing a #[Nam
 });
 
 test('two interfaces declaring the same attribute are ambiguous and rejected', function () {
-    expect(fn() => new TypeParser()->parse(AmbiguousId::class))
+    expect(fn () => new TypeParser()->parse(AmbiguousId::class))
         ->toThrow(ParserException::class, 'inherits #[Brand] from more than one interface');
 });
 
@@ -259,7 +263,7 @@ test('a naming closure computes the brand and alias from the concrete class', fu
 ]);
 
 test('a naming closure still has to produce a valid TypeScript identifier', function () {
-    expect(fn() => new TypeParser()->parse(BadClosureId::class))
+    expect(fn () => new TypeParser()->parse(BadClosureId::class))
         ->toThrow(InvalidStringLiteralException::class, 'not a valid TypeScript identifier');
 });
 
@@ -284,7 +288,7 @@ test('one alias over a class whose input and output shapes differ is rejected', 
     expect($node)->toBeInstanceOf(MetadataNode::class)
         ->and($node->name?->isSameForBothDirections())->toBeTrue();
 
-    expect(fn() => AstValidator::validate($node))
+    expect(fn () => AstValidator::validate($node))
         ->toThrow(ParserException::class, 'resolves to one alias "AsymmetricNamed" for both directions');
 });
 

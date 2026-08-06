@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Typescript\Utils;
 
@@ -60,7 +62,7 @@ final readonly class Syntax
      */
     public static function moduleSpecifier(string $specifier): string
     {
-        if (!self::isValidModuleSpecifier($specifier)) {
+        if (! self::isValidModuleSpecifier($specifier)) {
             throw new CodeGenException(
                 "'{$specifier}' cannot be written as a TypeScript module specifier."
             );
@@ -74,6 +76,6 @@ final readonly class Syntax
      */
     public static function branded(string $baseType, string $brandName): string
     {
-        return "{$baseType} & Brand<" . self::stringLiteral($brandName) . ">";
+        return "{$baseType} & Brand<".self::stringLiteral($brandName).'>';
     }
 }

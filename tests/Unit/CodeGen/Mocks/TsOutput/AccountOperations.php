@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks\TsOutput;
 
@@ -27,7 +29,7 @@ final class AccountOperations
     }
 
     /**
-     * @param array{id: positive-int} $input
+     * @param  array{id: positive-int}  $input
      * @return array{locked: true}
      */
     #[Command('accounts')]
@@ -40,7 +42,7 @@ final class AccountOperations
     }
 
     /**
-     * @param array{id: positive-int} $input
+     * @param  array{id: positive-int}  $input
      * @return array{unlocked: true}
      */
     #[Command('accounts')]

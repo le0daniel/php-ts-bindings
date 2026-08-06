@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
@@ -10,8 +12,7 @@ final class Context implements ExecutionContext
     public function __construct(
         public bool $partialFailures = false,
         public bool $coercePrimitives = false,
-    )
-    {
+    ) {
     }
 
     /**
@@ -22,7 +23,7 @@ final class Context implements ExecutionContext
     /**
      * @var array<string, list<Issue>>
      */
-    private(set) array $issues = [];
+    public private(set) array $issues = [];
 
     public function enterPath(int|string $path): void
     {
@@ -59,6 +60,7 @@ final class Context implements ExecutionContext
     {
         if ($this->path === []) {
             $this->issues = [];
+
             return;
         }
 

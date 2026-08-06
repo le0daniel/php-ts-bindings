@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
@@ -20,16 +22,9 @@ interface Client
     public function info(string $message): void;
 
     /**
-     * @param string $url
-     * @param bool $reload Forces the client to do a full page load instead of a client side navigation.
-     * @return void
+     * @param  bool  $reload  Forces the client to do a full page load instead of a client side navigation.
      */
     public function redirect(string $url, bool $reload = false): void;
 
-    /**
-     * @param UnitEnum|string $namespace
-     * @param mixed ...$key
-     * @return void
-     */
     public function invalidate(UnitEnum|string $namespace, mixed... $key): void;
 }

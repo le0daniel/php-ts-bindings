@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Contracts;
 
@@ -17,8 +19,8 @@ interface GeneratesLibFiles
      *   'fileName' => 'content'
      * ]
      *
-     * @param list<TypedOperation> $operations
-     * @param AliasRegistry $registry The run's shared registry: every alias any operation produced.
+     * @param  list<TypedOperation>  $operations
+     * @param  AliasRegistry  $registry  The run's shared registry: every alias any operation produced.
      * @return array<string, TypescriptFile>
      */
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array;

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
@@ -26,12 +28,12 @@ use Le0daniel\PhpTsBindings\Utils\Assertions;
 final class CodeGenCommand extends Command
 {
     protected $signature = 'operations:codegen {directory} '
-    . '{--with=* : tanstack-query | type-map} '
-    . '{--custom=* : class-string<GeneratesLibFiles | GeneratesOperationCode>} '
-    . '{--without=* : tanstack-query | type-map} '
-    . '{--ignore=* : Ignored namespaces (namespace) or specific operations by specifying namespace.name} '
-    . '{--naming=name : Naming mode to use. Modes: name, fqn, operation-prefix, namespace-postfix or classname::methodName for custom function}'
-    . '{--verify} ';
+        .'{--with=* : tanstack-query | type-map} '
+        .'{--custom=* : class-string<GeneratesLibFiles | GeneratesOperationCode>} '
+        .'{--without=* : tanstack-query | type-map} '
+        .'{--ignore=* : Ignored namespaces (namespace) or specific operations by specifying namespace.name} '
+        .'{--naming=name : Naming mode to use. Modes: name, fqn, operation-prefix, namespace-postfix or classname::methodName for custom function}'
+        .'{--verify} ';
 
     protected $description = 'Generate the typescript bindings for all operations';
 
@@ -69,10 +71,9 @@ DESCRIPTION;
      * @throws BindingResolutionException
      */
     public function handle(
-        Router                                                 $router,
-        Application                                            $application,
-    ): int
-    {
+        Router $router,
+        Application $application,
+    ): int {
         // Always get a fresh server
         $server = LaravelServiceProvider::serverFactory(
             $application,
@@ -84,8 +85,9 @@ DESCRIPTION;
         if ($queryRoute === null || $commandRoute === null) {
             $this->error(
                 'The operation routes are not registered. Call LaravelHttpController::registerQueries() '
-                . 'and ::registerCommands() from your route definitions.'
+                .'and ::registerCommands() from your route definitions.'
             );
+
             return 1;
         }
 
@@ -106,22 +108,26 @@ DESCRIPTION;
             foreach ($exception->messages as $message) {
                 $this->error($message);
             }
+
             return 1;
         } catch (UnsupportedTypeException $exception) {
             // A schema that cannot be expressed in TypeScript is a bug worth surfacing here, rather
             // than a placeholder type that fails later inside the generated client.
             $this->error($exception->getMessage());
+
             return 1;
         } catch (CodeGenException $exception) {
             // A bad naming mode, a namespace that cannot be a file name, two operations generating
             // one name: all of them end the run with a message rather than a stack trace.
             $this->error($exception->getMessage());
+
             return 1;
         }
 
         $target = ArtisanOptions::asString($this->argument('directory')) ?? '';
         if ($target === '') {
             $this->error('A target directory is required.');
+
             return 1;
         }
 
@@ -131,7 +137,8 @@ DESCRIPTION;
         $directory = str_starts_with($target, '/') ? $target : base_path($target);
 
         if ($this->option('verify')) {
-            $this->info("Verify generated code only.");
+            $this->info('Verify generated code only.');
+
             return $this->verifyContentOnly($directory, $files);
         }
 
@@ -140,6 +147,7 @@ DESCRIPTION;
         } catch (CodeGenException $exception) {
             // Refusing to overwrite a file this library did not write.
             $this->error($exception->getMessage());
+
             return 1;
         }
 
@@ -147,9 +155,7 @@ DESCRIPTION;
     }
 
     /**
-     * @param string $directory
-     * @param array<string, TypescriptFile> $files
-     * @return int
+     * @param  array<string, TypescriptFile>  $files
      */
     private function verifyContentOnly(string $directory, array $files): int
     {
@@ -162,15 +168,18 @@ DESCRIPTION;
             foreach ($issues as $issue) {
                 $this->info($issue);
             }
+
             return 1;
         }
 
-        $this->line("All files are correct. No issues found.");
+        $this->line('All files are correct. No issues found.');
+
         return 0;
     }
 
     /**
      * @return list<GeneratesOperationCode|GeneratesLibFiles>
+     *
      * @throws BindingResolutionException
      */
     private function getGeneratorsFromInput(Application $application): array
@@ -180,7 +189,7 @@ DESCRIPTION;
 
         $namingGeneratorName = ($this->option('naming') ?? 'name') |> Assertions::string(...);
 
-        $namingGenerator = match($namingGeneratorName) {
+        $namingGenerator = match ($namingGeneratorName) {
             'fqn','operation-prefix','namespace-postfix','name' => CodeGenerators::namingGenerator($namingGeneratorName),
             default => $this->customNamingGenerator($application, $namingGeneratorName),
         };
@@ -192,7 +201,7 @@ DESCRIPTION;
         );
 
         $customGenerators = array_map(
-            fn(string $className) => $application->make($className),
+            fn (string $className) => $application->make($className),
             ArtisanOptions::expandOptionsArrayCommaSeparated($this->option('custom'))
         );
 
@@ -209,6 +218,7 @@ DESCRIPTION;
      * static-looking syntax, so a rule is free to depend on whatever the container can build.
      *
      * @return Closure(TypedOperation): string
+     *
      * @throws BindingResolutionException
      */
     private function customNamingGenerator(Application $application, string $naming): Closure
@@ -217,7 +227,8 @@ DESCRIPTION;
 
         if (count($parts) === 2 && class_exists($parts[0]) && method_exists($parts[0], $parts[1])) {
             $instance = $application->make($parts[0]);
-            /* @phpstan-ignore-next-line method.dynamicName  */
+
+            /* @phpstan-ignore-next-line method.dynamicName */
             return $instance->{$parts[1]}(...);
         }
 
@@ -225,7 +236,7 @@ DESCRIPTION;
         // handle()'s try, so a typo ends the run with this message instead of a stack trace.
         throw new CodeGenException(
             "Unknown naming mode '{$naming}'. Use one of name, fqn, operation-prefix, "
-            . "namespace-postfix, or Class::method naming your own rule."
+            .'namespace-postfix, or Class::method naming your own rule.'
         );
     }
 }

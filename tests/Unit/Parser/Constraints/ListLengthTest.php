@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Parser\Constraints;
 
@@ -57,9 +59,9 @@ it('reports the bound that failed', function () {
 
 it('exports PHP code correctly', function () {
     expect(new ListLength(min: 1)->exportPhpCode())
-        ->toBe('new \\' . ListLength::class . '(1,NULL)');
+        ->toBe('new \\'.ListLength::class.'(1,NULL)');
 });
 
 it('names its bounds in diagnostics', function () {
-    expect((string)new ListLength(min: 1))->toBe('ListLength(1, max)');
+    expect((string) new ListLength(min: 1))->toBe('ListLength(1, max)');
 });

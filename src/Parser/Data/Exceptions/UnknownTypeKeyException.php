@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Data\Exceptions;
 
@@ -19,7 +21,7 @@ final class UnknownTypeKeyException extends ParserException
     {
         return new self(
             "Unknown schema key '{$key}'. The optimized schema cache is stale or was written by a "
-            . 'different build. ' . self::REGENERATE,
+            .'different build. '.self::REGENERATE,
         );
     }
 
@@ -27,8 +29,8 @@ final class UnknownTypeKeyException extends ParserException
     {
         return new self(
             'The optimized schema cache uses a format written before schema identity was fixed. '
-            . 'Caches in that format can silently merge schemas that differ only in their '
-            . 'constraints, dropping validation. ' . self::REGENERATE,
+            .'Caches in that format can silently merge schemas that differ only in their '
+            .'constraints, dropping validation. '.self::REGENERATE,
         );
     }
 }

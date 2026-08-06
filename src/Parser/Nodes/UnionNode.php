@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
@@ -20,21 +22,18 @@ final class UnionNode implements NodeInterface, ValidatableNode, WrapsNodes
     // Improves the performance of nullable Unions.
     public function acceptsNull(): bool
     {
-        return $this->acceptsNull ??= array_any($this->nodes, fn(NodeInterface $type) => $type instanceof NullNode);
+        return $this->acceptsNull ??= array_any($this->nodes, fn (NodeInterface $type) => $type instanceof NullNode);
     }
 
     /**
-     * @param list<T> $nodes
-     * @param string|null $discriminator
-     * @param list<string|bool|int>|null $discriminatorMap
+     * @param  list<T>  $nodes
+     * @param  list<string|bool|int>|null  $discriminatorMap
      */
     public function __construct(
-        public readonly array   $nodes,
+        public readonly array $nodes,
         public readonly ?string $discriminator = null,
-        public readonly ?array  $discriminatorMap = null,
-    )
-    {
-
+        public readonly ?array $discriminatorMap = null,
+    ) {
     }
 
     #[Override]
@@ -48,7 +47,7 @@ final class UnionNode implements NodeInterface, ValidatableNode, WrapsNodes
     #[Override]
     public function __toString(): string
     {
-        $types = implode('|', array_map(fn(NodeInterface $type) => (string)$type, $this->nodes));
+        $types = implode('|', array_map(fn (NodeInterface $type) => (string) $type, $this->nodes));
 
         return $this->discriminator === null
             ? $types
@@ -62,14 +61,15 @@ final class UnionNode implements NodeInterface, ValidatableNode, WrapsNodes
 
     public function getDiscriminatedType(mixed $value): ?NodeInterface
     {
-        if (!$this->discriminatorMap) {
+        if (! $this->discriminatorMap) {
             return null;
         }
 
-        $index = array_find_key($this->discriminatorMap, static fn(mixed $typeValue) => $typeValue === $value);
+        $index = array_find_key($this->discriminatorMap, static fn (mixed $typeValue) => $typeValue === $value);
         if ($index !== null) {
             return $this->nodes[$index];
         }
+
         return null;
     }
 
@@ -80,6 +80,7 @@ final class UnionNode implements NodeInterface, ValidatableNode, WrapsNodes
         $types = PHPExport::export($this->nodes);
         $discriminator = $this->discriminator ? PHPExport::export($this->discriminator) : 'null';
         $discriminatorMap = $this->discriminatorMap ? PHPExport::export($this->discriminatorMap) : 'null';
+
         return "new {$classname}({$types}, {$discriminator}, {$discriminatorMap})";
     }
 }

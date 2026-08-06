@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Mocks\Named;
 
@@ -14,5 +16,6 @@ use Tests\Mocks\ValueObjects\UserId;
 final class Order
 {
     public Customer $customer;
+
     public UserId $id;
 }

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnknownAliasException;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
@@ -41,7 +43,7 @@ test('throws when an alias is rebound to a different definition', function () {
     $registry = new AliasRegistry();
     $registry->set('Email', 'string & Brand<"email">');
 
-    expect(fn() => $registry->set('Email', 'number & Brand<"email">'))
+    expect(fn () => $registry->set('Email', 'number & Brand<"email">'))
         ->toThrow(UnsupportedTypeException::class, 'Type alias Email has conflicting definitions');
 });
 
@@ -49,22 +51,22 @@ test('a seed array cannot conflict with itself, only a later set() can', functio
     $registry = new AliasRegistry(['Email' => 'string & Brand<"email">']);
 
     // Duplicate keys collapse inside an array literal, so the last one simply wins.
-    expect(fn() => new AliasRegistry([...$registry->toArray(), 'Email' => 'number']))
+    expect(fn () => new AliasRegistry([...$registry->toArray(), 'Email' => 'number']))
         ->not->toThrow(UnsupportedTypeException::class);
 
-    expect(fn() => $registry->set('Email', 'number'))
+    expect(fn () => $registry->set('Email', 'number'))
         ->toThrow(UnsupportedTypeException::class);
 });
 
 test('throws when reading an alias that was never defined', function () {
     $registry = new AliasRegistry(['Email' => 'string & Brand<"email">']);
 
-    expect(fn() => $registry->get('Missing'))
+    expect(fn () => $registry->get('Missing'))
         ->toThrow(UnknownAliasException::class, "Unknown type alias 'Missing'. Call has() before get(). Known aliases: Email.");
 });
 
 test('names no aliases when reading from an empty registry', function () {
-    expect(fn() => new AliasRegistry()->get('Missing'))
+    expect(fn () => new AliasRegistry()->get('Missing'))
         ->toThrow(UnknownAliasException::class, 'Known aliases: none.');
 });
 

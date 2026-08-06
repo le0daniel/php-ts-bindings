@@ -17,10 +17,8 @@ use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Mockery;
-use ReflectionException;
 use Throwable;
 use TypeError;
 
@@ -47,11 +45,11 @@ test('handle successful http query request', function () {
     $operation = new Operation(
         'somekey',
         $operationDefinition,
-        fn() => $typeParser->parse('array{name: string}'),
-        fn() => $typeParser->parse('array{id: string, name: string}'),
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
     );
 
-    $controllerInstance = new class() {
+    $controllerInstance = new class () {
         public function __construct()
         {
         }
@@ -110,15 +108,16 @@ test('an operations-spa request gets the client directives appended', function (
     $operation = new Operation(
         'somekey',
         $operationDefinition,
-        fn() => $typeParser->parse('array{name: string}'),
-        fn() => $typeParser->parse('array{id: string, name: string}'),
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
     );
 
-    $controllerInstance = new class() {
+    $controllerInstance = new class () {
         public function someMethod(array $input, null $context, Client $client): array
         {
             $client->success('Saved');
             $client->redirect('/docs/123', true);
+
             return ['id' => '123', 'name' => $input['name']];
         }
     };
@@ -176,11 +175,11 @@ test('handle invalid input http query request', function () {
     $operation = new Operation(
         'somekey',
         $operationDefinition,
-        fn() => $typeParser->parse('array{name: string}'),
-        fn() => $typeParser->parse('array{id: string, name: string}'),
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
     );
 
-    $controllerInstance = new class() {
+    $controllerInstance = new class () {
         public function __construct()
         {
         }
@@ -216,7 +215,7 @@ test('handle invalid input http query request', function () {
             'success' => false,
             'details' => [
                 'fields' => [
-                    '__root' => ['validation.missing_property']
+                    '__root' => ['validation.missing_property'],
                 ],
             ],
             'code' => 422,
@@ -248,11 +247,11 @@ test('a nested query parameter comes back as an RpcError rather than escaping as
     $operation = new Operation(
         'somekey',
         $operationDefinition,
-        fn() => $typeParser->parse('array{name: string}'),
-        fn() => $typeParser->parse('array{id: string, name: string}'),
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
     );
 
-    $controllerInstance = new class() {
+    $controllerInstance = new class () {
         public function someMethod(array $input, null $context, Client $client): array
         {
             return ['id' => '123', 'name' => $input['name']];
@@ -304,8 +303,8 @@ function staleMiddlewareController(bool $debug): array
     $operation = new Operation(
         'somekey',
         $operationDefinition,
-        fn() => $typeParser->parse('array{name: string}'),
-        fn() => $typeParser->parse('array{id: string, name: string}'),
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
     );
 
     $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
@@ -340,11 +339,11 @@ test('an ordinary error carries no previous key in debug mode', function () {
     $operation = new Operation(
         'somekey',
         $operationDefinition,
-        fn() => $typeParser->parse('array{name: string}'),
-        fn() => $typeParser->parse('array{id: string, name: string}'),
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
     );
 
-    $controllerInstance = new class() {
+    $controllerInstance = new class () {
         public function someMethod(array $input, null $context, Client $client): array
         {
             return ['id' => '123', 'name' => $input['name']];
@@ -383,11 +382,11 @@ test('directives queued before a failure never reach the client', function () {
     $operation = new Operation(
         'somekey',
         $operationDefinition,
-        fn() => $typeParser->parse('array{name: string}'),
-        fn() => $typeParser->parse('array{id: string, name: string}'),
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
     );
 
-    $controllerInstance = new class() {
+    $controllerInstance = new class () {
         public function someMethod(array $input, null $context, Client $client): array
         {
             $client->success('Saved');

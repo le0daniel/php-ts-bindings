@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -53,6 +55,7 @@ final readonly class UtilsConsumer implements TypeConsumer
             }
 
             [$formatNode] = $generics;
+
             return new DateTimeNode(
                 DateTimeImmutable::class,
                 $this->literalStringValue($state, $formatNode, 'date format'),
@@ -65,7 +68,7 @@ final readonly class UtilsConsumer implements TypeConsumer
 
             // Docblocks cannot carry #[Named], so the utility is the shorthand for brand + name:
             // the use site references the alias (Token), which resolves to `(string & Brand<"token">)`.
-            if (!Syntax::isValidIdentifier($brand)) {
+            if (! Syntax::isValidIdentifier($brand)) {
                 throw InvalidStringLiteralException::notAValidTypescriptIdentifier($brand, "{$type}<'{$brand}'>");
             }
 
@@ -82,59 +85,58 @@ final readonly class UtilsConsumer implements TypeConsumer
         // shape, so the alias and brand are dropped along the way.
         $nodeToPickFrom = Nodes::getDeclaringNode($nodeToPickFrom);
 
-        if (!$nodeToPickFrom instanceof StructNode && !$nodeToPickFrom instanceof CustomCastingNode) {
-            $state->produceSyntaxError("Expected struct or custom casting node for picking or omitting");
+        if (! $nodeToPickFrom instanceof StructNode && ! $nodeToPickFrom instanceof CustomCastingNode) {
+            $state->produceSyntaxError('Expected struct or custom casting node for picking or omitting');
         }
 
         if ($nodeToPickFrom instanceof CustomCastingNode) {
             // Only a struct has properties to pick from; a custom cast over a list or a record has
             // no named shape to narrow.
             $castFrom = $nodeToPickFrom->node;
-            if (!$castFrom instanceof StructNode) {
-                $state->produceSyntaxError("Cannot pick or omit from a custom casting node that does not wrap a struct");
+            if (! $castFrom instanceof StructNode) {
+                $state->produceSyntaxError('Cannot pick or omit from a custom casting node that does not wrap a struct');
             }
 
             // Picking from a castable object produces a new shape, so it is rebuilt as a plain
             // object struct with both directions enabled.
             $structNode = $castFrom
-                ->filter(fn(PropertyNode $propertyNode): bool => $propertyNode->propertyType->isOutput())
-                ->map(fn(PropertyNode $propertyType) => $propertyType->changePropertyType(PropertyType::BOTH))
+                ->filter(fn (PropertyNode $propertyNode): bool => $propertyNode->propertyType->isOutput())
+                ->map(fn (PropertyNode $propertyType) => $propertyType->changePropertyType(PropertyType::BOTH))
                 ->ofType(StructPhpType::OBJECT);
         } else {
             $structNode = $nodeToPickFrom;
         }
 
         return $structNode->filter(
-            fn(PropertyNode $property): bool => match ($type) {
+            fn (PropertyNode $property): bool => match ($type) {
                 'Pick' => in_array($property->name, $this->propertiesToPickOrOmit($state, $pick), true),
-                'Omit' => !in_array($property->name, $this->propertiesToPickOrOmit($state, $pick), true),
-                default => $state->produceSyntaxError("Expected Pick or Omit"),
+                'Omit' => ! in_array($property->name, $this->propertiesToPickOrOmit($state, $pick), true),
+                default => $state->produceSyntaxError('Expected Pick or Omit'),
             }
         );
     }
 
-
     /**
-     * @param string $usage Named in the error message so it points at the utility type that failed.
+     * @param  string  $usage  Named in the error message so it points at the utility type that failed.
+     *
      * @throws InvalidSyntaxException
      */
     private function literalStringValue(ParserState $state, NodeInterface $node, string $usage): string
     {
-        if (!$node instanceof LiteralNode || $node->type !== LiteralType::STRING) {
-            $state->produceSyntaxError("Expected literal string value for {$usage}, got: " . $node::class);
+        if (! $node instanceof LiteralNode || $node->type !== LiteralType::STRING) {
+            $state->produceSyntaxError("Expected literal string value for {$usage}, got: ".$node::class);
         }
 
-        if (!is_string($node->value)) {
-            $state->produceSyntaxError("Expected literal string value for {$usage}, got: " . gettype($node->value));
+        if (! is_string($node->value)) {
+            $state->produceSyntaxError("Expected literal string value for {$usage}, got: ".gettype($node->value));
         }
 
         return $node->value;
     }
 
     /**
-     * @param ParserState $state
-     * @param NodeInterface $node
      * @return list<string>
+     *
      * @throws InvalidSyntaxException
      */
     private function propertiesToPickOrOmit(ParserState $state, NodeInterface $node): array
@@ -143,8 +145,8 @@ final readonly class UtilsConsumer implements TypeConsumer
             return [$node->stringValue()];
         }
 
-        if (!$node instanceof UnionNode) {
-            $state->produceSyntaxError("Expected union node or string literal for picking or omitting");
+        if (! $node instanceof UnionNode) {
+            $state->produceSyntaxError('Expected union node or string literal for picking or omitting');
         }
 
         return array_map(function (NodeInterface $node) use ($state): string {

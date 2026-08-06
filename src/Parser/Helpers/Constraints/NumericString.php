@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
@@ -21,17 +23,18 @@ final readonly class NumericString implements Constraint
     #[Override]
     public function validate(mixed $value, ExecutionContext $context): bool
     {
-        if (!$this->isString($value, $context)) {
+        if (! $this->isString($value, $context)) {
             return false;
         }
 
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             $context->addIssue(new Issue(
                 IssueMessage::NOT_NUMERIC_STRING,
                 [
-                    "message" => "Expected numeric string, got: '{$value}'",
+                    'message' => "Expected numeric string, got: '{$value}'",
                 ]
             ));
+
             return false;
         }
 
@@ -41,7 +44,7 @@ final readonly class NumericString implements Constraint
     #[Override]
     public function exportPhpCode(): string
     {
-        return 'new ' . PHPExport::absolute(self::class) . '()';
+        return 'new '.PHPExport::absolute(self::class).'()';
     }
 
     #[Override]

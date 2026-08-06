@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Adapters;
 
@@ -10,8 +12,7 @@ final readonly class PsrContainerAdapter implements ServerAdapter
 {
     public function __construct(
         private readonly ContainerInterface $container
-    )
-    {
+    ) {
     }
 
     public function createMiddleware(string $className): MiddlewareContract

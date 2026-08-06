@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
@@ -15,8 +17,7 @@ final readonly class Failure
 {
     public function __construct(
         public Issues $issues,
-    )
-    {
+    ) {
     }
 
     /**

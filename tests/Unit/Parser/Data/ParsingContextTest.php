@@ -10,7 +10,7 @@ use Tests\Unit\Parser\Data\Stubs\MyUserClass;
 test('from class reflection', function () {
     // Reads all the context out of the file.
     $context = ParsingScope::fromReflectionClass(new ReflectionClass(MyUserClass::class));
-    $fromFileContext = ParsingScope::fromFilePath(__DIR__ . '/Stubs/MyUserClass.php');
+    $fromFileContext = ParsingScope::fromFilePath(__DIR__.'/Stubs/MyUserClass.php');
 
     expect(serialize($context))
         ->toBe(serialize($fromFileContext))
@@ -38,7 +38,7 @@ test('from class reflection', function () {
         ]);
 });
 
-test("Extensive PHP Doc type declaration", function () {
+test('Extensive PHP Doc type declaration', function () {
     $fromFileContext = ParsingScope::fromClassString(ComplexPhpDoc::class);
 
     expect($fromFileContext->localTypes)->toBe([

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor;
 
@@ -108,7 +110,7 @@ final readonly class SchemaExecutor implements Executor
             $node instanceof MetadataNode => $this->executeSerialize($node->node, $data, $context),
             // A node class no handler claims is a broken AST, not invalid data. Returning INVALID
             // here would answer with an empty failure; AstValidator throws for the same case.
-            default => throw new SchemaException("Unexpected node: " . $node::class),
+            default => throw new SchemaException('Unexpected node: '.$node::class),
         };
 
         // Allow for catching errors at null boundaries during serialization.
@@ -127,9 +129,10 @@ final readonly class SchemaExecutor implements Executor
     {
         if ($node instanceof ConstraintNode) {
             $constrainedValue = $this->executeParse($node->node, $data, $context);
-            if ($constrainedValue === Value::INVALID || !$node->areConstraintsFulfilled($constrainedValue, $context)) {
+            if ($constrainedValue === Value::INVALID || ! $node->areConstraintsFulfilled($constrainedValue, $context)) {
                 return Value::INVALID;
             }
+
             return $constrainedValue;
         }
 
@@ -142,7 +145,7 @@ final readonly class SchemaExecutor implements Executor
             // Codegen metadata has no runtime effect.
             $node instanceof MetadataNode => $this->executeParse($node->node, $data, $context),
             // See executeSerialize(): an unclaimed node class is a broken AST, not invalid input.
-            default => throw new SchemaException("Unexpected node: " . $node::class),
+            default => throw new SchemaException('Unexpected node: '.$node::class),
         };
     }
 }

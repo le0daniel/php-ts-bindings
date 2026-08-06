@@ -21,12 +21,14 @@ use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
+use Tests\TestCase;
 
-pest()->extend(Tests\TestCase::class)->in('Feature');
+pest()->extend(TestCase::class)->in('Feature');
 
 /*
 |--------------------------------------------------------------------------
@@ -48,8 +50,8 @@ expect()->extend('toBeSuccess', function () {
     $value = $this->value;
 
     return $this->toBeInstanceOf(Success::class, implode('', [
-        "Failed asserting that result is success with: ",
-        $value instanceof Failure ? $value->issues->serializeToCompleteString() : 'null'
+        'Failed asserting that result is success with: ',
+        $value instanceof Failure ? $value->issues->serializeToCompleteString() : 'null',
     ]));
 });
 
@@ -58,16 +60,17 @@ expect()->extend('toBeFailure', function (?string $message = null) {
     $value = $this->value;
 
     return $this->toBeInstanceOf(Failure::class)
-        ->when(!is_null($message), function () use ($value, $message) {
-            if (array_any($value->issues->allFlat(), fn($issue) => $issue->messageOrLocalizationKey === $message)) {
+        ->when(! is_null($message), function () use ($value, $message) {
+            if (array_any($value->issues->allFlat(), fn ($issue) => $issue->messageOrLocalizationKey === $message)) {
                 expect(true)->toBeTrue();
+
                 return;
             }
 
-            $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $value->issues->allFlat());
+            $messages = array_map(fn (Issue $issue) => $issue->messageOrLocalizationKey, $value->issues->allFlat());
 
             expect(false)->toBeTrue(
-                "Failed asserting that result is failure with message: {$message}. Got: " . implode(', ', $messages)
+                "Failed asserting that result is failure with message: {$message}. Got: ".implode(', ', $messages)
             );
         });
 });
@@ -79,15 +82,16 @@ expect()->extend('toBeFailureAt', function (string $path, ?string $message = nul
     return $this->toBeFailure()
         ->when(is_string($message), function () use ($value, $message, $path) {
             $issues = $value->issues->at($path);
-            if (array_any($issues, fn($issue) => $issue->messageOrLocalizationKey === $message)) {
+            if (array_any($issues, fn ($issue) => $issue->messageOrLocalizationKey === $message)) {
                 expect(true)->toBeTrue();
+
                 return;
             }
 
-            $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues);
+            $messages = array_map(fn (Issue $issue) => $issue->messageOrLocalizationKey, $issues);
 
             expect(false)->toBeTrue(
-                "Failed asserting that result is failure with message: {$message}. Got: " . implode(', ', $messages)
+                "Failed asserting that result is failure with message: {$message}. Got: ".implode(', ', $messages)
             );
         })
         ->and(count($value->issues->at($path)) >= 1)
@@ -105,11 +109,12 @@ expect()->extend('toBeFailureAt', function (string $path, ?string $message = nul
 |
 */
 
-function compareToOptimizedAst(NodeInterface $node) {
+function compareToOptimizedAst(NodeInterface $node)
+{
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
+    /** @var CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     expect(
@@ -138,7 +143,7 @@ function executeParse(NodeInterface|string $node, mixed $data, ParsingOptions $o
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
+    /** @var CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
     $optimizedAst = $registry->get('node');
 
@@ -153,13 +158,15 @@ function executeParse(NodeInterface|string $node, mixed $data, ParsingOptions $o
     if ($normalResult instanceof Success) {
         $serializedResult = json_encode($normalResult->value, JSON_THROW_ON_ERROR);
         $serializedOptimizedResult = json_encode($optimizedResult->value, JSON_THROW_ON_ERROR);
-        expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
+        expect($serializedResult)->toEqual($serializedOptimizedResult, 'Optimized AST should be equal to the normal AST.');
+
         return $normalResult;
     }
 
     $serializedResult = json_encode($normalResult->issues->serializeToFieldsArray(), JSON_THROW_ON_ERROR);
     $serializedOptimizedResult = json_encode($optimizedResult->issues->serializeToFieldsArray(), JSON_THROW_ON_ERROR);
-    expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
+    expect($serializedResult)->toEqual($serializedOptimizedResult, 'Optimized AST should be equal to the normal AST.');
+
     return $normalResult;
 }
 
@@ -169,7 +176,7 @@ function executeSerialize(NodeInterface|string $node, mixed $data, Serialization
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
+    /** @var CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
     $optimizedAst = $registry->get('node');
 
@@ -184,13 +191,15 @@ function executeSerialize(NodeInterface|string $node, mixed $data, Serialization
     if ($normalResult instanceof Success) {
         $serializedResult = json_encode($normalResult->value, JSON_THROW_ON_ERROR);
         $serializedOptimizedResult = json_encode($optimizedResult->value, JSON_THROW_ON_ERROR);
-        expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
+        expect($serializedResult)->toEqual($serializedOptimizedResult, 'Optimized AST should be equal to the normal AST.');
+
         return $normalResult;
     }
 
     $serializedResult = json_encode($normalResult->issues->serializeToFieldsArray(), JSON_THROW_ON_ERROR);
     $serializedOptimizedResult = json_encode($optimizedResult->issues->serializeToFieldsArray(), JSON_THROW_ON_ERROR);
-    expect($serializedResult)->toEqual($serializedOptimizedResult, "Optimized AST should be equal to the normal AST.");
+    expect($serializedResult)->toEqual($serializedOptimizedResult, 'Optimized AST should be equal to the normal AST.');
+
     return $normalResult;
 }
 
@@ -199,7 +208,7 @@ function validateAst(NodeInterface $node): void
     $optimizer = new ASTOptimizer();
     $optimizedCode = $optimizer->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
+    /** @var CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
     $optimizedAst = $registry->get('node');
 

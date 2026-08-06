@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Pipeline;
 
@@ -25,25 +27,25 @@ use Throwable;
  * carrying the failure it was asked to present in `previous`, so neither of the two is lost.
  *
  * @phpstan-import-type Next from MiddlewareContract
+ *
  * @template-contravariant TContext = mixed
  */
 final readonly class ContextualPipeline
 {
     /**
-     * @param list<MiddlewareContract<TContext>> $middlewares
-     * @param Closure(Throwable): RpcError $onError
-     * @param Closure(mixed): (RpcSuccess|RpcError) $destination
+     * @param  list<MiddlewareContract<TContext>>  $middlewares
+     * @param  Closure(Throwable): RpcError  $onError
+     * @param  Closure(mixed): (RpcSuccess|RpcError)  $destination
      */
     public function __construct(
-        private array   $middlewares,
+        private array $middlewares,
         private Closure $onError,
         private Closure $destination,
-    )
-    {
+    ) {
     }
 
     /**
-     * @param TContext $context
+     * @param  TContext  $context
      */
     public function execute(mixed $input, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
     {
@@ -63,9 +65,9 @@ final readonly class ContextualPipeline
     }
 
     /**
-     * @param MiddlewareContract<TContext> $middleware
-     * @param Next $next
-     * @param TContext $context
+     * @param  MiddlewareContract<TContext>  $middleware
+     * @param  Next  $next
+     * @param  TContext  $context
      * @return Next
      */
     private function ring(MiddlewareContract $middleware, Closure $next, mixed $context, ResolveInfo $info, Client $client): Closure

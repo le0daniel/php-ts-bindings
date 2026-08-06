@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -27,7 +29,7 @@ final readonly class ValueObjectConsumer implements TypeConsumer
     #[Override]
     public function canConsume(ParserState $state): bool
     {
-        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
+        if (! $state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 
@@ -55,7 +57,7 @@ final readonly class ValueObjectConsumer implements TypeConsumer
             );
         }
 
-        if (!class_exists($fullyQualifiedClassName) && !interface_exists($fullyQualifiedClassName)) {
+        if (! class_exists($fullyQualifiedClassName) && ! interface_exists($fullyQualifiedClassName)) {
             $state->produceSyntaxError("Value object {$fullyQualifiedClassName} does not exist.");
         }
 

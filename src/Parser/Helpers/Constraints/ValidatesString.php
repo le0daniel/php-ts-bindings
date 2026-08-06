@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
@@ -25,9 +27,10 @@ trait ValidatesString
         $context->addIssue(new Issue(
             IssueMessage::INVALID_TYPE,
             [
-                'message' => "Expected string, got: " . gettype($value),
+                'message' => 'Expected string, got: '.gettype($value),
             ],
         ));
+
         return false;
     }
 }

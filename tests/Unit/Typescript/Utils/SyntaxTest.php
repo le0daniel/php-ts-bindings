@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Typescript\Utils;
 
@@ -26,7 +28,7 @@ test('module specifier is single quoted', function () {
 // TypescriptImport rejects these before ever reaching here, but Syntax is public and must not
 // emit a specifier that silently names a module that does not exist.
 test('module specifier rejects anything that would not survive the string literal', function (string $specifier) {
-    expect(fn() => Syntax::moduleSpecifier($specifier))
+    expect(fn () => Syntax::moduleSpecifier($specifier))
         ->toThrow(CodeGenException::class, 'cannot be written as a TypeScript module specifier');
 })->with([
     'empty' => [''],

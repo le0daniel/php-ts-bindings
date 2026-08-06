@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
@@ -25,10 +27,9 @@ final readonly class MetadataNode implements NodeInterface, ValidatableNode, Wra
 {
     public function __construct(
         public NodeInterface $node,
-        public ?NamedType    $name = null,
-        public ?string       $brand = null,
-    )
-    {
+        public ?NamedType $name = null,
+        public ?string $brand = null,
+    ) {
     }
 
     #[Override]
@@ -73,7 +74,7 @@ final readonly class MetadataNode implements NodeInterface, ValidatableNode, Wra
     private function assertOneAliasFitsBothDirections(): void
     {
         // Two distinct aliases were computed, one per direction — the shapes are free to differ.
-        if ($this->name === null || !$this->name->isSameForBothDirections()) {
+        if ($this->name === null || ! $this->name->isSameForBothDirections()) {
             return;
         }
 
@@ -81,22 +82,22 @@ final readonly class MetadataNode implements NodeInterface, ValidatableNode, Wra
 
         // NEVER has no input type at all — TypescriptGenerator throws before the alias is reached —
         // so its properties being output only says nothing about the alias.
-        if (!$node instanceof CustomCastingNode || $node->strategy === ObjectCastStrategy::NEVER) {
+        if (! $node instanceof CustomCastingNode || $node->strategy === ObjectCastStrategy::NEVER) {
             return;
         }
 
         // Only a struct has per-direction properties; a cast over a list or a record does not.
-        if (!$node->node instanceof StructNode) {
+        if (! $node->node instanceof StructNode) {
             return;
         }
 
         $asymmetric = array_find(
             $node->node->properties,
-            fn(NodeInterface $property): bool => $property instanceof PropertyNode
+            fn (NodeInterface $property): bool => $property instanceof PropertyNode
                 && $property->propertyType !== PropertyType::BOTH,
         );
 
-        if (!$asymmetric instanceof PropertyNode) {
+        if (! $asymmetric instanceof PropertyNode) {
             return;
         }
 
@@ -104,11 +105,11 @@ final readonly class MetadataNode implements NodeInterface, ValidatableNode, Wra
 
         throw new ParserException(
             "#[Named] on {$node->fullyQualifiedCastingClass} resolves to one alias \"{$this->name->outputName}\" "
-            . "for both directions, but its input and output shapes differ: \"{$asymmetric->name}\" is "
-            . "{$direction} only. Every alias is declared once in the generated types file, so one name "
-            . "cannot describe both. Compute a name per direction with a closure — "
-            . "#[Named(name: Naming::alias(...))], Closure(string \$className, IO \$io): string — or align "
-            . "the shapes."
+            ."for both directions, but its input and output shapes differ: \"{$asymmetric->name}\" is "
+            ."{$direction} only. Every alias is declared once in the generated types file, so one name "
+            .'cannot describe both. Compute a name per direction with a closure — '
+            .'#[Named(name: Naming::alias(...))], Closure(string $className, IO $io): string — or align '
+            .'the shapes.'
         );
     }
 }

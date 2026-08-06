@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Typescript\Exceptions;
 
@@ -22,7 +24,7 @@ final class UnsupportedTypeException extends CodeGenException
     public static function forNode(NodeInterface $node): self
     {
         return new self(
-            "Cannot emit TypeScript for node " . $node::class . ": {$node}"
+            'Cannot emit TypeScript for node '.$node::class.": {$node}"
         );
     }
 
@@ -49,9 +51,9 @@ final class UnsupportedTypeException extends CodeGenException
     {
         return new self(
             "Type alias {$alias} has conflicting definitions: '{$existing}' and '{$conflicting}'."
-            . " Either two types claim the same alias — rename one — or {$alias} contains something whose"
-            . " input and output shapes differ, in which case it needs a name per direction:"
-            . " #[Named(name: Naming::alias(...))]."
+            ." Either two types claim the same alias — rename one — or {$alias} contains something whose"
+            .' input and output shapes differ, in which case it needs a name per direction:'
+            .' #[Named(name: Naming::alias(...))].'
         );
     }
 

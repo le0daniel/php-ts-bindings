@@ -17,21 +17,23 @@ function lex(string $input): array
 
 /**
  * Compact "TYPE(lexeme)" rendering with WHITESPACE and EOF removed.
+ *
  * @return list<string>
  */
 function significant(string $input): array
 {
     return array_values(array_map(
-        fn(Token $token) => "{$token->type->name}({$token->value})",
+        fn (Token $token) => "{$token->type->name}({$token->value})",
         array_filter(
             lex($input),
-            fn(Token $token) => !$token->isAnyTypeOf(TokenType::WHITESPACE, TokenType::EOF),
+            fn (Token $token) => ! $token->isAnyTypeOf(TokenType::WHITESPACE, TokenType::EOF),
         ),
     ));
 }
 
 /**
  * One type string per line.
+ *
  * @return list<string>
  */
 function lines(string $block): array
@@ -42,6 +44,7 @@ function lines(string $block): array
 /**
  * The real strings used across the existing test suite, plus complex PHPStan constructs
  * the old tokenizer cannot express.
+ *
  * @return list<string>
  */
 function corpus(): array
@@ -130,10 +133,9 @@ function corpus(): array
  * A. Corpus sweep
  * ---------------------------------------------------------------------------------------
  */
-
 test('the token stream is lossless for every type string', function () {
     foreach (corpus() as $input) {
-        $roundTrip = implode('', array_map(fn(Token $token) => $token->value, lex($input)));
+        $roundTrip = implode('', array_map(fn (Token $token) => $token->value, lex($input)));
         expect($roundTrip)->toBe($input, "Round trip failed for: {$input}");
     }
 });
@@ -166,7 +168,6 @@ test('empty input yields only EOF', function () {
  * B. String literals
  * ---------------------------------------------------------------------------------------
  */
-
 test('every string literal lexes to exactly one STRING token with quotes and escapes intact', function () {
     $literals = lines(<<<'STRINGS'
     'hello'
@@ -211,7 +212,7 @@ test('single and double quoted literals mix freely and sit next to each other', 
 
 test('whitespace inside a string literal is part of the literal, not a WHITESPACE token', function () {
     $tokens = lex('array{"key something else": int}');
-    $whitespace = array_filter($tokens, fn(Token $token) => $token->type === TokenType::WHITESPACE);
+    $whitespace = array_filter($tokens, fn (Token $token) => $token->type === TokenType::WHITESPACE);
 
     // The two spaces inside the key belong to the STRING; only the one after `:` is trivia.
     expect($whitespace)->toHaveCount(1)
@@ -226,7 +227,6 @@ test('whitespace inside a string literal is part of the literal, not a WHITESPAC
  * C. Quoted keys and unsealed shapes
  * ---------------------------------------------------------------------------------------
  */
-
 test('array shape keys may be quoted and may contain spaces', function () {
     expect(significant('array{"key something else": OtherType, ...}'))->toBe([
         'IDENTIFIER(array)', 'LBRACE({)', 'STRING("key something else")', 'COLON(:)',
@@ -278,7 +278,6 @@ test('empty and trailing comma shapes', function () {
  * D. The magic that is gone
  * ---------------------------------------------------------------------------------------
  */
-
 test('class constants are three tokens, not one CLASS_CONST', function () {
     expect(significant('Foo::BAR'))
         ->toBe(['IDENTIFIER(Foo)', 'DOUBLE_COLON(::)', 'IDENTIFIER(BAR)'])
@@ -323,7 +322,6 @@ test('true, false and null are plain identifiers', function () {
  * E. Identifiers and numbers
  * ---------------------------------------------------------------------------------------
  */
-
 test('hyphenated identifiers do not collide with negative numbers', function () {
     expect(significant('non-empty-string'))->toBe(['IDENTIFIER(non-empty-string)'])
         ->and(significant('positive-int'))->toBe(['IDENTIFIER(positive-int)'])
@@ -364,7 +362,6 @@ test('namespaced identifiers stay a single token', function () {
  * F. Complex constructs beyond today's grammar
  * ---------------------------------------------------------------------------------------
  */
-
 test('callable signatures lex variables, defaults and variadics', function () {
     expect(significant('callable(int $a, string ...$rest): bool'))->toBe([
         'IDENTIFIER(callable)', 'LPAREN(()', 'IDENTIFIER(int)', 'VARIABLE($a)', 'COMMA(,)',
@@ -415,11 +412,10 @@ test('unions, intersections and grouping', function () {
  * G. Whitespace and multi line input
  * ---------------------------------------------------------------------------------------
  */
-
 test('whitespace is emitted as its own token', function () {
     $tokens = lex('string | int');
 
-    expect(array_map(fn(Token $token) => $token->type, $tokens))->toBe([
+    expect(array_map(fn (Token $token) => $token->type, $tokens))->toBe([
         TokenType::IDENTIFIER, TokenType::WHITESPACE, TokenType::PIPE,
         TokenType::WHITESPACE, TokenType::IDENTIFIER, TokenType::EOF,
     ])->and($tokens[1]->value)->toBe(' ');
@@ -437,7 +433,6 @@ test('multi line array shapes lex identically to their single line form', functi
  * H. Errors
  * ---------------------------------------------------------------------------------------
  */
-
 test('illegal input raises UnexpectedCharacterException instead of being swallowed', function () {
     // The old tokenizer lexed "a#b" as IDENTIFIER(a#b) and never complained.
     $illegal = [
@@ -464,7 +459,7 @@ test('illegal input raises UnexpectedCharacterException instead of being swallow
 
         expect($thrown)->toBeInstanceOf(
             UnexpectedCharacterException::class,
-            'Should have been rejected: ' . json_encode($input),
+            'Should have been rejected: '.json_encode($input),
         );
     }
 });

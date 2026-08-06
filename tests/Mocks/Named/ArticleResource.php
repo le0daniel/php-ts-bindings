@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Mocks\Named;
 
@@ -11,7 +13,6 @@ final class ArticleResource implements PublicResource
     public function __construct(
         public string $url,
         public string $title,
-    )
-    {
+    ) {
     }
 }

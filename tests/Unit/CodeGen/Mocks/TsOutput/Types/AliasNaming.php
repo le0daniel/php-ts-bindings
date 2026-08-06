@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks\TsOutput\Types;
 
@@ -13,6 +15,7 @@ final class AliasNaming
     public static function perDirection(string $className, IO $io): string
     {
         $base = explode('\\', $className) |> array_last(...);
+
         return $io === IO::INPUT ? "{$base}Input" : $base;
     }
 }

@@ -20,7 +20,8 @@
     "laravel/framework": "^13",
     "mockery/mockery": "^1.6",
     "phpstan/phpstan-strict-rules": "^2.0",
-    "psr/container": "^2.0"
+    "psr/container": "^2.0",
+    "laravel/pint": "^1.30"
   },
   "suggest": {
     "laravel/framework": "Enables the first-party Laravel adapter: config, routes, and the operations:* artisan commands.",
@@ -52,9 +53,16 @@
   "scripts": {
     "test": "pest",
     "check:types": "phpstan --memory-limit=1G analyse",
+    "check:style": "pint --test",
+    "fix:style": "pint",
     "check:all": [
       "@test",
-      "@check:types"
+      "@check:types",
+      "@check:style"
+    ],
+    "check:ts": [
+      "npm ci --prefix tests/ts-output --no-audit --no-fund",
+      "npm --prefix tests/ts-output run typecheck"
     ],
     "codegen:fixture": [
       "@php tests/ts-output/generate.php",
@@ -63,6 +71,9 @@
     ]
   },
   "scripts-descriptions": {
+    "check:style": "Check formatting with Pint (psr12) without writing. Run fix:style to apply.",
+    "fix:style": "Apply Pint formatting in place.",
+    "check:ts": "Typecheck the committed generated TypeScript with tsc --noEmit. Needs node; check:all does not.",
     "codegen:fixture": "Regenerate tests/ts-output/generated and typecheck it with tsc --noEmit. Run after changing a code generator; commit the result."
   },
   "extra": {

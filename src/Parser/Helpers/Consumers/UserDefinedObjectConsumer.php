@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -33,19 +35,18 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
 
     public function __construct(
         public readonly bool $allowAllObjectCasting = false
-    )
-    {
+    ) {
     }
 
     #[Override]
     public function canConsume(ParserState $state): bool
     {
-        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
+        if (! $state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 
         $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
-        if (!class_exists($fullyQualifiedClassName) && !interface_exists($fullyQualifiedClassName)) {
+        if (! class_exists($fullyQualifiedClassName) && ! interface_exists($fullyQualifiedClassName)) {
             return false;
         }
 
@@ -63,10 +64,11 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
 
         if ($attributes->has(Castable::class)) {
             $instance = $attributes->getSingleInstance(Castable::class);
+
             return $instance->strategy ?? $this->findCastingStrategy($class);
         }
 
-        if (!$this->allowAllObjectCasting) {
+        if (! $this->allowAllObjectCasting) {
             return ObjectCastStrategy::NEVER;
         }
 
@@ -74,8 +76,7 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
     }
 
     /**
-     * @param ReflectionClass<object> $class
-     * @return ObjectCastStrategy
+     * @param  ReflectionClass<object>  $class
      */
     private function findCastingStrategy(ReflectionClass $class): ObjectCastStrategy
     {
@@ -130,8 +131,8 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
         }
 
         $type = $param->getType();
-        if ($type === null || !$type->allowsNull()) {
-            throw new ParserException("Optional parameter must allow null or provide a default value. PHP does not difference between null and undefined.");
+        if ($type === null || ! $type->allowsNull()) {
+            throw new ParserException('Optional parameter must allow null or provide a default value. PHP does not difference between null and undefined.');
         }
 
         return true;
@@ -141,7 +142,7 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
     private function parseNeverStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingScope $context): CustomCastingNode
     {
         $properties = array_map(
-            fn(ReflectionProperty $property) => new PropertyNode(
+            fn (ReflectionProperty $property) => new PropertyNode(
                 $property->getName(),
                 $parser->parse(
                     TypeReflector::reflectProperty($property),
@@ -191,7 +192,8 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
     }
 
     /**
-     * @param ReflectionClass<object> $reflectionClass
+     * @param  ReflectionClass<object>  $reflectionClass
+     *
      * @throws InvalidSyntaxException
      */
     private function parseConstructorStrategy(ReflectionClass $reflectionClass, TypeParser $parser, ParsingScope $context): CustomCastingNode
@@ -220,10 +222,11 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
 
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
             if ($property->isPromoted()) {
-                $index = array_find_key($structProperties, fn(PropertyNode $propertyNode) => $propertyNode->name === $property->getName());
+                $index = array_find_key($structProperties, fn (PropertyNode $propertyNode) => $propertyNode->name === $property->getName());
                 if ($index !== null) {
                     $structProperties[$index] = $structProperties[$index]->changePropertyType(PropertyType::BOTH);
                 }
+
                 continue;
             }
 

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
@@ -22,16 +24,17 @@ use Throwable;
 readonly class LaravelHttpController
 {
     public const string QUERY_NAME = '__query_route';
+
     public const string COMMAND_NAME = '__command_route';
+
     public const string CLIENT_ID_HEADER = 'X-Client-Id';
 
     public function __construct(
-        private Server           $server,
+        private Server $server,
         private ExceptionHandler $exceptionHandler,
-        private ?ContextFactory  $contextFactory,
-        private bool             $debug = false,
-    )
-    {
+        private ?ContextFactory $contextFactory,
+        private bool $debug = false,
+    ) {
     }
 
     public static function registerQueries(string $routePrefix = 'query'): Route
@@ -52,11 +55,11 @@ readonly class LaravelHttpController
     public function handleHttpQueryRequest(string $fqn, Http\Request $request): JsonResponse
     {
         return $this->server->query(
-                $fqn,
-                input: $this->gatherInputFromRequest(OperationType::QUERY, $request),
-                context: $this->contextFactory?->createContextFromHttpRequest($request),
-                client: $this->createClient($request),
-            )
+            $fqn,
+            input: $this->gatherInputFromRequest(OperationType::QUERY, $request),
+            context: $this->contextFactory?->createContextFromHttpRequest($request),
+            client: $this->createClient($request),
+        )
                 |> $this->reportExceptions(...)
                 |> $this->produceJsonResponse(...);
     }
@@ -67,11 +70,11 @@ readonly class LaravelHttpController
     public function handleHttpCommandRequest(string $fqn, Http\Request $request): JsonResponse
     {
         return $this->server->command(
-                $fqn,
-                input: $this->gatherInputFromRequest(OperationType::COMMAND, $request),
-                context:$this->contextFactory?->createContextFromHttpRequest($request),
-                client: $this->createClient($request),
-            )
+            $fqn,
+            input: $this->gatherInputFromRequest(OperationType::COMMAND, $request),
+            context: $this->contextFactory?->createContextFromHttpRequest($request),
+            client: $this->createClient($request),
+        )
                 |> $this->reportExceptions(...)
                 |> $this->produceJsonResponse(...);
     }
@@ -86,6 +89,7 @@ readonly class LaravelHttpController
                 $this->exceptionHandler->report($throwable);
             }
         }
+
         return $result;
     }
 
@@ -109,7 +113,7 @@ readonly class LaravelHttpController
             // guarantee that every Throwable comes back as an RpcError. Anything that is not a
             // string is passed through untouched for the schema to reject properly.
             OperationType::QUERY => array_map(static function (mixed $value): mixed {
-                if (!is_string($value)) {
+                if (! is_string($value)) {
                     return $value;
                 }
 
@@ -149,17 +153,17 @@ readonly class LaravelHttpController
     private function produceJsonResponse(RpcResult $result): JsonResponse
     {
         $jsonResponse = $result->jsonSerialize();
-        if (!$this->debug) {
+        if (! $this->debug) {
             return new JsonResponse($jsonResponse, status: $result->statusCode);
         }
 
         // We append some general debug information
         if ($result->resolveInfo) {
             $jsonResponse['__resolveInfo'] = [
-                "handler" => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
-                "middleware" => $result->resolveInfo->middleware,
-                "fqn" => $result->resolveInfo->fullyQualifiedName,
-                "type" => $result->resolveInfo->operationType->name,
+                'handler' => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
+                'middleware' => $result->resolveInfo->middleware,
+                'fqn' => $result->resolveInfo->fullyQualifiedName,
+                'type' => $result->resolveInfo->operationType->name,
             ];
         }
 

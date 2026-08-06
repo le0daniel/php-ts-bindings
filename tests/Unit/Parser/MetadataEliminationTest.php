@@ -1,9 +1,14 @@
-<?php declare(strict_types=1);
+<?php
 
+declare(strict_types=1);
+
+use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NonEmptyString;
 use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
@@ -12,6 +17,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Utils\Nodes;
 use Tests\Mocks\Named\Customer;
 use Tests\Mocks\ValueObjects\Email;
+use Tests\Mocks\ValueObjects\Inherited\AccountId;
 
 /**
  * Codegen metadata must never reach a cached AST. The guarantee is doubled: ASTOptimizer strips
@@ -42,7 +48,7 @@ function containsMetadataNode(NodeInterface $node): bool
 
         foreach (new ReflectionObject($current)->getProperties() as $property) {
             // UnionNode::$acceptsNull is a lazily populated memo and may be uninitialized.
-            if (!$property->isInitialized($current)) {
+            if (! $property->isInitialized($current)) {
                 continue;
             }
 
@@ -72,11 +78,11 @@ dataset('metadata positions', [
     'deeply nested' => "array{a: array{b: list<BrandedString<'tok'>>}}",
     'named class' => Customer::class,
     'branded value object' => Email::class,
-    'value object with inherited metadata' => \Tests\Mocks\ValueObjects\Inherited\AccountId::class,
-    'value object in struct' => 'array{e: ' . Email::class . '}',
-    'named class in list' => 'list<' . Customer::class . '>',
-    'named class in union' => Customer::class . '|null',
-    'named class in record' => 'array<string, ' . Customer::class . '>',
+    'value object with inherited metadata' => AccountId::class,
+    'value object in struct' => 'array{e: '.Email::class.'}',
+    'named class in list' => 'list<'.Customer::class.'>',
+    'named class in union' => Customer::class.'|null',
+    'named class in record' => 'array<string, '.Customer::class.'>',
 ]);
 
 test('the parser produces metadata for every position under test', function (string $type) {
@@ -101,7 +107,7 @@ test('an optimized AST parses identically to the metadata carrying one', functio
     $node = new TypeParser()->parse("array{token: BrandedString<'tok'>, count: int}");
     ['node' => $optimized] = optimizeSingle($node);
 
-    $executor = new Le0daniel\PhpTsBindings\Executor\SchemaExecutor();
+    $executor = new SchemaExecutor();
     $data = ['token' => 'abc', 'count' => 3];
 
     expect($executor->parse($optimized, $data)->value)
@@ -113,18 +119,18 @@ test('MetadataNode cannot serialize itself even outside the optimizer', function
 
     expect($node->exportPhpCode())->not->toContain('MetadataNode')
         ->and($node->exportPhpCode())->toBe(new StringNode()->exportPhpCode())
-        ->and((string)$node)->toBe((string)new StringNode());
+        ->and((string) $node)->toBe((string) new StringNode());
 });
 
 test('MetadataNode rejects being nested', function () {
     $node = new MetadataNode(new MetadataNode(new StringNode(), null, 'inner'), null, 'outer');
 
-    expect(fn() => $node->validate())
+    expect(fn () => $node->validate())
         ->toThrow(ParserException::class, 'should not be nested');
 });
 
 test('MetadataNode rejects carrying neither a name nor a brand', function () {
-    expect(fn() => new MetadataNode(new StringNode())->validate())
+    expect(fn () => new MetadataNode(new StringNode())->validate())
         ->toThrow(ParserException::class, 'meaningless');
 });
 
@@ -136,9 +142,9 @@ test('unwrapMetadata strips the wrapper and leaves everything else alone', funct
 });
 
 test('unwrapMetadata keeps constraints attached, unlike getDeclaringNode', function () {
-    $constrained = new Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode(
+    $constrained = new ConstraintNode(
         new StringNode(),
-        [new \Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NonEmptyString()],
+        [new NonEmptyString()],
     );
     $wrapped = new MetadataNode($constrained, null, 'tag');
 

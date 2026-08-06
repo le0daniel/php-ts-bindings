@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -16,7 +18,6 @@ use UnitEnum;
 
 final readonly class ClassConstConsumer implements TypeConsumer
 {
-
     /**
      * `Foo::BAR` used to arrive as a single CLASS_CONST token. The lexer no longer merges
      * it, so this matches the three token sequence instead. The peek(2) guard keeps a
@@ -40,13 +41,13 @@ final readonly class ClassConstConsumer implements TypeConsumer
 
         $constOrEnumCase = $state->current()->value;
         $fqcn = $state->context->toFullyQualifiedClassName($className);
-        if (!class_exists($fqcn) && !interface_exists($fqcn)) {
+        if (! class_exists($fqcn) && ! interface_exists($fqcn)) {
             $state->produceSyntaxError("Class {$fqcn} does not exist.");
         }
 
         try {
             $reflection = new ReflectionClass($fqcn);
-            if (!$reflection->hasConstant($constOrEnumCase)) {
+            if (! $reflection->hasConstant($constOrEnumCase)) {
                 $state->produceSyntaxError("Class {$fqcn} has no constant or enum case {$constOrEnumCase}");
             }
 
@@ -61,7 +62,7 @@ final readonly class ClassConstConsumer implements TypeConsumer
         } catch (InvalidSyntaxException $exception) {
             throw $exception;
         } catch (Throwable $exception) {
-            $state->produceSyntaxError("Could not identify class const or enum", $exception);
+            $state->produceSyntaxError('Could not identify class const or enum', $exception);
         }
     }
 }

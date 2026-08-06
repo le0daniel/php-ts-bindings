@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Errors;
 
@@ -33,9 +35,8 @@ final readonly class ExposedExceptions
      * that throws. They are reflected in that order so an operation's own declaration keeps
      * winning over a server wide one.
      *
-     * @param Definition $definition
-     * @param ServerConfiguration $configuration
      * @return array<class-string<Throwable>, string|null>
+     *
      * @throws ReflectionException
      */
     public static function declaredFor(Definition $definition, ServerConfiguration $configuration): array
@@ -44,8 +45,8 @@ final readonly class ExposedExceptions
             ->getAttributes(Throws::class);
 
         $middlewareClassNames = [
-            ... $definition->middleware,
-            ... $configuration->middleware,
+            ...$definition->middleware,
+            ...$configuration->middleware,
         ];
 
         foreach ($middlewareClassNames as $middlewareClassName) {
@@ -74,11 +75,12 @@ final readonly class ExposedExceptions
     /**
      * The name an exception class gives itself, used when no #[Throws] names it.
      *
-     * @param class-string $exceptionClass
+     * @param  class-string  $exceptionClass
      */
     private static function exposeAsOf(string $exceptionClass): ?string
     {
         $attributes = new ReflectionClass($exceptionClass)->getAttributes(ExposeAs::class);
+
         return count($attributes) === 0
             ? null
             : $attributes[0]->newInstance()->type;
@@ -87,9 +89,8 @@ final readonly class ExposedExceptions
     /**
      * The exposed names of every exception the operation declares, in declaration order.
      *
-     * @param Definition $definition
-     * @param ServerConfiguration $configuration
      * @return list<string>
+     *
      * @throws ReflectionException
      */
     public static function exposedTypesFor(Definition $definition, ServerConfiguration $configuration): array

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
@@ -11,16 +13,13 @@ final readonly class Issue
     public string $messageOrLocalizationKey;
 
     /**
-     * @param string|UnitEnum $messageOrLocalizationKey
-     * @param array<string, mixed> $debugInfo
-     * @param Throwable|null $exception
+     * @param  array<string, mixed>  $debugInfo
      */
     public function __construct(
-        string|UnitEnum   $messageOrLocalizationKey,
-        public array      $debugInfo = [],
+        string|UnitEnum $messageOrLocalizationKey,
+        public array $debugInfo = [],
         public ?Throwable $exception = null,
-    )
-    {
+    ) {
         $this->messageOrLocalizationKey = match (true) {
             $messageOrLocalizationKey instanceof BackedEnum => (string) $messageOrLocalizationKey->value,
             $messageOrLocalizationKey instanceof UnitEnum => $messageOrLocalizationKey->name,
@@ -36,23 +35,21 @@ final readonly class Issue
     {
         return new self(
             IssueMessage::INVALID_TYPE,
-            ['message' => "Expected value of type {$expected}, got: " . gettype($value)],
+            ['message' => "Expected value of type {$expected}, got: ".gettype($value)],
         );
     }
 
     /**
-     * @param list<string> $messages
+     * @param  list<string>  $messages
      * @return list<Issue>
      */
     public static function fromMessageArray(array $messages): array
     {
-        return array_map(fn(string $message) => new self($message), $messages);
+        return array_map(fn (string $message) => new self($message), $messages);
     }
 
     /**
-     * @param Throwable $throwable
-     * @param array<string, mixed> $debugInfo
-     * @return self
+     * @param  array<string, mixed>  $debugInfo
      */
     public static function fromThrowable(Throwable $throwable, array $debugInfo = []): self
     {
@@ -64,8 +61,7 @@ final readonly class Issue
     }
 
     /**
-     * @param array<string, mixed> $debugInfo
-     * @return self
+     * @param  array<string, mixed>  $debugInfo
      */
     public static function internalError(array $debugInfo = []): self
     {

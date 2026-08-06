@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
@@ -15,17 +17,16 @@ use Throwable;
  * ExposeAs: the exception may be one you cannot annotate, or one worth naming differently here.
  * An exception with neither stays a 500.
  */
-#[Attribute(Attribute::TARGET_METHOD|Attribute::IS_REPEATABLE)]
+#[Attribute(Attribute::TARGET_METHOD | Attribute::IS_REPEATABLE)]
 final readonly class Throws
 {
     /**
-     * @param class-string<Throwable> $exceptionClass
-     * @param non-empty-string|null $as
+     * @param  class-string<Throwable>  $exceptionClass
+     * @param  non-empty-string|null  $as
      */
     public function __construct(
         public string $exceptionClass,
         public ?string $as = null,
-    )
-    {
+    ) {
     }
 }

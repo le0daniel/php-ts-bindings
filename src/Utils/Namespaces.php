@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
@@ -28,7 +30,7 @@ final readonly class Namespaces
      * names but are not verified to name anything. Typing them class-string would be a guarantee
      * this cannot make - resolution happens later, against the consumers that actually need a class.
      *
-     * @param array<int|string, string> $namespaces
+     * @param  array<int|string, string>  $namespaces
      * @return array<string, string>
      */
     public static function buildNamespaceAliasMap(array $namespaces): array
@@ -41,6 +43,7 @@ final readonly class Namespaces
                 $map[$alias] = self::withoutLeadingSlash($namespace);
             }
         }
+
         return $map;
     }
 
@@ -50,7 +53,7 @@ final readonly class Namespaces
     }
 
     /**
-     * @param array<string, string> $namespacesMap
+     * @param  array<string, string>  $namespacesMap
      */
     public static function toFullyQualifiedClassName(string $className, ?string $namespace, array $namespacesMap): string
     {
@@ -65,19 +68,20 @@ final readonly class Namespaces
         $lookupKey = $segments[0];
         if (array_key_exists($lookupKey, $namespacesMap)) {
             $remaining = array_slice($segments, 1);
+
             return $remaining === []
                 ? $namespacesMap[$lookupKey]
-                : $namespacesMap[$lookupKey] . '\\' . implode('\\', $remaining);
+                : $namespacesMap[$lookupKey].'\\'.implode('\\', $remaining);
         }
 
         // If reflection->getType()->getName() is used, it already returns a fully qualified class name.
         // In case we did not find an import match, we check if the classname is imported anywhere already. If this is the case, we return it.
-        if (array_any($namespacesMap, fn(string $usedClass) => self::isWithin($className, $usedClass))) {
+        if (array_any($namespacesMap, fn (string $usedClass) => self::isWithin($className, $usedClass))) {
             return $className;
         }
 
-        if ($namespace !== null && !self::isWithin($className, $namespace)) {
-            return $namespace . '\\' . $className;
+        if ($namespace !== null && ! self::isWithin($className, $namespace)) {
+            return $namespace.'\\'.$className;
         }
 
         return $className;

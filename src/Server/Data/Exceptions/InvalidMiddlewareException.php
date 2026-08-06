@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data\Exceptions;
 
@@ -22,6 +24,7 @@ final class InvalidMiddlewareException extends SchemaException
     public static function notAMiddleware(string $className): self
     {
         $contract = MiddlewareContract::class;
+
         return new self("Middleware {$className} must implement {$contract}.");
     }
 }

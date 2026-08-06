@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Parser;
 
@@ -14,7 +16,7 @@ use Tests\Unit\Parser\Data\Stubs\AccountData;
  * touches the file the documentation tells users to require.
  */
 beforeEach(function () {
-    $this->file = sys_get_temp_dir() . '/php-ts-bindings-asts-' . getmypid() . '.php';
+    $this->file = sys_get_temp_dir().'/php-ts-bindings-asts-'.getmypid().'.php';
 });
 
 afterEach(function () {
@@ -27,7 +29,7 @@ test('the written file round-trips: optimize, require, execute', function () {
     $parser = new TypeParser();
 
     new ASTOptimizer()->optimizeAndWriteToFile($this->file, [
-        'account@output' => $parser->parse('\\' . AccountData::class),
+        'account@output' => $parser->parse('\\'.AccountData::class),
         'scalar@input' => $parser->parse('int'),
     ]);
 
@@ -58,11 +60,11 @@ test('the written file is valid PHP that returns a registry', function () {
 // Byte-for-byte reproducibility is what lets a build compare a regenerated cache against the
 // committed one to decide whether it is stale.
 test('writing the same schemas twice produces identical bytes', function () {
-    $second = $this->file . '.second';
+    $second = $this->file.'.second';
 
     foreach ([$this->file, $second] as $path) {
         new ASTOptimizer()->optimizeAndWriteToFile($path, [
-            'account@input' => new TypeParser()->parse('\\' . AccountData::class),
+            'account@input' => new TypeParser()->parse('\\'.AccountData::class),
         ]);
     }
 

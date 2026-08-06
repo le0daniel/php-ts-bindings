@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
@@ -8,24 +10,24 @@ use ReflectionAttribute;
 final readonly class AttributesReflector
 {
     /**
-     * @param list<ReflectionAttribute<object>> $attributes
+     * @param  list<ReflectionAttribute<object>>  $attributes
      */
     public function __construct(private array $attributes)
     {
     }
 
     /**
-     * @param class-string $attributeClass
-     * @return bool
+     * @param  class-string  $attributeClass
      */
     public function has(string $attributeClass): bool
     {
-        return array_any($this->attributes, fn(ReflectionAttribute $attribute) => $attribute->name === $attributeClass);
+        return array_any($this->attributes, fn (ReflectionAttribute $attribute) => $attribute->name === $attributeClass);
     }
 
     /**
      * @template T of object
-     * @param class-string<T> $attributeClass
+     *
+     * @param  class-string<T>  $attributeClass
      * @return T
      */
     public function getSingleInstance(string $attributeClass): object
@@ -39,12 +41,13 @@ final readonly class AttributesReflector
      * has() followed by getSingleInstance() walking the list twice.
      *
      * @template T of object
-     * @param class-string<T> $attributeClass
+     *
+     * @param  class-string<T>  $attributeClass
      * @return T|null
      */
     public function firstInstanceOrNull(string $attributeClass): ?object
     {
-        $reflection = array_find($this->attributes, fn(ReflectionAttribute $attribute) => $attribute->name === $attributeClass);
+        $reflection = array_find($this->attributes, fn (ReflectionAttribute $attribute) => $attribute->name === $attributeClass);
 
         /** @var T|null */
         return $reflection?->newInstance();

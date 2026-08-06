@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Typescript\Code;
 
@@ -44,7 +46,7 @@ final readonly class TypescriptFile implements Stringable
     public array $imports;
 
     /**
-     * @param list<TypescriptImport> $imports Duplicated modules are merged, empty ones dropped.
+     * @param  list<TypescriptImport>  $imports  Duplicated modules are merged, empty ones dropped.
      */
     public function __construct(string $code = '', array $imports = [])
     {
@@ -66,13 +68,13 @@ final readonly class TypescriptFile implements Stringable
      * A specifier is written before it is known where the file writing it ends up, and what it has
      * to say depends on that. Whoever does know hands the rule in here.
      *
-     * @param Closure(string): string $resolve
+     * @param  Closure(string): string  $resolve
      */
     #[NoDiscard]
     public function withModulesResolvedBy(Closure $resolve): self
     {
         return new self($this->code, array_map(
-            fn(TypescriptImport $import): TypescriptImport => new TypescriptImport(
+            fn (TypescriptImport $import): TypescriptImport => new TypescriptImport(
                 $resolve($import->from),
                 $import->values,
                 $import->types,
@@ -93,8 +95,8 @@ final readonly class TypescriptFile implements Stringable
 
         return new self(
             $this->code === '' || $code === ''
-                ? $this->code . $code
-                : $this->code . PHP_EOL . PHP_EOL . $code,
+                ? $this->code.$code
+                : $this->code.PHP_EOL.PHP_EOL.$code,
             $imports,
         );
     }
@@ -106,12 +108,12 @@ final readonly class TypescriptFile implements Stringable
             array_push($importLines, ...self::statementsFor($import));
         }
 
-        $body = $this->code === '' ? '' : $this->code . PHP_EOL;
+        $body = $this->code === '' ? '' : $this->code.PHP_EOL;
         $withoutMarker = $importLines === []
             ? $body
-            : implode(PHP_EOL, $importLines) . PHP_EOL . ($body === '' ? '' : PHP_EOL . $body);
+            : implode(PHP_EOL, $importLines).PHP_EOL.($body === '' ? '' : PHP_EOL.$body);
 
-        return self::MARKER . PHP_EOL . ($withoutMarker === '' ? '' : PHP_EOL . $withoutMarker);
+        return self::MARKER.PHP_EOL.($withoutMarker === '' ? '' : PHP_EOL.$withoutMarker);
     }
 
     /**
@@ -131,7 +133,7 @@ final readonly class TypescriptFile implements Stringable
      */
     public static function isGenerated(string $contents): bool
     {
-        return str_starts_with($contents, self::MARKER . PHP_EOL)
+        return str_starts_with($contents, self::MARKER.PHP_EOL)
             || rtrim($contents, "\r\n") === self::MARKER;
     }
 
@@ -142,7 +144,7 @@ final readonly class TypescriptFile implements Stringable
     }
 
     /**
-     * @param list<TypescriptImport> $imports
+     * @param  list<TypescriptImport>  $imports
      * @return list<TypescriptImport>
      */
     private static function mergeByModule(array $imports): array
@@ -159,6 +161,7 @@ final readonly class TypescriptFile implements Stringable
 
         // SORT_STRING: a specifier that looks numeric would otherwise compare as a number.
         ksort($byModule, SORT_STRING);
+
         return array_values($byModule);
     }
 
@@ -174,13 +177,13 @@ final readonly class TypescriptFile implements Stringable
     }
 
     /**
-     * @param list<string> $names
+     * @param  list<string>  $names
      */
     private static function statement(string $keyword, array $names, string $from): ?string
     {
         return $names === []
             ? null
-            : "{$keyword} {" . implode(', ', $names) . '} from ' . Syntax::moduleSpecifier($from) . ';';
+            : "{$keyword} {".implode(', ', $names).'} from '.Syntax::moduleSpecifier($from).';';
     }
 
     /**

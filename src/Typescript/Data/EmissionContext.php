@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Typescript\Data;
 
@@ -13,9 +15,8 @@ use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 final readonly class EmissionContext
 {
     public function __construct(
-        public IO            $io,
+        public IO $io,
         public AliasRegistry $registry,
-    )
-    {
+    ) {
     }
 }

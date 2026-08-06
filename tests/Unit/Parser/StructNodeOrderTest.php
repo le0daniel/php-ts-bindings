@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
@@ -17,12 +19,11 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
  * optimized AST behaves identically to a freshly parsed one (no dev/prod divergence), and two
  * declarations of the same shape in different orders intern to a single registry entry.
  */
-
 function structOf(string ...$names): StructNode
 {
     return new StructNode(
         StructPhpType::ARRAY,
-        array_map(static fn(string $name) => new PropertyNode($name, new StringNode(), false), $names),
+        array_map(static fn (string $name) => new PropertyNode($name, new StringNode(), false), $names),
     );
 }
 
@@ -44,7 +45,7 @@ test('shapes declared in different orders intern to one entry', function () {
 test('properties are ordered by name', function () {
     $properties = structOf('zebra', 'alpha', 'middle')->properties;
 
-    expect(array_map(static fn(PropertyNode $p) => $p->name, $properties))
+    expect(array_map(static fn (PropertyNode $p) => $p->name, $properties))
         ->toBe(['alpha', 'middle', 'zebra']);
 });
 
@@ -54,7 +55,7 @@ test('properties sharing a name are ordered by property type', function () {
         new PropertyNode('field', new IntNode(), false, PropertyType::INPUT),
     ]);
 
-    expect(array_map(static fn(PropertyNode $p) => $p->propertyType, $struct->properties))
+    expect(array_map(static fn (PropertyNode $p) => $p->propertyType, $struct->properties))
         ->toBe([PropertyType::INPUT, PropertyType::OUTPUT]);
 });
 
@@ -74,12 +75,12 @@ test('a struct built from references is left untouched', function () {
 test('filter and map preserve canonical order', function () {
     $struct = structOf('zebra', 'alpha', 'middle');
 
-    $mapped = $struct->map(static fn(PropertyNode $p) => $p->changePropertyType(PropertyType::INPUT));
-    $filtered = $struct->filter(static fn(PropertyNode $p) => $p->name !== 'middle');
+    $mapped = $struct->map(static fn (PropertyNode $p) => $p->changePropertyType(PropertyType::INPUT));
+    $filtered = $struct->filter(static fn (PropertyNode $p) => $p->name !== 'middle');
 
-    expect(array_map(static fn(PropertyNode $p) => $p->name, $mapped->properties))
+    expect(array_map(static fn (PropertyNode $p) => $p->name, $mapped->properties))
         ->toBe(['alpha', 'middle', 'zebra'])
-        ->and(array_map(static fn(PropertyNode $p) => $p->name, $filtered->properties))
+        ->and(array_map(static fn (PropertyNode $p) => $p->name, $filtered->properties))
         ->toBe(['alpha', 'zebra']);
 });
 

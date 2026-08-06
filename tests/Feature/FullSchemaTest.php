@@ -14,7 +14,7 @@ use Tests\Feature\Mocks\Paginated;
 use Tests\Feature\Mocks\SortByInput;
 
 /**
- * @param list<string> $noise
+ * @param  list<string>  $noise
  */
 function prepare(string $type, string $mode = 'parse', array $noise = []): Closure
 {
@@ -33,7 +33,7 @@ function prepare(string $type, string $mode = 'parse', array $noise = []): Closu
         }
 
         $registryCode = $optimizer->generateOptimizedCode([
-            ... $namedNoisePatterns,
+            ...$namedNoisePatterns,
             'node' => $ast,
         ]);
 
@@ -56,19 +56,19 @@ function prepare(string $type, string $mode = 'parse', array $noise = []): Closu
     };
 }
 
-test("Schema with Paginated generic", function () {
-    $schema = prepare(Paginated::class . '<object{id: string, name: string}>', 'serialize');
-    expect($schema(new Paginated([(object)['name' => 'leo', "id" => "123", 'other' => "wow"]], 2)))->toBeSuccess();
+test('Schema with Paginated generic', function () {
+    $schema = prepare(Paginated::class.'<object{id: string, name: string}>', 'serialize');
+    expect($schema(new Paginated([(object) ['name' => 'leo', 'id' => '123', 'other' => 'wow']], 2)))->toBeSuccess();
 });
 
-test("Test schema with optional email", function () {
+test('Test schema with optional email', function () {
     $schema = prepare(CreateUserWithOptionalEmail::class);
 
     expect($schema(['username' => 'other']))->toBeSuccess();
 });
 
 test('Test Create User input schema', function () {
-    $schema = prepare('string|int|' . CreateUserInput::class);
+    $schema = prepare('string|int|'.CreateUserInput::class);
 
     expect($schema('my string value'))->toBeSuccess()
         ->and($schema(-123))->toBeSuccess()
@@ -100,7 +100,7 @@ test('Test Create User input schema', function () {
         ->and($createUser->email)->toBe('my@mail.test');
 });
 
-test("Create user input schema", function () {
+test('Create user input schema', function () {
     $execute = prepare(CreateObjectInput::class);
 
     expect($execute([]))->toBeFailure()
@@ -108,22 +108,22 @@ test("Create user input schema", function () {
         ->and($execute(null))->toBeFailure()
         ->and($execute([
             'name' => 'my name',
-            'options' => []
+            'options' => [],
         ]))->toBeFailure('validation.invalid_type')
         ->and($execute([
             'name' => 'my name',
             'options' => [
                 'type' => 'square',
-                'radius' => 10
-            ]
+                'radius' => 10,
+            ],
         ]))->toBeFailure();
 
     $result = $execute([
         'name' => 'my name',
         'options' => [
             'type' => 'square',
-            'dimensions' => 10
-        ]
+            'dimensions' => 10,
+        ],
     ]);
     expect($result)->toBeSuccess()
         ->and($result->value)->toBeInstanceOf(CreateObjectInput::class)
@@ -135,8 +135,8 @@ test("Create user input schema", function () {
         'name' => 'my name',
         'options' => [
             'type' => 'circle',
-            'radius' => 10
-        ]
+            'radius' => 10,
+        ],
     ]);
     expect($result)->toBeSuccess()
         ->and($result->value)->toBeInstanceOf(CreateObjectInput::class)
@@ -147,7 +147,7 @@ test("Create user input schema", function () {
 
 test('Execute parsing with custom collection class', function () {
     $collectionClass = Collection::class;
-    $executor = prepare("array<int, array{id: string}>", 'parse');
+    $executor = prepare('array<int, array{id: string}>', 'parse');
 
     $validResult = $executor([
         ['id' => 'test'],
@@ -159,7 +159,7 @@ test('Execute parsing with custom collection class', function () {
 });
 
 test('Execute parsing with custom collection class as record', function () {
-    $executor = prepare("array<string, int>", 'parse');
+    $executor = prepare('array<string, int>', 'parse');
 
     $validResult = $executor(['id' => 123]);
 
@@ -168,12 +168,12 @@ test('Execute parsing with custom collection class as record', function () {
 });
 
 test('Execute serialization with custom record class', function () {
-    $executor = prepare("array<string, int>", 'serialize');
+    $executor = prepare('array<string, int>', 'serialize');
 
     $validResult = $executor(['id' => 123]);
 
     expect($validResult)->toBeSuccess()
-        ->and($validResult->value)->toEqual((object)['id' => 123]);
+        ->and($validResult->value)->toEqual((object) ['id' => 123]);
 });
 
 test('serialization with custom collection class', function () {
@@ -190,30 +190,30 @@ test('serialization with null boundires', function () {
 
     $validResult = $executor([
         ['name' => 'leo'],
-        null
+        null,
     ]);
     expect($validResult)->toBeSuccess()
         ->and($validResult->value)->toEqual([
-            (object)['name' => 'leo'],
-            null
+            (object) ['name' => 'leo'],
+            null,
         ]);
 
     $invalidResult = $executor([
         ['name' => null],
-        null
+        null,
     ]);
     expect($invalidResult)->toBeSuccess()
         ->and($invalidResult->value)->toEqual([
             null,
-            null
+            null,
         ])
-        ->and($executor("string"))->toBeFailure();
+        ->and($executor('string'))->toBeFailure();
 
 });
 
-test("failing optimized case", function () {
-    $executor = prepare('array{other?: string, sortBy?: ' . SortByInput::class . '<"name"|"id"|"email">}', noise: [
-        'array{other?: string, sortBy?: ' . SortByInput::class . '<"random"|"other">}',
+test('failing optimized case', function () {
+    $executor = prepare('array{other?: string, sortBy?: '.SortByInput::class.'<"name"|"id"|"email">}', noise: [
+        'array{other?: string, sortBy?: '.SortByInput::class.'<"random"|"other">}',
     ]);
 
     $result = $executor(['sortBy' => ['by' => 'name', 'direction' => 'asc']]);
@@ -222,6 +222,6 @@ test("failing optimized case", function () {
     $result = $executor(['sortBy' => ['by' => 'other', 'direction' => 'asc']]);
     expect($result)->toBeFailure();
 
-    $result = $executor(['other' => "wow"]);
+    $result = $executor(['other' => 'wow']);
     expect($result)->toBeSuccess();
 });

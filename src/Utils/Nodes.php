@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
@@ -16,6 +18,7 @@ final readonly class Nodes
         while ($node instanceof ConstraintNode || $node instanceof MetadataNode) {
             $node = $node->node;
         }
+
         return $node;
     }
 
@@ -29,12 +32,12 @@ final readonly class Nodes
         while ($node instanceof MetadataNode) {
             $node = $node->node;
         }
+
         return $node;
     }
 
     /**
-     * @param list<NodeInterface> $nodes
-     * @return bool
+     * @param  list<NodeInterface>  $nodes
      */
     public static function areAllNodesOfSameStructType(array $nodes): bool
     {
@@ -44,12 +47,13 @@ final readonly class Nodes
         $stack = $nodes;
         while ($node = array_pop($stack)) {
             if ($node instanceof UnionNode) {
-                array_push($stack, ... $node->nodes);
+                array_push($stack, ...$node->nodes);
+
                 continue;
             }
 
             $declaredNode = self::getDeclaringNode($node);
-            if (!$declaredNode instanceof StructNode) {
+            if (! $declaredNode instanceof StructNode) {
                 return false;
             }
 

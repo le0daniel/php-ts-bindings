@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
@@ -16,12 +18,15 @@ use Override;
  * Not readonly: the EmitTypes its files import from is injected after construction, which is the
  * only way it can be the same instance the generator runs.
  */
-final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
+final class EmitOperationClientBindings implements DependsOn, GeneratesLibFiles
 {
-    private const string BINDINGS_FILE = "bindings";
-    private const string OPERATION_CLIENT_FILE = "OperationClient";
-    private const string DEFAULT_CLIENT_FILE = "DefaultClient";
-    private const string OPERATION_EXCEPTION_FILE = "OperationException";
+    private const string BINDINGS_FILE = 'bindings';
+
+    private const string OPERATION_CLIENT_FILE = 'OperationClient';
+
+    private const string DEFAULT_CLIENT_FILE = 'DefaultClient';
+
+    private const string OPERATION_EXCEPTION_FILE = 'OperationException';
 
     private EmitTypes $types;
 
@@ -30,8 +35,8 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
      * own. Not static: reaching them means declaring the dependency, and a declared dependency that
      * is not registered fails the run before a line is generated.
      *
-     * @param list<string> $values
-     * @param list<string> $types
+     * @param  list<string>  $values
+     * @param  list<string>  $types
      */
     public function importFromBindings(array $values = [], array $types = []): TypescriptImport
     {
@@ -43,8 +48,8 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
     }
 
     /**
-     * @param list<string> $values
-     * @param list<string> $types
+     * @param  list<string>  $values
+     * @param  list<string>  $types
      */
     public function importFromOperationClient(array $values = [], array $types = []): TypescriptImport
     {
@@ -56,8 +61,8 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
     }
 
     /**
-     * @param list<string> $values
-     * @param list<string> $types
+     * @param  list<string>  $values
+     * @param  list<string>  $types
      */
     public function importFromDefaultClient(array $values = [], array $types = []): TypescriptImport
     {
@@ -69,8 +74,8 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
     }
 
     /**
-     * @param list<string> $values
-     * @param list<string> $types
+     * @param  list<string>  $values
+     * @param  list<string>  $types
      */
     public function importFromOperationException(array $values = [], array $types = []): TypescriptImport
     {
@@ -105,7 +110,7 @@ final class EmitOperationClientBindings implements GeneratesLibFiles, DependsOn
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         return [
-            self::OPERATION_CLIENT_FILE => new TypescriptFile(<<<TypeScript
+            self::OPERATION_CLIENT_FILE => new TypescriptFile(<<<'TypeScript'
 export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client?: OperationClient};
 
 /**
@@ -124,7 +129,7 @@ export interface OperationClient {
 TypeScript, [
                 $this->types->importFromTypes(types: ['Result']),
             ]),
-            self::DEFAULT_CLIENT_FILE => new TypescriptFile(<<<TypeScript
+            self::DEFAULT_CLIENT_FILE => new TypescriptFile(<<<'TypeScript'
 export type Hook = (result: Result<unknown, {code: number}>) => Promise<void> | void;
 
 export class DefaultClient implements OperationClient {
@@ -158,7 +163,7 @@ export class DefaultClient implements OperationClient {
         return Object.entries(input)
             .filter(([key, value]) => value !== undefined)
             .map(([key, value]) => {
-                return `\${encodeURIComponent(key)}=\${encodeURIComponent(JSON.stringify(value))}`;
+                return `${encodeURIComponent(key)}=${encodeURIComponent(JSON.stringify(value))}`;
             }).join('&');
     }
 
@@ -174,7 +179,7 @@ export class DefaultClient implements OperationClient {
 
     async execute<O, E extends {code: number}>(type: "command" | "query", key: string, input: unknown, options?: OperationOptions): Promise<Result<O, E>> {
         const route = this.options.paths[type].substring(0, 1) === '/' ? this.options.paths[type].substring(1) : this.options.paths[type];
-        const fullPath = `\${this.options.baseUrl ?? ''}/\${route.replace('{fqn}', key)}`;
+        const fullPath = `${this.options.baseUrl ?? ''}/${route.replace('{fqn}', key)}`;
 
         // Per call wins over the client wide default, and the timeout signal actually fires: a
         // fresh AbortController is never aborted by anything.
@@ -194,10 +199,10 @@ export class DefaultClient implements OperationClient {
         }
 
         const queryParams = type === 'query' && input && typeof input === 'object'
-            ? `?\${this.createJsonEncodedQueryParams(input)}`
+            ? `?${this.createJsonEncodedQueryParams(input)}`
             : '';
 
-        const response = await this.fetcher(`\${fullPath}\${queryParams}`, {
+        const response = await this.fetcher(`${fullPath}${queryParams}`, {
             method: type === 'query' ? 'GET' : 'POST',
             signal,
             headers,
@@ -235,7 +240,7 @@ TypeScript, [
                 $this->importFromOperationClient(types: ['OperationClient', 'OperationOptions']),
                 $this->types->importFromTypes(types: ['Failure', 'Result', 'Success']),
             ]),
-            self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<TypeScript
+            self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<'TypeScript'
 /**
  * Generic over the operation's error union, so `e.cause.type` narrows to the branches the
  * operation can actually produce rather than to any.
@@ -253,7 +258,7 @@ export class OperationException<E extends {code: number} = {code: number}> exten
     }
 
     constructor(cause: Failure<E>) {
-        super(`Operation failed with code \${cause.code}`);
+        super(`Operation failed with code ${cause.code}`);
         this.cause = cause;
     }
 

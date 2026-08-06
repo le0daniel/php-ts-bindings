@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Operations;
 
@@ -28,27 +30,22 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
     private array $instances = [];
 
     /**
-     * @param array<string, Closure(): Operation> $factories
+     * @param  array<string, Closure(): Operation>  $factories
      */
     public function __construct(
         private readonly array $factories,
-    )
-    {
+    ) {
     }
 
     /**
-     * @param string|string[] $directories
-     * @param TypeParser $parser
-     * @param OperationKeyGenerator $keyGenerator
-     * @return self
+     * @param  string|string[]  $directories
      */
     public static function eagerlyDiscover(
-        string|array          $directories,
-        TypeParser            $parser = new TypeParser(),
+        string|array $directories,
+        TypeParser $parser = new TypeParser(),
         OperationKeyGenerator $keyGenerator = new HashSha256KeyGenerator('default', 8, 24),
-        OperationDiscovery    $discovery = new OperationDiscovery(),
-    ): self
-    {
+        OperationDiscovery $discovery = new OperationDiscovery(),
+    ): self {
         $directories = is_array($directories) ? $directories : [$directories];
         foreach ($directories as $directory) {
             self::discoverDirectory($directory, $discovery);
@@ -69,7 +66,7 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
 
         /** @var SplFileInfo $file */
         foreach ($iterator as $file) {
-            if (!$file->isFile() || $file->getExtension() !== 'php' || !$file->getRealPath()) {
+            if (! $file->isFile() || $file->getExtension() !== 'php' || ! $file->getRealPath()) {
                 continue;
             }
 
@@ -78,11 +75,10 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
     }
 
     private static function registryFromDiscovery(
-        TypeParser            $parser,
+        TypeParser $parser,
         OperationKeyGenerator $keyGenerator,
-        OperationDiscovery    $discovery,
-    ): self
-    {
+        OperationDiscovery $discovery,
+    ): self {
         $factories = [];
         foreach ($discovery->operations as $definition) {
             $key = $keyGenerator->generateKey($definition->namespace, $definition->name);
@@ -94,7 +90,7 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
             if (array_key_exists($fullyQualifiedKey, $factories)) {
                 throw new SchemaException(
                     "Operation key collision on '{$key}' for {$definition->fullyQualifiedName()}. "
-                    . "Two operations hash to the same key - increase the key generator's length."
+                    ."Two operations hash to the same key - increase the key generator's length."
                 );
             }
 
@@ -104,8 +100,8 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
                 $inputParameter = $classReflection->getMethod($definition->methodName)->getParameters()[0];
 
                 $parsingContext = ParsingScope::fromReflectionClass($classReflection);
-                $input = fn() => $parser->parse(TypeReflector::reflectParameter($inputParameter), $parsingContext);
-                $output = fn() => $parser->parse(TypeReflector::reflectReturnType($classReflection->getMethod($definition->methodName)), $parsingContext);
+                $input = fn () => $parser->parse(TypeReflector::reflectParameter($inputParameter), $parsingContext);
+                $output = fn () => $parser->parse(TypeReflector::reflectReturnType($classReflection->getMethod($definition->methodName)), $parsingContext);
 
                 return new Operation($key, $definition, $input, $output);
             };
@@ -115,27 +111,28 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
     }
 
     /**
-     * @param list<class-string> $classes
+     * @param  list<class-string>  $classes
+     *
      * @throws ReflectionException
      */
     public static function withClasses(
-        array                 $classes,
-        TypeParser            $parser = new TypeParser(),
+        array $classes,
+        TypeParser $parser = new TypeParser(),
         OperationKeyGenerator $keyGenerator = new HashSha256KeyGenerator('default', 8, 24),
-        OperationDiscovery    $discovery = new OperationDiscovery(),
-    ): self
-    {
+        OperationDiscovery $discovery = new OperationDiscovery(),
+    ): self {
         foreach ($classes as $className) {
             $discovery->discover(new ReflectionClass($className));
         }
+
         return self::registryFromDiscovery($parser, $keyGenerator, $discovery);
     }
-
 
     #[Override]
     public function has(OperationType $type, string $fullyQualifiedKey): bool
     {
         $key = $type->registryKey($fullyQualifiedKey);
+
         return array_key_exists($key, $this->factories);
     }
 
@@ -146,6 +143,7 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
     public function get(OperationType $type, string $fullyQualifiedKey): Operation
     {
         $key = $type->registryKey($fullyQualifiedKey);
+
         return $this->instances[$key] ??= $this->factories[$key]();
     }
 
@@ -158,6 +156,7 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
         foreach ($this->factories as $key => $factory) {
             $this->instances[$key] ??= $factory();
         }
+
         return $this->instances;
     }
 }

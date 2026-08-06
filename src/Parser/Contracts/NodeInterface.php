@@ -18,6 +18,6 @@ use Stringable;
  * __toString() is a human readable type label for diagnostics and error messages. It is allowed
  * to be lossy and MUST NOT be used as a cache key.
  */
-interface NodeInterface extends Stringable, ExportableToPhpCode
+interface NodeInterface extends ExportableToPhpCode, Stringable
 {
 }

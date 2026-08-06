@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
@@ -29,8 +31,8 @@ final readonly class EmitOperationsSpaClient implements GeneratesLibFiles
      * Not static: reaching this means declaring the dependency, and a declared dependency that is
      * not registered fails the run before a line is generated.
      *
-     * @param list<string> $values
-     * @param list<string> $types
+     * @param  list<string>  $values
+     * @param  list<string>  $types
      */
     public function importFromOperationsSpaClient(array $values = [], array $types = []): TypescriptImport
     {
@@ -49,7 +51,7 @@ final readonly class EmitOperationsSpaClient implements GeneratesLibFiles
     {
         // Derived from the enum so the emitted union can never drift from what Client::toast accepts.
         $toastTypes = implode('|', array_map(
-            fn(ToastType $type): string => "'{$type->value}'",
+            fn (ToastType $type): string => "'{$type->value}'",
             ToastType::cases(),
         ));
 

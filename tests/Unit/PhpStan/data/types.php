@@ -1,133 +1,155 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
+use Tests\Unit\PhpStan\Mocks\MyTestClass;
 
 use function PHPStan\Testing\assertType;
 
 /**
- * @param Pick<object{id: string, name: string, other: string}, 'id'|'name'> $s
+ * @param  Pick<object{id: string, name: string, other: string}, 'id'|'name'>  $s
  * @return void
  */
-function pick(object $s) {
-    assertType("object{id: string, name: string}", $s);
+function pick(object $s)
+{
+    assertType('object{id: string, name: string}', $s);
 }
 
 /**
- * @param Pick<object{id: string, name?: string, other: string}, 'id'|'name'> $s
+ * @param  Pick<object{id: string, name?: string, other: string}, 'id'|'name'>  $s
  * @return void
  */
-function pickWithOptional(object $s) {
-    assertType("object{id: string, name?: string}", $s);
+function pickWithOptional(object $s)
+{
+    assertType('object{id: string, name?: string}', $s);
 }
 
 /**
- * @param Pick<array{id: string, name: string, other: string}, 'id'|'name'> $s
+ * @param  Pick<array{id: string, name: string, other: string}, 'id'|'name'>  $s
  * @return void
  */
-function pickArray(array $s) {
-    assertType("array{id: string, name: string}", $s);
+function pickArray(array $s)
+{
+    assertType('array{id: string, name: string}', $s);
 }
 
 /**
- * @param Pick<array{id: string, name?: string, other: string}, 'id'|'name'> $s
+ * @param  Pick<array{id: string, name?: string, other: string}, 'id'|'name'>  $s
  * @return void
  */
-function pickArrayWithOptional(array $s) {
-    assertType("array{id: string, name?: string}", $s);
+function pickArrayWithOptional(array $s)
+{
+    assertType('array{id: string, name?: string}', $s);
 }
 
 /**
- * @param Pick<\Tests\Unit\PhpStan\Mocks\MyTestClass, 'id'|'name'> $s
+ * @param  Pick<MyTestClass, 'id'|'name'>  $s
  * @return void
  */
-function pickObject(object $s) {
-    assertType("object{id: string, name: string}", $s);
+function pickObject(object $s)
+{
+    assertType('object{id: string, name: string}', $s);
 }
 
 /**
- * @param Omit<object{id: string, name: string, other: string}, 'id'|'name'> $s
+ * @param  Omit<object{id: string, name: string, other: string}, 'id'|'name'>  $s
  * @return void
  */
-function omit(object $s) {
-    assertType("object{other: string}", $s);
+function omit(object $s)
+{
+    assertType('object{other: string}', $s);
 }
 
 /**
- * @param Omit<array{id: string, name: string, other: string}, 'id'|'name'> $s
+ * @param  Omit<array{id: string, name: string, other: string}, 'id'|'name'>  $s
  * @return void
  */
-function omitArray($s) {
-    assertType("array{other: string}", $s);
+function omitArray($s)
+{
+    assertType('array{other: string}', $s);
 }
 
 /**
- * @param Omit<array{id: string, name: string, other?: string}, 'id'|'name'> $s
+ * @param  Omit<array{id: string, name: string, other?: string}, 'id'|'name'>  $s
  * @return void
  */
-function omitArrayWithOptional($s) {
-    assertType("array{other?: string}", $s);
+function omitArrayWithOptional($s)
+{
+    assertType('array{other?: string}', $s);
 }
 
 /**
- * @param Omit<\Tests\Unit\PhpStan\Mocks\MyTestClass, 'id'|'name'> $s
+ * @param  Omit<MyTestClass, 'id'|'name'>  $s
  * @return void
  */
-function omitObject(object $s) {
-    assertType("object{other: string}", $s);
+function omitObject(object $s)
+{
+    assertType('object{other: string}', $s);
 }
 
 /**
- * @param BrandedInt<"personId"> $i
+ * @param  BrandedInt<"personId">  $i
  */
-function brandedInt(int $i): int {
-    assertType("int", $i);
+function brandedInt(int $i): int
+{
+    assertType('int', $i);
+
     return $i;
 }
 
 /**
- * @param BrandedString<"accountId"> $i
+ * @param  BrandedString<"accountId">  $i
  */
-function brandedString(string $i): string {
-    assertType("string", $i);
+function brandedString(string $i): string
+{
+    assertType('string', $i);
+
     return $i;
 }
 
 /**
- * @param DateTimeString $d
+ * @param  DateTimeString  $d
  */
-function dateTimeStringDefault(object $d): void {
-    assertType("DateTimeImmutable", $d);
+function dateTimeStringDefault(object $d): void
+{
+    assertType('DateTimeImmutable', $d);
 }
 
 /**
- * @param DateTimeString<'Y-m-d'> $d
+ * @param  DateTimeString<'Y-m-d'>  $d
  */
-function dateTimeStringWithFormat(object $d): void {
-    assertType("DateTimeImmutable", $d);
+function dateTimeStringWithFormat(object $d): void
+{
+    assertType('DateTimeImmutable', $d);
 }
 
 /**
- * @param DateTimeString<'Y-m-d\TH:i:sP'> $d
+ * @param  DateTimeString<'Y-m-d\TH:i:sP'>  $d
  */
-function dateTimeStringWithEscapedFormat(object $d): void {
-    assertType("DateTimeImmutable", $d);
+function dateTimeStringWithEscapedFormat(object $d): void
+{
+    assertType('DateTimeImmutable', $d);
 }
 
 /**
- * @param DateTimeString|null $d
+ * @param  DateTimeString|null  $d
  */
-function dateTimeStringNullable(?object $d): void {
-    assertType("DateTimeImmutable|null", $d);
+function dateTimeStringNullable(?object $d): void
+{
+    assertType('DateTimeImmutable|null', $d);
 }
 
 /**
- * @param list<DateTimeString<'Y-m-d'>> $d
+ * @param  list<DateTimeString<'Y-m-d'>>  $d
  */
-function dateTimeStringList(array $d): void {
-    assertType("list<DateTimeImmutable>", $d);
+function dateTimeStringList(array $d): void
+{
+    assertType('list<DateTimeImmutable>', $d);
 }
 
 /**
- * @param array{createdAt: DateTimeString<'Y-m-d'>} $d
+ * @param  array{createdAt: DateTimeString<'Y-m-d'>}  $d
  */
-function dateTimeStringInStruct(array $d): void {
-    assertType("array{createdAt: DateTimeImmutable}", $d);
+function dateTimeStringInStruct(array $d): void
+{
+    assertType('array{createdAt: DateTimeImmutable}', $d);
 }

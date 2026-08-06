@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -6,28 +8,31 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\RecordNotFoundException;
 use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Session\TokenMismatchException;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
+use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 
 return [
 
     /**
      * Define the path where to locate all queries and mutations.
      */
-    "discovery_path" => app_path('Operations'),
+    'discovery_path' => app_path('Operations'),
 
     /**
      * Define a class name used to create the context for all operations.
      * It must implement Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory
      *
-     * @see Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory
+     * @see ContextFactory
      */
-    "context" => null,
+    'context' => null,
 
     /**
      * Defines the ID length to use for the cache keys. Usually 10 is enough. If you face
      * collisions, increase the number
      */
-    "cache" => [
-        "idLength" => 10,
+    'cache' => [
+        'idLength' => 10,
     ],
 
     /**
@@ -39,26 +44,27 @@ return [
      * - plain
      * - custom: MUST define className
      */
-    "key" => [
+    'key' => [
         /**
          * Options: obfuscate, plain, custom
          *
          * For obfuscate: you can define a pepper(string) to add randomness
          * For custom: MUST define className
          */
-        "mode" => "obfuscate",
+        'mode' => 'obfuscate',
 
         /**
          * Only relevant for mode 'obfuscate'
          */
-        "pepper" => "none",
+        'pepper' => 'none',
 
         /**
          * Only relevantly for mode custom
          * Class must implement: Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator
-         * @see Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator
+         *
+         * @see OperationKeyGenerator
          */
-        "className" => null,
+        'className' => null,
     ],
 
     /**
@@ -78,9 +84,9 @@ return [
      *   }
      * ```
      *
-     * @see Le0daniel\PhpTsBindings\Contracts\MiddlewareContract
+     * @see MiddlewareContract
      */
-    "middleware" => [],
+    'middleware' => [],
 
     /**
      * Map your exceptions onto the server's built-in error categories. Anything not listed here and
@@ -89,15 +95,15 @@ return [
      *
      * Matching is instanceof: listing a base class covers every subclass of it.
      */
-    "exceptions" => [
-        "unauthenticated" => [
+    'exceptions' => [
+        'unauthenticated' => [
             AuthenticationException::class,
         ],
-        "unauthorized" => [
+        'unauthorized' => [
             TokenMismatchException::class,
             AuthorizationException::class,
         ],
-        "not_found" => [
+        'not_found' => [
             ModelNotFoundException::class,
             RecordNotFoundException::class,
             RecordsNotFoundException::class,

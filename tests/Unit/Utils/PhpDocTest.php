@@ -6,8 +6,9 @@ use Le0daniel\PhpTsBindings\Utils\PhpDoc;
 
 test('normalize', function () {
 
-    expect(PhpDoc::normalize(" /** @var string */"))->toBe(' @var string')
-        ->and(PhpDoc::normalize(<<<DOC
+    expect(PhpDoc::normalize(' /** @var string */'))->toBe(' @var string')
+        ->and(PhpDoc::normalize(
+            <<<'DOC'
 /**
  * @phpstan-type ReadyToOrderInput array{
  *     id: positive-int,
@@ -40,7 +41,8 @@ test('normalize', function () {
  * @phpstan-type ChangeOrderStatusInput ReadyToOrderInput|WaitingOnApprovalInput|OrderedInput|CompletedInput|RejectedInput
  */
 DOC
-        ))->toBe(<<<TEXT
+        ))->toBe(
+            <<<'TEXT'
 
 @phpstan-type ReadyToOrderInput array{
     id: positive-int,
@@ -72,7 +74,8 @@ TEXT
 });
 
 test('Find local defined types', function () {
-    expect(PhpDoc::findImportedTypeDefinition(<<<DOC
+    expect(PhpDoc::findImportedTypeDefinition(
+        <<<'DOC'
 /**
  * @phpstan-import-type MyType from OtherClass
  * @phpstan-import-type MyType from OtherClass as Other
@@ -90,8 +93,9 @@ DOC
     ]);
 });
 
-test("find locally defined types", function () {
-    expect(PhpDoc::findLocallyDefinedTypes(<<<DOC
+test('find locally defined types', function () {
+    expect(PhpDoc::findLocallyDefinedTypes(
+        <<<'DOC'
 /**
  * @phpstan-type MyType object{id: ID}
  * @phpstan-type Other array{id: string}
@@ -104,12 +108,13 @@ DOC
     ))->toEqual([
         'MyType' => 'object{id: ID}',
         'Other' => 'array{id: string}',
-        'MultiLine' => 'array{    id: string,    status: OrderStatus::READY_TO_ORDER, }'
+        'MultiLine' => 'array{    id: string,    status: OrderStatus::READY_TO_ORDER, }',
     ]);
 });
 
 test('Find Generics', function () {
-    expect(PhpDoc::findGenerics(<<<DOC
+    expect(PhpDoc::findGenerics(
+        <<<'DOC'
 /**
  * @template T of OtherClass
  * @template O 
@@ -119,7 +124,8 @@ DOC
 });
 
 test('Find Generics with covariant', function () {
-    expect(PhpDoc::findGenerics(<<<DOC
+    expect(PhpDoc::findGenerics(
+        <<<'DOC'
 /**
  * @template-covariant T of OtherClass
  * @template O 

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
@@ -11,7 +13,7 @@ use Attribute;
  * default value or a nullable type. A property with neither is rejected at parse time rather than
  * silently receiving null.
  */
-#[Attribute(Attribute::TARGET_PROPERTY| Attribute::TARGET_PARAMETER)]
+#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
 final readonly class Optional
 {
 }

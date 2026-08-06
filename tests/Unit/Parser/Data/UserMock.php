@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Parser\Data;
 
@@ -8,5 +10,6 @@ final class UserMock
         public string $username,
         public int $age,
         public string $email,
-    ) {}
+    ) {
+    }
 }

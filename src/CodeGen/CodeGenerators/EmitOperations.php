@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
@@ -17,18 +19,18 @@ use Override;
  * Not readonly: the generators it imports from are injected after construction, which is the only
  * way they can be the same instances the generator runs.
  */
-final class EmitOperations implements GeneratesOperationCode, DependsOn
+final class EmitOperations implements DependsOn, GeneratesOperationCode
 {
     private EmitTypes $types;
+
     private EmitOperationClientBindings $bindings;
 
     /**
-     * @param (Closure(TypedOperation):string)|null $nameGenerator
+     * @param  (Closure(TypedOperation):string)|null  $nameGenerator
      */
     public function __construct(
         private readonly ?Closure $nameGenerator = null,
-    )
-    {
+    ) {
     }
 
     #[Override]
@@ -70,7 +72,8 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
      * emit `export async function get` and `export type GetResult`. That is invalid TypeScript,
      * and it used to be written without a word. The check lives here because the naming rule does.
      *
-     * @param list<TypedOperation> $operations
+     * @param  list<TypedOperation>  $operations
+     *
      * @throws CodeGenException
      */
     public function assertNamesAreUnique(array $operations): void
@@ -86,10 +89,10 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
                 $second = $operation->definition;
                 throw new CodeGenException(
                     "Two operations generate the name '{$name}' in module "
-                    . "'{$operation->definition->namespace}.ts': "
-                    . "{$first->fullyQualifiedClassName}::{$first->methodName} ({$first->type->lowerCase()}) and "
-                    . "{$second->fullyQualifiedClassName}::{$second->methodName} ({$second->type->lowerCase()}). "
-                    . "Rename one, or generate with a naming mode that distinguishes them."
+                    ."'{$operation->definition->namespace}.ts': "
+                    ."{$first->fullyQualifiedClassName}::{$first->methodName} ({$first->type->lowerCase()}) and "
+                    ."{$second->fullyQualifiedClassName}::{$second->methodName} ({$second->type->lowerCase()}). "
+                    .'Rename one, or generate with a naming mode that distinguishes them.'
                 );
             }
 
@@ -104,17 +107,17 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
 
     public function inputTypeName(TypedOperation $operation): string
     {
-        return $this->baseTypeName($operation) . 'Input';
+        return $this->baseTypeName($operation).'Input';
     }
 
     public function resultTypeName(TypedOperation $operation): string
     {
-        return $this->baseTypeName($operation) . 'Result';
+        return $this->baseTypeName($operation).'Result';
     }
 
     public function errorTypeName(TypedOperation $operation): string
     {
-        return $this->baseTypeName($operation) . 'Error';
+        return $this->baseTypeName($operation).'Error';
     }
 
     /**
@@ -155,7 +158,7 @@ final class EmitOperations implements GeneratesOperationCode, DependsOn
  */
 TypeScript;
 
-        if (!$operation->hasInput) {
+        if (! $operation->hasInput) {
             return new TypescriptFile(
                 <<<TypeScript
 export type {$resultTypeName} = {$operation->outputDef->type};
@@ -171,7 +174,8 @@ export async function {$name}(options?: OperationOptions) {
         options
     )
 }
-TypeScript, $imports,
+TypeScript,
+                $imports,
             );
         }
 
@@ -190,7 +194,8 @@ export async function {$name}(input: {$resultInputTypeName}, options?: Operation
         options
     )
 }
-TypeScript, $imports,
+TypeScript,
+            $imports,
         );
     }
 }

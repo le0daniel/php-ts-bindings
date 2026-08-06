@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Lexer;
 
@@ -24,6 +26,7 @@ final class Lexer
 
     /**
      * @return non-empty-list<Token>
+     *
      * @throws UnexpectedCharacterException
      */
     public function tokenize(string $input): array
@@ -31,7 +34,7 @@ final class Lexer
         $matches = [];
         $result = preg_match_all(self::pattern(), $input, $matches, PREG_SET_ORDER);
         if ($result === false) {
-            throw new ParserException("Failed to tokenize input: " . preg_last_error_msg());
+            throw new ParserException('Failed to tokenize input: '.preg_last_error_msg());
         }
 
         $marks = self::marks();
@@ -51,6 +54,7 @@ final class Lexer
         }
 
         $tokens[] = new Token(TokenType::EOF, '', $offset);
+
         return $tokens;
     }
 
@@ -73,7 +77,7 @@ final class Lexer
             $alternatives[] = "(?:{$pattern})(*MARK:{$case->name})";
         }
 
-        return self::$pattern = '~' . implode('|', $alternatives) . '~Ai';
+        return self::$pattern = '~'.implode('|', $alternatives).'~Ai';
     }
 
     /**

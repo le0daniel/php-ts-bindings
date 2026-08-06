@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Mocks\ValueObjects;
 
@@ -15,7 +17,7 @@ final readonly class Email implements StringValueObject
 
     public static function fromStringValue(string $value): static
     {
-        if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
+        if (! filter_var($value, FILTER_VALIDATE_EMAIL)) {
             throw new InvalidArgumentException("Invalid email: {$value}");
         }
 

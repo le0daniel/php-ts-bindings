@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -21,7 +23,7 @@ test('the committed TypeScript fixture is what the generators produce', function
 
     expect($issues)->toBe([], implode(PHP_EOL, [
         'The generated TypeScript fixture is out of date:',
-        ...array_map(fn(string $issue): string => "  - {$issue}", $issues),
+        ...array_map(fn (string $issue): string => "  - {$issue}", $issues),
         '',
         'Run `composer codegen:fixture` to regenerate it and verify it still compiles.',
     ]));

@@ -1,27 +1,30 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Adapters\PHPStan;
 
-
 use DateTimeImmutable;
 use Override;
-use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
-use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
-use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use PHPStan\Analyser\NameScope;
 use PHPStan\PhpDoc\TypeNodeResolver;
 use PHPStan\PhpDoc\TypeNodeResolverAwareExtension;
 use PHPStan\PhpDoc\TypeNodeResolverExtension;
-use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
-use PHPStan\Type\Type;
-use PHPStan\Type\ObjectType;
-use PHPStan\Type\ObjectShapeType;
-use PHPStan\Type\Constant\ConstantStringType;
-use PHPStan\Type\Constant\ConstantArrayType;
+use PHPStan\PhpDocParser\Ast\Type\GenericTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\IdentifierTypeNode;
+use PHPStan\PhpDocParser\Ast\Type\TypeNode;
 use PHPStan\Reflection\ReflectionProvider;
+use PHPStan\Type\Constant\ConstantArrayType;
+use PHPStan\Type\Constant\ConstantArrayTypeBuilder;
+use PHPStan\Type\Constant\ConstantStringType;
+use PHPStan\Type\IntegerType;
+use PHPStan\Type\ObjectShapeType;
+use PHPStan\Type\ObjectType;
+use PHPStan\Type\StringType;
+use PHPStan\Type\Type;
 use ReflectionProperty;
 
-final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNodeResolverAwareExtension
+final class UtilitiesNodeResolver implements TypeNodeResolverAwareExtension, TypeNodeResolverExtension
 {
     private TypeNodeResolver $typeNodeResolver;
 
@@ -49,12 +52,13 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
                 : null;
         }
 
-        if (!$typeNode instanceof GenericTypeNode) {
+        if (! $typeNode instanceof GenericTypeNode) {
             // returning null means this extension is not interested in this node
             return null;
         }
 
         $typeName = $typeNode->type;
+
         return match ($typeName->name) {
             'DateTimeString' => $this->resolveDateTimeString($typeNode, $nameScope),
             'BrandedString', 'BrandedInt' => $this->resolveBrandedTypes($typeName->name, $typeNode, $nameScope),
@@ -97,8 +101,8 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         }
 
         return match ($typeName) {
-            'BrandedString' => new \PHPStan\Type\StringType(),
-            'BrandedInt' => new \PHPStan\Type\IntegerType(),
+            'BrandedString' => new StringType(),
+            'BrandedInt' => new IntegerType(),
             default => null,
         };
     }
@@ -131,10 +135,7 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
     }
 
     /**
-     * @param "Pick"|"Omit" $type
-     * @param ConstantArrayType $structType
-     * @param Type $keysType
-     * @return Type
+     * @param  "Pick"|"Omit"  $type
      */
     private function resolveConstArrayType(string $type, ConstantArrayType $structType, Type $keysType): Type
     {
@@ -143,10 +144,10 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         foreach ($structType->getKeyTypes() as $i => $keyType) {
             $isPropertyInArrayStruct = match ($type) {
                 'Pick' => $keysType->isSuperTypeOf($keyType)->yes(),
-                'Omit' => !$keysType->isSuperTypeOf($keyType)->yes(),
+                'Omit' => ! $keysType->isSuperTypeOf($keyType)->yes(),
             };
 
-            if (!$isPropertyInArrayStruct) {
+            if (! $isPropertyInArrayStruct) {
                 // eliminate keys that aren't in the Pick type
                 continue;
             }
@@ -163,10 +164,8 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
     }
 
     /**
-     * @param "Pick"|"Omit" $type
-     * @param ObjectType $structType
-     * @param Type $keysType
-     * @return Type
+     * @param  "Pick"|"Omit"  $type
+     *
      * @throws \Exception
      */
     private function resolveObjectType(string $type, ObjectType $structType, Type $keysType): Type
@@ -185,10 +184,10 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
             $keyType = new ConstantStringType($propName, false);
             $isPropertyInNewObject = match ($type) {
                 'Pick' => $keysType->isSuperTypeOf($keyType)->yes(),
-                'Omit' => !$keysType->isSuperTypeOf($keyType)->yes(),
+                'Omit' => ! $keysType->isSuperTypeOf($keyType)->yes(),
             };
 
-            if (!$isPropertyInNewObject) {
+            if (! $isPropertyInNewObject) {
                 continue;
             }
 
@@ -196,6 +195,7 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
             if ($classReflection->hasProperty($propName)) {
                 $propertyReflection = $classReflection->getNativeProperty($propName);
                 $propertyTypes[$propName] = $propertyReflection->getReadableType();
+
                 continue;
             }
 
@@ -206,10 +206,7 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
     }
 
     /**
-     * @param "Pick"|"Omit" $type
-     * @param ObjectShapeType $structType
-     * @param Type $keysType
-     * @return Type
+     * @param  "Pick"|"Omit"  $type
      */
     private function resolveObjectShapeType(string $type, ObjectShapeType $structType, Type $keysType): Type
     {
@@ -218,13 +215,13 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         $optionalProperties = [];
 
         foreach ($structType->getProperties() as $propertyName => $propertyType) {
-            $keyType = new ConstantStringType((string)$propertyName, false);
+            $keyType = new ConstantStringType((string) $propertyName, false);
             $isPropertyInNewObject = match ($type) {
                 'Pick' => $keysType->isSuperTypeOf($keyType)->yes(),
-                'Omit' => !$keysType->isSuperTypeOf($keyType)->yes(),
+                'Omit' => ! $keysType->isSuperTypeOf($keyType)->yes(),
             };
 
-            if (!$isPropertyInNewObject) {
+            if (! $isPropertyInNewObject) {
                 continue;
             }
 

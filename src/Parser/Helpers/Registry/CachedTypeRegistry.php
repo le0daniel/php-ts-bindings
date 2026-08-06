@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Registry;
 
@@ -28,15 +30,14 @@ final class CachedTypeRegistry implements TypeRegistry
     private readonly Closure $factory;
 
     /**
-     * @param Closure(string, self): NodeInterface|array<string, mixed> $factory The array form is
-     *        the format written before schema identity was fixed and is rejected: such a cache can
-     *        silently merge schemas that differ only in their constraints.
+     * @param  Closure(string, self): NodeInterface|array<string, mixed>  $factory  The array form is
+     *                                                                              the format written before schema identity was fixed and is rejected: such a cache can
+     *                                                                              silently merge schemas that differ only in their constraints.
      */
     public function __construct(
         Closure|array $factory,
-    )
-    {
-        if (!$factory instanceof Closure) {
+    ) {
+        if (! $factory instanceof Closure) {
             throw UnknownTypeKeyException::forLegacyCacheShape();
         }
 

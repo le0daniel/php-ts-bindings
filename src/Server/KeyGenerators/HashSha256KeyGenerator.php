@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\KeyGenerators;
 
@@ -10,10 +12,9 @@ final readonly class HashSha256KeyGenerator implements OperationKeyGenerator
 {
     public function __construct(
         private string $pepper,
-        private int    $namespaceLength = 8,
-        private int    $fnNameLength = 24,
-    )
-    {
+        private int $namespaceLength = 8,
+        private int $fnNameLength = 24,
+    ) {
     }
 
     /**

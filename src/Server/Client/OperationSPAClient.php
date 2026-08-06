@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Client;
 
@@ -16,13 +18,13 @@ final class OperationSPAClient implements SerializableClient
 {
     use InteractsWithToasts;
 
-    /** @var Redirect|null  */
+    /** @var Redirect|null */
     private ?array $redirect = null;
 
-    /** @var list<Toast>|null  */
+    /** @var list<Toast>|null */
     private ?array $toasts = null;
 
-    /** @var list<array<int, mixed>>|null  */
+    /** @var list<array<int, mixed>>|null */
     private ?array $invalidations = null;
 
     #[Override]
@@ -42,7 +44,7 @@ final class OperationSPAClient implements SerializableClient
     }
 
     #[Override]
-    public function invalidate(UnitEnum|string $namespace, ...$key): void
+    public function invalidate(UnitEnum|string $namespace, mixed ...$key): void
     {
         $this->invalidations ??= [];
         $this->invalidations[] = [Strings::toString($namespace), ...$key] |> array_values(...);
@@ -52,7 +54,7 @@ final class OperationSPAClient implements SerializableClient
      * @return array{redirect?: Redirect, toasts?: list<SerializedToast>, invalidations?: list<array<int, mixed>>, type: 'operations-spa'}|null
      */
     #[Override]
-    public function serializeToArray(): array|null
+    public function serializeToArray(): ?array
     {
         if ($this->redirect === null && $this->toasts === null && $this->invalidations === null) {
             return null;
@@ -65,13 +67,14 @@ final class OperationSPAClient implements SerializableClient
             $payload['redirect'] = $this->redirect;
         }
         if ($this->toasts !== null) {
-            $payload['toasts'] = array_map(fn(Toast $toast): array => $toast->toArray(), $this->toasts);
+            $payload['toasts'] = array_map(fn (Toast $toast): array => $toast->toArray(), $this->toasts);
         }
         if ($this->invalidations !== null) {
             $payload['invalidations'] = $this->invalidations;
         }
 
         $payload['type'] = 'operations-spa';
+
         return $payload;
     }
 }

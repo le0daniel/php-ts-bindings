@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen;
 
@@ -60,7 +62,7 @@ final readonly class CodeGenerators
     ];
 
     /**
-     * @param GeneratorName $generatorName
+     * @param  GeneratorName  $generatorName
      * @return NamingGenerator
      */
     public static function namingGenerator(string $generatorName): Closure
@@ -69,15 +71,18 @@ final readonly class CodeGenerators
             'fqn' => function (TypedOperation $operationData): string {
                 $namespace = $operationData->definition->namespace;
                 $name = ucfirst($operationData->definition->name);
+
                 return "{$namespace}{$name}";
             },
             'operation-prefix' => function (TypedOperation $operationData): string {
                 $name = ucfirst($operationData->definition->name);
+
                 return "{$operationData->definition->namespace}{$name}";
             },
             'namespace-postfix' => function (TypedOperation $operationData): string {
                 $namespace = ucfirst($operationData->definition->namespace);
                 $name = $operationData->definition->name;
+
                 return "{$name}{$namespace}";
             },
             'name' => function (TypedOperation $operationData): string {
@@ -87,9 +92,9 @@ final readonly class CodeGenerators
     }
 
     /**
-     * @param GeneratorName|NamingGenerator $namingGenerator
-     * @param list<string> $with
-     * @param list<string> $without
+     * @param  GeneratorName|NamingGenerator  $namingGenerator
+     * @param  list<string>  $with
+     * @param  list<string>  $without
      * @return list<GeneratesLibFiles|GeneratesOperationCode>
      */
     public static function fromDefaults(string|Closure $namingGenerator, array $with = [], array $without = []): array
@@ -105,9 +110,9 @@ final readonly class CodeGenerators
             // Asking for a generator always wins: a name in both lists turns it on, so a caller
             // building on top of someone else's $without never has to unpick it first.
             $isEnabled = in_array($name, $with, true)
-                || ($defaultEnabled && !in_array($name, $without, true));
+                || ($defaultEnabled && ! in_array($name, $without, true));
 
-            if (!$isEnabled) {
+            if (! $isEnabled) {
                 continue;
             }
 

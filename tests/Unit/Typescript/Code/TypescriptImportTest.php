@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
@@ -77,12 +79,12 @@ test('reports whether it imports anything', function () {
 });
 
 test('rejects an empty module specifier', function () {
-    expect(fn() => new TypescriptImport(''))
+    expect(fn () => new TypescriptImport(''))
         ->toThrow(CodeGenException::class, 'cannot be written as a TypeScript module specifier');
 });
 
 test('rejects a module specifier that could not be written as a string literal', function (string $from) {
-    expect(fn() => TypescriptImport::values($from, 'a'))
+    expect(fn () => TypescriptImport::values($from, 'a'))
         ->toThrow(CodeGenException::class, 'cannot be written as a TypeScript module specifier');
 })->with([
     'single quote' => ["./li'b"],
@@ -94,9 +96,9 @@ test('rejects a module specifier that could not be written as a string literal',
 ]);
 
 test('rejects a name that is not a valid TypeScript identifier', function (string $name) {
-    expect(fn() => TypescriptImport::values('./lib/types', $name))
+    expect(fn () => TypescriptImport::values('./lib/types', $name))
         ->toThrow(InvalidStringLiteralException::class, 'is not a valid TypeScript identifier')
-        ->and(fn() => TypescriptImport::types('./lib/types', $name))
+        ->and(fn () => TypescriptImport::types('./lib/types', $name))
         ->toThrow(InvalidStringLiteralException::class, 'is not a valid TypeScript identifier');
 })->with([
     'empty' => [''],
@@ -118,7 +120,7 @@ test('accepts identifiers with dollar signs and underscores', function () {
 });
 
 test('names the module in the error message so the bad import can be found', function () {
-    expect(fn() => TypescriptImport::types('./lib/types', 'foo-bar'))
+    expect(fn () => TypescriptImport::types('./lib/types', 'foo-bar'))
         ->toThrow(InvalidStringLiteralException::class, "imported from './lib/types'");
 });
 
@@ -147,7 +149,7 @@ test('a merged value import removes the same name from the type bucket', functio
 });
 
 test('refuses to merge imports of different modules', function () {
-    expect(fn() => TypescriptImport::types('./lib/types', 'Brand')
+    expect(fn () => TypescriptImport::types('./lib/types', 'Brand')
         ->merge(TypescriptImport::types('./lib/utils', 'Brand')))
         ->toThrow(CodeGenException::class, 'different modules');
 });

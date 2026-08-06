@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
@@ -28,11 +30,11 @@ use Tests\Unit\Typescript\Stubs\EmptyEnum;
 
 function typescriptOf(
     string|NodeInterface $type,
-    IO                   $io = IO::INPUT,
-    ?AliasRegistry       $sharedRegistry = null,
-): Typescript
-{
+    IO $io = IO::INPUT,
+    ?AliasRegistry $sharedRegistry = null,
+): Typescript {
     $node = is_string($type) ? new TypeParser()->parse($type) : $type;
+
     return new TypescriptGenerator()->toTypescript($node, $io, $sharedRegistry);
 }
 
@@ -45,6 +47,7 @@ function typescriptOfBoth(string|NodeInterface $type): string
     $output = typescriptOf($type, IO::OUTPUT);
     expect($input->type)->toBe($output->type)
         ->and($input->registry->toArray())->toBe($output->registry->toArray());
+
     return $input->type;
 }
 
@@ -76,7 +79,7 @@ test('emits literal types', function (string $type, string $expected) {
     'float literal' => ['1.5', '1.5'],
     'true' => ['true', 'true'],
     'false' => ['false', 'false'],
-    'enum case literal uses the case name' => ['\\' . ResultEnum::class . '::SUCCESS', '"SUCCESS"'],
+    'enum case literal uses the case name' => ['\\'.ResultEnum::class.'::SUCCESS', '"SUCCESS"'],
 ]);
 
 test('escapes string literals for typescript', function (string $type, string $expected) {
@@ -89,11 +92,11 @@ test('escapes string literals for typescript', function (string $type, string $e
 ]);
 
 test('emits an enum as a union of its case names', function () {
-    expect(typescriptOfBoth('\\' . ResultEnum::class))->toBe('("SUCCESS"|"FAILURE")');
+    expect(typescriptOfBoth('\\'.ResultEnum::class))->toBe('("SUCCESS"|"FAILURE")');
 });
 
 test('throws for an enum without cases', function () {
-    expect(fn() => typescriptOf(new EnumNode(EmptyEnum::class)))
+    expect(fn () => typescriptOf(new EnumNode(EmptyEnum::class)))
         ->toThrow(UnsupportedTypeException::class, 'declares no cases');
 });
 
@@ -151,17 +154,17 @@ test('an attribute brand renders inline and declares no alias', function (string
     expect($result->type)->toBe($expectedType)
         ->and($result->registry->isEmpty())->toBeTrue();
 })->with([
-    'string value object' => ['\\' . Email::class, '(string & Brand<"email">)'],
-    'int value object with an explicit brand' => ['\\' . UserId::class, '(number & Brand<"customerId">)'],
-    'unbranded value object stays a plain string' => ['\\' . Slug::class, 'string'],
+    'string value object' => ['\\'.Email::class, '(string & Brand<"email">)'],
+    'int value object with an explicit brand' => ['\\'.UserId::class, '(number & Brand<"customerId">)'],
+    'unbranded value object stays a plain string' => ['\\'.Slug::class, 'string'],
     'inside a struct' => [
-        '\\' . CreateAccountInput::class,
+        '\\'.CreateAccountInput::class,
         '{email:(string & Brand<"email">);ownerId:(number & Brand<"customerId">);}',
     ],
-    'inside a list' => ['list<\\' . Email::class . '>', 'Array<(string & Brand<"email">)>'],
-    'inside a union' => ['?\\' . Email::class, '(null|(string & Brand<"email">))'],
+    'inside a list' => ['list<\\'.Email::class.'>', 'Array<(string & Brand<"email">)>'],
+    'inside a union' => ['?\\'.Email::class, '(null|(string & Brand<"email">))'],
     'inside a record' => [
-        'array<string, \\' . UserId::class . '>',
+        'array<string, \\'.UserId::class.'>',
         'Record<string,(number & Brand<"customerId">)>',
     ],
 ]);
@@ -169,7 +172,7 @@ test('an attribute brand renders inline and declares no alias', function (string
 test('the BrandedString and BrandedInt utilities keep their implicit alias', function (
     string $type,
     string $expectedType,
-    array  $expectedAliases,
+    array $expectedAliases,
 ) {
     $result = typescriptOf($type);
 
@@ -193,7 +196,7 @@ test('returns branded types sorted by alias', function () {
 });
 
 test('throws when one brand resolves to two different definitions', function () {
-    expect(fn() => typescriptOf("array{a: BrandedString<'token'>, b: BrandedInt<'token'>}"))
+    expect(fn () => typescriptOf("array{a: BrandedString<'token'>, b: BrandedInt<'token'>}"))
         ->toThrow(UnsupportedTypeException::class, 'Token');
 });
 
@@ -236,12 +239,12 @@ test('one shared registry accumulates aliases across emissions', function () {
 test('throws when the incoming registry already binds an alias to something else', function () {
     $shared = new AliasRegistry(['Email' => '(number & Brand<"email">)']);
 
-    expect(fn() => typescriptOf("BrandedString<'email'>", IO::INPUT, $shared))
+    expect(fn () => typescriptOf("BrandedString<'email'>", IO::INPUT, $shared))
         ->toThrow(UnsupportedTypeException::class, 'Email');
 });
 
 test('filters struct properties by direction', function () {
-    $type = '\\' . UserSchema::class;
+    $type = '\\'.UserSchema::class;
 
     expect(typescriptOf($type, IO::INPUT)->type)->toBe('{age:number;email:string;username:string;}')
         ->and(typescriptOf($type, IO::OUTPUT)->type)->toBe('{age:number;username:string;}');
@@ -257,9 +260,9 @@ test('emits an empty object when no property survives the direction filter', fun
 });
 
 test('throws for an uncastable class on input but emits it on output', function (string $class, string $output) {
-    $type = '\\' . $class;
+    $type = '\\'.$class;
 
-    expect(fn() => typescriptOf($type, IO::INPUT))
+    expect(fn () => typescriptOf($type, IO::INPUT))
         ->toThrow(UnsupportedTypeException::class, $class);
 
     expect(typescriptOf($type, IO::OUTPUT)->type)->toBe($output);
@@ -271,10 +274,10 @@ test('throws for an uncastable class on input but emits it on output', function 
 ]);
 
 test('throws for nodes it cannot represent', function (NodeInterface $node) {
-    expect(fn() => typescriptOf($node))->toThrow(UnsupportedTypeException::class);
+    expect(fn () => typescriptOf($node))->toThrow(UnsupportedTypeException::class);
 })->with([
     'ReferencedNode' => [new ReferencedNode('#leaf_abc', 'string', 'registry')],
-    'unknown node implementation' => [new class implements NodeInterface {
+    'unknown node implementation' => [new class () implements NodeInterface {
         public function __toString(): string
         {
             return 'unknown';

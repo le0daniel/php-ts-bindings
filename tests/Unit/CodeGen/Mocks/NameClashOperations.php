@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks;
 
@@ -12,7 +14,7 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 final class NameClashOperations
 {
     /**
-     * @param array{id: int} $input
+     * @param  array{id: int}  $input
      * @return array{id: int}
      */
     #[Query('clash', 'get')]
@@ -22,7 +24,7 @@ final class NameClashOperations
     }
 
     /**
-     * @param array{id: int} $input
+     * @param  array{id: int}  $input
      * @return array{id: int}
      */
     #[Command('clash', 'get')]

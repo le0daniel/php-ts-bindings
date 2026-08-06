@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
@@ -22,18 +24,18 @@ final readonly class PHPExport
     public static function writeFileAtomically(string $filePath, string $contents): void
     {
         $directory = dirname($filePath);
-        if (!is_dir($directory) || !is_writable($directory)) {
+        if (! is_dir($directory) || ! is_writable($directory)) {
             throw new ParserException("Failed to write file to {$filePath}: {$directory} is not a writable directory.");
         }
 
-        $temporaryPath = $filePath . '.' . getmypid() . '.tmp';
+        $temporaryPath = $filePath.'.'.getmypid().'.tmp';
 
         if (file_put_contents($temporaryPath, $contents) !== strlen($contents)) {
             @unlink($temporaryPath);
             throw new ParserException("Failed to write file to {$filePath}");
         }
 
-        if (!@rename($temporaryPath, $filePath)) {
+        if (! @rename($temporaryPath, $filePath)) {
             @unlink($temporaryPath);
             throw new ParserException("Failed to write file to {$filePath}");
         }
@@ -41,19 +43,19 @@ final readonly class PHPExport
 
     public static function absolute(string $className): string
     {
-        return str_starts_with($className, '\\') ? $className : '\\' . $className;
+        return str_starts_with($className, '\\') ? $className : '\\'.$className;
     }
 
     public static function exportEnumCase(UnitEnum $enum): string
     {
         $name = $enum->name;
         $className = self::absolute($enum::class);
+
         return "{$className}::{$name}";
     }
 
     /**
-     * @param array<int|string, mixed> $array
-     * @return string
+     * @param  array<int|string, mixed>  $array
      */
     public static function exportArray(array $array): string
     {
@@ -61,11 +63,12 @@ final readonly class PHPExport
             return '[]';
         }
 
-        if (!array_is_list($array)) {
+        if (! array_is_list($array)) {
             throw new ParserException('Array must be a list');
         }
 
         $imploded = implode(',', array_map(self::export(...), $array));
+
         return "[{$imploded}]";
     }
 
@@ -81,6 +84,7 @@ final readonly class PHPExport
 
         if (is_array($value) && array_is_list($value)) {
             $values = implode(', ', array_map(self::export(...), $value));
+
             return "[{$values}]";
         }
 

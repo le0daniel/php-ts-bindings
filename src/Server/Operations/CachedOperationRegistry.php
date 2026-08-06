@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Operations;
 
@@ -18,7 +20,7 @@ final class CachedOperationRegistry implements OperationRegistry
     private array $instances = [];
 
     /**
-     * @param array<string, Closure(): Operation> $operations
+     * @param  array<string, Closure(): Operation>  $operations
      */
     public function __construct(private readonly array $operations)
     {
@@ -37,9 +39,9 @@ final class CachedOperationRegistry implements OperationRegistry
     public function get(OperationType $type, string $fullyQualifiedKey): Operation
     {
         $key = $type->registryKey($fullyQualifiedKey);
+
         return $this->instances[$key] ??= $this->operations[$key]();
     }
-
 
     #[Override]
     public function all(): array
@@ -47,14 +49,14 @@ final class CachedOperationRegistry implements OperationRegistry
         foreach ($this->operations as $key => $factory) {
             $this->instances[$key] ??= $factory();
         }
+
         return $this->instances;
     }
 
     public static function toPhpCode(
         OperationRegistry $registry,
         int $idLength,
-    ): string
-    {
+    ): string {
         $endpointClass = PHPExport::absolute(Operation::class);
 
         $endpoints = [];
@@ -95,13 +97,15 @@ return new {$operationRegistryClass}([{$endpointsCode}]);
 PHP;
     }
 
-    public static function writeToCache(OperationRegistry $registry, string $filePath, int $idLength,): void
+    public static function writeToCache(OperationRegistry $registry, string $filePath, int $idLength): void
     {
         $code = self::toPhpCode($registry, $idLength);
 
         // The cached code binds both the Asts and operations together and creates a file
         // that can be required with fully compiled types.
-        PHPExport::writeFileAtomically($filePath, <<<PHP
+        PHPExport::writeFileAtomically(
+            $filePath,
+            <<<PHP
 <?php declare(strict_types=1);
 
 {$code}

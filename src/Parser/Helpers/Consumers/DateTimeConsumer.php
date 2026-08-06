@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -16,7 +18,7 @@ final readonly class DateTimeConsumer implements TypeConsumer
     #[Override]
     public function canConsume(ParserState $state): bool
     {
-        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
+        if (! $state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 

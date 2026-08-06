@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
@@ -17,27 +19,23 @@ use ReflectionProperty;
 final readonly class ParsingScope
 {
     /**
-     * @param string|null $namespace
-     * @param array<string, string> $usedNamespaceMap
-     * @param array<string, string> $localTypes
-     * @param array<string, ImportedType> $importedTypes
-     * @param array<string, NodeInterface> $generics
+     * @param  array<string, string>  $usedNamespaceMap
+     * @param  array<string, string>  $localTypes
+     * @param  array<string, ImportedType>  $importedTypes
+     * @param  array<string, NodeInterface>  $generics
      */
     public function __construct(
         public ?string $namespace = null,
-        public array   $usedNamespaceMap = [],
-        public array   $localTypes = [],
-        public array   $importedTypes = [],
-        public array   $generics = [],
+        public array $usedNamespaceMap = [],
+        public array $localTypes = [],
+        public array $importedTypes = [],
+        public array $generics = [],
         public ?string $declaredInClass = null,
-    )
-    {
+    ) {
     }
 
     /**
      * Given an identifier, returns the fully qualified class name without leading backslash.
-     * @param string $className
-     * @return string
      */
     public function toFullyQualifiedClassName(string $className): string
     {
@@ -64,7 +62,7 @@ final readonly class ParsingScope
      */
     public function getLocalTypeDefinition(string $typeName): string
     {
-        if (!$this->isLocalType($typeName)) {
+        if (! $this->isLocalType($typeName)) {
             throw new ParserException("Type definition for {$typeName} not found");
         }
 
@@ -77,12 +75,11 @@ final readonly class ParsingScope
     }
 
     /**
-     * @param string $typeName
      * @return ImportedType
      */
     public function getImportedTypeInfo(string $typeName): array
     {
-        if (!$this->isImportedType($typeName)) {
+        if (! $this->isImportedType($typeName)) {
             throw new ParserException("Type definition for {$typeName} not found");
         }
 
@@ -103,12 +100,13 @@ final readonly class ParsingScope
     }
 
     /**
-     * @param list<NodeInterface> $generics
+     * @param  list<NodeInterface>  $generics
+     *
      * @throws ReflectionException
      */
     public static function fromClassString(string $classString, array $generics = []): self
     {
-        if (!class_exists($classString) && !interface_exists($classString)) {
+        if (! class_exists($classString) && ! interface_exists($classString)) {
             throw new ParserException("Cannot build a parsing context for unknown class {$classString}.");
         }
 
@@ -116,9 +114,8 @@ final readonly class ParsingScope
     }
 
     /**
-     * @param ReflectionClass<object> $class
-     * @param list<NodeInterface> $generics
-     * @return self
+     * @param  ReflectionClass<object>  $class
+     * @param  list<NodeInterface>  $generics
      */
     public static function fromReflectionClass(ReflectionClass $class, array $generics = []): self
     {
@@ -144,7 +141,8 @@ final readonly class ParsingScope
     }
 
     /**
-     * @param array<string, NodeInterface> $generics
+     * @param  array<string, NodeInterface>  $generics
+     *
      * @throws ReflectionException
      */
     public static function fromFilePath(string $filePath, array $generics = []): self
@@ -165,21 +163,19 @@ final readonly class ParsingScope
     }
 
     /**
-     * @param false|string|null $docBlock
-     * @param string|null $namespace
-     * @param array<string, string> $usedNamespaces
+     * @param  array<string, string>  $usedNamespaces
      * @return array<string,ImportedType>
      */
     private static function findFullyQualifiedImportedTypes(null|false|string $docBlock, ?string $namespace, array $usedNamespaces): array
     {
-        return array_map(fn(array $import) => [
+        return array_map(fn (array $import) => [
             'typeName' => $import['typeName'],
             'className' => Utils\Namespaces::toFullyQualifiedClassName($import['className'], $namespace, $usedNamespaces),
         ], Utils\PhpDoc::findImportedTypeDefinition($docBlock));
     }
 
     /**
-     * @param NodeInterface[] $generics
+     * @param  NodeInterface[]  $generics
      * @return array<string, NodeInterface>
      */
     private static function assignGenerics(null|false|string $docBlock, array $generics): array
@@ -197,6 +193,7 @@ final readonly class ParsingScope
         foreach ($declaredGenerics as $index => $genericName) {
             $assignedGenerics[$genericName] = $generics[$index];
         }
+
         return $assignedGenerics;
     }
 }

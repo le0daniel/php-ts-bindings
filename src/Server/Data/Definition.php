@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
@@ -10,22 +12,17 @@ use Override;
 final readonly class Definition implements ExportableToPhpCode
 {
     /**
-     * @param OperationType $type
-     * @param class-string<object> $fullyQualifiedClassName
-     * @param string $methodName
-     * @param string $name
-     * @param string $namespace
-     * @param list<class-string<MiddlewareContract<mixed>>> $middleware
+     * @param  class-string<object>  $fullyQualifiedClassName
+     * @param  list<class-string<MiddlewareContract<mixed>>>  $middleware
      */
     public function __construct(
         public OperationType $type,
-        public string        $fullyQualifiedClassName,
-        public string        $methodName,
-        public string        $name,
-        public string        $namespace,
-        public array         $middleware,
-    )
-    {
+        public string $fullyQualifiedClassName,
+        public string $methodName,
+        public string $name,
+        public string $namespace,
+        public array $middleware,
+    ) {
     }
 
     public function fullyQualifiedName(): string

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
@@ -9,7 +11,7 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 
-final readonly class FloatNode implements NodeInterface, LeafNode, Coercible
+final readonly class FloatNode implements Coercible, LeafNode, NodeInterface
 {
     use RejectsInvalidType;
 
@@ -22,7 +24,7 @@ final readonly class FloatNode implements NodeInterface, LeafNode, Coercible
     #[Override]
     public function exportPhpCode(): string
     {
-        return 'new ' . PHPExport::absolute(self::class) . '()';
+        return 'new '.PHPExport::absolute(self::class).'()';
     }
 
     #[Override]

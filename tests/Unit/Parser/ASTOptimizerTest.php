@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
@@ -8,6 +10,7 @@ use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
 use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 
 /**
@@ -19,13 +22,13 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 /**
  * Optimizes several schemas together — the production configuration — and returns the registry.
  *
- * @param array<string, NodeInterface|string> $schemas
+ * @param  array<string, NodeInterface|string>  $schemas
  */
 function optimizePooled(array $schemas): CachedTypeRegistry
 {
     $parser = new TypeParser();
     $nodes = array_map(
-        static fn(NodeInterface|string $schema) => is_string($schema) ? $parser->parse($schema) : $schema,
+        static fn (NodeInterface|string $schema) => is_string($schema) ? $parser->parse($schema) : $schema,
         $schemas,
     );
 
@@ -33,6 +36,7 @@ function optimizePooled(array $schemas): CachedTypeRegistry
 
     /** @var CachedTypeRegistry $registry */
     $registry = eval("return {$code};");
+
     return $registry;
 }
 
@@ -40,8 +44,8 @@ function optimizePooled(array $schemas): CachedTypeRegistry
  * Asserts the optimized schema behaves exactly like the freshly parsed one, in BOTH pool orders —
  * a collision's direction flips with iteration order, so one order alone can hide the bug.
  *
- * @param array<string, string> $schemas
- * @param array<string, list<mixed>> $probes schema key => values to parse
+ * @param  array<string, string>  $schemas
+ * @param  array<string, list<mixed>>  $probes  schema key => values to parse
  */
 function assertPooledParity(array $schemas, array $probes): void
 {
@@ -59,7 +63,7 @@ function assertPooledParity(array $schemas, array $probes): void
                 $encoded = json_encode($value, JSON_THROW_ON_ERROR);
                 expect($optimized::class)->toBe(
                     $raw::class,
-                    "Schema '{$key}' with {$encoded} diverged (pool order: " . implode(',', array_keys($ordered)) . ')',
+                    "Schema '{$key}' with {$encoded} diverged (pool order: ".implode(',', array_keys($ordered)).')',
                 );
 
                 if ($raw instanceof Success) {
@@ -124,7 +128,7 @@ test('C2: a float literal schema pooled with an int literal twin still rejects t
 
 test('C3: unions differing only in discriminator do not share an entry', function () {
     $discriminated = new TypeParser()->parse("array{kind: 'a', v: string}|array{kind: 'b', v: int}");
-    $plain = new Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode($discriminated->nodes);
+    $plain = new UnionNode($discriminated->nodes);
 
     expect($discriminated->exportPhpCode())->not->toBe($plain->exportPhpCode());
 
@@ -154,12 +158,12 @@ test('the collision guard fires when identifiers are truncated too far', functio
         $schemas[$letter] = new TypeParser()->parse("array{{$letter}: string}");
     }
 
-    expect(fn() => $optimizer->generateOptimizedCode($schemas))
+    expect(fn () => $optimizer->generateOptimizedCode($schemas))
         ->toThrow(RuntimeException::class, 'collision');
 });
 
 test('node keys starting with a hash are rejected so they cannot shadow interned ids', function () {
-    expect(fn() => new ASTOptimizer()->generateOptimizedCode([
+    expect(fn () => new ASTOptimizer()->generateOptimizedCode([
         '#leaf_evil' => new TypeParser()->parse('string'),
     ]))->toThrow(RuntimeException::class, 'MUST not start with a # character');
 });

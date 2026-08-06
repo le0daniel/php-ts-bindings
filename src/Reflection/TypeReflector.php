@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
@@ -13,16 +15,16 @@ final readonly class TypeReflector
 {
     public static function reflectProperty(ReflectionProperty $property): string
     {
-        if (!$property->getType()) {
-            throw new ParserException("No type defined.");
+        if (! $property->getType()) {
+            throw new ParserException('No type defined.');
         }
 
         if ($property->getDocComment() && $type = Regexes::findFirstVarDeclaration($property->getDocComment())) {
             return trim($type);
         }
 
-        if (!$property->isPromoted()) {
-            return (string)$property->getType();
+        if (! $property->isPromoted()) {
+            return (string) $property->getType();
         }
 
         $constructorDocBlock = $property->getDeclaringClass()->getConstructor()?->getDocComment();
@@ -30,33 +32,33 @@ final readonly class TypeReflector
             return trim($type);
         }
 
-        return (string)$property->getType();
+        return (string) $property->getType();
     }
 
     public static function reflectParameter(ReflectionParameter $parameter): string
     {
-        if (!$parameter->getType()) {
-            throw new ParserException("No type defined.");
+        if (! $parameter->getType()) {
+            throw new ParserException('No type defined.');
         }
 
         $declaringDocBlock = $parameter->getDeclaringFunction()->getDocComment();
-        if (!$declaringDocBlock) {
-            return (string)$parameter->getType();
+        if (! $declaringDocBlock) {
+            return (string) $parameter->getType();
         }
 
         return trim(
-            Regexes::findParamWithNameDeclaration($declaringDocBlock, $parameter->getName()) ?? (string)$parameter->getType()
+            Regexes::findParamWithNameDeclaration($declaringDocBlock, $parameter->getName()) ?? (string) $parameter->getType()
         );
     }
 
     public static function reflectReturnType(ReflectionFunction|ReflectionMethod $returnable): string
     {
-        if (!$returnable->hasReturnType()) {
-            throw new ParserException("No return type defined.");
+        if (! $returnable->hasReturnType()) {
+            throw new ParserException('No return type defined.');
         }
 
         $docBlock = $returnable->getDocComment();
-        if (!$docBlock) {
+        if (! $docBlock) {
             return (string) $returnable->getReturnType();
         }
 

@@ -9,7 +9,6 @@ use Le0daniel\PhpTsBindings\Utils\Namespaces;
  * toFullyQualifiedClassName() a map that buildNamespaceAliasMap() can actually produce. A
  * hand-written map that cannot occur is how the doubled-segment bug stayed hidden.
  */
-
 test('a leading backslash means the name is already fully qualified', function () {
     expect(Namespaces::toFullyQualifiedClassName('\\Bar', 'Foo', []))->toBe('Bar');
 });

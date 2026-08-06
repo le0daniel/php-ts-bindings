@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
@@ -8,20 +10,22 @@ final readonly class Lists
 {
     /**
      * @template TValue
-     * @param list<TValue|null> $list
+     *
+     * @param  list<TValue|null>  $list
      * @return list<TValue>
      */
     #[NoDiscard]
     public static function filterNullValues(array $list): array
     {
-        return array_filter($list, fn($value) => $value !== null) |> array_values(...);
+        return array_filter($list, fn ($value) => $value !== null) |> array_values(...);
     }
 
     /**
      * array_unique preserves keys, which breaks the list. This does not.
      *
      * @template TValue of int|string
-     * @param list<TValue> $list
+     *
+     * @param  list<TValue>  $list
      * @return list<TValue>
      */
     #[NoDiscard]
@@ -31,13 +35,14 @@ final readonly class Lists
     }
 
     /**
-     * @param list<string> $list
+     * @param  list<string>  $list
      * @return list<string>
      */
     #[NoDiscard]
     public static function sorted(array $list): array
     {
         usort($list, strcmp(...));
+
         return $list;
     }
 }

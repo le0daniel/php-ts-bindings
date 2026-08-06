@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Parser\Constraints;
 
@@ -37,7 +39,7 @@ test('both reject a non-string', function (string $type) {
 test('the non-empty-string failure reports an IssueMessage, not a raw key', function () {
     $result = executeParse('non-empty-string', '');
     $keys = array_map(
-        fn($issue) => $issue->messageOrLocalizationKey,
+        fn ($issue) => $issue->messageOrLocalizationKey,
         $result->issues->allFlat(),
     );
 

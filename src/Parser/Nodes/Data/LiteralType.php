@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Data;
 
@@ -16,6 +18,7 @@ enum LiteralType: string
     public static function identifyPrimitiveTypeValue(mixed $value): LiteralType
     {
         $nativeGetType = gettype($value);
+
         return match ($nativeGetType) {
             'double' => LiteralType::FLOAT,
             'integer' => LiteralType::INT,

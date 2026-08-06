@@ -1,9 +1,10 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server;
 
 use Le0daniel\PhpTsBindings\Contracts\Client;
-use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Contracts\ServerAdapter;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
@@ -12,7 +13,6 @@ use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Server\Adapters\NewInstanceAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
-use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\OperationNotFoundException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
@@ -38,18 +38,17 @@ final readonly class Server
     private ErrorPresenter $errorPresenter;
 
     public function __construct(
-        public OperationRegistry   $registry,
-        private ServerAdapter      $adapter = new NewInstanceAdapter(),
+        public OperationRegistry $registry,
+        private ServerAdapter $adapter = new NewInstanceAdapter(),
         public ServerConfiguration $configuration = new ServerConfiguration(),
-    )
-    {
+    ) {
         $this->executor = new SchemaExecutor();
         $this->errorPresenter = new ErrorPresenter($configuration);
     }
 
     public function query(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        if (!$this->registry->has(OperationType::QUERY, $name)) {
+        if (! $this->registry->has(OperationType::QUERY, $name)) {
             return $this->errorPresenter->present(
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
                 null,
@@ -62,7 +61,7 @@ final readonly class Server
 
     public function command(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        if (!$this->registry->has(OperationType::COMMAND, $name)) {
+        if (! $this->registry->has(OperationType::COMMAND, $name)) {
             return $this->errorPresenter->present(
                 new OperationNotFoundException("Operation with name: {$name} was not found."),
                 null,
@@ -76,8 +75,8 @@ final readonly class Server
     private function execute(Operation $operation, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
         $middlewareClassNames = [
-            ... $this->configuration->middleware,
-            ... $operation->definition->middleware,
+            ...$this->configuration->middleware,
+            ...$operation->definition->middleware,
         ];
 
         $resolveInfo = new ResolveInfo(
@@ -93,7 +92,7 @@ final readonly class Server
         // query()/command() total: a missing container binding or a class that is not a
         // middleware must surface as an RpcError, not as an uncaught exception.
         try {
-            $middlewares = array_map(fn($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
+            $middlewares = array_map(fn ($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
             $controllerClass = $this->adapter->createController($operation->definition->fullyQualifiedClassName);
         } catch (Throwable $throwable) {
             return $this->errorPresenter->present($throwable, $operation->definition, $resolveInfo);
@@ -101,7 +100,7 @@ final readonly class Server
 
         return new ContextualPipeline(
             middlewares: $middlewares,
-            onError: fn(Throwable $throwable): RpcError => $this->errorPresenter->present($throwable, $operation->definition, $resolveInfo),
+            onError: fn (Throwable $throwable): RpcError => $this->errorPresenter->present($throwable, $operation->definition, $resolveInfo),
             destination: function (mixed $input) use ($controllerClass, $client, $operation, $context, $resolveInfo): RpcSuccess|RpcError {
                 try {
                     $inputValidationResult = $this

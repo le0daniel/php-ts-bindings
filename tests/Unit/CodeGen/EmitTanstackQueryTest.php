@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -21,7 +23,7 @@ use Tests\Mocks\ValueObjects\Email;
  * The emitter has no naming of its own: every name it references is one EmitOperations declared, so
  * wiring the dependency up is part of constructing it.
  *
- * @param (Closure(TypedOperation): string)|null $nameGenerator
+ * @param  (Closure(TypedOperation): string)|null  $nameGenerator
  */
 function tanstackCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator = null): ?TypescriptFile
 {
@@ -41,6 +43,7 @@ function tanstackCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator
 function tanstackOperation(OperationType $type = OperationType::QUERY): Operation
 {
     $parser = new TypeParser();
+
     return new Operation(
         key: 'orders.get',
         definition: new Definition($type, Email::class, 'getOrder', 'get', 'orders', []),
@@ -75,7 +78,7 @@ test('follows the naming rule of the EmitOperations it depends on', function () 
             Typescript::fromRawString(''),
             tanstackOperation(),
         ),
-        fn(TypedOperation $operation): string => "orders" . ucfirst($operation->definition->name),
+        fn (TypedOperation $operation): string => 'orders'.ucfirst($operation->definition->name),
     )->code;
 
     expect($code)

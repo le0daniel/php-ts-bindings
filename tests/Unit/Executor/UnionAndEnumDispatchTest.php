@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
@@ -6,6 +8,8 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\LiteralNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
+use Tests\Mocks\ResultEnum;
+use Tests\Unit\Executor\Mocks\UserSchema;
 
 /**
  * Which branch a union selects, and how an enum resolves a name, are easy to change by accident
@@ -13,7 +17,6 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
  * implemented: boolean and numeric-string discriminators, mixed-type maps, exact literal matching
  * and declaration-order probing all have to keep working.
  */
-
 test('a discriminated union over plain string tags resolves each branch', function () {
     $node = new TypeParser()->parse(
         "array{kind: 'a', a: string}|array{kind: 'b', b: int}|array{kind: 'c', c: bool}",
@@ -108,18 +111,18 @@ test('a literal union still reports the same issues on failure', function () {
 
 test('enum values resolve by name and reject unknown names', function () {
     // Executed directly: the shared helper json_encodes results, which a non-backed enum cannot do.
-    $node = new TypeParser()->parse(Tests\Mocks\ResultEnum::class);
+    $node = new TypeParser()->parse(ResultEnum::class);
     $executor = new SchemaExecutor();
 
-    expect($executor->parse($node, 'SUCCESS')->value)->toBe(Tests\Mocks\ResultEnum::SUCCESS)
-        ->and($executor->parse($node, 'FAILURE')->value)->toBe(Tests\Mocks\ResultEnum::FAILURE)
+    expect($executor->parse($node, 'SUCCESS')->value)->toBe(ResultEnum::SUCCESS)
+        ->and($executor->parse($node, 'FAILURE')->value)->toBe(ResultEnum::FAILURE)
         ->and($executor->parse($node, 'NOT_A_CASE'))->toBeFailure()
         ->and($executor->parse($node, 1))->toBeFailure()
         ->and($executor->parse($node, 'OTHER'))->toBeFailure();
 });
 
 test('struct property direction filtering is unchanged by precomputed partitions', function () {
-    $node = new TypeParser()->parse(Tests\Unit\Executor\Mocks\UserSchema::class);
+    $node = new TypeParser()->parse(UserSchema::class);
 
     expect(executeParse($node, ['username' => 'ada', 'email' => 'ada@example.com', 'age' => 30]))->toBeSuccess();
 });

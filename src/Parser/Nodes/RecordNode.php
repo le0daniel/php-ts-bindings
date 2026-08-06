@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
@@ -9,13 +11,9 @@ use Override;
 
 final readonly class RecordNode implements NodeInterface, WrapsNode
 {
-    /**
-     * @param NodeInterface $node
-     */
     public function __construct(
         public NodeInterface $node,
-    )
-    {
+    ) {
     }
 
     #[Override]
@@ -29,6 +27,7 @@ final readonly class RecordNode implements NodeInterface, WrapsNode
     {
         $classname = PHPExport::absolute(self::class);
         $exportedType = PHPExport::export($this->node);
+
         return "new {$classname}({$exportedType})";
     }
 }

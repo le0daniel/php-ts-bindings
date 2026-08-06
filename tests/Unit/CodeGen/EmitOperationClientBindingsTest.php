@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -83,7 +85,7 @@ test('imports nothing its body does not reference', function () {
     foreach (bindingFiles() as $name => $file) {
         foreach ($file->imports as $import) {
             foreach ([...$import->values, ...$import->types] as $imported) {
-                if (!str_contains($file->code, $imported)) {
+                if (! str_contains($file->code, $imported)) {
                     $unused[] = "{$name} imports {$imported} from {$import->from}";
                 }
             }
@@ -116,7 +118,7 @@ test('every import names a file this generator emits, or the types file', functi
     foreach (bindingFiles() as $file) {
         foreach ($file->imports as $import) {
             $name = str_replace('./lib/', '', $import->from);
-            if ($name !== 'types' && !in_array($name, $emitted, true)) {
+            if ($name !== 'types' && ! in_array($name, $emitted, true)) {
                 $unknown[] = $import->from;
             }
         }

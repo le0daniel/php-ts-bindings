@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
@@ -16,9 +18,10 @@ use Override;
  * Not readonly: the generators it hangs everything off are injected after construction, which is the
  * only way they can be the same instances the generator runs.
  */
-final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
+final class EmitTanstackQuery implements DependsOn, GeneratesOperationCode
 {
     private EmitOperations $operations;
+
     private EmitTypeUtils $utils;
 
     #[Override]
@@ -58,20 +61,20 @@ final class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
         $resultTypeName = $this->operations->resultTypeName($operation);
         $resultInputTypeName = $this->operations->inputTypeName($operation);
 
-        $queryName = "use" . $operationBaseTypeName . "Query";
-        $queryOptionsName = lcfirst($operationBaseTypeName) . "QueryOptions";
-        $optionsTypeName = $operationBaseTypeName . "Options";
+        $queryName = 'use'.$operationBaseTypeName.'Query';
+        $queryOptionsName = lcfirst($operationBaseTypeName).'QueryOptions';
+        $optionsTypeName = $operationBaseTypeName.'Options';
 
         $imports = [
             new TypescriptImport(
-                "@tanstack/react-query",
+                '@tanstack/react-query',
                 values: ['useQuery', 'queryOptions'],
                 types: ['UseQueryOptions'],
             ),
             $this->utils->importFromUtils(values: ['queryKey', 'throwOnFailure']),
         ];
 
-        if (!$operation->hasInput) {
+        if (! $operation->hasInput) {
             return new TypescriptFile(
                 <<<TypeScript
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
@@ -91,7 +94,9 @@ export function {$queryOptionsName}(options?: {$optionsTypeName}) {
 export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {
     return useQuery({$queryOptionsName}(queryOptions));
 }
-TypeScript, $imports);
+TypeScript,
+                $imports
+            );
         }
 
         return new TypescriptFile(
@@ -113,6 +118,8 @@ export function {$queryOptionsName}(input: {$resultInputTypeName}, options?: {$o
 export function {$queryName}(input: {$resultInputTypeName}, queryOptions?: Partial<{$optionsTypeName}>) {
     return useQuery({$queryOptionsName}(input, queryOptions));
 }
-TypeScript, $imports);
+TypeScript,
+            $imports
+        );
     }
 }

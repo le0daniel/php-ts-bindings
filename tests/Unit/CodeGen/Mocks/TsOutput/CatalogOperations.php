@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks\TsOutput;
 
@@ -18,7 +20,7 @@ use Tests\Unit\CodeGen\Mocks\TsOutput\Types\Sku;
 final class CatalogOperations
 {
     /**
-     * @param array{id: ProductId} $input
+     * @param  array{id: ProductId}  $input
      */
     #[Query('catalog')]
     public function product(array $input): Product
@@ -27,7 +29,7 @@ final class CatalogOperations
     }
 
     /**
-     * @param array{term: non-empty-string, availability?: Types\Availability, limit?: int<1, 100>} $input
+     * @param  array{term: non-empty-string, availability?: Types\Availability, limit?: int<1, 100>}  $input
      * @return array{results: list<Product>, total: non-negative-int}
      */
     #[Query('catalog')]
@@ -52,7 +54,7 @@ final class CatalogOperations
     }
 
     /**
-     * @param array{sku: Sku, amount: positive-int, price: Money} $input
+     * @param  array{sku: Sku, amount: positive-int, price: Money}  $input
      * @return array{product: Product, restockedAt: DateTimeImmutable}
      */
     #[Command('catalog')]

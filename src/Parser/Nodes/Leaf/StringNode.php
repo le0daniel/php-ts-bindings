@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
@@ -13,7 +15,7 @@ use Override;
 use Stringable;
 use Throwable;
 
-final readonly class StringNode implements NodeInterface, LeafNode, Coercible
+final readonly class StringNode implements Coercible, LeafNode, NodeInterface
 {
     use RejectsInvalidType;
 
@@ -26,7 +28,7 @@ final readonly class StringNode implements NodeInterface, LeafNode, Coercible
     #[Override]
     public function exportPhpCode(): string
     {
-        return 'new ' . PHPExport::absolute(self::class) . '()';
+        return 'new '.PHPExport::absolute(self::class).'()';
     }
 
     #[Override]
@@ -45,9 +47,10 @@ final readonly class StringNode implements NodeInterface, LeafNode, Coercible
         } catch (Throwable $throwable) {
             $context->addIssue(Issue::fromThrowable($throwable, [
                 'node' => self::class,
-                'message' => "Failed to serialize value of type: " . gettype($value),
+                'message' => 'Failed to serialize value of type: '.gettype($value),
                 'value' => $value,
             ]));
+
             return Value::INVALID;
         }
     }
@@ -58,6 +61,6 @@ final readonly class StringNode implements NodeInterface, LeafNode, Coercible
         // Only scalars are cast: (string) on an array yields the literal "Array" and on a non
         // Stringable object it throws, and coerce() runs outside the executor's try/catch. Anything
         // else is handed on untouched so parseValue() reports it as the type error it is.
-        return is_scalar($value) ? (string)$value : $value;
+        return is_scalar($value) ? (string) $value : $value;
     }
 }

@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feature/**'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Tests, static analysis, style & TypeScript
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup PHP 8.5
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          # No coverage is configured in phpunit.xml, so skip Xdebug/PCOV entirely.
+          coverage: none
+
+      # Needs no vendor tree, so it runs before install and fails fast on a lock desync.
+      - name: Validate composer.json and composer.lock
+        run: composer validate --strict
+
+      - name: Install PHP dependencies
+        uses: ramsey/composer-install@v3
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: tests/ts-output/package-lock.json
+
+      - name: Pest, PHPStan and Pint
+        run: composer run check:all
+
+      # The Pest suite proves the generators emit exactly the committed fixture; this proves that
+      # fixture still compiles.
+      - name: Typecheck the generated TypeScript
+        run: composer run check:ts

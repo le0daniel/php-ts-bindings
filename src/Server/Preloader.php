@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server;
 
@@ -8,7 +10,6 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
-use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Strings;
 use UnitEnum;
 
@@ -17,15 +18,11 @@ final readonly class Preloader
     /**
      * It's critical that the key generator is the same as the Key generator used by the server's repository.
      * Why? Because this is how the key is actually derived from the namespace and name.
-     *
-     * @param Server $server
-     * @param OperationKeyGenerator $keyGenerator
      */
     public function __construct(
-        private Server                $server,
+        private Server $server,
         private OperationKeyGenerator $keyGenerator,
-    )
-    {
+    ) {
     }
 
     /**
@@ -43,7 +40,7 @@ final readonly class Preloader
         $fqcn = $this->keyGenerator->generateKey($namespaceAsString, $name);
         $result = $this->server->query($fqcn, $input, $context, new NullClient());
 
-        if (!$result instanceof RpcSuccess) {
+        if (! $result instanceof RpcSuccess) {
             throw new SchemaException("Failed to preload: {$namespaceAsString}.{$name}");
         }
 
@@ -74,14 +71,13 @@ final readonly class Preloader
     }
 
     /**
-     * @param list<array{namespace: string|UnitEnum, name: string, input: mixed}> $preloads
-     * @param mixed $context
+     * @param  list<array{namespace: string|UnitEnum, name: string, input: mixed}>  $preloads
      * @return list<array{response: mixed, queryKey: list<mixed>}>
      */
     public function preloadMany(array $preloads, mixed $context): array
     {
         return array_map(
-            fn(array $preload) => $this->preload($preload['namespace'], $preload['name'], $preload['input'], $context),
+            fn (array $preload) => $this->preload($preload['namespace'], $preload['name'], $preload['input'], $context),
             $preloads
         );
     }

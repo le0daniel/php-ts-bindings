@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
@@ -24,16 +26,15 @@ use Throwable;
  * indistinguishable from its backing primitive; a #[Brand] (carried by a wrapping MetadataNode)
  * is what keeps the two apart on the TypeScript side.
  */
-final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercible
+final readonly class ValueObjectNode implements Coercible, LeafNode, NodeInterface
 {
     /**
-     * @param class-string<StringValueObject|IntValueObject> $className
+     * @param  class-string<StringValueObject|IntValueObject>  $className
      */
     public function __construct(
-        public string      $className,
+        public string $className,
         public BackingType $backingType,
-    )
-    {
+    ) {
     }
 
     #[Override]
@@ -56,32 +57,38 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
     public function parseValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->backingType === BackingType::STRING) {
-            if (!is_string($value)) {
+            if (! is_string($value)) {
                 $context->addIssue($this->invalidBackingTypeIssue($value));
+
                 return Value::INVALID;
             }
 
             try {
                 /** @var class-string<StringValueObject> $className */
                 $className = $this->className;
+
                 return $className::fromStringValue($value);
             } catch (Throwable $throwable) {
                 $this->addRejectionIssues($throwable, $value, $context);
+
                 return Value::INVALID;
             }
         }
 
-        if (!is_int($value)) {
+        if (! is_int($value)) {
             $context->addIssue($this->invalidBackingTypeIssue($value));
+
             return Value::INVALID;
         }
 
         try {
             /** @var class-string<IntValueObject> $className */
             $className = $this->className;
+
             return $className::fromIntValue($value);
         } catch (Throwable $throwable) {
             $this->addRejectionIssues($throwable, $value, $context);
+
             return Value::INVALID;
         }
     }
@@ -90,8 +97,9 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
         if ($this->backingType === BackingType::STRING) {
-            if (!$value instanceof StringValueObject || !is_a($value, $this->className)) {
+            if (! $value instanceof StringValueObject || ! is_a($value, $this->className)) {
                 $context->addIssue($this->notAnInstanceIssue($value));
+
                 return Value::INVALID;
             }
 
@@ -99,12 +107,14 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
                 return $value->toStringValue();
             } catch (Throwable $throwable) {
                 $context->addIssue($this->failedToSerializeIssue($throwable));
+
                 return Value::INVALID;
             }
         }
 
-        if (!$value instanceof IntValueObject || !is_a($value, $this->className)) {
+        if (! $value instanceof IntValueObject || ! is_a($value, $this->className)) {
             $context->addIssue($this->notAnInstanceIssue($value));
+
             return Value::INVALID;
         }
 
@@ -112,6 +122,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
             return $value->toIntValue();
         } catch (Throwable $throwable) {
             $context->addIssue($this->failedToSerializeIssue($throwable));
+
             return Value::INVALID;
         }
     }
@@ -122,11 +133,11 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
         if ($this->backingType === BackingType::STRING) {
             // Unlike StringNode, only scalars are cast: (string) on an array or a non
             // Stringable object throws, and coerce() runs outside the executor's try/catch.
-            return is_scalar($value) ? (string)$value : $value;
+            return is_scalar($value) ? (string) $value : $value;
         }
 
         return filter_var($value, FILTER_VALIDATE_INT) !== false
-            ? (int)$value
+            ? (int) $value
             : $value;
     }
 
@@ -135,7 +146,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
         return new Issue(
             IssueMessage::INVALID_TYPE,
             debugInfo: [
-                'message' => "Expected value of type {$this->backingType->value} for {$this->className}, got: " . get_debug_type($value),
+                'message' => "Expected value of type {$this->backingType->value} for {$this->className}, got: ".get_debug_type($value),
                 'node' => self::class,
             ],
         );
@@ -160,6 +171,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
             foreach ($throwable->toIssues($this->rejectionDebugInfo($value, $throwable)) as $issue) {
                 $context->addIssue($issue);
             }
+
             return;
         }
 
@@ -187,7 +199,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
         return new Issue(
             IssueMessage::INVALID_TYPE,
             debugInfo: [
-                'message' => "Expected instance of {$this->className}, got: " . get_debug_type($value),
+                'message' => "Expected instance of {$this->className}, got: ".get_debug_type($value),
                 'node' => self::class,
             ],
         );

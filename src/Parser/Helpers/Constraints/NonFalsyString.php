@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
@@ -20,17 +22,18 @@ final readonly class NonFalsyString implements Constraint
     #[Override]
     public function validate(mixed $value, ExecutionContext $context): bool
     {
-        if (!$this->isString($value, $context)) {
+        if (! $this->isString($value, $context)) {
             return false;
         }
 
-        if (!$value) {
+        if (! $value) {
             $context->addIssue(new Issue(
                 IssueMessage::FALSY_STRING,
                 [
-                    "message" => "Expected non-falsy string, got: '{$value}'",
+                    'message' => "Expected non-falsy string, got: '{$value}'",
                 ]
             ));
+
             return false;
         }
 
@@ -40,7 +43,7 @@ final readonly class NonFalsyString implements Constraint
     #[Override]
     public function exportPhpCode(): string
     {
-        return 'new ' . PHPExport::absolute(self::class) . '()';
+        return 'new '.PHPExport::absolute(self::class).'()';
     }
 
     #[Override]

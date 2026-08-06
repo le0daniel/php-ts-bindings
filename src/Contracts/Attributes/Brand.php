@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
@@ -36,12 +38,11 @@ use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
 final readonly class Brand
 {
     /**
-     * @param string|Closure(string): string|null $name
+     * @param  string|Closure(string): string|null  $name
      */
     public function __construct(
         public string|Closure|null $name = null,
-    )
-    {
+    ) {
     }
 
     public function brandName(string $classString): string
@@ -54,7 +55,7 @@ final readonly class Brand
             default => $this->name,
         };
 
-        if (!Syntax::isValidIdentifier($name)) {
+        if (! Syntax::isValidIdentifier($name)) {
             throw InvalidStringLiteralException::notAValidTypescriptIdentifier($name, "#[Brand] on {$classString}");
         }
 

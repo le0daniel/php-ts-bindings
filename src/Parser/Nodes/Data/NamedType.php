@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Data;
 
@@ -18,8 +20,7 @@ final readonly class NamedType
     public function __construct(
         public string $inputName,
         public string $outputName,
-    )
-    {
+    ) {
     }
 
     /**

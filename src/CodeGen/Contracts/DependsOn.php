@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Contracts;
 
@@ -15,7 +17,7 @@ interface DependsOn
      * instead of re-deriving what they emit: the type names EmitOperations declares, for example,
      * depend on the naming rule it was built with and cannot be recomputed from the outside.
      *
-     * @param array<class-string<GeneratesOperationCode|GeneratesLibFiles>, GeneratesOperationCode|GeneratesLibFiles> $dependencies
+     * @param  array<class-string<GeneratesOperationCode|GeneratesLibFiles>, GeneratesOperationCode|GeneratesLibFiles>  $dependencies
      */
     public function setDependencies(array $dependencies): void;
 }

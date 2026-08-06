@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
@@ -18,7 +20,7 @@ interface RpcResult extends JsonSerializable
         get;
     }
 
-    public ResolveInfo|null $resolveInfo {
+    public ?ResolveInfo $resolveInfo {
         get;
     }
 
@@ -31,14 +33,16 @@ interface RpcResult extends JsonSerializable
 
     /**
      * Overwrite all existing metadata.
-     * @param array<string, mixed> $metadata
+     *
+     * @param  array<string, mixed>  $metadata
      */
     #[NoDiscard]
     public function withMetadata(array $metadata): static;
 
     /**
      * Append metadata to the result.
-     * @param array<string, mixed> $metadata
+     *
+     * @param  array<string, mixed>  $metadata
      */
     #[NoDiscard]
     public function appendMetadata(array $metadata): static;

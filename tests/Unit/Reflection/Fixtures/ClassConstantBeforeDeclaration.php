@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Reflection\Fixtures;
 
@@ -9,7 +11,7 @@ use DateTimeImmutable;
  * than the declaration below it. The next significant token here is a bare identifier, which is
  * what defeats the "is the next token a T_STRING" guard.
  */
-const SOME_MARKER = DateTimeImmutable::class . PHP_EOL;
+const SOME_MARKER = DateTimeImmutable::class.PHP_EOL;
 
 final class ClassConstantBeforeDeclaration
 {

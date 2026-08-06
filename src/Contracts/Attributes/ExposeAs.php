@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
@@ -15,7 +17,6 @@ final readonly class ExposeAs
 {
     public function __construct(
         public string $type
-    )
-    {
+    ) {
     }
 }

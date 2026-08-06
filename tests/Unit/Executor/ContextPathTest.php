@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Executor;
 
@@ -11,7 +13,6 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
  * has to mean "this path and everything nested below it" - comparing the joined path as a raw
  * string means neither half of that holds.
  */
-
 function issueAt(Context $context, string ...$path): void
 {
     foreach ($path as $segment) {

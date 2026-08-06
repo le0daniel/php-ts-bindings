@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -32,7 +34,7 @@ test('emits one file, named the way a module at the output root reaches it', fun
 
 test('the payload type mirrors what OperationSPAClient serializes', function () {
     $toastTypes = implode('|', array_map(
-        fn(ToastType $type): string => "'{$type->value}'",
+        fn (ToastType $type): string => "'{$type->value}'",
         ToastType::cases(),
     ));
 

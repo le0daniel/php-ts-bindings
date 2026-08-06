@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
@@ -14,7 +16,6 @@ final readonly class Castable
 {
     public function __construct(
         public ?ObjectCastStrategy $strategy = null,
-    )
-    {
+    ) {
     }
 }

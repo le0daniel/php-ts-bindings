@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -10,7 +12,6 @@ use Le0daniel\PhpTsBindings\Parser\Helpers\ParserState;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\MixedNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
@@ -37,7 +38,7 @@ final readonly class ArrayConsumer implements TypeConsumer
     #[Override]
     public function canConsume(ParserState $state): bool
     {
-        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
+        if (! $state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 
@@ -61,8 +62,8 @@ final readonly class ArrayConsumer implements TypeConsumer
         };
         $isNonEmpty = $keyword === 'non-empty-list' || $keyword === 'non-empty-array';
 
-        if (!$state->current()->is(TokenType::IDENTIFIER)) {
-            $state->produceSyntaxError("Expected Array Type Identifier: array or list");
+        if (! $state->current()->is(TokenType::IDENTIFIER)) {
+            $state->produceSyntaxError('Expected Array Type Identifier: array or list');
         }
 
         // Handle array structures.
@@ -77,7 +78,7 @@ final readonly class ArrayConsumer implements TypeConsumer
                 return $this->consumeTuple($state, $parser);
             }
 
-            $state->produceSyntaxError("Expected array{key: type, ...} or array{key: type, ...} syntax");
+            $state->produceSyntaxError('Expected array{key: type, ...} or array{key: type, ...} syntax');
         }
 
         $maxGenerics = $type === 'list' ? 1 : 2;
@@ -89,7 +90,7 @@ final readonly class ArrayConsumer implements TypeConsumer
         // keys - modelling it as a list is not a widening but a different type, and serialization
         // would silently reindex a keyed array. Bare `object` and `iterable` already fail here,
         // so this does too rather than emit Array<unknown> and drop keys on the way out.
-        if (!$state->currentTokenIs(TokenType::LT)) {
+        if (! $state->currentTokenIs(TokenType::LT)) {
             $state->produceSyntaxError(
                 "Bare '{$keyword}' has no single representation. Write list<T>, array<int, T> or array<string, T>."
             );
@@ -130,13 +131,13 @@ final readonly class ArrayConsumer implements TypeConsumer
      */
     private function consumeIntegerDeterminedTuple(ParserState $state, TypeParser $parser): TupleNode
     {
-        if (!$state->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
-            $state->produceSyntaxError("Expected array");
+        if (! $state->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
+            $state->produceSyntaxError('Expected array');
         }
         $state->advance();
 
-        if (!$state->currentTokenIs(TokenType::LBRACE)) {
-            $state->produceSyntaxError("Expected {");
+        if (! $state->currentTokenIs(TokenType::LBRACE)) {
+            $state->produceSyntaxError('Expected {');
         }
         $state->advance();
 
@@ -153,18 +154,19 @@ final readonly class ArrayConsumer implements TypeConsumer
 
             if ($state->currentTokenIs(TokenType::COMMA)) {
                 $state->advance();
+
                 continue;
             }
 
             // Compares the raw lexeme, so exotic spellings such as array{+0: string}
             // are intentionally not accepted here.
-            if (!$state->currentTokenIs(TokenType::INT, (string)count($types))) {
-                $state->produceSyntaxError("Expected int with value " . count($types));
+            if (! $state->currentTokenIs(TokenType::INT, (string) count($types))) {
+                $state->produceSyntaxError('Expected int with value '.count($types));
             }
             $state->advance();
 
-            if (!$state->currentTokenIs(TokenType::COLON)) {
-                $state->produceSyntaxError("Expected colon");
+            if (! $state->currentTokenIs(TokenType::COLON)) {
+                $state->produceSyntaxError('Expected colon');
             }
             $state->advance();
             $types[] = $parser->consume($state, TokenType::COMMA, TokenType::RBRACE);
@@ -183,13 +185,13 @@ final readonly class ArrayConsumer implements TypeConsumer
      */
     private function consumeTuple(ParserState $state, TypeParser $parser): TupleNode
     {
-        if (!$state->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
-            $state->produceSyntaxError("Expected array");
+        if (! $state->currentTokenIs(TokenType::IDENTIFIER, 'array')) {
+            $state->produceSyntaxError('Expected array');
         }
         $state->advance();
 
-        if (!$state->currentTokenIs(TokenType::LBRACE)) {
-            $state->produceSyntaxError("Expected {");
+        if (! $state->currentTokenIs(TokenType::LBRACE)) {
+            $state->produceSyntaxError('Expected {');
         }
         $state->advance();
 
@@ -206,8 +208,8 @@ final readonly class ArrayConsumer implements TypeConsumer
                 break;
             }
 
-            if (!$state->currentTokenIs(TokenType::COMMA)) {
-                $state->produceSyntaxError("Expected comma for union: array{string, int}");
+            if (! $state->currentTokenIs(TokenType::COMMA)) {
+                $state->produceSyntaxError('Expected comma for union: array{string, int}');
             }
             $state->advance();
         }

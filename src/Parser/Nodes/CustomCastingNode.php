@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
@@ -12,10 +14,9 @@ final readonly class CustomCastingNode implements NodeInterface, WrapsNode
 {
     public function __construct(
         public StructNode|ListNode|RecordNode|ReferencedNode $node,
-        public string                                        $fullyQualifiedCastingClass,
-        public ObjectCastStrategy                            $strategy,
-    )
-    {
+        public string $fullyQualifiedCastingClass,
+        public ObjectCastStrategy $strategy,
+    ) {
     }
 
     #[Override]
@@ -28,8 +29,9 @@ final readonly class CustomCastingNode implements NodeInterface, WrapsNode
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);
-        $fullyQualifiedCastingClass = PHPExport::absolute($this->fullyQualifiedCastingClass) . '::class';
+        $fullyQualifiedCastingClass = PHPExport::absolute($this->fullyQualifiedCastingClass).'::class';
         $strategy = PHPExport::exportEnumCase($this->strategy);
+
         return "new {$className}({$this->node->exportPhpCode()}, {$fullyQualifiedCastingClass}, {$strategy})";
     }
 }

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Handlers;
 
@@ -18,7 +20,6 @@ use Override;
  */
 final readonly class UnionHandler implements Handler
 {
-
     #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
@@ -42,6 +43,7 @@ final readonly class UnionHandler implements Handler
                         'discriminator' => $discriminator,
                     ]
                 ));
+
                 return Value::INVALID;
             }
 
@@ -61,11 +63,13 @@ final readonly class UnionHandler implements Handler
             $result = $executor->executeSerialize($type, $value, $context);
             if ($result !== Value::INVALID) {
                 $context->removeCurrentIssues();
+
                 return $result;
             }
         }
 
-        $context->addIssue(Issue::invalidType((string)$node, $value));
+        $context->addIssue(Issue::invalidType((string) $node, $value));
+
         return Value::INVALID;
     }
 
@@ -90,6 +94,7 @@ final readonly class UnionHandler implements Handler
                         'discriminator' => $discriminator,
                     ]
                 ));
+
                 return Value::INVALID;
             }
 
@@ -101,11 +106,12 @@ final readonly class UnionHandler implements Handler
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
                 [
-                    'message' => "No union branch matches the discriminator value.",
+                    'message' => 'No union branch matches the discriminator value.',
                     'value' => $valueToCheck,
                     'discriminator' => $discriminator,
                 ]
             ));
+
             return Value::INVALID;
         }
 
@@ -114,6 +120,7 @@ final readonly class UnionHandler implements Handler
             $result = $executor->executeParse($type, $value, $context);
             if ($result !== Value::INVALID) {
                 $context->removeCurrentIssues();
+
                 return $result;
             }
         }
@@ -124,6 +131,7 @@ final readonly class UnionHandler implements Handler
                 'message' => 'No valid union type found.',
             ]
         ));
+
         return Value::INVALID;
     }
 
@@ -132,7 +140,7 @@ final readonly class UnionHandler implements Handler
         return match (true) {
             is_array($input) => array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED,
             $input instanceof ArrayAccess => $input->offsetExists($key) ? $input[$key] : Value::UNDEFINED,
-            /* @phpstan-ignore-next-line property.dynamicName  */
+            /* @phpstan-ignore-next-line property.dynamicName */
             is_object($input) => property_exists($input, $key) ? $input->{$key} : Value::UNDEFINED,
             default => Value::INVALID,
         };

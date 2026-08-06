@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -21,7 +23,7 @@ use Tests\Mocks\ValueObjects\Email;
  * import statements are only observable through the rendered output. The input type it references
  * belongs to EmitOperations, so the dependency is wired up the way the generator does it.
  *
- * @param (Closure(TypedOperation): string)|null $nameGenerator
+ * @param  (Closure(TypedOperation): string)|null  $nameGenerator
  * @return array{string, string}
  */
 function queryKeyCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator = null): array
@@ -43,6 +45,7 @@ function queryKeyCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator
 function queryOperation(): Operation
 {
     $parser = new TypeParser();
+
     return new Operation(
         key: 'orders.get',
         definition: new Definition(OperationType::QUERY, Email::class, 'getOrder', 'get', 'orders', []),
@@ -75,7 +78,7 @@ test('follows the naming rule of the EmitOperations it depends on', function () 
             Typescript::fromRawString(''),
             queryOperation(),
         ),
-        fn(TypedOperation $operation): string => "orders" . ucfirst($operation->definition->name),
+        fn (TypedOperation $operation): string => 'orders'.ucfirst($operation->definition->name),
     );
 
     expect($code)->toContain('export function ordersGetQueryKey(input: OrdersGetInput)');

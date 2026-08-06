@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Mocks\ValueObjects;
 
@@ -9,7 +11,7 @@ use Le0daniel\PhpTsBindings\Contracts\ValueObjects\StringValueObject;
  * Implements both interfaces, which the parser must reject: there is no way to tell
  * whether the backing primitive is a string or an int.
  */
-final readonly class AmbiguousValueObject implements StringValueObject, IntValueObject
+final readonly class AmbiguousValueObject implements IntValueObject, StringValueObject
 {
     private function __construct(public string $value)
     {
@@ -22,7 +24,7 @@ final readonly class AmbiguousValueObject implements StringValueObject, IntValue
 
     public static function fromIntValue(int $value): static
     {
-        return new self((string)$value);
+        return new self((string) $value);
     }
 
     public function toStringValue(): string
@@ -32,6 +34,6 @@ final readonly class AmbiguousValueObject implements StringValueObject, IntValue
 
     public function toIntValue(): int
     {
-        return (int)$this->value;
+        return (int) $this->value;
     }
 }

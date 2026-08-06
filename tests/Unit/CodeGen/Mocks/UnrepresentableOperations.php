@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks;
 
@@ -12,7 +14,6 @@ use Tests\Unit\Parser\Data\Stubs\SomeFileInterface;
 final class UnrepresentableOperations
 {
     /**
-     * @param SomeFileInterface $input
      * @return array{ok: bool}
      */
     #[Query('files')]

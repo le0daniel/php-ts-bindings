@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Lexer\Exceptions;
 
@@ -8,11 +10,10 @@ use Le0daniel\PhpTsBindings\Parser\Lexer\SourceLocation;
 final class UnexpectedCharacterException extends ParserException
 {
     private function __construct(
-        public readonly string         $input,
+        public readonly string $input,
         public readonly SourceLocation $location,
-        string                         $message,
-    )
-    {
+        string $message,
+    ) {
         parent::__construct($message);
     }
 

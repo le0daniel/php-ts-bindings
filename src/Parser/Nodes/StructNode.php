@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
@@ -30,32 +32,31 @@ final class StructNode implements NodeInterface, ValidatableNode, WrapsNodes
      * parsed one, and lets two declarations of the same shape in different orders share a single
      * interned registry entry.
      *
-     * @param list<PropertyNode|ReferencedNode> $properties
+     * @param  list<PropertyNode|ReferencedNode>  $properties
      */
     public function __construct(
         public readonly StructPhpType $phpType,
-        array                         $properties,
-    )
-    {
+        array $properties,
+    ) {
         $this->properties = self::canonicalise($properties);
     }
 
-
     /**
-     * @param list<PropertyNode|ReferencedNode> $properties
+     * @param  list<PropertyNode|ReferencedNode>  $properties
      * @return list<PropertyNode|ReferencedNode>
      */
     private static function canonicalise(array $properties): array
     {
         // ReferencedNode carries no name to sort by. The ASTOptimizer rebuilds structs by mapping
         // over an already canonical list, so order is preserved and sorting is unnecessary there.
-        if (!array_all($properties, static fn(PropertyNode|ReferencedNode $property) => $property instanceof PropertyNode)) {
+        if (! array_all($properties, static fn (PropertyNode|ReferencedNode $property) => $property instanceof PropertyNode)) {
             return $properties;
         }
 
         /** @var non-empty-list<PropertyNode> $properties */
         usort($properties, static function (PropertyNode $a, PropertyNode $b): int {
             $byName = strcmp($a->name, $b->name);
+
             return $byName !== 0
                 ? $byName
                 : $a->propertyType->name <=> $b->propertyType->name;
@@ -73,7 +74,7 @@ final class StructNode implements NodeInterface, ValidatableNode, WrapsNodes
     }
 
     /**
-     * @param Closure(PropertyNode): bool $closure
+     * @param  Closure(PropertyNode): bool  $closure
      */
     #[NoDiscard]
     public function filter(Closure $closure): self
@@ -95,7 +96,7 @@ final class StructNode implements NodeInterface, ValidatableNode, WrapsNodes
     {
         $properties = $this->properties;
         assert(
-            array_all($properties, static fn($property) => $property instanceof PropertyNode),
+            array_all($properties, static fn ($property) => $property instanceof PropertyNode),
             'A struct holding references cannot be reshaped.',
         );
 
@@ -104,7 +105,7 @@ final class StructNode implements NodeInterface, ValidatableNode, WrapsNodes
     }
 
     /**
-     * @param Closure(PropertyNode): PropertyNode $closure
+     * @param  Closure(PropertyNode): PropertyNode  $closure
      */
     #[NoDiscard]
     public function map(Closure $closure): self
@@ -125,7 +126,8 @@ final class StructNode implements NodeInterface, ValidatableNode, WrapsNodes
     {
         /** @var list<PropertyNode> $properties */
         $properties = $this->properties;
-        return array_find($properties, fn(PropertyNode $property) => $property->name === $name);
+
+        return array_find($properties, fn (PropertyNode $property) => $property->name === $name);
     }
 
     public function hasProperty(string $name): bool
@@ -136,8 +138,9 @@ final class StructNode implements NodeInterface, ValidatableNode, WrapsNodes
     #[Override]
     public function __toString(): string
     {
-        $properties = array_map(fn(PropertyNode|ReferencedNode $property) => (string)$property, $this->properties);
+        $properties = array_map(fn (PropertyNode|ReferencedNode $property) => (string) $property, $this->properties);
         $imploded = implode(', ', $properties);
+
         return "{$this->phpType->value}{{$imploded}}";
     }
 
@@ -147,6 +150,7 @@ final class StructNode implements NodeInterface, ValidatableNode, WrapsNodes
         $exportedProperties = PHPExport::exportArray($this->properties);
         $className = PHPExport::absolute(self::class);
         $phpType = PHPExport::exportEnumCase($this->phpType);
+
         return "new {$className}({$phpType}, {$exportedProperties})";
     }
 }

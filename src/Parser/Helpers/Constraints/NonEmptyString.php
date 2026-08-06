@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
@@ -20,7 +22,7 @@ final readonly class NonEmptyString implements Constraint
     #[Override]
     public function validate(mixed $value, ExecutionContext $context): bool
     {
-        if (!$this->isString($value, $context)) {
+        if (! $this->isString($value, $context)) {
             return false;
         }
 
@@ -30,9 +32,10 @@ final readonly class NonEmptyString implements Constraint
             $context->addIssue(new Issue(
                 IssueMessage::NOT_EMPTY_STRING,
                 [
-                    "message" => "Expected non-empty string, got an empty string.",
+                    'message' => 'Expected non-empty string, got an empty string.',
                 ]
             ));
+
             return false;
         }
 
@@ -42,7 +45,7 @@ final readonly class NonEmptyString implements Constraint
     #[Override]
     public function exportPhpCode(): string
     {
-        return 'new ' . PHPExport::absolute(self::class) . '()';
+        return 'new '.PHPExport::absolute(self::class).'()';
     }
 
     #[Override]

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
@@ -21,11 +23,10 @@ use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 final readonly class Middleware
 {
     /**
-     * @param class-string<MiddlewareContract<mixed>> $middleware
+     * @param  class-string<MiddlewareContract<mixed>>  $middleware
      */
     public function __construct(
         public string $middleware,
-    )
-    {
+    ) {
     }
 }

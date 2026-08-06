@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Mocks\ValueObjects;
 
@@ -21,7 +23,7 @@ final readonly class ValidatedEmail implements StringValueObject
         if ($value === '') {
             $messages[] = 'Email is required';
         }
-        if (!str_contains($value, '@')) {
+        if (! str_contains($value, '@')) {
             $messages[] = 'Email must contain an @';
         }
 

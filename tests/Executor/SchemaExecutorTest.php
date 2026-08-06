@@ -62,4 +62,3 @@ test('coerce with literal', function () {
         expect($result)->toBeInstanceOf(Failure::class);
     }
 });
-

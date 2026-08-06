@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Utils;
 
@@ -25,13 +27,13 @@ final readonly class ArtisanOptions
         /** @var list<string> $expanded */
         $expanded = [];
         foreach ($options as $option) {
-            if (!is_string($option)) {
+            if (! is_string($option)) {
                 continue;
             }
 
             foreach (explode(',', $option) as $part) {
                 $part = trim($part);
-                if ($part !== '' && !in_array($part, $expanded, true)) {
+                if ($part !== '' && ! in_array($part, $expanded, true)) {
                     $expanded[] = $part;
                 }
             }
@@ -67,7 +69,7 @@ final readonly class ArtisanOptions
 
         $int = match (true) {
             is_int($value) => $value,
-            is_string($value) && preg_match('/^-?\d+$/', $value) === 1 => (int)$value,
+            is_string($value) && preg_match('/^-?\d+$/', $value) === 1 => (int) $value,
             default => null,
         };
 

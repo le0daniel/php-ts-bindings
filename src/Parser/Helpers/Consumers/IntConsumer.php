@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -30,7 +32,7 @@ final readonly class IntConsumer implements TypeConsumer
     {
         $state->advance();
 
-        if (!$state->currentTokenIs(TokenType::LT)) {
+        if (! $state->currentTokenIs(TokenType::LT)) {
             return new IntNode();
         }
 
@@ -46,8 +48,8 @@ final readonly class IntConsumer implements TypeConsumer
         };
 
         $state->advance();
-        if (!$state->currentTokenIs(TokenType::COMMA)) {
-            $state->produceSyntaxError("Expected comma");
+        if (! $state->currentTokenIs(TokenType::COMMA)) {
+            $state->produceSyntaxError('Expected comma');
         }
         $state->advance();
 
@@ -58,8 +60,8 @@ final readonly class IntConsumer implements TypeConsumer
         };
 
         $state->advance();
-        if (!$state->current()->is(TokenType::GT)) {
-            $state->produceSyntaxError("Expected >");
+        if (! $state->current()->is(TokenType::GT)) {
+            $state->produceSyntaxError('Expected >');
         }
 
         $state->advance();

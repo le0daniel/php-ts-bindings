@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
@@ -24,24 +26,22 @@ use Throwable;
 final class ParserState
 {
     private int $currentIndex = 0;
+
     private readonly int $count;
 
     /** @var non-empty-list<Token> */
     private readonly array $tokens;
 
     /**
-     * @param string $input
-     * @param non-empty-list<Token> $tokens The raw, lossless token stream.
-     * @param ParsingScope $context
+     * @param  non-empty-list<Token>  $tokens  The raw, lossless token stream.
      */
     public function __construct(
-        public readonly string       $input,
-        array                        $tokens,
+        public readonly string $input,
+        array $tokens,
         public readonly ParsingScope $context,
-    )
-    {
+    ) {
         $significant = array_values(
-            array_filter($tokens, static fn(Token $token): bool => $token->type !== TokenType::WHITESPACE)
+            array_filter($tokens, static fn (Token $token): bool => $token->type !== TokenType::WHITESPACE)
         );
 
         // The Lexer always terminates the stream with EOF, which is never whitespace.
@@ -94,7 +94,7 @@ final class ParserState
 
     public function advance(int $amount = 1): void
     {
-        if (!$this->canAdvance($amount)) {
+        if (! $this->canAdvance($amount)) {
             throw new ParserException('Cannot advance past end of token');
         }
         $this->currentIndex += $amount;

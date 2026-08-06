@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
@@ -18,7 +20,9 @@ final class FileReflector
      * @var array<int|string, string>|null
      */
     private ?array $usedNamespaces = null;
+
     private ?string $namespace = null;
+
     private bool $namespaceParsed = false;
 
     /**
@@ -27,14 +31,13 @@ final class FileReflector
     private ?ReflectionClass $declaredClass = null;
 
     /**
-     * @param string $filePath
      * @throws ParserException
      */
     public function __construct(
         public readonly string $filePath
     ) {
         $realPath = realpath($this->filePath);
-        if ($realPath === false || !is_file($realPath) || !is_readable($realPath)) {
+        if ($realPath === false || ! is_file($realPath) || ! is_readable($realPath)) {
             throw new ParserException(
                 "File does not exist or is not readable: {$this->filePath}"
             );
@@ -65,7 +68,7 @@ final class FileReflector
         for ($i = 0; $i < $numTokens; $i++) {
             $token = $tokens[$i];
 
-            if (!is_array($token) || $token[0] !== T_USE) {
+            if (! is_array($token) || $token[0] !== T_USE) {
                 continue;
             }
 
@@ -111,6 +114,7 @@ final class FileReflector
      * and returns a ReflectionClass instance for it.
      *
      * @return ReflectionClass<object>|never
+     *
      * @throws ParserException If no class-like structure is found or if the class cannot be loaded.
      * @throws ReflectionException If the class is loaded but cannot be reflected.
      */
@@ -133,11 +137,11 @@ final class FileReflector
 
         // This is critical. We must ensure the file is loaded into memory
         // before we can reflect a class from it, especially if not using an autoloader.
-        if (!class_exists($fullyQualifiedClassName, false) && !interface_exists($fullyQualifiedClassName, false) && !trait_exists($fullyQualifiedClassName, false)) {
+        if (! class_exists($fullyQualifiedClassName, false) && ! interface_exists($fullyQualifiedClassName, false) && ! trait_exists($fullyQualifiedClassName, false)) {
             require_once $this->filePath;
         }
 
-        if (!class_exists($fullyQualifiedClassName, false) && !interface_exists($fullyQualifiedClassName, false) && !trait_exists($fullyQualifiedClassName, false)) {
+        if (! class_exists($fullyQualifiedClassName, false) && ! interface_exists($fullyQualifiedClassName, false) && ! trait_exists($fullyQualifiedClassName, false)) {
             throw new ParserException("Failed to load class {$fullyQualifiedClassName} from file {$this->filePath}");
         }
 
@@ -167,7 +171,7 @@ final class FileReflector
     }
 
     /**
-     * @param list<string|array{int, string, int}> $tokens
+     * @param  list<string|array{int, string, int}>  $tokens
      * @return string|null The found namespace name or null.
      */
     private static function findNamespaceInTokens(array $tokens): ?string
@@ -181,11 +185,12 @@ final class FileReflector
                 }
             }
         }
+
         return null;
     }
 
     /**
-     * @param list<string|array{int, string, int}> $tokens
+     * @param  list<string|array{int, string, int}>  $tokens
      * @return string|null The found class name or null.
      */
     private static function findClassNameInTokens(array $tokens): ?string
@@ -193,11 +198,11 @@ final class FileReflector
         $count = count($tokens);
         for ($i = 0; $i < $count; $i++) {
             $token = $tokens[$i];
-            if (!is_array($token)) {
+            if (! is_array($token)) {
                 continue;
             }
 
-            if (!in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM], true)) {
+            if (! in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM], true)) {
                 continue;
             }
 
@@ -213,13 +218,14 @@ final class FileReflector
                 return $nextToken[1];
             }
         }
+
         return null;
     }
 
     /**
-     * @param list<string|array{int, string, int}> $tokens
+     * @param  list<string|array{int, string, int}>  $tokens
      * @return (array{int, string, int})|null Null when the preceding token is punctuation, which
-     *   token_get_all() reports as a plain string rather than an array.
+     *                                        token_get_all() reports as a plain string rather than an array.
      */
     private static function previousSignificantToken(array $tokens, int $currentIndex): ?array
     {
@@ -228,13 +234,15 @@ final class FileReflector
             if (is_array($token) && $token[0] === T_WHITESPACE) {
                 continue;
             }
+
             return is_array($token) ? $token : null;
         }
+
         return null;
     }
 
     /**
-     * @param list<string|array{int, string, int}> $tokens
+     * @param  list<string|array{int, string, int}>  $tokens
      * @return (array{int, string, int})|null
      */
     private static function peekNextSignificantToken(array $tokens, int $currentIndex, int $maxIndex): ?array
@@ -249,11 +257,12 @@ final class FileReflector
             // `new class {` must not scan on into the body looking for a name.
             return is_array($token) ? $token : null;
         }
+
         return null;
     }
 
     /**
-     * @param list<string|array{int, string, int}> $tokens
+     * @param  list<string|array{int, string, int}>  $tokens
      * @return array{string, string|null, int}
      */
     private static function parseUseStatement(array $tokens, int $startIndex, int $maxIndex): array

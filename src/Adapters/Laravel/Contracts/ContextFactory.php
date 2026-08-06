@@ -1,9 +1,10 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts;
 
 use Illuminate\Http\Request;
-
 
 interface ContextFactory
 {

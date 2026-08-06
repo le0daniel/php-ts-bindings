@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
@@ -12,18 +14,17 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 use UnitEnum;
 
-final class EnumNode implements NodeInterface, LeafNode
+final class EnumNode implements LeafNode, NodeInterface
 {
     /** @var array<string, UnitEnum> */
     private array $cases;
 
     /**
-     * @param class-string<UnitEnum> $enumClassName
+     * @param  class-string<UnitEnum>  $enumClassName
      */
     public function __construct(
         public readonly string $enumClassName,
-    )
-    {
+    ) {
     }
 
     #[Override]
@@ -37,6 +38,7 @@ final class EnumNode implements NodeInterface, LeafNode
     {
         $enumClass = PHPExport::absolute($this->enumClassName);
         $className = PHPExport::absolute(self::class);
+
         return "new {$className}({$enumClass}::class)";
     }
 
@@ -44,14 +46,15 @@ final class EnumNode implements NodeInterface, LeafNode
     public function parseValue(mixed $value, ExecutionContext $context): UnitEnum|Value
     {
         /** ToDo: Error handling */
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
                 [
-                    "message" => "Expected string name of enum {$this->enumClassName}, got: " . gettype($value),
-                    "value" => $value,
+                    'message' => "Expected string name of enum {$this->enumClassName}, got: ".gettype($value),
+                    'value' => $value,
                 ]
             ));
+
             return Value::INVALID;
         }
 
@@ -68,18 +71,20 @@ final class EnumNode implements NodeInterface, LeafNode
         $context->addIssue(new Issue(
             IssueMessage::INVALID_TYPE,
             [
-                "message" => "Expected string name of enum {$this->enumClassName}, got: '{$value}'",
-                "value" => $value,
+                'message' => "Expected string name of enum {$this->enumClassName}, got: '{$value}'",
+                'value' => $value,
             ]
         ));
+
         return Value::INVALID;
     }
 
     #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
-        if (!is_a($value, $this->enumClassName)) {
+        if (! is_a($value, $this->enumClassName)) {
             $context->addIssue(Issue::invalidType($this->enumClassName, $value));
+
             return Value::INVALID;
         }
 

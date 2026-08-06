@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Handlers;
 
@@ -23,21 +25,23 @@ final readonly class RecordHandler implements Handler
     {
         assert($node instanceof RecordNode);
 
-        if (!is_iterable($value)) {
+        if (! is_iterable($value)) {
             $context->addIssue(Issue::invalidType('iterable', $value));
+
             return Value::INVALID;
         }
 
         $values = [];
         foreach ($value as $key => $item) {
-            if (!is_string($key)) {
+            if (! is_string($key)) {
                 $context->addIssue(new Issue(
                     IssueMessage::INVALID_KEY_TYPE,
                     [
-                        'message' => 'Record keys must be strings, got: ' . gettype($key),
+                        'message' => 'Record keys must be strings, got: '.gettype($key),
                         'keyValue' => $key,
                     ]
                 ));
+
                 return Value::INVALID;
             }
 
@@ -50,6 +54,7 @@ final readonly class RecordHandler implements Handler
             }
             $values[$key] = $result;
         }
+
         return (object) $values;
     }
 
@@ -61,21 +66,23 @@ final readonly class RecordHandler implements Handler
     {
         assert($node instanceof RecordNode);
 
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             $context->addIssue(Issue::invalidType('array', $value));
+
             return Value::INVALID;
         }
 
         $record = [];
         foreach ($value as $key => $item) {
-            if (!is_string($key)) {
+            if (! is_string($key)) {
                 $context->addIssue(new Issue(
                     IssueMessage::INVALID_KEY_TYPE,
                     [
-                        'message' => 'Record keys must be strings, got: ' . gettype($key),
+                        'message' => 'Record keys must be strings, got: '.gettype($key),
                         'keyValue' => $key,
                     ]
                 ));
+
                 return Value::INVALID;
             }
             $context->enterPath($key);

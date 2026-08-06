@@ -1,8 +1,10 @@
-<?php declare(strict_types=1);
+<?php
 
+declare(strict_types=1);
+
+use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
-use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
@@ -10,14 +12,14 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Tests\Feature\Mocks\GloballyThrowingMiddleware;
 use Tests\Feature\Mocks\NotAMiddleware;
 
-function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
-    $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(__DIR__ . '/Operations', keyGenerator: new PlainlyExposedKeyGenerator);
+function executeOperation(string $name, mixed $input): RpcSuccess|RpcError
+{
+    $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(__DIR__.'/Operations', keyGenerator: new PlainlyExposedKeyGenerator());
     $cachedRegistry = eval(CachedOperationRegistry::toPhpCode($registry, idLength: 10));
 
     $server = new Server($registry);
@@ -36,12 +38,11 @@ function executeOperation(string $name, mixed $input): RpcSuccess|RpcError {
         expect($regularResponse->type)->toEqual($cachedResponse->type);
     }
 
-
     return $regularResponse;
 }
 
-test("Exceptions are exposed through middleware", function () {
-    $result = executeOperation( 'test.run', ['name' => 'Leo']);
+test('Exceptions are exposed through middleware', function () {
+    $result = executeOperation('test.run', ['name' => 'Leo']);
 
     expect($result)->toBeInstanceOf(RpcSuccess::class)
         ->and($result->data)
@@ -61,7 +62,7 @@ test("Exceptions are exposed through middleware", function () {
  * messages it chose come out the other side as the 422 the client reads. Nothing along the way -
  * InvalidInputException, ErrorPresenter, RpcError - is allowed to flatten them back to a key.
  */
-test("a value object rejecting with ValidationException reaches the client as a 422 naming each message", function () {
+test('a value object rejecting with ValidationException reaches the client as a 422 naming each message', function () {
     $error = executeOperation('test.acceptEmail', ['email' => '']);
 
     expect($error)->toBeInstanceOf(RpcError::class)
@@ -77,11 +78,11 @@ test("a value object rejecting with ValidationException reaches the client as a 
         ->toBeInstanceOf(RpcSuccess::class);
 });
 
-test("A middleware that does not implement the contract yields an RpcError", function () {
+test('A middleware that does not implement the contract yields an RpcError', function () {
     $server = new Server(
         EagerlyLoadedOperationRegistry::eagerlyDiscover(
-            __DIR__ . '/Operations',
-            keyGenerator: new PlainlyExposedKeyGenerator
+            __DIR__.'/Operations',
+            keyGenerator: new PlainlyExposedKeyGenerator()
         ),
         configuration: new ServerConfiguration()->withMiddlewares(NotAMiddleware::class),
     );
@@ -102,11 +103,11 @@ test("A middleware that does not implement the contract yields an RpcError", fun
         ->and($result->previous[0]->getMessage())->toContain(NotAMiddleware::class);
 });
 
-test("Middleware emits typescript middleware", function () {
+test('Middleware emits typescript middleware', function () {
     $server = new Server(
         EagerlyLoadedOperationRegistry::eagerlyDiscover(
-            __DIR__ . '/Operations',
-            keyGenerator: new PlainlyExposedKeyGenerator
+            __DIR__.'/Operations',
+            keyGenerator: new PlainlyExposedKeyGenerator()
         ),
     );
 
@@ -161,7 +162,7 @@ test('a globally configured middleware contributes its #[Throws] to the runtime 
     // middleware registered through ServerConfiguration was ignored by both the presenter and the
     // generated error union - the exception surfaced as a 500.
     $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(
-        __DIR__ . '/Operations',
+        __DIR__.'/Operations',
         keyGenerator: new PlainlyExposedKeyGenerator(),
     );
     $configuration = new ServerConfiguration()->withMiddlewares(GloballyThrowingMiddleware::class);
@@ -183,7 +184,7 @@ test('a globally configured middleware contributes its #[Throws] to the runtime 
 
 test('an operation level declaration still wins over a global one for the same exception', function () {
     $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(
-        __DIR__ . '/Operations',
+        __DIR__.'/Operations',
         keyGenerator: new PlainlyExposedKeyGenerator(),
     );
     $configuration = new ServerConfiguration()->withMiddlewares(GloballyThrowingMiddleware::class);

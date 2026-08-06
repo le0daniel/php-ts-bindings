@@ -1,8 +1,9 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Feature\Operations;
 
-use App\Data\PreviewableFileData;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Tests\Mocks\ValueObjects\ValidatedEmail;
@@ -10,10 +11,10 @@ use Tests\Mocks\ValueObjects\ValidatedEmail;
 final class TestClass
 {
     /**
-     * @param array{name: string} $data
+     * @param  array{name: string}  $data
      * @return array{message: string}
      */
-    #[Command("test")]
+    #[Command('test')]
     #[Middleware(NameCheckingMiddleware::class)]
     public function run(array $data): array
     {
@@ -26,10 +27,10 @@ final class TestClass
      * The value object rejects with a ValidationException, so the messages it names have to survive
      * all the way to details.fields rather than being flattened into validation.invalid_value.
      *
-     * @param array{email: ValidatedEmail} $data
+     * @param  array{email: ValidatedEmail}  $data
      * @return array{email: string}
      */
-    #[Command("test")]
+    #[Command('test')]
     public function acceptEmail(array $data): array
     {
         return ['email' => $data['email']->toStringValue()];
@@ -40,10 +41,10 @@ final class TestClass
      * declared. The whole `user` branch is nullable, which is exactly the shape that used to be
      * answered as a 200 with `user: null`.
      *
-     * @param array{ping: bool} $data
+     * @param  array{ping: bool}  $data
      * @return array{id: int, user: array{name: string}|null}
      */
-    #[Command("test")]
+    #[Command('test')]
     public function badOutput(array $data): array
     {
         /** @phpstan-ignore-next-line return.type (deliberately wrong, this is the fixture) */

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Server;
 
@@ -8,20 +10,21 @@ use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Server\Operations\OperationDiscovery;
 use ReflectionClass;
-use Tests\Feature\Operations\NameCheckingMiddleware;
 use Tests\Feature\Mocks\GloballyThrowingMiddleware;
+use Tests\Feature\Operations\NameCheckingMiddleware;
 
 function discover(object|string $class): OperationDiscovery
 {
     $discovery = new OperationDiscovery();
     $discovery->discover(new ReflectionClass($class));
+
     return $discovery;
 }
 
 final class ClientInContextSlot
 {
     /**
-     * @param array{a: string} $input
+     * @param  array{a: string}  $input
      * @return array{a: string}
      */
     #[Command('bad')]
@@ -34,7 +37,7 @@ final class ClientInContextSlot
 final class TooManyParameters
 {
     /**
-     * @param array{a: string} $input
+     * @param  array{a: string}  $input
      * @return array{a: string}
      */
     #[Command('bad')]
@@ -47,7 +50,7 @@ final class TooManyParameters
 final class WrongClientType
 {
     /**
-     * @param array{a: string} $input
+     * @param  array{a: string}  $input
      * @return array{a: string}
      */
     #[Command('bad')]
@@ -60,7 +63,7 @@ final class WrongClientType
 final class ValidPrefixes
 {
     /**
-     * @param array{a: string} $input
+     * @param  array{a: string}  $input
      * @return array{a: string}
      */
     #[Command('ok', 'inputOnly')]
@@ -70,7 +73,7 @@ final class ValidPrefixes
     }
 
     /**
-     * @param array{a: string} $input
+     * @param  array{a: string}  $input
      * @return array{a: string}
      */
     #[Command('ok', 'withContext')]
@@ -80,7 +83,7 @@ final class ValidPrefixes
     }
 
     /**
-     * @param array{a: string} $input
+     * @param  array{a: string}  $input
      * @return array{a: string}
      */
     #[Command('ok', 'withClient')]
@@ -94,7 +97,7 @@ final class ValidPrefixes
 final class StackedMiddleware
 {
     /**
-     * @param array{a: string} $input
+     * @param  array{a: string}  $input
      * @return array{a: string}
      */
     #[Command('stacked')]
@@ -111,17 +114,17 @@ test('a handler may declare any prefix of (input, context, client)', function ()
 
 test('a Client in the context slot is rejected with the reason', function () {
     // It would silently receive the context and die with a TypeError naming neither.
-    expect(fn() => discover(ClientInContextSlot::class))
+    expect(fn () => discover(ClientInContextSlot::class))
         ->toThrow(SchemaException::class, 'the second argument is the context');
 });
 
 test('more parameters than the handler contract has are rejected', function () {
-    expect(fn() => discover(TooManyParameters::class))
+    expect(fn () => discover(TooManyParameters::class))
         ->toThrow(SchemaException::class, 'may declare a prefix of those');
 });
 
 test('a third parameter that cannot accept a Client is rejected', function () {
-    expect(fn() => discover(WrongClientType::class))
+    expect(fn () => discover(WrongClientType::class))
         ->toThrow(SchemaException::class, 'which is the client');
 });
 

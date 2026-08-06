@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
@@ -9,7 +11,7 @@ use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
  */
 function renderedBody(TypescriptFile $file): string
 {
-    $prefix = TypescriptFile::MARKER . "\n";
+    $prefix = TypescriptFile::MARKER."\n";
     $rendered = $file->toString();
 
     expect($rendered)->toStartWith($prefix);
@@ -57,7 +59,7 @@ test('splits a module into a type line and a value line, type first', function (
 
     expect(renderedBody($file))->toBe(
         "import type {Brand} from './lib/types';\n"
-        . "import {isBrand} from './lib/types';\n"
+        ."import {isBrand} from './lib/types';\n"
     );
 });
 
@@ -99,8 +101,8 @@ test('sorts modules by specifier', function () {
 
     expect(renderedBody($file))->toBe(
         "import type {Brand} from './lib/types';\n"
-        . "import {queryKey} from './lib/utils';\n"
-        . "import {useQuery} from '@tanstack/react-query';\n"
+        ."import {queryKey} from './lib/utils';\n"
+        ."import {useQuery} from '@tanstack/react-query';\n"
     );
 });
 
@@ -119,7 +121,7 @@ test('test mixed import', function () {
         TypescriptImport::mixed('./lib/types', [
             ' type Order',
             'type Brand ',
-            ' SomeValue'
+            ' SomeValue',
         ]),
     ]);
 
@@ -153,7 +155,7 @@ test('never emits a name as both a type and a value import of one module', funct
 
     expect(renderedBody($file))->toBe(
         "import type {Order} from './lib/types';\n"
-        . "import {Status} from './lib/types';\n"
+        ."import {Status} from './lib/types';\n"
     );
 });
 
@@ -163,7 +165,7 @@ test('resolves every module specifier and merges what collapses onto one module'
         TypescriptImport::values('./types', 'isOrder'),
         TypescriptImport::values('@tanstack/react-query', 'useQuery'),
     ])->withModulesResolvedBy(
-        fn(string $from): string => str_starts_with($from, './lib/') ? './' . substr($from, 6) : $from,
+        fn (string $from): string => str_starts_with($from, './lib/') ? './'.substr($from, 6) : $from,
     );
 
     // The two specifiers name one module once resolved, so they render as one import and not as a
@@ -171,16 +173,16 @@ test('resolves every module specifier and merges what collapses onto one module'
     expect($file->imports)->toHaveCount(2)
         ->and(renderedBody($file))->toBe(
             "import type {Order} from './types';\n"
-            . "import {isOrder} from './types';\n"
-            . "import {useQuery} from '@tanstack/react-query';\n"
-            . "\nconst a = 1;\n"
+            ."import {isOrder} from './types';\n"
+            ."import {useQuery} from '@tanstack/react-query';\n"
+            ."\nconst a = 1;\n"
         );
 });
 
 test('withModulesResolvedBy returns a new file and leaves the original untouched', function () {
     $original = new TypescriptFile('const a = 1;', [TypescriptImport::types('./lib/types', 'Brand')]);
 
-    $resolved = $original->withModulesResolvedBy(fn(string $from): string => './types');
+    $resolved = $original->withModulesResolvedBy(fn (string $from): string => './types');
 
     expect($resolved)->not->toBe($original)
         ->and($original->imports[0]->from)->toBe('./lib/types')
@@ -220,8 +222,8 @@ test('appending a file merges its imports', function () {
 
     expect(renderedBody($file))->toBe(
         "import type {Brand, Order} from './lib/types';\n"
-        . "import {queryKey} from './lib/utils';\n"
-        . "\nconst a = 1;\n\nconst b = 2;\n"
+        ."import {queryKey} from './lib/utils';\n"
+        ."\nconst a = 1;\n\nconst b = 2;\n"
     );
 });
 
@@ -274,7 +276,7 @@ test('constructing with code is the same as appending it to an empty file', func
 })->with([
     'plain' => ['const a = 1;'],
     'padded with newlines' => ["\nconst a = 1;\n\n"],
-    'indented' => ["    const a = 1;"],
+    'indented' => ['    const a = 1;'],
     'empty' => [''],
 ]);
 
@@ -307,7 +309,7 @@ test('renders a full file: imports, a blank line, then every block', function ()
         TypescriptImport::values('./lib/utils', 'queryKey'),
         TypescriptImport::types('./lib/types', ['Order', 'Brand']),
     ])->append(new TypescriptFile(
-        <<<TypeScript
+        <<<'TypeScript'
 
         export function get(input: Id) {
             return queryKey('orders', 'get', input);
@@ -317,7 +319,7 @@ test('renders a full file: imports, a blank line, then every block', function ()
         [TypescriptImport::types('./lib/types', 'OrderStatus')],
     ));
 
-    expect(renderedBody($file))->toBe(<<<TypeScript
+    expect(renderedBody($file))->toBe(<<<'TypeScript'
     import type {Brand, Order, OrderStatus} from './lib/types';
     import {queryKey} from './lib/utils';
 
@@ -334,17 +336,17 @@ test('casts to a string', function () {
     $file = new TypescriptFile('const a = 1;', [TypescriptImport::types('./lib/types', 'Brand')]);
 
     expect($file)->toBeInstanceOf(Stringable::class)
-        ->and((string)$file)->toBe($file->toString());
+        ->and((string) $file)->toBe($file->toString());
 });
 
 test('every rendered file opens with the marker', function (TypescriptFile $file) {
-    expect($file->toString())->toStartWith(TypescriptFile::MARKER . "\n")
+    expect($file->toString())->toStartWith(TypescriptFile::MARKER."\n")
         ->and(TypescriptFile::isGenerated($file->toString()))->toBeTrue();
 })->with([
-    'empty' => [fn() => new TypescriptFile()],
-    'code only' => [fn() => new TypescriptFile('const a = 1;')],
-    'imports only' => [fn() => new TypescriptFile('', [TypescriptImport::types('./lib/types', 'Brand')])],
-    'both' => [fn() => new TypescriptFile('const a = 1;', [TypescriptImport::types('./lib/types', 'Brand')])],
+    'empty' => [fn () => new TypescriptFile()],
+    'code only' => [fn () => new TypescriptFile('const a = 1;')],
+    'imports only' => [fn () => new TypescriptFile('', [TypescriptImport::types('./lib/types', 'Brand')])],
+    'both' => [fn () => new TypescriptFile('const a = 1;', [TypescriptImport::types('./lib/types', 'Brand')])],
 ]);
 
 test('the marker carries nothing that varies between runs', function () {

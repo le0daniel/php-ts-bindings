@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -30,8 +32,8 @@ use Tests\Unit\CodeGen\Mocks\UnrepresentableOperations;
 use Tests\Unit\CodeGen\Mocks\UserOperations;
 
 /**
- * @param list<class-string> $classes
- * @param list<object> $generators
+ * @param  list<class-string>  $classes
+ * @param  list<object>  $generators
  * @return array<string, TypescriptFile>
  */
 function generateFor(array $classes, ?array $generators = null): array
@@ -113,7 +115,7 @@ test('merges what every generator imports into one sorted block per module', fun
     // utils collects queryKey — claimed twice and deduped — alongside throwOnFailure, and the
     // aliases come from both EmitOperations and EmitQueryKey. Type only exports are on their own
     // line, which is what verbatimModuleSyntax requires.
-    expect($operations)->toStartWith(TypescriptFile::MARKER . "\n\n" . <<<TypeScript
+    expect($operations)->toStartWith(TypescriptFile::MARKER."\n\n".<<<'TypeScript'
     import type {OperationOptions} from './lib/OperationClient';
     import {executeOperation} from './lib/bindings';
     import type {Brand, Customer, Order, OrderStatus} from './lib/types';
@@ -131,7 +133,7 @@ test('every generator names an operation the way the one that declares it does',
         new EmitTypes(),
         new EmitOperationClientBindings(),
         new EmitTypeUtils(),
-        new EmitOperations(fn(TypedOperation $operation): string => "orders" . ucfirst($operation->definition->name)),
+        new EmitOperations(fn (TypedOperation $operation): string => 'orders'.ucfirst($operation->definition->name)),
         new EmitQueryKey(),
         new EmitTanstackQuery(),
     ])['orders.ts']->toString();
@@ -151,14 +153,14 @@ test('a lib file reaches its siblings directly instead of through lib/', functio
     // once it knows where the file went, and the emitters never learn where that is.
     $files = generateFor([NamedOperations::class]);
 
-    expect($files['lib/bindings.ts']->toString())->toStartWith(TypescriptFile::MARKER . "\n\n" . <<<TypeScript
+    expect($files['lib/bindings.ts']->toString())->toStartWith(TypescriptFile::MARKER."\n\n".<<<'TypeScript'
     import {DefaultClient} from './DefaultClient';
     import type {OperationClient, OperationOptions} from './OperationClient';
     import type {Result} from './types';
 
     TypeScript);
 
-    expect($files['lib/utils.ts']->toString())->toStartWith(TypescriptFile::MARKER . "\n\n" . <<<TypeScript
+    expect($files['lib/utils.ts']->toString())->toStartWith(TypescriptFile::MARKER."\n\n".<<<'TypeScript'
     import {OperationException} from './OperationException';
     import type {Result, Success} from './types';
 
@@ -227,7 +229,7 @@ test('the type map is written into the types file the types generator owns', fun
 });
 
 test('fails the run when a generator depends on one that is not registered', function () {
-    expect(fn() => generateFor([NamedOperations::class], [
+    expect(fn () => generateFor([NamedOperations::class], [
         new EmitTypes(),
         new EmitOperationClientBindings(),
         new EmitTanstackQuery(),
@@ -237,25 +239,25 @@ test('fails the run when a generator depends on one that is not registered', fun
 test('fails the run when a generator imports from one that is not registered', function () {
     // Nothing declares './lib/types' by hand any more: the import comes from EmitTypes, so a run
     // without it cannot silently emit an operation module pointing at a file no one writes.
-    expect(fn() => generateFor([NamedOperations::class], [
+    expect(fn () => generateFor([NamedOperations::class], [
         new EmitOperationClientBindings(),
         new EmitOperations(),
     ]))->toThrow(InvalidGeneratorDependencies::class);
 });
 
 test('fails the run when two classes resolve to the same name with different shapes', function () {
-    expect(fn() => generateFor([ConflictingNamedOperations::class]))
+    expect(fn () => generateFor([ConflictingNamedOperations::class]))
         ->toThrow(UnsupportedTypeException::class, 'Customer');
 });
 
 test('fails the whole run when an operation input has no TypeScript representation', function () {
-    expect(fn() => generateFor([UnrepresentableOperations::class]))
+    expect(fn () => generateFor([UnrepresentableOperations::class]))
         ->toThrow(UnsupportedTypeException::class, 'SomeFileInterface');
 });
 
 test('fails the run when one alias would have to describe two shapes', function () {
     // AstValidator runs before any pass, so this never reaches the emitter.
-    expect(fn() => generateFor([AsymmetricNamedOperations::class]))
+    expect(fn () => generateFor([AsymmetricNamedOperations::class]))
         ->toThrow(ParserException::class, 'resolves to one alias "AsymmetricNamed" for both directions');
 });
 
@@ -280,7 +282,7 @@ test('a name per direction declares both shapes; a single shape is referenced bo
 test('a query and a command generating the same name in one module is an error', function () {
     // Both would emit `export async function get` and `export type GetResult` into clash.ts.
     // Previously this produced invalid TypeScript without a warning.
-    expect(fn() => generateFor([NameClashOperations::class]))
+    expect(fn () => generateFor([NameClashOperations::class]))
         ->toThrow(CodeGenException::class, "Two operations generate the name 'get'");
 });
 
@@ -292,8 +294,8 @@ test('a naming rule that distinguishes them is accepted', function () {
         new EmitOperationClientBindings(),
         new EmitTypeUtils(),
         new EmitOperations(
-            fn(TypedOperation $operation): string => $operation->definition->type->lowerCase()
-                . ucfirst($operation->definition->name),
+            fn (TypedOperation $operation): string => $operation->definition->type->lowerCase()
+                .ucfirst($operation->definition->name),
         ),
     ]);
 

@@ -1,17 +1,19 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Executor;
 
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use stdClass;
+use Tests\Mocks\ResultEnum;
 
 /**
  * The library's rule is that nothing unrepresentable is silently degraded. TypescriptGenerator
  * throws rather than emit a placeholder; these are the executor-side equivalents, each of which
  * used to return a Success carrying a value the caller never produced.
  */
-
 test('coercion never fabricates a value out of a non scalar', function (mixed $value) {
     $result = executeParse('array{name: string}', ['name' => $value], new ParsingOptions(coercePrimitives: true));
 
@@ -90,7 +92,7 @@ test('every failure carries at least one issue', function (string $type, mixed $
     'tuple given a scalar' => ['array{string, int}', 'nope'],
     'tuple too short' => ['array{string, int}', ['a']],
     'tuple too long' => ['array{string, int}', ['a', 1, true]],
-    'enum case literal' => [\Tests\Mocks\ResultEnum::class . '::SUCCESS', 'NOPE'],
+    'enum case literal' => [ResultEnum::class.'::SUCCESS', 'NOPE'],
 ]);
 
 test('every serialization failure carries at least one issue', function (string $type, mixed $value) {
@@ -102,7 +104,7 @@ test('every serialization failure carries at least one issue', function (string 
     'list given a scalar' => ['list<string>', 'nope'],
     'record given a scalar' => ['array<string, string>', 'nope'],
     'tuple given a scalar' => ['array{string, int}', 'nope'],
-    'enum given a foreign value' => [\Tests\Mocks\ResultEnum::class, 'NOPE'],
+    'enum given a foreign value' => [ResultEnum::class, 'NOPE'],
 ]);
 
 test('serializing a tuple shorter than its arity fails without reading past the end', function () {

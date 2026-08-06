@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Executor;
 
@@ -6,8 +8,8 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\Result;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 
 /**
  * Failure used to extend Exception even though it is returned, never thrown. Any consumer with a
@@ -29,7 +31,7 @@ test('a returned failure cannot be caught as an exception', function () {
     try {
         $result = $executor->parse(new StringNode(), 42);
     } catch (\Exception $e) {
-        $this->fail('A failed parse must be returned, not thrown: ' . $e::class);
+        $this->fail('A failed parse must be returned, not thrown: '.$e::class);
     }
 
     expect($result)->toBeInstanceOf(Failure::class);

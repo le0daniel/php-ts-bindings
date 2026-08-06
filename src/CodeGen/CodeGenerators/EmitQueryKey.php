@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
@@ -18,6 +20,7 @@ use Override;
 final class EmitQueryKey implements DependsOn, GeneratesOperationCode
 {
     private EmitOperations $operations;
+
     private EmitTypeUtils $utils;
 
     #[Override]

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Parser\Constraints;
 
@@ -9,7 +11,6 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
  * refinements through the parser rather than the constraint classes, because the type string is
  * the only way a constraint can enter an AST.
  */
-
 test('non-empty-list rejects the empty list', function () {
     expect(executeParse('non-empty-list<int>', []))->toBeFailure(IssueMessage::INVALID_MIN->value);
     expect(executeParse('non-empty-list<int>', [1]))->toBeSuccess();

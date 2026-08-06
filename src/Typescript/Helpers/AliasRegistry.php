@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Typescript\Helpers;
 
@@ -20,7 +22,7 @@ final class AliasRegistry
     private array $definitions = [];
 
     /**
-     * @param array<string, string> $definitions Alias => definition.
+     * @param  array<string, string>  $definitions  Alias => definition.
      */
     public function __construct(array $definitions = [])
     {
@@ -73,6 +75,7 @@ final class AliasRegistry
     {
         $aliases = array_keys($this->definitions);
         sort($aliases);
+
         return $aliases;
     }
 
@@ -85,6 +88,7 @@ final class AliasRegistry
     {
         $definitions = $this->definitions;
         ksort($definitions);
+
         return $definitions;
     }
 }

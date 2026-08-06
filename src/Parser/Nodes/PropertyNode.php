@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
@@ -12,11 +14,12 @@ use Override;
 final readonly class PropertyNode implements NodeInterface, WrapsNode
 {
     public function __construct(
-        public string        $name,
+        public string $name,
         public NodeInterface $node,
-        public bool          $isOptional,
-        public PropertyType  $propertyType = PropertyType::BOTH,
-    ) {}
+        public bool $isOptional,
+        public PropertyType $propertyType = PropertyType::BOTH,
+    ) {
+    }
 
     #[NoDiscard]
     public function changePropertyType(PropertyType $propertyType): self
@@ -28,6 +31,7 @@ final readonly class PropertyNode implements NodeInterface, WrapsNode
     public function __toString(): string
     {
         $optional = $this->isOptional ? '?' : '';
+
         return "{$this->name}{$optional}: {$this->node}{$this->propertyType->asString()}";
     }
 
@@ -40,7 +44,7 @@ final readonly class PropertyNode implements NodeInterface, WrapsNode
         $name = PHPExport::export($this->name);
         $propertyType = $this->propertyType === PropertyType::BOTH
             ? ''
-            : ',' . PHPExport::exportEnumCase($this->propertyType);
+            : ','.PHPExport::exportEnumCase($this->propertyType);
 
         return "new {$className}({$name}, {$type}, {$isOptional}{$propertyType})";
     }

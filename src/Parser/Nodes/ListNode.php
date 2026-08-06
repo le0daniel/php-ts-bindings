@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
@@ -11,8 +13,7 @@ final readonly class ListNode implements NodeInterface, WrapsNode
 {
     public function __construct(
         public NodeInterface $node
-    )
-    {
+    ) {
     }
 
     #[Override]
@@ -25,6 +26,7 @@ final readonly class ListNode implements NodeInterface, WrapsNode
     public function exportPhpCode(): string
     {
         $classname = PHPExport::absolute(self::class);
+
         return "new {$classname}({$this->node->exportPhpCode()})";
     }
 }

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Exceptions;
 
@@ -32,16 +34,15 @@ final class ValidationException extends RuntimeException implements PhpTsBinding
     public readonly array $messages;
 
     /**
-     * @param string|array<string> $messages Not narrowed to a list: collecting reasons with
-     *                                       array_filter() leaves holes, and renumbering here is
-     *                                       friendlier than making every caller remember to.
-     * @param array<string, mixed> $debugInfo Server side only diagnostics; never sent to the client.
+     * @param  string|array<string>  $messages  Not narrowed to a list: collecting reasons with
+     *                                          array_filter() leaves holes, and renumbering here is
+     *                                          friendlier than making every caller remember to.
+     * @param  array<string, mixed>  $debugInfo  Server side only diagnostics; never sent to the client.
      */
     public function __construct(
-        string|array       $messages,
+        string|array $messages,
         public readonly array $debugInfo = [],
-    )
-    {
+    ) {
         $this->messages = is_string($messages) ? [$messages] : array_values($messages);
 
         // A rejection with nothing to say would record no issue, and SchemaExecutor would answer
@@ -57,8 +58,8 @@ final class ValidationException extends RuntimeException implements PhpTsBinding
     }
 
     /**
-     * @param array<string, mixed> $debugInfo Context from the call site, merged underneath the
-     *                                        thrower's own entries.
+     * @param  array<string, mixed>  $debugInfo  Context from the call site, merged underneath the
+     *                                           thrower's own entries.
      * @return list<Issue>
      */
     public function toIssues(array $debugInfo = []): array
@@ -66,7 +67,7 @@ final class ValidationException extends RuntimeException implements PhpTsBinding
         $mergedDebugInfo = [...$debugInfo, ...$this->debugInfo];
 
         return array_map(
-            fn(string $message): Issue => new Issue($message, $mergedDebugInfo, exception: $this),
+            fn (string $message): Issue => new Issue($message, $mergedDebugInfo, exception: $this),
             $this->messages,
         );
     }

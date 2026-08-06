@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Typescript\Code;
 
@@ -34,24 +36,24 @@ final readonly class TypescriptImport
     public array $values;
 
     /**
-     * @var list<string> Sorted, unique, disjoint from $values.
+     * @var list<string> Sorted, unique, disjoint from.
      */
     public array $types;
 
     /**
      * Prefer values()/types(); the constructor is for the rare module that gives both.
      *
-     * @param list<string> $values
-     * @param list<string> $types
+     * @param  list<string>  $values
+     * @param  list<string>  $types
+     *
      * @throws CodeGenException When $from cannot be written as a module specifier.
      * @throws InvalidStringLiteralException When a name is not a valid TypeScript identifier.
      */
     public function __construct(
         public string $from,
-        array         $values = [],
-        array         $types = [],
-    )
-    {
+        array $values = [],
+        array $types = [],
+    ) {
         self::assertUsableSpecifier($from);
 
         $this->values = self::canonical($values, $from);
@@ -59,7 +61,7 @@ final readonly class TypescriptImport
     }
 
     /**
-     * @param string|list<string> $names
+     * @param  string|list<string>  $names
      */
     public static function values(string $from, string|array $names): self
     {
@@ -67,7 +69,7 @@ final readonly class TypescriptImport
     }
 
     /**
-     * @param string|list<string> $names
+     * @param  string|list<string>  $names
      */
     public static function types(string $from, string|array $names): self
     {
@@ -75,7 +77,7 @@ final readonly class TypescriptImport
     }
 
     /**
-     * @param string|list<string> $valuesOrNames
+     * @param  string|list<string>  $valuesOrNames
      */
     public static function mixed(string $from, string|array $valuesOrNames): self
     {
@@ -122,13 +124,13 @@ final readonly class TypescriptImport
     }
 
     /**
-     * @param list<string> $names
+     * @param  list<string>  $names
      * @return list<string>
      */
     private static function canonical(array $names, string $from): array
     {
         foreach ($names as $name) {
-            if (!Syntax::isValidIdentifier($name)) {
+            if (! Syntax::isValidIdentifier($name)) {
                 throw InvalidStringLiteralException::notAValidTypescriptIdentifier(
                     $name,
                     "imported from '{$from}'",
@@ -145,7 +147,7 @@ final readonly class TypescriptImport
      */
     private static function assertUsableSpecifier(string $from): void
     {
-        if (!Syntax::isValidModuleSpecifier($from)) {
+        if (! Syntax::isValidModuleSpecifier($from)) {
             throw new CodeGenException(
                 "'{$from}' cannot be written as a TypeScript module specifier."
             );

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Parser\Constraints;
 
@@ -68,13 +70,13 @@ it('reports the bound that failed', function () {
 
 it('exports PHP code correctly', function () {
     expect(new IntRange(min: 5, max: 10)->exportPhpCode())
-        ->toBe('new \\' . IntRange::class . '(5,10)')
+        ->toBe('new \\'.IntRange::class.'(5,10)')
         ->and(new IntRange(min: 1)->exportPhpCode())
-        ->toBe('new \\' . IntRange::class . '(1,NULL)');
+        ->toBe('new \\'.IntRange::class.'(1,NULL)');
 });
 
 it('names its bounds in diagnostics', function () {
-    expect((string)new IntRange(0, 100))->toBe('IntRange(0, 100)')
-        ->and((string)new IntRange(min: 1))->toBe('IntRange(1, max)')
-        ->and((string)new IntRange(max: -1))->toBe('IntRange(min, -1)');
+    expect((string) new IntRange(0, 100))->toBe('IntRange(0, 100)')
+        ->and((string) new IntRange(min: 1))->toBe('IntRange(1, max)')
+        ->and((string) new IntRange(max: -1))->toBe('IntRange(min, -1)');
 });

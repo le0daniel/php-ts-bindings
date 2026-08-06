@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
@@ -13,13 +15,14 @@ final readonly class Strings
     public static function classBaseName(string $className): string
     {
         $parts = explode('\\', $className);
+
         return end($parts);
     }
 
     public static function toString(UnitEnum|string|\Stringable $value): string
     {
         if ($value instanceof UnitEnum) {
-            return match(true) {
+            return match (true) {
                 $value instanceof \BackedEnum => (string) $value->value,
                 default => $value->name,
             };

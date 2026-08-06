@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
@@ -6,6 +8,7 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
@@ -22,7 +25,6 @@ use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Preloader;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Utils\Assertions;
-use InvalidArgumentException;
 use Override;
 
 final class LaravelServiceProvider extends ServiceProvider implements DeferrableProvider
@@ -72,10 +74,10 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
     private static function customKeyGenerator(Application $app, mixed $className): OperationKeyGenerator
     {
-        if (!is_string($className) || $className === '') {
+        if (! is_string($className) || $className === '') {
             throw new InvalidArgumentException(
                 "operations.key.mode is 'custom', so operations.key.className must name a class "
-                . "implementing " . OperationKeyGenerator::class . "."
+                .'implementing '.OperationKeyGenerator::class.'.'
             );
         }
 
@@ -83,10 +85,9 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     }
 
     public static function serverFactory(
-        Application        $app,
+        Application $app,
         ?OperationRegistry $operations,
-    ): Server
-    {
+    ): Server {
         $config = $app->make('config');
 
         $operations ??= EagerlyLoadedOperationRegistry::eagerlyDiscover(
@@ -128,7 +129,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
             return self::serverFactory(
                 $app,
-                $isRepositoryCached ? require(base_path('bootstrap/cache/operations.php')) : null
+                $isRepositoryCached ? require (base_path('bootstrap/cache/operations.php')) : null
             );
         });
 
@@ -159,11 +160,12 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     public function boot(): void
     {
         $this->publishes([
-            __DIR__ . '/config/config.php' => config_path('operations.php'),
+            __DIR__.'/config/config.php' => config_path('operations.php'),
         ]);
 
         $this->mergeConfigFrom(
-            __DIR__ . '/config/config.php', 'operations'
+            __DIR__.'/config/config.php',
+            'operations'
         );
 
         if ($this->app->runningInConsole()) {

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser;
 
@@ -48,25 +50,21 @@ final readonly class TypeParser
      * It's best to run the parser in your build step to create a static file including all the definitions you need
      * at runtime.
      *
-     * @param list<TypeConsumer>|null $consumers
+     * @param  list<TypeConsumer>|null  $consumers
      */
     public function __construct(
         ?array $consumers = null,
-    )
-    {
+    ) {
         $this->consumers = $consumers ?? self::defaultConsumers();
     }
 
     /**
-     * @param GlobalTypeAliases $globalTypeAliases
-     * @param bool $allowAllObjectCasting
      * @return list<TypeConsumer>
      */
     public static function defaultConsumers(
         GlobalTypeAliases $globalTypeAliases = new GlobalTypeAliases(),
         bool $allowAllObjectCasting = false,
-    ): array
-    {
+    ): array {
         return [
             new LiteralConsumer(),
             new ClassConstConsumer(),
@@ -121,12 +119,11 @@ final readonly class TypeParser
             $state->advance(2);
             $type = new ListNode($type);
         }
+
         return $type;
     }
 
     /**
-     * @param ParserState $state
-     * @return NodeInterface
      * @throws InvalidSyntaxException
      */
     private function consumeType(ParserState $state): NodeInterface
@@ -138,11 +135,12 @@ final readonly class TypeParser
             }
         }
 
-        $state->produceSyntaxError("No parser found.");
+        $state->produceSyntaxError('No parser found.');
     }
 
     /**
      * @throws InvalidSyntaxException
+     *
      * @internal
      */
     public function consume(ParserState $state, TokenType ...$stopAt): NodeInterface
@@ -170,30 +168,32 @@ final readonly class TypeParser
             if ($token->is(TokenType::PIPE)) {
                 $mode ??= 'union';
                 if ($expectsType) {
-                    $state->produceSyntaxError("Expected Type Identifier, got Pipe");
+                    $state->produceSyntaxError('Expected Type Identifier, got Pipe');
                 }
 
                 if ($mode !== 'union') {
-                    $state->produceSyntaxError("Cannot mix union with intersection or nullable types. Use brackets to do so. Example: (A&B)|C or null|A|B");
+                    $state->produceSyntaxError('Cannot mix union with intersection or nullable types. Use brackets to do so. Example: (A&B)|C or null|A|B');
                 }
 
                 $expectsType = true;
                 $state->advance();
+
                 continue;
             }
 
             if ($token->is(TokenType::AMPERSAND)) {
                 $mode ??= 'intersection';
                 if ($expectsType) {
-                    $state->produceSyntaxError("Expected Type Identifier, got &");
+                    $state->produceSyntaxError('Expected Type Identifier, got &');
                 }
 
                 if ($mode !== 'intersection') {
-                    $state->produceSyntaxError("Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C");
+                    $state->produceSyntaxError('Cannot mix union and intersection types. Use brackets to do so. Example: (A&B)|C');
                 }
 
                 $expectsType = true;
                 $state->advance();
+
                 continue;
             }
 
@@ -201,12 +201,13 @@ final readonly class TypeParser
             if ($token->is(TokenType::LPAREN)) {
                 $state->advance();
                 $grouped = $this->consume($state, TokenType::RPAREN);
-                if (!$state->current()->is(TokenType::RPAREN)) {
-                    $state->produceSyntaxError("Expected closing parenthesis");
+                if (! $state->current()->is(TokenType::RPAREN)) {
+                    $state->produceSyntaxError('Expected closing parenthesis');
                 }
                 $state->advance();
                 $types[] = $this->consumeTypeModifiers($state, $grouped);
                 $expectsType = false;
+
                 continue;
             }
 
@@ -215,12 +216,12 @@ final readonly class TypeParser
         } while ($state->canAdvance());
 
         if ($expectsType) {
-            $state->produceSyntaxError("Expected type Identifier");
+            $state->produceSyntaxError('Expected type Identifier');
         }
 
         if ($mode === 'intersection') {
             if (count($types) < 2) {
-                $state->produceSyntaxError("Intersections need at least 2 types.");
+                $state->produceSyntaxError('Intersections need at least 2 types.');
             }
 
             return new IntersectionNode($types);
@@ -228,7 +229,7 @@ final readonly class TypeParser
 
         if ($mode === 'questionmark-union') {
             if (count($types) !== 2) {
-                $state->produceSyntaxError("Questionmark nullable unions need exactly 2 types. Example: ?MyClass, got: " . count($types) . " types.");
+                $state->produceSyntaxError('Questionmark nullable unions need exactly 2 types. Example: ?MyClass, got: '.count($types).' types.');
             }
 
             return new UnionNode($types, null, null);
@@ -242,7 +243,7 @@ final readonly class TypeParser
     }
 
     /**
-     * @param non-empty-list<NodeInterface> $types
+     * @param  non-empty-list<NodeInterface>  $types
      * @return non-empty-list<NodeInterface>
      */
     private function flattenNestedUnionTypes(array $types): array
@@ -251,7 +252,8 @@ final readonly class TypeParser
 
         foreach ($types as $type) {
             if ($type instanceof UnionNode) {
-                array_push($flattened, ... $type->nodes);
+                array_push($flattened, ...$type->nodes);
+
                 continue;
             }
             $flattened[] = $type;
@@ -260,7 +262,6 @@ final readonly class TypeParser
         /** @var non-empty-list<NodeInterface> $flattened */
         return $flattened;
     }
-
 
     /**
      * A discriminator has to survive a strict comparison against a value decoded from JSON, which
@@ -275,12 +276,12 @@ final readonly class TypeParser
     }
 
     /**
-     * @param non-empty-list<NodeInterface> $types
+     * @param  non-empty-list<NodeInterface>  $types
      * @return UnionNode<NodeInterface>
      */
     private function checkForDiscriminatedUnion(array $types): UnionNode
     {
-        if (count($types) < 2 || !array_all($types, fn(NodeInterface $type) => $type instanceof StructNode)) {
+        if (count($types) < 2 || ! array_all($types, fn (NodeInterface $type) => $type instanceof StructNode)) {
             return new UnionNode($types);
         }
 
@@ -292,7 +293,7 @@ final readonly class TypeParser
         foreach ($firstType->properties as $property) {
             // Discrimination runs on freshly parsed structs; the optimizer's reference holding
             // structs are exported, never unioned.
-            if (!$property instanceof PropertyNode || !$property->node instanceof LiteralNode) {
+            if (! $property instanceof PropertyNode || ! $property->node instanceof LiteralNode) {
                 continue;
             }
 
@@ -316,7 +317,7 @@ final readonly class TypeParser
                 // Check for presence, type, and uniqueness
                 $otherValue = $otherProperty?->node instanceof LiteralNode ? $otherProperty->node->value : null;
                 if (
-                    !self::canDiscriminate($otherValue) ||
+                    ! self::canDiscriminate($otherValue) ||
                     in_array($otherValue, $values, true)
                 ) {
                     $isDiscriminator = false;

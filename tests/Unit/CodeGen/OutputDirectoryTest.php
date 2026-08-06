@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -10,11 +12,11 @@ use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
  * write() removes what it finds before writing, so what it considers "its own" is the whole safety
  * story. The marker on the first line is that answer.
  */
-
 function outputDirectory(): string
 {
-    $directory = sys_get_temp_dir() . '/php-ts-bindings-output-' . bin2hex(random_bytes(6));
-    mkdir($directory . '/lib', 0777, true);
+    $directory = sys_get_temp_dir().'/php-ts-bindings-output-'.bin2hex(random_bytes(6));
+    mkdir($directory.'/lib', 0777, true);
+
     return $directory;
 }
 
@@ -59,7 +61,7 @@ test('overwriting an unmarked file with a generated module is refused', function
     $directory = outputDirectory();
     file_put_contents("{$directory}/users.ts", "export const mine = 1;\n");
 
-    expect(fn() => OutputDirectory::write($directory, ['users.ts' => new TypescriptFile('export type A = 1;')]))
+    expect(fn () => OutputDirectory::write($directory, ['users.ts' => new TypescriptFile('export type A = 1;')]))
         ->toThrow(CodeGenException::class, 'Refusing to overwrite users.ts');
 
     // Refused before anything was touched.

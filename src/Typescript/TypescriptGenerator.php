@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Typescript;
 
@@ -102,15 +104,14 @@ final readonly class TypescriptGenerator
                 ? Syntax::stringLiteral($node->value->name)
                 : throw UnsupportedTypeException::forNode($node),
 
-            LiteralType::STRING, LiteralType::INT, LiteralType::FLOAT, LiteralType::NULL
-            => json_encode($node->value, JSON_THROW_ON_ERROR),
+            LiteralType::STRING, LiteralType::INT, LiteralType::FLOAT, LiteralType::NULL => json_encode($node->value, JSON_THROW_ON_ERROR),
         };
     }
 
     private static function enum(EnumNode $node): string
     {
         $cases = array_map(
-            fn(UnitEnum $case): string => Syntax::stringLiteral($case->name),
+            fn (UnitEnum $case): string => Syntax::stringLiteral($case->name),
             $node->enumClassName::cases(),
         );
 
@@ -143,6 +144,7 @@ final readonly class TypescriptGenerator
         if ($node->name !== null) {
             $alias = $node->name->nameFor($context->io);
             $context->registry->set($alias, $inner);
+
             return $alias;
         }
 
@@ -166,7 +168,7 @@ final readonly class TypescriptGenerator
         $properties = [];
 
         foreach ($node->properties as $property) {
-            if (!$property instanceof PropertyNode) {
+            if (! $property instanceof PropertyNode) {
                 throw UnsupportedTypeException::forNode($property);
             }
 
@@ -174,7 +176,7 @@ final readonly class TypescriptGenerator
                 ? $property->propertyType->isInput()
                 : $property->propertyType->isOutput();
 
-            if (!$isVisible) {
+            if (! $isVisible) {
                 continue;
             }
 
@@ -188,19 +190,19 @@ final readonly class TypescriptGenerator
             return '{}';
         }
 
-        return '{' . implode('', array_map(
-                fn(array $property): string => "{$property[0]}:{$property[1]};",
-                $properties,
-            )) . '}';
+        return '{'.implode('', array_map(
+            fn (array $property): string => "{$property[0]}:{$property[1]};",
+            $properties,
+        )).'}';
     }
 
     /**
-     * @param UnionNode<NodeInterface> $node
+     * @param  UnionNode<NodeInterface>  $node
      */
     private function union(UnionNode $node, EmissionContext $context): string
     {
         $members = array_map(
-            fn($member): string => $this->emit($member, $context),
+            fn ($member): string => $this->emit($member, $context),
             $node->nodes,
         );
 
@@ -211,7 +213,7 @@ final readonly class TypescriptGenerator
     private function intersection(IntersectionNode $node, EmissionContext $context): string
     {
         $members = array_map(
-            fn($member): string => $this->emit($member, $context),
+            fn ($member): string => $this->emit($member, $context),
             $node->nodes,
         );
 
@@ -221,10 +223,10 @@ final readonly class TypescriptGenerator
     private function tuple(TupleNode $node, EmissionContext $context): string
     {
         $members = array_map(
-            fn(NodeInterface $member): string => $this->emit($member, $context),
+            fn (NodeInterface $member): string => $this->emit($member, $context),
             $node->nodes,
         );
 
-        return '[' . implode(',', $members) . ']';
+        return '['.implode(',', $members).']';
     }
 }

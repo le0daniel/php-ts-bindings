@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
@@ -10,9 +12,8 @@ final readonly class Toast
 {
     public function __construct(
         public ToastType $type,
-        public string    $message,
-    )
-    {
+        public string $message,
+    ) {
     }
 
     /**

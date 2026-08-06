@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts;
 
@@ -17,19 +19,20 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
  * must be prepared for $next() to hand back an RpcError.
  *
  * @phpstan-type Next Closure(mixed): (RpcSuccess|RpcError)
+ *
  * @template-contravariant TContext = mixed
  */
 interface MiddlewareContract
 {
     /**
-     * @param Next $next
-     * @param TContext $context
+     * @param  Next  $next
+     * @param  TContext  $context
      */
     public function handle(
-        mixed       $input,
-        Closure     $next,
-        mixed       $context,
+        mixed $input,
+        Closure $next,
+        mixed $context,
         ResolveInfo $info,
-        Client      $client,
+        Client $client,
     ): RpcSuccess|RpcError;
 }

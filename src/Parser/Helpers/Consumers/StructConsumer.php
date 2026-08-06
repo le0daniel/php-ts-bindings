@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -16,14 +18,13 @@ use Override;
 
 final readonly class StructConsumer implements TypeConsumer
 {
-
     #[Override]
     public function canConsume(ParserState $state): bool
     {
         if ($state->currentTokenIs(TokenType::IDENTIFIER, 'object')) {
             return true;
         }
-        
+
         // The peeks are null safe: a truncated `array{` used to crash here.
         return $state->currentTokenIs(TokenType::IDENTIFIER, 'array')
             && $state->peek(1)?->is(TokenType::LBRACE) === true
@@ -39,10 +40,9 @@ final readonly class StructConsumer implements TypeConsumer
     {
         $structType = StructPhpType::from($state->current()->value);
         $state->advance();
-        
-        
-        if (!$state->current()->is(TokenType::LBRACE)) {
-            $state->produceSyntaxError("Expected brace");
+
+        if (! $state->current()->is(TokenType::LBRACE)) {
+            $state->produceSyntaxError('Expected brace');
         }
 
         $state->advance();
@@ -56,13 +56,13 @@ final readonly class StructConsumer implements TypeConsumer
             $name = match (true) {
                 $key->is(TokenType::IDENTIFIER) => $key->value,
                 $key->is(TokenType::STRING) => Lexemes::decodeString($key->value),
-                default => $state->produceSyntaxError("Expected identifier"),
+                default => $state->produceSyntaxError('Expected identifier'),
             };
             $state->advance();
             $isOptional = $this->consumeOptionalObjectKey($state);
 
-            if (!$state->current()->is(TokenType::COLON)) {
-                $state->produceSyntaxError("Expected colon");
+            if (! $state->current()->is(TokenType::COLON)) {
+                $state->produceSyntaxError('Expected colon');
             }
             $state->advance();
 
@@ -81,16 +81,17 @@ final readonly class StructConsumer implements TypeConsumer
             $state->advance();
         }
 
-        if (!$state->current()->is(TokenType::RBRACE)) {
-            $state->produceSyntaxError("Expected brace");
+        if (! $state->current()->is(TokenType::RBRACE)) {
+            $state->produceSyntaxError('Expected brace');
         }
 
         if (count($properties) === 0) {
-            $state->produceSyntaxError("Expected properties");
+            $state->produceSyntaxError('Expected properties');
         }
 
         // We move out of the object
         $state->advance();
+
         return new StructNode($structType, $properties);
     }
 
@@ -98,8 +99,10 @@ final readonly class StructConsumer implements TypeConsumer
     {
         if ($state->current()->is(TokenType::QUESTION_MARK)) {
             $state->advance();
+
             return true;
         }
+
         return false;
     }
 }

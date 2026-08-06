@@ -1,10 +1,13 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
 final readonly class Regexes
 {
     private const array OPENING_BRACKETS = ['{' => true, '[' => true, '(' => true, '<' => true];
+
     private const array CLOSING_BRACKETS = ['}' => true, ']' => true, ')' => true, '>' => true];
 
     /** Characters that leave a type expression unfinished, so it continues after a line break. */
@@ -22,7 +25,7 @@ final readonly class Regexes
 
     public static function findParamWithNameDeclaration(string $docBlocks, string $paramName): ?string
     {
-        $variableRegex = '/^(?:[&.]|\s)*\$' . preg_quote($paramName, '/') . '(?![a-zA-Z0-9_\x80-\xff])/';
+        $variableRegex = '/^(?:[&.]|\s)*\$'.preg_quote($paramName, '/').'(?![a-zA-Z0-9_\x80-\xff])/';
 
         foreach (self::tags($docBlocks) as [$tagName, $body]) {
             if ($tagName !== 'param') {
@@ -36,6 +39,7 @@ final readonly class Regexes
 
             return $type;
         }
+
         return null;
     }
 
@@ -50,6 +54,7 @@ final readonly class Regexes
                 return $type;
             }
         }
+
         return null;
     }
 
@@ -71,6 +76,7 @@ final readonly class Regexes
                     $tags[] = $current;
                 }
                 $current = [$matches['name'], $matches['body']];
+
                 continue;
             }
 
@@ -80,6 +86,7 @@ final readonly class Regexes
                     $tags[] = $current;
                 }
                 $current = null;
+
                 continue;
             }
 
@@ -100,8 +107,9 @@ final readonly class Regexes
     {
         $withoutDelimiters = preg_replace('#^\s*/\*\*?|\*/\s*$#', '', $docBlock) ?? $docBlock;
         $lines = preg_split('/\R/', $withoutDelimiters);
+
         return array_map(
-            static fn(string $line): string => trim(preg_replace('/^\s*\*/', '', $line) ?? $line),
+            static fn (string $line): string => trim(preg_replace('/^\s*\*/', '', $line) ?? $line),
             $lines === false ? [$withoutDelimiters] : $lines,
         );
     }
@@ -127,39 +135,46 @@ final readonly class Regexes
                     $char === $quote => $quote = null,
                     default => null,
                 };
+
                 continue;
             }
 
             if ($char === "'" || $char === '"') {
                 $quote = $char;
+
                 continue;
             }
 
             if (isset(self::OPENING_BRACKETS[$char])) {
                 $depth++;
+
                 continue;
             }
 
             if (isset(self::CLOSING_BRACKETS[$char])) {
                 $depth = max(0, $depth - 1);
+
                 continue;
             }
 
-            if ($depth > 0 || !ctype_space($char)) {
+            if ($depth > 0 || ! ctype_space($char)) {
                 continue;
             }
 
             $nextIndex = $index + strspn($body, " \t\n\r\v\f", $index);
             if (self::typeContinues($body, $index, $nextIndex)) {
                 $index = $nextIndex - 1;
+
                 continue;
             }
 
             $type = rtrim(substr($body, 0, $index));
+
             return [$type === '' ? null : $type, ltrim(substr($body, $nextIndex))];
         }
 
         $type = trim($body);
+
         return [$type === '' ? null : $type, ''];
     }
 

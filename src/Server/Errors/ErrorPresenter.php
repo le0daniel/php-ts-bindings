@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Errors;
 
@@ -29,8 +31,7 @@ final readonly class ErrorPresenter
 {
     public function __construct(
         private ServerConfiguration $configuration,
-    )
-    {
+    ) {
     }
 
     /**
@@ -44,6 +45,7 @@ final readonly class ErrorPresenter
     {
         try {
             [$type, $details] = $this->resolve($throwable, $definition);
+
             return new RpcError($type, $throwable, $details, $info);
         } catch (Throwable $presentationFailure) {
             // Losing this one is expensive to debug: a stale middleware class name makes
@@ -58,14 +60,13 @@ final readonly class ErrorPresenter
     /**
      * The last resort shape, for when presenting itself fails.
      *
-     * @param list<Throwable> $previous
+     * @param  list<Throwable>  $previous
      */
     public static function internalError(
-        Throwable    $throwable,
+        Throwable $throwable,
         ?ResolveInfo $info,
-        array        $previous = [],
-    ): RpcError
-    {
+        array $previous = [],
+    ): RpcError {
         return new RpcError(
             ErrorType::INTERNAL_ERROR,
             $throwable,
@@ -113,11 +114,11 @@ final readonly class ErrorPresenter
     }
 
     /**
-     * @param list<class-string<Throwable>> $classNames
+     * @param  list<class-string<Throwable>>  $classNames
      */
     private function matchesAny(Throwable $throwable, array $classNames): bool
     {
-        return array_any($classNames, static fn(string $className): bool => $throwable instanceof $className);
+        return array_any($classNames, static fn (string $className): bool => $throwable instanceof $className);
     }
 
     /**

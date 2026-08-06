@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Feature\Operations;
 
@@ -16,7 +18,7 @@ final class PoolingTestClass
     /**
      * Same shape as constrainedEmail, but without the constraint.
      *
-     * @param array{email: string} $data
+     * @param  array{email: string}  $data
      * @return array{email: string}
      */
     #[Command('pooling')]
@@ -28,7 +30,7 @@ final class PoolingTestClass
     /**
      * Same shape as looseEmail, but the constraint must survive pooling.
      *
-     * @param array{email: non-empty-string} $data
+     * @param  array{email: non-empty-string}  $data
      * @return array{email: string}
      */
     #[Command('pooling')]
@@ -40,7 +42,7 @@ final class PoolingTestClass
     /**
      * Declares its properties in non-alphabetical order; key order must match the uncached path.
      *
-     * @param array{zebra: string, alpha: string, middle: int} $data
+     * @param  array{zebra: string, alpha: string, middle: int}  $data
      * @return array{zebra: string, alpha: string, middle: int}
      */
     #[Command('pooling')]
@@ -53,7 +55,7 @@ final class PoolingTestClass
      * The same shape as declarationOrder, declared in a different order. Both must resolve to the
      * same interned entry without either changing behaviour.
      *
-     * @param array{alpha: string, middle: int, zebra: string} $data
+     * @param  array{alpha: string, middle: int, zebra: string}  $data
      * @return array{alpha: string, middle: int, zebra: string}
      */
     #[Command('pooling')]
@@ -63,7 +65,7 @@ final class PoolingTestClass
     }
 
     /**
-     * @param array{value: 1|2} $data
+     * @param  array{value: 1|2}  $data
      * @return array{value: int}
      */
     #[Command('pooling')]
@@ -75,7 +77,7 @@ final class PoolingTestClass
     /**
      * Float literals that stringify like the integer ones above.
      *
-     * @param array{value: 1.0|2.0} $data
+     * @param  array{value: 1.0|2.0}  $data
      * @return array{value: float}
      */
     #[Command('pooling')]

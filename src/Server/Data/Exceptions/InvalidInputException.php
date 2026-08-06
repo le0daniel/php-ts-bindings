@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data\Exceptions;
 
@@ -19,6 +21,6 @@ final class InvalidInputException extends SchemaException
 {
     public function __construct(public readonly Failure $failure)
     {
-        parent::__construct("Input validation failed", 422);
+        parent::__construct('Input validation failed', 422);
     }
 }

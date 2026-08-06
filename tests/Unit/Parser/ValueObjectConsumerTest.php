@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
@@ -95,22 +97,22 @@ test('value objects compose with the rest of the grammar', function (string $typ
     compareToOptimizedAst($node);
     validateAst($node);
 })->with([
-    'nullable' => ['?\\' . Email::class, UnionNode::class],
-    'array shorthand' => ['\\' . Email::class . '[]', ListNode::class],
-    'list generic' => ['list<\\' . Email::class . '>', ListNode::class],
-    'union' => ['\\' . Email::class . '|null', UnionNode::class],
-    'record' => ['array<string, \\' . UserId::class . '>', RecordNode::class],
-    'struct' => ['array{id: \\' . UserId::class . ', email: \\' . Email::class . '}', StructNode::class],
-    'object struct' => ['object{id: \\' . UserId::class . '}', StructNode::class],
+    'nullable' => ['?\\'.Email::class, UnionNode::class],
+    'array shorthand' => ['\\'.Email::class.'[]', ListNode::class],
+    'list generic' => ['list<\\'.Email::class.'>', ListNode::class],
+    'union' => ['\\'.Email::class.'|null', UnionNode::class],
+    'record' => ['array<string, \\'.UserId::class.'>', RecordNode::class],
+    'struct' => ['array{id: \\'.UserId::class.', email: \\'.Email::class.'}', StructNode::class],
+    'object struct' => ['object{id: \\'.UserId::class.'}', StructNode::class],
 ]);
 
 test('rejects a class implementing both value object interfaces', function () {
-    expect(fn() => new TypeParser()->parse(AmbiguousValueObject::class))
+    expect(fn () => new TypeParser()->parse(AmbiguousValueObject::class))
         ->toThrow('must implement either StringValueObject or IntValueObject, not both');
 });
 
 test('rejects an abstract value object', function () {
-    expect(fn() => new TypeParser()->parse(AbstractValueObject::class))
+    expect(fn () => new TypeParser()->parse(AbstractValueObject::class))
         ->toThrow('must be instantiable');
 });
 

@@ -1,10 +1,11 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
@@ -34,8 +35,8 @@ final readonly class EmitTypes implements GeneratesLibFiles
      * static: a generator can only reach this through a dependency it declared, which is what makes
      * an import of a file no registered generator writes impossible.
      *
-     * @param list<string> $values
-     * @param list<string> $types
+     * @param  list<string>  $values
+     * @param  list<string>  $types
      */
     public function importFromTypes(array $values = [], array $types = []): TypescriptImport
     {
@@ -62,7 +63,7 @@ final readonly class EmitTypes implements GeneratesLibFiles
         $uniqueNamespaces = [];
         foreach ($operations as $operation) {
             $namespace = $operation->operation->definition->namespace;
-            if (!in_array($namespace, $uniqueNamespaces, true)) {
+            if (! in_array($namespace, $uniqueNamespaces, true)) {
                 $uniqueNamespaces[] = $namespace;
             }
         }
@@ -71,7 +72,7 @@ final readonly class EmitTypes implements GeneratesLibFiles
         // all, so every operation file can import any key of its own definitions' registries.
         $aliasTypeString = implode("\n", Arrays::mapWithKeys(
             $registry->toArray(),
-            fn(string $alias, string $definition): string => "export type {$alias} = {$definition}",
+            fn (string $alias, string $definition): string => "export type {$alias} = {$definition}",
         ));
 
         return [
@@ -92,11 +93,10 @@ TypeScript),
     }
 
     /**
-     * @param list<string> $namespaces
-     * @return string
+     * @param  list<string>  $namespaces
      */
     private function generateNamespaceUnion(array $namespaces): string
     {
-        return implode("|", array_map(fn(string $namespace) => "'$namespace'", $namespaces));
+        return implode('|', array_map(fn (string $namespace) => "'$namespace'", $namespaces));
     }
 }

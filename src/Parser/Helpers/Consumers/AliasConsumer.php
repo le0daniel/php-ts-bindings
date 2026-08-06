@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -17,18 +19,18 @@ final readonly class AliasConsumer implements TypeConsumer
 {
     public function __construct(
         private GlobalTypeAliases $globalTypeAliases,
-    )
-    {
+    ) {
     }
 
     #[Override]
     public function canConsume(ParserState $state): bool
     {
-        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
+        if (! $state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 
         $token = $state->current();
+
         return $state->context->isLocalType($token->value)
             || $state->context->isImportedType($token->value)
             || $state->context->isGeneric($token->value)
@@ -45,17 +47,20 @@ final readonly class AliasConsumer implements TypeConsumer
 
         if ($this->globalTypeAliases->isGlobalAlias($token->value)) {
             $state->advance();
+
             return $this->globalTypeAliases->getGlobalAlias($token->value);
         }
 
         if ($state->context->isGeneric($token->value)) {
             $state->advance();
+
             return $state->context->getGeneric($token->value);
         }
 
         // Recursive support for locally defined types using @phpstan-type.
         if ($state->context->isLocalType($token->value)) {
             $state->advance();
+
             return $parser->parse(
                 $state->context->getLocalTypeDefinition($token->value),
                 $state->context,
@@ -67,12 +72,13 @@ final readonly class AliasConsumer implements TypeConsumer
             $state->advance();
 
             $importDefinition = $state->context->getImportedTypeInfo($token->value);
+
             return $parser->parse(
                 $importDefinition['typeName'],
                 ParsingScope::fromClassString($importDefinition['className']),
             );
         }
 
-        $state->produceSyntaxError("Expected Alias");
+        $state->produceSyntaxError('Expected Alias');
     }
 }

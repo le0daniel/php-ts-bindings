@@ -1,7 +1,10 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ASTOptimizer;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
@@ -74,7 +77,7 @@ test('nested aliases are referenced on input exactly as they are on output', fun
 });
 
 test('a use site inside a struct references the alias and carries its dependencies as used', function () {
-    $node = new TypeParser()->parse('array{order: \\' . Order::class . '}');
+    $node = new TypeParser()->parse('array{order: \\'.Order::class.'}');
     $result = typescriptFor($node, IO::OUTPUT);
 
     expect($result->type)->toBe('{order:Order;}')
@@ -141,7 +144,7 @@ test('the shared registry is the backstop when the two passes do meet', function
 
     expect($generator->toTypescript($node, IO::INPUT, $shared)->type)->toBe('AsymmetricNamed');
 
-    expect(fn() => $generator->toTypescript($node, IO::OUTPUT, $shared))
+    expect(fn () => $generator->toTypescript($node, IO::OUTPUT, $shared))
         ->toThrow(UnsupportedTypeException::class, 'AsymmetricNamed');
 });
 
@@ -165,13 +168,13 @@ test('a named interface works on output and stays uncastable on input', function
     expect($result->type)->toBe('PublicResource')
         ->and($result->registry->toArray())->toBe(['PublicResource' => '{url:string;}']);
 
-    expect(fn() => typescriptFor($node, IO::INPUT))
+    expect(fn () => typescriptFor($node, IO::INPUT))
         ->toThrow(UnsupportedTypeException::class, PublicResource::class);
 });
 
 test('Pick over a named class produces a new shape and drops the alias', function () {
     $result = typescriptFor(
-        new TypeParser()->parse('Pick<\\' . Customer::class . ", 'name'>"),
+        new TypeParser()->parse('Pick<\\'.Customer::class.", 'name'>"),
         IO::OUTPUT,
     );
 
@@ -188,13 +191,13 @@ test('two named nodes claiming one alias with different shapes are rejected', fu
         NamedType::same('Cycle'),
     );
 
-    expect(fn() => new TypescriptGenerator()->toTypescript($outer, IO::OUTPUT))
+    expect(fn () => new TypescriptGenerator()->toTypescript($outer, IO::OUTPUT))
         ->toThrow(UnsupportedTypeException::class, 'Cycle');
 });
 
 test('siblings inheriting one declaration emit distinct aliases in both directions', function () {
     $node = new TypeParser()->parse(
-        'array{account: \\' . AccountId::class . ', brand: \\' . BrandId::class . '}',
+        'array{account: \\'.AccountId::class.', brand: \\'.BrandId::class.'}',
     );
 
     foreach ([IO::INPUT, IO::OUTPUT] as $io) {
@@ -212,7 +215,7 @@ test('cached ASTs are metadata free and emit the plain structural type', functio
     $node = new TypeParser()->parse(Order::class);
     $optimizedCode = new ASTOptimizer()->generateOptimizedCode(['node' => $node]);
 
-    /** @var \Le0daniel\PhpTsBindings\Parser\Helpers\Registry\CachedTypeRegistry $registry */
+    /** @var CachedTypeRegistry $registry */
     $registry = eval("return {$optimizedCode};");
 
     $result = new TypescriptGenerator()->toTypescript($registry->get('node'), IO::OUTPUT);

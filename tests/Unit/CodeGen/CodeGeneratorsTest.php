@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -20,16 +22,16 @@ use Le0daniel\PhpTsBindings\Server\Server;
 use Tests\Unit\CodeGen\Mocks\UserOperations;
 
 /**
- * @param list<object> $generators
+ * @param  list<object>  $generators
  * @return list<string>
  */
 function classesOf(array $generators): array
 {
-    return array_map(fn(object $generator): string => $generator::class, $generators);
+    return array_map(fn (object $generator): string => $generator::class, $generators);
 }
 
 /**
- * @param string|\Closure(TypedOperation): string $naming
+ * @param  string|\Closure(TypedOperation): string  $naming
  */
 function usersModuleFor(string|\Closure $naming): string
 {
@@ -112,7 +114,7 @@ test('each naming mode names the generated function', function (string $mode, st
 ]);
 
 test('a closure is accepted in place of a naming mode', function () {
-    $naming = fn(TypedOperation $operation): string => "do_{$operation->definition->name}";
+    $naming = fn (TypedOperation $operation): string => "do_{$operation->definition->name}";
 
     expect(usersModuleFor($naming))->toContain('export async function do_get(');
 });

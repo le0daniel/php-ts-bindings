@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Adapters\Laravel;
 
@@ -27,7 +29,7 @@ final class NamingRule
 }
 
 /**
- * @param class-string|null $resolves
+ * @param  class-string|null  $resolves
  */
 function customNamingGeneratorFor(string $naming, ?string $resolves = null): mixed
 {
@@ -37,11 +39,12 @@ function customNamingGeneratorFor(string $naming, ?string $resolves = null): mix
     }
 
     $method = new ReflectionMethod(CodeGenCommand::class, 'customNamingGenerator');
+
     return $method->invoke(new CodeGenCommand(), $application, $naming);
 }
 
 test('Class::method resolves through the container and binds the instance', function () {
-    $closure = customNamingGeneratorFor(NamingRule::class . '::name', NamingRule::class);
+    $closure = customNamingGeneratorFor(NamingRule::class.'::name', NamingRule::class);
 
     $bound = new ReflectionFunction($closure)->getClosureThis();
 
@@ -50,13 +53,13 @@ test('Class::method resolves through the container and binds the instance', func
 });
 
 test('an unknown naming mode ends the run with the list of valid ones', function () {
-    expect(fn() => customNamingGeneratorFor('nonsense'))
+    expect(fn () => customNamingGeneratorFor('nonsense'))
         ->toThrow(CodeGenException::class, "Unknown naming mode 'nonsense'");
 });
 
 test('a Class::method naming an unknown class or method is an unknown mode', function (string $naming) {
-    expect(fn() => customNamingGeneratorFor($naming))->toThrow(CodeGenException::class);
+    expect(fn () => customNamingGeneratorFor($naming))->toThrow(CodeGenException::class);
 })->with([
     'App\\Nope::name',
-    NamingRule::class . '::noSuchMethod',
+    NamingRule::class.'::noSuchMethod',
 ]);

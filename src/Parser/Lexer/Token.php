@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Lexer;
 
@@ -14,10 +16,9 @@ final readonly class Token implements Stringable
 {
     public function __construct(
         public TokenType $type,
-        public string    $value,
-        public int       $offset,
-    )
-    {
+        public string $value,
+        public int $offset,
+    ) {
     }
 
     public function endOffset(): int

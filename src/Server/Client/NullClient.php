@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Client;
 
@@ -14,18 +16,15 @@ final readonly class NullClient implements Client
     #[Override]
     public function toast(Toast $toast): void
     {
-
     }
 
     #[Override]
     public function redirect(string $url, bool $reload = false): void
     {
-
     }
 
     #[Override]
-    public function invalidate(UnitEnum|string $namespace, ...$key): void
+    public function invalidate(UnitEnum|string $namespace, mixed ...$key): void
     {
-
     }
 }

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Constraints;
 
@@ -21,20 +23,20 @@ final readonly class ListLength implements Constraint
     public function __construct(
         public ?int $min = null,
         public ?int $max = null,
-    )
-    {
+    ) {
     }
 
     #[Override]
     public function validate(mixed $value, ExecutionContext $context): bool
     {
-        if (!is_array($value)) {
+        if (! is_array($value)) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
                 [
-                    'message' => "Expected array, got: " . gettype($value),
+                    'message' => 'Expected array, got: '.gettype($value),
                 ],
             ));
+
             return false;
         }
 
@@ -49,6 +51,7 @@ final readonly class ListLength implements Constraint
                     'count' => $count,
                 ],
             ));
+
             return false;
         }
 
@@ -61,6 +64,7 @@ final readonly class ListLength implements Constraint
                     'count' => $count,
                 ],
             ));
+
             return false;
         }
 
@@ -73,12 +77,13 @@ final readonly class ListLength implements Constraint
         $className = PHPExport::absolute(self::class);
         $min = PHPExport::export($this->min);
         $max = PHPExport::export($this->max);
+
         return "new {$className}({$min},{$max})";
     }
 
     #[Override]
     public function __toString(): string
     {
-        return 'ListLength(' . ($this->min ?? 'min') . ', ' . ($this->max ?? 'max') . ')';
+        return 'ListLength('.($this->min ?? 'min').', '.($this->max ?? 'max').')';
     }
 }

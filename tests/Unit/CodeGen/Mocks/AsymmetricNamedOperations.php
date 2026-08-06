@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks;
 
@@ -12,8 +14,7 @@ use Tests\Mocks\Named\AsymmetricNamed;
 final class AsymmetricNamedOperations
 {
     /**
-     * @param array{q: string} $input
-     * @return AsymmetricNamed
+     * @param  array{q: string}  $input
      */
     #[Query('asymmetric')]
     public function get(array $input): AsymmetricNamed

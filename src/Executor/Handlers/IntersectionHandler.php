@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Handlers;
 
@@ -58,17 +60,18 @@ final readonly class IntersectionHandler implements Handler
 
             $mode ??= is_array($partialObject) ? 'array' : 'object';
             if (
-                ($mode === 'object' && !$partialObject instanceof stdClass) ||
-                ($mode === 'array' && !is_array($partialObject))
+                ($mode === 'object' && ! $partialObject instanceof stdClass) ||
+                ($mode === 'array' && ! is_array($partialObject))
             ) {
                 $context->addIssue(new Issue(
                     IssueMessage::INVALID_TYPE,
                     [
-                        'message' => "intersection expects value to be of same struct type: object or array<string, mixed>",
+                        'message' => 'intersection expects value to be of same struct type: object or array<string, mixed>',
                         'expected' => $mode,
                         'got' => $partialObject,
                     ],
                 ));
+
                 return Value::INVALID;
             }
 

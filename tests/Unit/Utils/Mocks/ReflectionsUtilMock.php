@@ -1,13 +1,14 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Utils\Mocks;
 
 final class ReflectionsUtilMock
 {
     /**
-     * @param string $name
-     * @param array{amount: string, birthdate: \DateTime} $age
-     * @param object{name: string, other: string} $others
+     * @param  array{amount: string, birthdate: \DateTime}  $age
+     * @param  object{name: string, other: string}  $others
      * @param array{
      *   theme: string,
      *   notifications: array{
@@ -20,8 +21,7 @@ final class ReflectionsUtilMock
         public array $age,
         object $others,
         public array $settings = [],
-    )
-    {
+    ) {
     }
 
     /**
@@ -29,7 +29,7 @@ final class ReflectionsUtilMock
      */
     public function serialize(): array
     {
-        return ["", 1];
+        return ['', 1];
     }
 
     /**

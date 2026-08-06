@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Handlers;
 
@@ -16,7 +18,6 @@ use Override;
  */
 final readonly class ListHandler implements Handler
 {
-
     /**
      * @return Value|array<int, mixed>
      */
@@ -25,8 +26,9 @@ final readonly class ListHandler implements Handler
     {
         assert($node instanceof ListNode);
 
-        if (!is_iterable($value)) {
+        if (! is_iterable($value)) {
             $context->addIssue(Issue::invalidType('iterable', $value));
+
             return Value::INVALID;
         }
 
@@ -39,6 +41,7 @@ final readonly class ListHandler implements Handler
 
             if ($result === Value::INVALID) {
                 $context->leavePath();
+
                 return Value::INVALID;
             }
 
@@ -47,6 +50,7 @@ final readonly class ListHandler implements Handler
             $index++;
             $context->leavePath();
         }
+
         return $values;
     }
 
@@ -58,8 +62,9 @@ final readonly class ListHandler implements Handler
     {
         assert($node instanceof ListNode);
 
-        if (!is_array($value) || !array_is_list($value)) {
+        if (! is_array($value) || ! array_is_list($value)) {
             $context->addIssue(Issue::invalidType('list', $value));
+
             return Value::INVALID;
         }
 
@@ -76,6 +81,7 @@ final readonly class ListHandler implements Handler
 
             if ($result === Value::INVALID) {
                 $context->leavePath();
+
                 return Value::INVALID;
             }
 

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks;
 
@@ -12,20 +14,12 @@ use Tests\Mocks\Named\PerDirectionNamed;
  */
 final class PerDirectionNamedOperations
 {
-    /**
-     * @param PerDirectionNamed $input
-     * @return PerDirectionNamed
-     */
     #[Query('articles')]
     public function roundtrip(PerDirectionNamed $input): PerDirectionNamed
     {
         return $input;
     }
 
-    /**
-     * @param Customer $input
-     * @return Customer
-     */
     #[Query('articles')]
     public function customer(Customer $input): Customer
     {

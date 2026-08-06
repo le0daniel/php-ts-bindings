@@ -1,11 +1,12 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
@@ -22,19 +23,20 @@ use Override;
  * injected after construction, which is the only way they can be the same instances the generator
  * runs.
  */
-final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
+final class EmitTypeUtils implements DependsOn, GeneratesLibFiles
 {
     private const string UTILS_FILE = 'utils';
 
     private EmitTypes $types;
+
     private EmitOperationClientBindings $bindings;
 
     /**
      * Not static: reaching this means declaring the dependency, and a declared dependency that is
      * not registered fails the run before a line is generated.
      *
-     * @param list<string> $values
-     * @param list<string> $types
+     * @param  list<string>  $values
+     * @param  list<string>  $types
      */
     public function importFromUtils(array $values = [], array $types = []): TypescriptImport
     {
@@ -81,7 +83,7 @@ final class EmitTypeUtils implements GeneratesLibFiles, DependsOn
             }
 
             $namespace = $operation->operation->definition->namespace;
-            if (!in_array($namespace, $queryNamespaces, true)) {
+            if (! in_array($namespace, $queryNamespaces, true)) {
                 $queryNamespaces[] = $namespace;
             }
         }
@@ -112,16 +114,15 @@ TypeScript, [
                 // Constructed, not just annotated: a type only import would leave
                 // `new OperationException(...)` referencing nothing at runtime.
                 $this->bindings->importFromOperationException(values: ['OperationException']),
-            ])
+            ]),
         ];
     }
 
     /**
-     * @param list<string> $namespaces
-     * @return string
+     * @param  list<string>  $namespaces
      */
     private function generateLiteralUnion(array $namespaces): string
     {
-        return implode("|", array_map(fn(string $namespace) => "'$namespace'", $namespaces));
+        return implode('|', array_map(fn (string $namespace) => "'$namespace'", $namespaces));
     }
 }

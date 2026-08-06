@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Data;
 
@@ -9,12 +11,11 @@ final readonly class ServerMetadata
     public function __construct(
         public string $queryUrl,
         public string $commandUrl,
-    )
-    {
-        if (!str_contains($this->queryUrl, '{fqn}')) {
+    ) {
+        if (! str_contains($this->queryUrl, '{fqn}')) {
             throw new CodeGenException('Query URL must contain {fqn} placeholder');
         }
-        if (!str_contains($this->commandUrl, '{fqn}')) {
+        if (! str_contains($this->commandUrl, '{fqn}')) {
             throw new CodeGenException('Command URL must contain {fqn} placeholder');
         }
     }

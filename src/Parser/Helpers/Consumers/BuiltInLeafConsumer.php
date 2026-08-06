@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
@@ -33,11 +35,10 @@ use Override;
  */
 final readonly class BuiltInLeafConsumer implements TypeConsumer
 {
-
     #[Override]
     public function canConsume(ParserState $state): bool
     {
-        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
+        if (! $state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 
@@ -58,7 +59,7 @@ final readonly class BuiltInLeafConsumer implements TypeConsumer
             'scalar',
             'positive-int',
             'negative-int',
-            "non-negative-int",
+            'non-negative-int',
             'non-positive-int',
             'numeric',
         ], true);
@@ -125,7 +126,7 @@ final readonly class BuiltInLeafConsumer implements TypeConsumer
                 new IntNode(),
                 [new IntRange(max: -1)]
             ),
-            "non-negative-int" => new ConstraintNode(
+            'non-negative-int' => new ConstraintNode(
                 new IntNode(),
                 [new IntRange(min: 0)]
             ),
@@ -137,7 +138,7 @@ final readonly class BuiltInLeafConsumer implements TypeConsumer
                 new IntNode(),
                 new FloatNode(),
             ]),
-            default => $state->produceSyntaxError('Expected valid built-in type, got ' . $token->value),
+            default => $state->produceSyntaxError('Expected valid built-in type, got '.$token->value),
         };
     }
 }

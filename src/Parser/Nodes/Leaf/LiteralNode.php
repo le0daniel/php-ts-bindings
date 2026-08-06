@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
@@ -15,20 +17,19 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 use UnitEnum;
 
-final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
+final readonly class LiteralNode implements Coercible, LeafNode, NodeInterface
 {
     /**
      * $type and $value must agree; every method below reads one to interpret the other. Checked here
      * rather than trusted, because a mismatch is constructible - `new LiteralNode(ENUM_CASE, 'x')`
      * used to build fine and then fail much later, while reading ->name off a string.
      *
-     * @param string|bool|int|float|null|UnitEnum $value
+     * @param  string|bool|int|float|null|UnitEnum  $value
      */
     public function __construct(
         public LiteralType $type,
-        public mixed       $value,
-    )
-    {
+        public mixed $value,
+    ) {
         $agrees = match ($type) {
             LiteralType::ENUM_CASE => $value instanceof UnitEnum,
             LiteralType::STRING => is_string($value),
@@ -38,9 +39,9 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
             LiteralType::NULL => $value === null,
         };
 
-        if (!$agrees) {
+        if (! $agrees) {
             throw new ParserException(
-                "Literal of type {$type->value} cannot hold a " . get_debug_type($value) . '.'
+                "Literal of type {$type->value} cannot hold a ".get_debug_type($value).'.'
             );
         }
     }
@@ -52,6 +53,7 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
     private function enumValue(): UnitEnum
     {
         assert($this->value instanceof UnitEnum);
+
         return $this->value;
     }
 
@@ -62,12 +64,14 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
     public function stringValue(): string
     {
         assert($this->type === LiteralType::STRING && is_string($this->value));
+
         return $this->value;
     }
 
     private function scalarValue(): string|int|float
     {
         assert(is_string($this->value) || is_int($this->value) || is_float($this->value));
+
         return $this->value;
     }
 
@@ -77,11 +81,11 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
         return match ($this->type) {
             LiteralType::BOOL => $this->value ? 'literal<true>' : 'literal<false>',
             LiteralType::STRING => "literal<'{$this->scalarValue()}'>",
-            LiteralType::ENUM_CASE => 'enum-value<' . $this->enumValue()->name . '@' . $this->enumValue()::class . '>',
+            LiteralType::ENUM_CASE => 'enum-value<'.$this->enumValue()->name.'@'.$this->enumValue()::class.'>',
             LiteralType::NULL => 'literal<null>',
             LiteralType::INT => "literal<{$this->scalarValue()}>",
             // Rendered via var_export so 1.0 stays distinguishable from 1.
-            LiteralType::FLOAT => 'literal<' . var_export($this->value, true) . '>',
+            LiteralType::FLOAT => 'literal<'.var_export($this->value, true).'>',
         };
     }
 
@@ -93,10 +97,12 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
 
         if ($this->type === LiteralType::ENUM_CASE) {
             $enumCase = PHPExport::exportEnumCase($this->enumValue());
+
             return "new {$className}({$type}, {$enumCase})";
         }
 
         $value = var_export($this->value, true);
+
         return "new {$className}({$type}, {$value})";
     }
 
@@ -108,10 +114,11 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
                 $context->addIssue(new Issue(
                     IssueMessage::INVALID_TYPE,
                     [
-                        'message' => 'Expected literal value: ' . var_export($this->value, true)
-                            . ', got: ' . get_debug_type($value),
+                        'message' => 'Expected literal value: '.var_export($this->value, true)
+                            .', got: '.get_debug_type($value),
                     ]
                 ));
+
                 return Value::INVALID;
             }
 
@@ -140,10 +147,11 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
         $context->addIssue(new Issue(
             IssueMessage::INVALID_TYPE,
             [
-                'message' => 'Expected literal value: ' . var_export($expected, true)
-                    . ', got: ' . var_export($value, true),
+                'message' => 'Expected literal value: '.var_export($expected, true)
+                    .', got: '.var_export($value, true),
             ]
         ));
+
         return Value::INVALID;
     }
 
@@ -157,9 +165,9 @@ final readonly class LiteralNode implements NodeInterface, LeafNode, Coercible
                 default => $value,
             },
             LiteralType::INT => filter_var($value, FILTER_VALIDATE_INT) !== false
-                ? (int)$value : $value,
+                ? (int) $value : $value,
             LiteralType::FLOAT => filter_var($value, FILTER_VALIDATE_INT) !== false || filter_var($value, FILTER_VALIDATE_FLOAT) !== false
-                ? (float)$value : $value,
+                ? (float) $value : $value,
             default => $value,
         };
     }

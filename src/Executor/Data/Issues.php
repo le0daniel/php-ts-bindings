@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
@@ -7,23 +9,21 @@ final readonly class Issues
     public const string ROOT_PATH = '__root';
 
     /**
-     * @param array<string, list<Issue>> $issuesMap
+     * @param  array<string, list<Issue>>  $issuesMap
      */
     public function __construct(
         public readonly array $issuesMap = [],
-    )
-    {
+    ) {
     }
 
     /**
-     * @param array<string, string|string[]> $issuesMap
-     * @return self
+     * @param  array<string, string|string[]>  $issuesMap
      */
     public static function fromMessages(array $issuesMap): self
     {
         return new self(
             array_map(
-                fn(string|array $issues) => Issue::fromMessageArray(
+                fn (string|array $issues) => Issue::fromMessageArray(
                     is_array($issues) ? array_values($issues) : [$issues],
                 ),
                 $issuesMap
@@ -40,6 +40,7 @@ final readonly class Issues
     public function at(?string $path): array
     {
         $path ??= self::ROOT_PATH;
+
         return $this->issuesMap[$path] ?? [];
     }
 
@@ -57,7 +58,7 @@ final readonly class Issues
     public function serializeToFieldsArray(): array
     {
         return array_map(function ($issues) {
-            return array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues);
+            return array_map(fn (Issue $issue) => $issue->messageOrLocalizationKey, $issues);
         }, $this->issuesMap);
     }
 
@@ -67,7 +68,7 @@ final readonly class Issues
     public function serializeToDebugFields(): array
     {
         return array_map(function (array $issues): array {
-            return array_map(fn(Issue $issue): array => [
+            return array_map(fn (Issue $issue): array => [
                 'message' => $issue->messageOrLocalizationKey,
                 'debugInfo' => $issue->debugInfo,
                 'exception' => $issue->exception ? [
@@ -86,9 +87,10 @@ final readonly class Issues
     {
         $messages = [];
         foreach ($this->issuesMap as $path => $issues) {
-            $imploded = implode(',', array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues));
+            $imploded = implode(',', array_map(fn (Issue $issue) => $issue->messageOrLocalizationKey, $issues));
             $messages[] = "At {$path}: {$imploded}";
         }
+
         return implode('. ', $messages);
     }
 }

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Utils;
 
@@ -29,7 +31,7 @@ final readonly class Lexemes
      * string semantics: single quoted strings recognise only `\\` and `\'`, double quoted
      * strings recognise the full set.
      *
-     * @param string $lexeme The raw STRING lexeme, quotes included.
+     * @param  string  $lexeme  The raw STRING lexeme, quotes included.
      */
     public static function decodeString(string $lexeme): string
     {
@@ -49,7 +51,7 @@ final readonly class Lexemes
      * Dispatching on the prefix is deliberate: `intval($value, 0)` returns 0 for `0o17` and
      * reads a leading-zero decimal such as `010` as octal, neither of which is wanted here.
      *
-     * @param string $lexeme The raw INT lexeme.
+     * @param  string  $lexeme  The raw INT lexeme.
      */
     public static function decodeInt(string $lexeme): int
     {
@@ -61,10 +63,10 @@ final readonly class Lexemes
         }
 
         $magnitude = match (strtolower(substr($value, 0, 2))) {
-            '0x' => (int)hexdec(substr($value, 2)),
-            '0b' => (int)bindec(substr($value, 2)),
-            '0o' => (int)octdec(substr($value, 2)),
-            default => (int)$value,
+            '0x' => (int) hexdec(substr($value, 2)),
+            '0b' => (int) bindec(substr($value, 2)),
+            '0o' => (int) octdec(substr($value, 2)),
+            default => (int) $value,
         };
 
         return $isNegative ? -$magnitude : $magnitude;
@@ -73,11 +75,11 @@ final readonly class Lexemes
     /**
      * Handles `_` separators and exponents.
      *
-     * @param string $lexeme The raw FLOAT lexeme.
+     * @param  string  $lexeme  The raw FLOAT lexeme.
      */
     public static function decodeFloat(string $lexeme): float
     {
-        return (float)str_replace('_', '', $lexeme);
+        return (float) str_replace('_', '', $lexeme);
     }
 
     /**
@@ -97,21 +99,21 @@ final readonly class Lexemes
                 }
 
                 if ($sequence[0] === 'x' || $sequence[0] === 'X') {
-                    return chr(self::toByte((int)hexdec(substr($sequence, 1))));
+                    return chr(self::toByte((int) hexdec(substr($sequence, 1))));
                 }
 
                 if ($sequence[0] === 'u') {
-                    return self::codePointToUtf8((int)hexdec($matches[2] ?? ''));
+                    return self::codePointToUtf8((int) hexdec($matches[2] ?? ''));
                 }
 
                 // Three octal digits reach 511, which PHP itself truncates to a byte.
-                return chr(self::toByte((int)octdec($sequence)));
+                return chr(self::toByte((int) octdec($sequence)));
             },
             $string,
         );
 
         if ($resolved === null) {
-            throw new ParserException('Failed to resolve escape sequences: ' . preg_last_error_msg());
+            throw new ParserException('Failed to resolve escape sequences: '.preg_last_error_msg());
         }
 
         return $resolved;
@@ -124,6 +126,7 @@ final readonly class Lexemes
     {
         /** @var int<0, 255> $byte */
         $byte = $value & 0xFF;
+
         return $byte;
     }
 
@@ -135,20 +138,20 @@ final readonly class Lexemes
 
         if ($codePoint <= 0x7FF) {
             return chr(($codePoint >> 6) + 0xC0)
-                . chr(($codePoint & 0x3F) + 0x80);
+                .chr(($codePoint & 0x3F) + 0x80);
         }
 
         if ($codePoint <= 0xFFFF) {
             return chr(($codePoint >> 12) + 0xE0)
-                . chr((($codePoint >> 6) & 0x3F) + 0x80)
-                . chr(($codePoint & 0x3F) + 0x80);
+                .chr((($codePoint >> 6) & 0x3F) + 0x80)
+                .chr(($codePoint & 0x3F) + 0x80);
         }
 
         if ($codePoint <= 0x1FFFFF) {
             return chr(($codePoint >> 18) + 0xF0)
-                . chr((($codePoint >> 12) & 0x3F) + 0x80)
-                . chr((($codePoint >> 6) & 0x3F) + 0x80)
-                . chr(($codePoint & 0x3F) + 0x80);
+                .chr((($codePoint >> 12) & 0x3F) + 0x80)
+                .chr((($codePoint >> 6) & 0x3F) + 0x80)
+                .chr(($codePoint & 0x3F) + 0x80);
         }
 
         // Invalid UTF-8 code point escape sequence: code point too large.

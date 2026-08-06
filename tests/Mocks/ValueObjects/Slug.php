@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Mocks\ValueObjects;
 
@@ -10,7 +12,7 @@ use Stringable;
  * It also implements Stringable and declares its own toString(), which is exactly the
  * collision the ...Value suffix on the interface exists to avoid.
  */
-final readonly class Slug implements StringValueObject, Stringable
+final readonly class Slug implements Stringable, StringValueObject
 {
     private function __construct(public string $value)
     {

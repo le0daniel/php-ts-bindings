@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
@@ -10,7 +12,7 @@ use Tests\Mocks\Errors\RenamingMiddleware;
 use Tests\Mocks\Errors\ThrowingMiddleware;
 
 /**
- * @param list<class-string> $middleware
+ * @param  list<class-string>  $middleware
  */
 function typescriptDefinition(string $methodName = 'declaresThrows', array $middleware = []): Definition
 {

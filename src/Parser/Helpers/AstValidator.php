@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers;
 
@@ -36,8 +38,8 @@ final readonly class AstValidator
             match ($current::class) {
                 ConstraintNode::class, CustomCastingNode::class, ListNode::class, MetadataNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
                 TupleNode::class, IntersectionNode::class, UnionNode::class => array_push($stack, ...$current->nodes),
-                StructNode::class => array_push($stack, ... $current->properties),
-                default => throw new ParserException("Unexpected node: " . $current::class),
+                StructNode::class => array_push($stack, ...$current->properties),
+                default => throw new ParserException('Unexpected node: '.$current::class),
             };
         }
     }

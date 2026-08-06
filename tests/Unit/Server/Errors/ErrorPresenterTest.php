@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
@@ -21,7 +23,7 @@ use Tests\Mocks\Errors\UnexposedException;
 use Tests\Mocks\Errors\UserMissingException;
 
 /**
- * @param list<class-string> $middleware
+ * @param  list<class-string>  $middleware
  */
 function errorDefinition(string $methodName = 'declaresThrows', array $middleware = []): Definition
 {

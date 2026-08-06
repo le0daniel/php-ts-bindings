@@ -11,7 +11,6 @@ use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use LogicException;
 use Stringable;
-use ValueError;
 use Tests\Mocks\ValueObjects\CreateAccountInput;
 use Tests\Mocks\ValueObjects\Email;
 use Tests\Mocks\ValueObjects\EmptyValidationValueObject;
@@ -21,6 +20,7 @@ use Tests\Mocks\ValueObjects\UserId;
 use Tests\Mocks\ValueObjects\ValidatedAge;
 use Tests\Mocks\ValueObjects\ValidatedEmail;
 use Tests\Unit\Executor\Mocks\UserSchema;
+use ValueError;
 
 test('parse success', function (string $type, mixed $value, mixed $expected) {
     $result = executeParse($type, $value);
@@ -29,6 +29,7 @@ test('parse success', function (string $type, mixed $value, mixed $expected) {
     if (is_object($expected)) {
         expect($result->value)->toBeInstanceOf(get_class($expected));
         expect($result->value)->toEqual($expected);
+
         return;
     }
     expect($result->value)->toBe($expected);
@@ -38,7 +39,7 @@ test('parse success', function (string $type, mixed $value, mixed $expected) {
     ['string[]|null', null, null],
 
     ['\DateTime|null', null, null],
-    ['\DateTimeImmutable|null', '2025-09-10T12:09:01+00:00', DateTimeImmutable::createFromFormat('Y-m-d H:i:s', '2025-09-10 12:09:01'),],
+    ['\DateTimeImmutable|null', '2025-09-10T12:09:01+00:00', DateTimeImmutable::createFromFormat('Y-m-d H:i:s', '2025-09-10 12:09:01')],
 
     ['string|null', 'my value', 'my value'],
     ['?string', 'my value', 'my value'],
@@ -49,60 +50,60 @@ test('parse success', function (string $type, mixed $value, mixed $expected) {
     ['array{0: int,1: string}', [1, 'my value'], [1, 'my value']],
     ['array{id?: string, name: string}', ['id' => 'my id', 'name' => 'my name'], ['id' => 'my id', 'name' => 'my name']],
     ['array{id?: string, name: string}', ['name' => 'my name', 'other' => ''], ['name' => 'my name']],
-    ['object{id?: string, name: string}', ['name' => 'my name', 'other' => ''], (object)['name' => 'my name']],
-    ['object{id?: string, name: string}|null', ['name' => 'my name', 'other' => ''], (object)['name' => 'my name']],
+    ['object{id?: string, name: string}', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
+    ['object{id?: string, name: string}|null', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
     ['object{id?: string, name: string}|null', null, null],
     ['array<string, int>', ['my value' => 1], ['my value' => 1]],
 
-    [UserSchema::class, (object)['username' => 'my name', 'age' => 1, "email" => "leo@me.test"], new UserSchema(1, 'leo@me.test', 'my name')],
-    [UserSchema::class, ['username' => 'my name', 'age' => 1, "email" => "leo@me.test"], new UserSchema(1, 'leo@me.test', 'my name')],
+    [UserSchema::class, (object) ['username' => 'my name', 'age' => 1, 'email' => 'leo@me.test'], new UserSchema(1, 'leo@me.test', 'my name')],
+    [UserSchema::class, ['username' => 'my name', 'age' => 1, 'email' => 'leo@me.test'], new UserSchema(1, 'leo@me.test', 'my name')],
 
     [
         '(array{id:positive-int}|array{token:string})&array{reason:string}',
-        ['id' => 1, "reason" => "my value"],
-        ['id' => 1, "reason" => "my value"],
+        ['id' => 1, 'reason' => 'my value'],
+        ['id' => 1, 'reason' => 'my value'],
     ],
     [
         '(array{id:positive-int}|array{token:string})&array{reason:string}',
-        ['token' => "secret", "reason" => "my value"],
-        ['token' => "secret", "reason" => "my value"],
+        ['token' => 'secret', 'reason' => 'my value'],
+        ['token' => 'secret', 'reason' => 'my value'],
     ],
     [
         '(object{id:positive-int}|object{token:string})&object{reason:string}',
-        ['id' => 1, "reason" => "my value"],
-        (object)['id' => 1, "reason" => "my value"],
+        ['id' => 1, 'reason' => 'my value'],
+        (object) ['id' => 1, 'reason' => 'my value'],
     ],
     [
         '(object{id:positive-int}|object{token:string})&object{reason:string}',
-        ['token' => "secret", "reason" => "my value"],
-        (object)['token' => "secret", "reason" => "my value"],
+        ['token' => 'secret', 'reason' => 'my value'],
+        (object) ['token' => 'secret', 'reason' => 'my value'],
     ],
     [
         'Pick<object{id:positive-int, name: string}, "id">',
-        ['id' => 1, "name" => "my name"],
-        (object)['id' => 1],
+        ['id' => 1, 'name' => 'my name'],
+        (object) ['id' => 1],
     ],
 
     [
         'Pick<array{id:positive-int, name: string}, "id">',
-        ['id' => 1, "name" => "my name"],
+        ['id' => 1, 'name' => 'my name'],
         ['id' => 1],
     ],
     [
         'Omit<object{id:positive-int, name: string}, "id">',
-        ['id' => 1, "name" => "my name"],
-        (object)["name" => "my name"],
+        ['id' => 1, 'name' => 'my name'],
+        (object) ['name' => 'my name'],
     ],
     [
         'Omit<array{id:positive-int, name: string}, "id">',
-        ['id' => 1, "name" => "my name"],
-        ["name" => "my name"],
+        ['id' => 1, 'name' => 'my name'],
+        ['name' => 'my name'],
     ],
 
     // Value objects
     [Email::class, 'ada@example.test', Email::fromStringValue('ada@example.test')],
     [UserId::class, 42, UserId::fromIntValue(42)],
-    ['?\\' . Email::class, null, null],
+    ['?\\'.Email::class, null, null],
     [StatusEnum::class, 'active', StatusEnum::ACTIVE],
 ]);
 
@@ -114,6 +115,7 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
     if (is_object($expected)) {
         expect($result->value)->toBeInstanceOf(get_class($expected));
         expect($result->value)->toEqual($expected);
+
         return;
     }
     expect($result->value)->toBe($expected);
@@ -139,82 +141,81 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
     ['string|int', 1, 1],
     ['array{int, string}', [1, 'my value'], [1, 'my value']],
     ['array{0: int,1: string}', [1, 'my value'], [1, 'my value']],
-    ['array{id?: string, name: string}', ['id' => 'my id', 'name' => 'my name'], (object)['id' => 'my id', 'name' => 'my name']],
-    ['array{id?: string, name: string}', ['name' => 'my name', 'other' => ''], (object)['name' => 'my name']],
-    ['object{id?: string, name: string}', ['name' => 'my name', 'other' => ''], (object)['name' => 'my name']],
-    ['object{id?: string, name: string}|null', ['name' => 'my name', 'other' => ''], (object)['name' => 'my name']],
+    ['array{id?: string, name: string}', ['id' => 'my id', 'name' => 'my name'], (object) ['id' => 'my id', 'name' => 'my name']],
+    ['array{id?: string, name: string}', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
+    ['object{id?: string, name: string}', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
+    ['object{id?: string, name: string}|null', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
     ['object{id?: string, name: string}|null', null, null],
     ['array<string>', ['my value', 'my other value'], ['my value', 'my other value']],
-    ['array<string, int>', ['my value' => 1], (object)['my value' => 1]],
+    ['array<string, int>', ['my value' => 1], (object) ['my value' => 1]],
 
-    [UserSchema::class, new UserSchema(1, 'leo@me.test', 'my name'), (object)['username' => 'my name', 'age' => 1]],
+    [UserSchema::class, new UserSchema(1, 'leo@me.test', 'my name'), (object) ['username' => 'my name', 'age' => 1]],
 
     [
         '(array{id:positive-int}|array{token:string})&array{reason:string}',
-        ['id' => 1, "reason" => "my value"],
-        (object)['id' => 1, "reason" => "my value"],
+        ['id' => 1, 'reason' => 'my value'],
+        (object) ['id' => 1, 'reason' => 'my value'],
     ],
     [
         '(array{id:positive-int}|array{token:string})&array{reason:string}',
-        ['token' => "secret", "reason" => "my value"],
-        (object)['token' => "secret", "reason" => "my value"],
+        ['token' => 'secret', 'reason' => 'my value'],
+        (object) ['token' => 'secret', 'reason' => 'my value'],
     ],
     [
         '(object{id:positive-int}|object{token:string})&object{reason:string}',
-        ['id' => 1, "reason" => "my value"],
-        (object)['id' => 1, "reason" => "my value"],
+        ['id' => 1, 'reason' => 'my value'],
+        (object) ['id' => 1, 'reason' => 'my value'],
     ],
     [
         '(object{id:positive-int} | object{token:string}) & object{reason:string}',
-        ['token' => "secret", "reason" => "my value"],
-        (object)['token' => "secret", "reason" => "my value"],
+        ['token' => 'secret', 'reason' => 'my value'],
+        (object) ['token' => 'secret', 'reason' => 'my value'],
     ],
     [
         'Pick<object{id:positive-int, name: string}, "id">',
-        (object)['id' => 1, "name" => "my name"],
-        (object)['id' => 1],
+        (object) ['id' => 1, 'name' => 'my name'],
+        (object) ['id' => 1],
     ],
 
     [
         'Pick<array{id:positive-int, name: string}, "id">',
-        ['id' => 1, "name" => "my name"],
-        (object)['id' => 1],
+        ['id' => 1, 'name' => 'my name'],
+        (object) ['id' => 1],
     ],
     [
         'Omit<object{id:positive-int, name: string}, "id">',
-        (object)['id' => 1, "name" => "my name"],
-        (object)["name" => "my name"],
+        (object) ['id' => 1, 'name' => 'my name'],
+        (object) ['name' => 'my name'],
     ],
     [
         'Omit<array{id:positive-int, name: string, other: string}, "id">',
-        ['id' => 1, "name" => "my name", "other" => 'string'],
-        (object)["name" => "my name", "other" => 'string'],
+        ['id' => 1, 'name' => 'my name', 'other' => 'string'],
+        (object) ['name' => 'my name', 'other' => 'string'],
     ],
     [
-        'Omit< \\' . UserSchema::class . ', "age">',
+        'Omit< \\'.UserSchema::class.', "age">',
         new UserSchema(12, 'email', 'username'),
-        (object)["username" => "username"],
+        (object) ['username' => 'username'],
     ],
     [
-        'Pick< \\' . UserSchema::class . ', "age">',
+        'Pick< \\'.UserSchema::class.', "age">',
         new UserSchema(12, 'email', 'username'),
-        (object)['age' => 12],
+        (object) ['age' => 12],
     ],
 
     // Value objects
     [Email::class, Email::fromStringValue('ada@example.test'), 'ada@example.test'],
     [UserId::class, UserId::fromIntValue(42), 42],
-    ['?\\' . Email::class, null, null],
+    ['?\\'.Email::class, null, null],
     // Serializes by backing value, NOT by the enum case name
     [StatusEnum::class, StatusEnum::INACTIVE, 'inactive'],
-    ['\\' . Email::class . '[]', [Email::fromStringValue('a@b.test')], ['a@b.test']],
+    ['\\'.Email::class.'[]', [Email::fromStringValue('a@b.test')], ['a@b.test']],
     [
-        'array{id: \\' . UserId::class . ', email: \\' . Email::class . '}',
+        'array{id: \\'.UserId::class.', email: \\'.Email::class.'}',
         ['id' => UserId::fromIntValue(7), 'email' => Email::fromStringValue('ada@example.test')],
-        (object)['id' => 7, 'email' => 'ada@example.test'],
+        (object) ['id' => 7, 'email' => 'ada@example.test'],
     ],
 ]);
-
 
 test('serialization with partial failures', function () {
     /** @var Success $result */
@@ -224,7 +225,7 @@ test('serialization with partial failures', function () {
     ]);
 
     expect($result)->toBeSuccess()
-        ->and($result->value)->toEqual((object)[
+        ->and($result->value)->toEqual((object) [
             'name' => null,
             'other' => 'my value',
         ])->and($result->isPartial())->toBeTrue();
@@ -239,7 +240,7 @@ test('test error messages', function () {
     expect($result)->toBeFailureAt('name');
     expect($result->issues->serializeToFieldsArray())->toEqual([
         'name' => [
-            'validation.missing_property'
+            'validation.missing_property',
         ],
     ]);
 });
@@ -249,7 +250,6 @@ test('test error messages', function () {
  * Value objects
  * ---------------------------------------------------------------------------
  */
-
 test('value object rejects the wrong primitive type', function () {
     expect(executeParse(UserId::class, '42'))->toBeFailure('validation.invalid_type');
     expect(executeParse(Email::class, 123))->toBeFailure('validation.invalid_type');
@@ -268,7 +268,7 @@ test('value object reports a throwing factory as an invalid value, not an invali
     expect(executeParse(UserId::class, -1))->toBeFailure('validation.invalid_value');
 
     $result = executeParse(Email::class, 'not-an-email');
-    $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $result->issues->allFlat());
+    $messages = array_map(fn (Issue $issue) => $issue->messageOrLocalizationKey, $result->issues->allFlat());
     expect($messages)->not->toContain('internal_error')
         ->and($messages)->not->toContain('validation.invalid_type');
 });
@@ -299,8 +299,8 @@ test('a throwing accessor on the serialize path is an internal error, not a vali
 });
 
 test('a throwing accessor never escapes the executor', function () {
-    expect(fn() => executeSerialize(
-        'array{a: \\' . ExplodingValueObject::class . '}',
+    expect(fn () => executeSerialize(
+        'array{a: \\'.ExplodingValueObject::class.'}',
         ['a' => ExplodingValueObject::fromStringValue('x')],
     ))->not->toThrow(LogicException::class);
 });
@@ -308,12 +308,12 @@ test('a throwing accessor never escapes the executor', function () {
 test('a throwing accessor degrades to null at a nullable boundary', function () {
     /** @var Success $result */
     $result = executeSerialize(
-        'array{a: ?\\' . ExplodingValueObject::class . '}',
+        'array{a: ?\\'.ExplodingValueObject::class.'}',
         ['a' => ExplodingValueObject::fromStringValue('x')],
     );
 
     expect($result)->toBeSuccess()
-        ->and($result->value)->toEqual((object)['a' => null])
+        ->and($result->value)->toEqual((object) ['a' => null])
         ->and($result->isPartial())->toBeTrue();
 });
 
@@ -321,7 +321,7 @@ test('value objects nested in structs and lists hydrate correctly', function () 
     // Not in the 'parse success' dataset: that helper compares with toBe(), which is identity
     // based for objects nested inside an array.
     $struct = executeParse(
-        'array{id: \\' . UserId::class . ', email: \\' . Email::class . '}',
+        'array{id: \\'.UserId::class.', email: \\'.Email::class.'}',
         ['id' => 1, 'email' => 'ada@example.test'],
     );
 
@@ -331,7 +331,7 @@ test('value objects nested in structs and lists hydrate correctly', function () 
             'id' => UserId::fromIntValue(1),
         ]);
 
-    $list = executeParse('\\' . Email::class . '[]', ['a@b.test', 'c@d.test']);
+    $list = executeParse('\\'.Email::class.'[]', ['a@b.test', 'c@d.test']);
 
     expect($list)->toBeSuccess()
         ->and($list->value)->toEqual([
@@ -345,7 +345,6 @@ test('value objects nested in structs and lists hydrate correctly', function () 
  * Value objects rejecting with ValidationException
  * ---------------------------------------------------------------------------
  */
-
 test('a ValidationException names the message the client sees, instead of validation.invalid_value', function () {
     $result = executeParse(ValidatedAge::class, 12);
 
@@ -377,7 +376,7 @@ test('the messages are reported at the field the value object sits at, not the r
     // Only one property may fail here: StructHandler::parse() returns on the first invalid one, so
     // a second rejecting field would never be reached.
     $result = executeParse(
-        'array{email: \\' . ValidatedEmail::class . ', age: \\' . ValidatedAge::class . '}',
+        'array{email: \\'.ValidatedEmail::class.', age: \\'.ValidatedAge::class.'}',
         ['email' => '', 'age' => 30],
     );
 
@@ -388,7 +387,7 @@ test('the messages are reported at the field the value object sits at, not the r
 });
 
 test('a ValidationException thrown for a list entry is reported at that index', function () {
-    $result = executeParse('\\' . ValidatedEmail::class . '[]', ['a@b.test', 'nope']);
+    $result = executeParse('\\'.ValidatedEmail::class.'[]', ['a@b.test', 'nope']);
 
     expect($result->issues->serializeToFieldsArray())->toBe([
         '1' => ['Email must contain an @'],
@@ -419,7 +418,6 @@ test('a ValidationException built with no messages degrades instead of rejecting
  * DateTimeString
  * ---------------------------------------------------------------------------
  */
-
 test('DateTimeString parses a string into a DateTimeImmutable', function (string $type, string $value, string $expected) {
     $result = executeParse($type, $value);
 
@@ -505,7 +503,7 @@ test('DateTimeString round trips through parse and serialize', function (string 
 ]);
 
 test('value object issues are reported at the right field path', function () {
-    $result = executeParse('array{email: \\' . Email::class . '}', ['email' => 'nope']);
+    $result = executeParse('array{email: \\'.Email::class.'}', ['email' => 'nope']);
 
     expect($result)->toBeFailureAt('email', 'validation.invalid_value');
 });
@@ -528,8 +526,8 @@ test('serializing something that is not the value object fails', function () {
 });
 
 test('nullable value objects tolerate null at the union boundary', function () {
-    expect(executeSerialize('?\\' . Email::class, null))->toBeSuccess();
-    expect(executeParse('?\\' . Email::class, null))->toBeSuccess();
+    expect(executeSerialize('?\\'.Email::class, null))->toBeSuccess();
+    expect(executeParse('?\\'.Email::class, null))->toBeSuccess();
 });
 
 test('a castable class hydrates and serializes its value object properties', function () {
@@ -546,6 +544,5 @@ test('a castable class hydrates and serializes its value object properties', fun
     $serialized = executeSerialize(CreateAccountInput::class, $parsed->value);
 
     expect($serialized)->toBeSuccess()
-        ->and($serialized->value)->toEqual((object)['email' => 'ada@example.test', 'ownerId' => 7]);
+        ->and($serialized->value)->toEqual((object) ['email' => 'ada@example.test', 'ownerId' => 7]);
 });
-

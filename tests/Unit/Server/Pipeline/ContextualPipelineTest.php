@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Server\Pipeline;
 
@@ -34,15 +36,15 @@ function trace(RpcSuccess|RpcError $result, string $entry): RpcSuccess|RpcError
 }
 
 /**
- * @param list<MiddlewareContract<string>> $middlewares
- * @param Closure(mixed): (RpcSuccess|RpcError) $destination
- * @param (Closure(Throwable): RpcError)|null $onError
+ * @param  list<MiddlewareContract<string>>  $middlewares
+ * @param  Closure(mixed): (RpcSuccess|RpcError)  $destination
+ * @param  (Closure(Throwable): RpcError)|null  $onError
  */
 function runPipeline(array $middlewares, Closure $destination, ?Closure $onError = null): RpcSuccess|RpcError
 {
     return new ContextualPipeline(
         middlewares: $middlewares,
-        onError: $onError ?? fn(Throwable $throwable): RpcError => new RpcError(
+        onError: $onError ?? fn (Throwable $throwable): RpcError => new RpcError(
             ErrorType::INTERNAL_ERROR,
             $throwable,
             ['type' => 'PRESENTED'],
@@ -53,14 +55,14 @@ function runPipeline(array $middlewares, Closure $destination, ?Closure $onError
 }
 
 /**
- * @param Closure(mixed, Closure(mixed): (RpcSuccess|RpcError), string, ResolveInfo, Client): (RpcSuccess|RpcError) $handle
+ * @param  Closure(mixed, Closure(mixed): (RpcSuccess|RpcError), string, ResolveInfo, Client): (RpcSuccess|RpcError)  $handle
  * @return MiddlewareContract<string>
  */
 function middleware(Closure $handle): MiddlewareContract
 {
-    return new class($handle) implements MiddlewareContract {
+    return new class ($handle) implements MiddlewareContract {
         /**
-         * @param Closure(mixed, Closure(mixed): (RpcSuccess|RpcError), string, ResolveInfo, Client): (RpcSuccess|RpcError) $handle
+         * @param  Closure(mixed, Closure(mixed): (RpcSuccess|RpcError), string, ResolveInfo, Client): (RpcSuccess|RpcError)  $handle
          */
         public function __construct(private readonly Closure $handle)
         {
@@ -79,7 +81,7 @@ function succeed(mixed $data = 'ok'): RpcSuccess
 }
 
 test('the destination runs when there is no middleware', function () {
-    $result = runPipeline([], fn(mixed $input): RpcSuccess => succeed($input));
+    $result = runPipeline([], fn (mixed $input): RpcSuccess => succeed($input));
 
     expect($result)->toBeInstanceOf(RpcSuccess::class)
         ->and($result->data)->toBe('input');
@@ -88,10 +90,10 @@ test('the destination runs when there is no middleware', function () {
 test('middlewares wrap the destination as an onion', function () {
     $result = runPipeline(
         [
-            middleware(fn(mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit first')),
-            middleware(fn(mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit second')),
+            middleware(fn (mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit first')),
+            middleware(fn (mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit second')),
         ],
-        fn(mixed $input): RpcSuccess|RpcError => trace(succeed($input), 'destination'),
+        fn (mixed $input): RpcSuccess|RpcError => trace(succeed($input), 'destination'),
     );
 
     expect($result->metadata['trace'])->toBe(['destination', 'exit second', 'exit first']);
@@ -104,10 +106,11 @@ test('every middleware receives the context, the resolve info and the client', f
         [
             middleware(function (mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client) use (&$seen): RpcSuccess|RpcError {
                 $seen = [$input, $context, $info->fullyQualifiedName, $client::class];
+
                 return $next($input);
             }),
         ],
-        fn(mixed $input): RpcSuccess => succeed($input),
+        fn (mixed $input): RpcSuccess => succeed($input),
     );
 
     expect($result)->toBeInstanceOf(RpcSuccess::class)
@@ -118,9 +121,10 @@ test('a middleware may short circuit without calling next', function () {
     $destinationRan = false;
 
     $result = runPipeline(
-        [middleware(fn(): RpcSuccess => succeed('short circuited'))],
+        [middleware(fn (): RpcSuccess => succeed('short circuited'))],
         function () use (&$destinationRan): RpcSuccess {
             $destinationRan = true;
+
             return succeed();
         },
     );
@@ -132,12 +136,12 @@ test('a middleware may short circuit without calling next', function () {
 test('a throwing middleware becomes an RpcError handed back to the enclosing middleware', function () {
     $result = runPipeline(
         [
-            middleware(fn(mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit outer')),
+            middleware(fn (mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit outer')),
             middleware(function (): RpcSuccess|RpcError {
                 throw new RuntimeException('inner exploded');
             }),
         ],
-        fn(): RpcSuccess => succeed(),
+        fn (): RpcSuccess => succeed(),
     );
 
     // The outer ring keeps running: it saw an RpcError as the return value of $next(), not an exception.
@@ -149,7 +153,7 @@ test('a throwing middleware becomes an RpcError handed back to the enclosing mid
 
 test('a throwing destination becomes an RpcError handed back to the innermost middleware', function () {
     $result = runPipeline(
-        [middleware(fn(mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit outer'))],
+        [middleware(fn (mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit outer'))],
         function (): RpcSuccess {
             throw new RuntimeException('destination exploded');
         },
@@ -165,17 +169,18 @@ test('an RpcError returned by a middleware travels outward untouched', function 
 
     $result = runPipeline(
         [
-            middleware(fn(mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit outer')),
-            middleware(fn(): RpcError => new RpcError(
+            middleware(fn (mixed $input, Closure $next): RpcSuccess|RpcError => trace($next($input), 'exit outer')),
+            middleware(fn (): RpcError => new RpcError(
                 ErrorType::AUTHORIZATION_ERROR,
                 new RuntimeException('denied'),
                 ['type' => 'FORBIDDEN'],
                 pipelineResolveInfo(),
             )),
         ],
-        fn(): RpcSuccess => succeed(),
+        fn (): RpcSuccess => succeed(),
         function (Throwable $throwable) use (&$presented): RpcError {
             $presented++;
+
             return new RpcError(ErrorType::INTERNAL_ERROR, $throwable, ['type' => 'PRESENTED'], pipelineResolveInfo());
         },
     );
@@ -194,7 +199,7 @@ test('the pipeline still returns an RpcError when the error handler itself fails
                 throw new RuntimeException('inner exploded');
             }),
         ],
-        fn(): RpcSuccess => succeed(),
+        fn (): RpcSuccess => succeed(),
         function (): RpcError {
             throw new RuntimeException('the presenter is broken too');
         },

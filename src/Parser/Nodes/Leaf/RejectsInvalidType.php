@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
@@ -11,6 +13,7 @@ trait RejectsInvalidType
     private function invalidType(string $expected, mixed $value, ExecutionContext $context): Value
     {
         $context->addIssue(Issue::invalidType($expected, $value));
+
         return Value::INVALID;
     }
 }

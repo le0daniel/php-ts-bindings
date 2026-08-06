@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks;
 
@@ -14,8 +16,7 @@ use Tests\Mocks\ValueObjects\UserId;
 final class NamedOperations
 {
     /**
-     * @param array{status: OrderStatus} $input
-     * @return Order
+     * @param  array{status: OrderStatus}  $input
      */
     #[Query('orders')]
     public function get(array $input): Order
@@ -24,7 +25,7 @@ final class NamedOperations
     }
 
     /**
-     * @param array{id: UserId} $input
+     * @param  array{id: UserId}  $input
      * @return array{status: OrderStatus}
      */
     #[Query('orders')]

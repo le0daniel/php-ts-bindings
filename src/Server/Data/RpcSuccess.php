@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
@@ -14,41 +16,45 @@ final readonly class RpcSuccess implements RpcResult
     public int $statusCode;
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
+     *
      * @internal
      */
     public function __construct(
-        public mixed       $data,
-        public Client      $client,
+        public mixed $data,
+        public Client $client,
         public ResolveInfo $resolveInfo,
-        public array       $metadata = [],
-    )
-    {
+        public array $metadata = [],
+    ) {
         $this->statusCode = 200;
     }
 
     /**
      * Overwrite all existing metadata
-     * @param array<string, mixed> $metadata
+     *
+     * @param  array<string, mixed>  $metadata
+     *
      * @api
      */
     #[Override]
     #[NoDiscard]
     public function withMetadata(array $metadata): self
     {
-        return clone($this, ['metadata' => $metadata]);
+        return clone ($this, ['metadata' => $metadata]);
     }
 
     /**
      * Append metadata to the result
-     * @param array<string, mixed> $metadata
+     *
+     * @param  array<string, mixed>  $metadata
+     *
      * @api
      */
     #[Override]
     #[NoDiscard]
     public function appendMetadata(array $metadata): self
     {
-        return clone($this, [
+        return clone ($this, [
             'metadata' => [...$this->metadata, ...$metadata],
         ]);
     }

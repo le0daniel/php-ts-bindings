@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
@@ -13,12 +15,11 @@ use Override;
 final readonly class IntersectionNode implements NodeInterface, ValidatableNode, WrapsNodes
 {
     /**
-     * @param list<NodeInterface> $nodes
+     * @param  list<NodeInterface>  $nodes
      */
     public function __construct(
         public array $nodes,
-    )
-    {
+    ) {
     }
 
     #[Override]
@@ -33,12 +34,12 @@ final readonly class IntersectionNode implements NodeInterface, ValidatableNode,
     #[Override]
     public function validate(): void
     {
-        if (!Nodes::areAllNodesOfSameStructType($this->nodes)) {
-            throw new ParserException("All nodes need to be of the same struct type.");
+        if (! Nodes::areAllNodesOfSameStructType($this->nodes)) {
+            throw new ParserException('All nodes need to be of the same struct type.');
         }
 
         if (count($this->nodes) < 2) {
-            throw new ParserException("An intersection must be between at least two struct nodes.");
+            throw new ParserException('An intersection must be between at least two struct nodes.');
         }
     }
 
@@ -47,6 +48,7 @@ final readonly class IntersectionNode implements NodeInterface, ValidatableNode,
     {
         $className = PHPExport::absolute($this::class);
         $nodes = PHPExport::exportArray($this->nodes);
+
         return "new {$className}({$nodes})";
     }
 }

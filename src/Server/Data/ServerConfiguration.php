@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
@@ -12,25 +14,22 @@ final readonly class ServerConfiguration
      * The exception lists map application exceptions onto the server's finite error catalogue.
      * Matching is instanceof, so listing a base class covers every subclass of it.
      *
-     * @param bool $coerceQueryInput
-     * @param list<class-string<MiddlewareContract<mixed>>> $middleware
-     * @param list<class-string<Throwable>> $notFoundExceptions
-     * @param list<class-string<Throwable>> $unauthenticatedExceptions
-     * @param list<class-string<Throwable>> $unauthorizedExceptions
+     * @param  list<class-string<MiddlewareContract<mixed>>>  $middleware
+     * @param  list<class-string<Throwable>>  $notFoundExceptions
+     * @param  list<class-string<Throwable>>  $unauthenticatedExceptions
+     * @param  list<class-string<Throwable>>  $unauthorizedExceptions
      */
     public function __construct(
-        public bool  $coerceQueryInput = false,
+        public bool $coerceQueryInput = false,
         public array $middleware = [],
         public array $notFoundExceptions = [],
         public array $unauthenticatedExceptions = [],
         public array $unauthorizedExceptions = [],
-    )
-    {
+    ) {
     }
 
     /**
-     * @param class-string<MiddlewareContract<mixed>> ...$middlewares
-     * @return self
+     * @param  class-string<MiddlewareContract<mixed>>  ...$middlewares
      */
     #[NoDiscard]
     public function withMiddlewares(string ...$middlewares): self
@@ -49,18 +48,16 @@ final readonly class ServerConfiguration
     /**
      * Appends to the existing lists. An omitted category is left untouched.
      *
-     * @param list<class-string<Throwable>> $notFound
-     * @param list<class-string<Throwable>> $unauthenticated
-     * @param list<class-string<Throwable>> $unauthorized
-     * @return self
+     * @param  list<class-string<Throwable>>  $notFound
+     * @param  list<class-string<Throwable>>  $unauthenticated
+     * @param  list<class-string<Throwable>>  $unauthorized
      */
     #[NoDiscard]
     public function withExceptions(
         array $notFound = [],
         array $unauthenticated = [],
         array $unauthorized = [],
-    ): self
-    {
+    ): self {
         return new self(
             coerceQueryInput: $this->coerceQueryInput,
             middleware: $this->middleware,

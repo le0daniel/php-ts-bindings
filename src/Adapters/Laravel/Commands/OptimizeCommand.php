@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
@@ -14,6 +16,7 @@ use Throwable;
 final class OptimizeCommand extends Command
 {
     protected $signature = 'operations:optimize {--id-length=}';
+
     protected $description = 'Optimize the schema operations for production use';
 
     public function handle(Application $application): int
@@ -27,7 +30,7 @@ final class OptimizeCommand extends Command
 
         $registry = $server->registry;
 
-        if (!$registry instanceof EagerlyLoadedOperationRegistry) {
+        if (! $registry instanceof EagerlyLoadedOperationRegistry) {
             throw new SchemaException('Cannot optimize a registry that is not an EagerlyLoadedOperationRegistry');
         }
 
@@ -38,6 +41,7 @@ final class OptimizeCommand extends Command
 
         if ($idLength === null) {
             $this->error('The id-length must be a positive integer. Pass --id-length or set operations.cache.idLength.');
+
             return 1;
         }
 
@@ -56,6 +60,7 @@ final class OptimizeCommand extends Command
             if (file_exists($cacheFile)) {
                 unlink($cacheFile);
             }
+
             return 1;
         }
 

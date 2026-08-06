@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Executor\Exceptions;
 
@@ -25,7 +27,7 @@ test('the exception message joins every message, so a log or a stack trace shows
  * whose details.fields is {}. Rejecting a value without saying why is never intended.
  */
 test('an empty message list is rejected, because it would produce a failure with no issues', function () {
-    expect(fn() => new ValidationException([]))
+    expect(fn () => new ValidationException([]))
         ->toThrow(InvalidArgumentException::class);
 });
 
@@ -40,7 +42,7 @@ test('every message becomes its own issue, carrying the exception for debugging'
     $issues = $exception->toIssues();
 
     expect($issues)->toHaveCount(2)
-        ->and(array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues))
+        ->and(array_map(fn (Issue $issue) => $issue->messageOrLocalizationKey, $issues))
         ->toBe(['Is required', 'Must contain an @'])
         ->and($issues[0]->exception)->toBe($exception)
         ->and($issues[1]->exception)->toBe($exception);

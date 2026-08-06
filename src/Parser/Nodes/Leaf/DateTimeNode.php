@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 
@@ -14,23 +16,21 @@ use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 use Throwable;
 
-final readonly class DateTimeNode implements NodeInterface, LeafNode
+final readonly class DateTimeNode implements LeafNode, NodeInterface
 {
     /**
-     * @param class-string<DateTimeInterface> $dateTimeClass
-     * @param string $format
+     * @param  class-string<DateTimeInterface>  $dateTimeClass
      */
     public function __construct(
         public string $dateTimeClass,
         public string $format = DateTimeInterface::ATOM,
-    )
-    {
+    ) {
     }
 
     #[Override]
     public function __toString(): string
     {
-        return $this->dateTimeClass . "<{$this->format}>";
+        return $this->dateTimeClass."<{$this->format}>";
     }
 
     #[Override]
@@ -40,20 +40,22 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
         $dateTimeClass = PHPExport::absolute($this->dateTimeClass);
         $format = $this->format === DateTimeInterface::ATOM
             ? ''
-            : ',' . PHPExport::export($this->format);
+            : ','.PHPExport::export($this->format);
+
         return "new {$className}({$dateTimeClass}::class{$format})";
     }
 
     #[Override]
     public function parseValue(mixed $value, ExecutionContext $context): DateTimeInterface|Value
     {
-        if (!is_string($value)) {
+        if (! is_string($value)) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
                 [
-                    'message' => "Expected value of type string, got: " . gettype($value),
+                    'message' => 'Expected value of type string, got: '.gettype($value),
                 ]
             ));
+
             return Value::INVALID;
         }
 
@@ -71,6 +73,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
                     'message' => "Expected a date string of format '{$this->format}', got: {$value}",
                 ]
             ));
+
             return Value::INVALID;
         }
 
@@ -79,6 +82,7 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
             return $this->dateTimeClass::createFromInterface($parsed);
         } catch (Throwable $exception) {
             $context->addIssue(Issue::fromThrowable($exception));
+
             return Value::INVALID;
         }
     }
@@ -89,16 +93,17 @@ final readonly class DateTimeNode implements NodeInterface, LeafNode
     #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): string|Value
     {
-        if (!$value instanceof DateTimeInterface) {
+        if (! $value instanceof DateTimeInterface) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
                 [
-                    'message' => "Expected instance of DateTimeInterface, got: " . gettype($value),
+                    'message' => 'Expected instance of DateTimeInterface, got: '.gettype($value),
                 ],
             ));
+
             return Value::INVALID;
         }
+
         return $value->format($this->format);
     }
-
 }

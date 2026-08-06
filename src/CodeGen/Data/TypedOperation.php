@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Data;
 
@@ -32,9 +34,8 @@ final class TypedOperation
         public readonly Typescript $inputDef,
         public readonly Typescript $outputDef,
         public readonly Typescript $errorDef,
-        public readonly Operation  $operation,
-    )
-    {
+        public readonly Operation $operation,
+    ) {
     }
 
     /**
@@ -50,6 +51,7 @@ final class TypedOperation
             ...$this->errorDef->registry->usedAliases(),
         ]));
         sort($aliases);
+
         return $aliases;
     }
 }

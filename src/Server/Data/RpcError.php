@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
@@ -15,31 +17,32 @@ final class RpcError implements RpcResult
     }
 
     /**
-     * @param Throwable $cause The most recent failure - the one that decided this result. On an
-     *   ordinary error that is simply the exception the application threw.
-     * @param list<Throwable> $previous Everything that failed before $cause, oldest first. Empty on
-     *   every ordinary error, and non empty only when handling one failure produced another: a
-     *   stale #[Middleware] class name makes ExposedExceptions throw while categorising, and the
-     *   result is then an INTERNAL_ERROR because the catalogue could not be consulted, not because
-     *   the original deserved a 500. Reporters want all of them.
-     * @param array<string, mixed> $metadata
+     * @param  Throwable  $cause  The most recent failure - the one that decided this result. On an
+     *                            ordinary error that is simply the exception the application threw.
+     * @param  list<Throwable>  $previous  Everything that failed before $cause, oldest first. Empty on
+     *                                     every ordinary error, and non empty only when handling one failure produced another: a
+     *                                     stale #[Middleware] class name makes ExposedExceptions throw while categorising, and the
+     *                                     result is then an INTERNAL_ERROR because the catalogue could not be consulted, not because
+     *                                     the original deserved a 500. Reporters want all of them.
+     * @param  array<string, mixed>  $metadata
+     *
      * @internal Constructed by the server. Applications receive one, they do not build one.
      */
     public function __construct(
-        public readonly ErrorType    $type,
-        public readonly Throwable    $cause,
-        public readonly mixed        $details,
+        public readonly ErrorType $type,
+        public readonly Throwable $cause,
+        public readonly mixed $details,
         public readonly ?ResolveInfo $resolveInfo,
-        public readonly array        $metadata = [],
-        public readonly array        $previous = [],
-    )
-    {
+        public readonly array $metadata = [],
+        public readonly array $previous = [],
+    ) {
     }
 
     /**
      * Every failure that led here, oldest first, with $cause last.
      *
      * @return non-empty-list<Throwable>
+     *
      * @api
      */
     public function throwableChain(): array
@@ -48,27 +51,29 @@ final class RpcError implements RpcResult
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
+     *
      * @api
      */
     #[Override]
     #[NoDiscard]
     public function withMetadata(array $metadata): self
     {
-        return clone($this, [
+        return clone ($this, [
             'metadata' => $metadata,
         ]);
     }
 
     /**
-     * @param array<string, mixed> $metadata
+     * @param  array<string, mixed>  $metadata
+     *
      * @api
      */
     #[Override]
     #[NoDiscard]
     public function appendMetadata(array $metadata): self
     {
-        return clone($this, [
+        return clone ($this, [
             'metadata' => [...$this->metadata, ...$metadata],
         ]);
     }

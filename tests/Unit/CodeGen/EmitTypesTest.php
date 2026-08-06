@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen;
 
@@ -51,7 +53,7 @@ function emitTypesFor(string $inputType, string $outputType): string
 test('rejects an alias colliding with a declaration the types file always contains', function (string $alias) {
     $registry = new AliasRegistry([$alias => '{a:string;}']);
 
-    expect(fn() => new EmitTypes()->emitFiles([], new ServerMetadata('/query/{fqn}', '/command/{fqn}'), $registry))
+    expect(fn () => new EmitTypes()->emitFiles([], new ServerMetadata('/query/{fqn}', '/command/{fqn}'), $registry))
         ->toThrow(UnsupportedTypeException::class, 'collides with a declaration');
 })->with([
     'the Brand helper generic' => ['Brand'],
@@ -63,8 +65,8 @@ test('rejects an alias colliding with a declaration the types file always contai
 
 test('the envelope names the client side channel without describing what is in it', function () {
     $types = emitTypesFor(
-        'array{id: \\' . UserId::class . '}',
-        'array{email: \\' . Email::class . '}',
+        'array{id: \\'.UserId::class.'}',
+        'array{email: \\'.Email::class.'}',
     );
 
     // The key is the library's own - RpcSuccess::jsonSerialize() writes it - so the envelope says
@@ -82,8 +84,8 @@ test('the envelope names the client side channel without describing what is in i
 
 test('the branches declare exactly what jsonSerialize can put on each of them', function () {
     $types = emitTypesFor(
-        'array{id: \\' . UserId::class . '}',
-        'array{email: \\' . Email::class . '}',
+        'array{id: \\'.UserId::class.'}',
+        'array{email: \\'.Email::class.'}',
     );
 
     // __metadata rides both outcomes: it is the core's own, always array<string, mixed>, written
@@ -97,8 +99,8 @@ test('the branches declare exactly what jsonSerialize can put on each of them', 
 
 test('attribute brands stay inline and declare no alias, only the Brand helper is exported', function () {
     $types = emitTypesFor(
-        'array{id: \\' . UserId::class . '}',
-        'array{email: \\' . Email::class . ', slug: \\' . Slug::class . '}',
+        'array{id: \\'.UserId::class.'}',
+        'array{email: \\'.Email::class.', slug: \\'.Slug::class.'}',
     );
 
     expect($types)
@@ -110,8 +112,8 @@ test('attribute brands stay inline and declare no alias, only the Brand helper i
 
 test('named types are exported once, nested aliases and inline brands included', function () {
     $types = emitTypesFor(
-        'array{status: \\' . OrderStatus::class . '}',
-        '\\' . Order::class,
+        'array{status: \\'.OrderStatus::class.'}',
+        '\\'.Order::class,
     );
 
     expect($types)
@@ -123,7 +125,7 @@ test('named types are exported once, nested aliases and inline brands included',
 test('the BrandedString utility type keeps its implicit alias', function () {
     $types = emitTypesFor(
         'array{token: BrandedString<\'token\'>}',
-        'array{email: \\' . Email::class . '}',
+        'array{email: \\'.Email::class.'}',
     );
 
     expect($types)

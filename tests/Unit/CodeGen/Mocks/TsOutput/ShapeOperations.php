@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks\TsOutput;
 
@@ -68,7 +70,7 @@ final class ShapeOperations
     /**
      * Optional keys on the way in and out, so the generated types carry `?:` in both directions.
      *
-     * @param array{term: non-empty-string, page?: positive-int, filters: array<string, list<string>>} $input
+     * @param  array{term: non-empty-string, page?: positive-int, filters: array<string, list<string>>}  $input
      * @return array{term: string, page?: int, filters: array<string, list<string>>}
      */
     #[Query('shapes')]
@@ -78,7 +80,7 @@ final class ShapeOperations
     }
 
     /**
-     * @param array{payload: array{id: ProductId, when: DateTimeString<'Y-m-d'>}, dryRun?: bool} $input
+     * @param  array{payload: array{id: ProductId, when: DateTimeString<'Y-m-d'>}, dryRun?: bool}  $input
      * @return array{accepted: bool, id: ProductId}
      */
     #[Command('shapes')]

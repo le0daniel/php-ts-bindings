@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
@@ -16,7 +18,7 @@ use Override;
  * Not readonly: the EmitTypes whose file it writes into is injected after construction, which is the
  * only way it can be the same instance the generator runs.
  */
-final class EmitTypeMap implements GeneratesLibFiles, DependsOn
+final class EmitTypeMap implements DependsOn, GeneratesLibFiles
 {
     private EmitTypes $emitTypes;
 
@@ -32,31 +34,34 @@ final class EmitTypeMap implements GeneratesLibFiles, DependsOn
                 'output' => $operation->outputDef->type,
                 'errors' => $operation->errorDef->type,
             ];
+
             return $carry;
         }, []);
 
-        $mapAsTsTypeString = '{' . implode(';', Arrays::mapWithKeys($map, function (string $type, array $operations) {
-                $typeString = implode(';', Arrays::mapWithKeys($operations, function (string $operation, array $definition) {
-                    return "'{$operation}': {input: {$definition['input']}, output: {$definition['output']}, errors: {$definition['errors']}}";
-                }));
-                return "{$type}: {{$typeString}}";
-            })) . '}';
+        $mapAsTsTypeString = '{'.implode(';', Arrays::mapWithKeys($map, function (string $type, array $operations) {
+            $typeString = implode(';', Arrays::mapWithKeys($operations, function (string $operation, array $definition) {
+                return "'{$operation}': {input: {$definition['input']}, output: {$definition['output']}, errors: {$definition['errors']}}";
+            }));
+
+            return "{$type}: {{$typeString}}";
+        })).'}';
 
         // Written next to the types file rather than standing on its own: the map inlines the
         // aliases EmitTypes declares, and they only resolve while it sits next to them. Brand is
         // imported unconditionally — an inlined brand references it, yet it is never a registry
         // key — and a linter drops it where unused.
         return [
-            'type-map' => new TypescriptFile(<<<TypeScript
+            'type-map' => new TypescriptFile(
+                <<<TypeScript
 /**
  * Full type map of all operations, input and output types.
  */
 export type TypeMap = {$mapAsTsTypeString};
 TypeScript,
                 imports: [
-                    $this->emitTypes->importFromTypes(types: ['Brand', ...$registry->usedAliases()])
+                    $this->emitTypes->importFromTypes(types: ['Brand', ...$registry->usedAliases()]),
                 ]
-            )
+            ),
         ];
     }
 

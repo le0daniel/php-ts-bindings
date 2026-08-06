@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 /**
  * Writes the TypeScript fixture that tests/Unit/CodeGen/TsOutputFixtureTest.php verifies.
@@ -10,7 +12,7 @@
 use Le0daniel\PhpTsBindings\CodeGen\Utils\OutputDirectory;
 use Tests\Unit\CodeGen\TsOutputFixture;
 
-require __DIR__ . '/../../vendor/autoload.php';
+require __DIR__.'/../../vendor/autoload.php';
 
 $directory = TsOutputFixture::directory();
 $files = TsOutputFixture::generate();

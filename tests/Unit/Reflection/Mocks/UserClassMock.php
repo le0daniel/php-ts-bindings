@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Reflection\Mocks;
 
@@ -18,7 +20,7 @@ final class UserClassMock
     public readonly array $address;
 
     /**
-     * @param non-empty-string $name
+     * @param  non-empty-string  $name
      * @param array{
      *   theme: string,
      *   notifications: array{
@@ -30,8 +32,7 @@ final class UserClassMock
         public readonly string $name,
         public \DateTimeInterface $birthdate,
         public readonly array $settings = [],
-    )
-    {
+    ) {
     }
 
     /**
