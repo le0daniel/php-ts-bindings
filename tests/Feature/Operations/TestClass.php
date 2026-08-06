@@ -5,6 +5,7 @@ namespace Tests\Feature\Operations;
 use App\Data\PreviewableFileData;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
+use Tests\Mocks\ValueObjects\ValidatedEmail;
 
 final class TestClass
 {
@@ -19,6 +20,19 @@ final class TestClass
         return [
             'message' => "Hello {$data['name']}",
         ];
+    }
+
+    /**
+     * The value object rejects with a ValidationException, so the messages it names have to survive
+     * all the way to details.fields rather than being flattened into validation.invalid_value.
+     *
+     * @param array{email: ValidatedEmail} $data
+     * @return array{email: string}
+     */
+    #[Command("test")]
+    public function acceptEmail(array $data): array
+    {
+        return ['email' => $data['email']->toStringValue()];
     }
 
     /**

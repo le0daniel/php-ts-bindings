@@ -175,8 +175,10 @@ Everything the provider and the HTTP controller pick without asking.
   `{"code": 422, "type": "INVALID_INPUT", "details": {"fields": {"<dotted.path>": ["message"]}}}`,
   not `{"message": …, "errors": …}`. `Illuminate\Validation\ValidationException` is **not** mapped by
   default, so a `$request->validate()` inside a handler lands in a 500. Map it onto a category
-  yourself, or throw
-  [`InvalidInputException::createFromMessages()`](errors.md#your-own-validation) instead.
+  yourself with [`ServerConfiguration::withExceptions()`](operations.md#serverconfiguration) — or
+  better, stop validating in the handler: the 422 is the schema's own verdict, and a rule the type
+  cannot express belongs in a value object or in a domain error, per
+  [Your own validation](errors.md#your-own-validation).
 
 ### CSRF and cookies
 

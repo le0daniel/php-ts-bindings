@@ -7,14 +7,19 @@ use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\ValueObjectNode;
 use LogicException;
 use Stringable;
 use ValueError;
 use Tests\Mocks\ValueObjects\CreateAccountInput;
 use Tests\Mocks\ValueObjects\Email;
+use Tests\Mocks\ValueObjects\EmptyValidationValueObject;
 use Tests\Mocks\ValueObjects\ExplodingValueObject;
 use Tests\Mocks\ValueObjects\StatusEnum;
 use Tests\Mocks\ValueObjects\UserId;
+use Tests\Mocks\ValueObjects\ValidatedAge;
+use Tests\Mocks\ValueObjects\ValidatedEmail;
 use Tests\Unit\Executor\Mocks\UserSchema;
 
 test('parse success', function (string $type, mixed $value, mixed $expected) {
@@ -252,21 +257,27 @@ test('value object rejects the wrong primitive type', function () {
     expect(executeParse(Email::class, null))->toBeFailure('validation.invalid_type');
 });
 
-test('value object reports a throwing factory as a validation issue, not an internal error', function () {
-    expect(executeParse(Email::class, 'not-an-email'))->toBeFailure('validation.invalid_type');
-    expect(executeParse(UserId::class, 0))->toBeFailure('validation.invalid_type');
-    expect(executeParse(UserId::class, -1))->toBeFailure('validation.invalid_type');
+/**
+ * A rejected value is not a wrong type. parseValue() proves the backing string or int before the
+ * factory ever runs, so by the time one throws, the type is exactly what was declared and only the
+ * value is at fault - which is what the two keys have to keep apart.
+ */
+test('value object reports a throwing factory as an invalid value, not an invalid type', function () {
+    expect(executeParse(Email::class, 'not-an-email'))->toBeFailure('validation.invalid_value');
+    expect(executeParse(UserId::class, 0))->toBeFailure('validation.invalid_value');
+    expect(executeParse(UserId::class, -1))->toBeFailure('validation.invalid_value');
 
     $result = executeParse(Email::class, 'not-an-email');
     $messages = array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $result->issues->allFlat());
-    expect($messages)->not->toContain('internal_error');
+    expect($messages)->not->toContain('internal_error')
+        ->and($messages)->not->toContain('validation.invalid_type');
 });
 
 test('the original exception is attached to the issue for debugging', function () {
     $result = executeParse(Email::class, 'not-an-email');
     $issue = $result->issues->allFlat()[0];
 
-    expect($issue->messageOrLocalizationKey)->toBe('validation.invalid_type')
+    expect($issue->messageOrLocalizationKey)->toBe('validation.invalid_value')
         ->and($issue->exception)->toBeInstanceOf(InvalidArgumentException::class)
         ->and($issue->exception->getMessage())->toBe('Invalid email: not-an-email');
 });
@@ -276,7 +287,7 @@ test('an Error thrown by the factory is caught, not just an Exception', function
     // \ValueError extends Error, NOT Exception, so catching Exception would let it escape.
     $result = executeParse(StatusEnum::class, 'not-a-case');
 
-    expect($result)->toBeFailure('validation.invalid_type')
+    expect($result)->toBeFailure('validation.invalid_value')
         ->and($result->issues->allFlat()[0]->exception)->toBeInstanceOf(ValueError::class);
 });
 
@@ -327,6 +338,80 @@ test('value objects nested in structs and lists hydrate correctly', function () 
             Email::fromStringValue('a@b.test'),
             Email::fromStringValue('c@d.test'),
         ]);
+});
+
+/**
+ * ---------------------------------------------------------------------------
+ * Value objects rejecting with ValidationException
+ * ---------------------------------------------------------------------------
+ */
+
+test('a ValidationException names the message the client sees, instead of validation.invalid_value', function () {
+    $result = executeParse(ValidatedAge::class, 12);
+
+    expect($result)->toBeFailure('Must be 18 or older')
+        ->and($result->issues->serializeToFieldsArray())->toBe([
+            '__root' => ['Must be 18 or older'],
+        ]);
+});
+
+test('every message becomes its own issue at the same path, in order', function () {
+    $result = executeParse(ValidatedEmail::class, '');
+
+    expect($result->issues->serializeToFieldsArray())->toBe([
+        '__root' => ['Email is required', 'Email must contain an @'],
+    ]);
+});
+
+test('the exception and its debug info ride along on every issue it produced', function () {
+    $result = executeParse(ValidatedEmail::class, 'nope');
+    $issue = $result->issues->allFlat()[0];
+
+    expect($result->issues->allFlat())->toHaveCount(1)
+        ->and($issue->exception)->toBeInstanceOf(ValidationException::class)
+        ->and($issue->debugInfo)->toHaveKey('value', 'nope')
+        ->and($issue->debugInfo)->toHaveKey('node', ValueObjectNode::class);
+});
+
+test('the messages are reported at the field the value object sits at, not the root', function () {
+    // Only one property may fail here: StructHandler::parse() returns on the first invalid one, so
+    // a second rejecting field would never be reached.
+    $result = executeParse(
+        'array{email: \\' . ValidatedEmail::class . ', age: \\' . ValidatedAge::class . '}',
+        ['email' => '', 'age' => 30],
+    );
+
+    expect($result)->toBeFailureAt('email', 'Email must contain an @')
+        ->and($result->issues->serializeToFieldsArray())->toBe([
+            'email' => ['Email is required', 'Email must contain an @'],
+        ]);
+});
+
+test('a ValidationException thrown for a list entry is reported at that index', function () {
+    $result = executeParse('\\' . ValidatedEmail::class . '[]', ['a@b.test', 'nope']);
+
+    expect($result->issues->serializeToFieldsArray())->toBe([
+        '1' => ['Email must contain an @'],
+    ]);
+});
+
+/**
+ * The generic Throwable arm still exists and still collapses to a single key. Only a value object
+ * that opts in by throwing ValidationException gets to name its messages.
+ */
+test('any other Throwable keeps collapsing to validation.invalid_value', function () {
+    expect(executeParse(Email::class, 'not-an-email'))->toBeFailure('validation.invalid_value');
+});
+
+/**
+ * The constructor guard throws before the ValidationException exists, so the generic arm catches it
+ * and the field is still rejected with a message - never a Failure carrying no issues at all.
+ */
+test('a ValidationException built with no messages degrades instead of rejecting silently', function () {
+    $result = executeParse(EmptyValidationValueObject::class, 'anything');
+
+    expect($result)->toBeFailure('validation.invalid_value')
+        ->and($result->issues->allFlat()[0]->exception)->toBeInstanceOf(InvalidArgumentException::class);
 });
 
 /**
@@ -422,7 +507,7 @@ test('DateTimeString round trips through parse and serialize', function (string 
 test('value object issues are reported at the right field path', function () {
     $result = executeParse('array{email: \\' . Email::class . '}', ['email' => 'nope']);
 
-    expect($result)->toBeFailureAt('email', 'validation.invalid_type');
+    expect($result)->toBeFailureAt('email', 'validation.invalid_value');
 });
 
 test('value object coerces primitives when coercion is enabled', function () {

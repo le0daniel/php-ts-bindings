@@ -14,6 +14,11 @@ use Throwable;
  *
  * Catch one of the three subsystem bases - ParserException, SchemaException, CodeGenException -
  * when the failing phase matters; catch this when it does not.
+ *
+ * ValidationException is the one exception outside those three, and deliberately so: the bases all
+ * mean the library could not do its job, while a ValidationException means it did - a value object
+ * rejected a value. Filing it under SchemaException would make catching a server fault also catch
+ * a user input rejection.
  */
 interface PhpTsBindingsException extends Throwable
 {

@@ -6,6 +6,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\Contracts\PhpTsBindingsException;
 use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\UnknownTypeKeyException;
@@ -42,7 +43,20 @@ test('every exception the library declares is a PhpTsBindingsException', functio
     OperationNotFoundException::class,
     InvalidMiddlewareException::class,
     SchemaException::class,
+    ValidationException::class,
 ]);
+
+/**
+ * ValidationException is the one exception that does not sit under a subsystem base, and that is the
+ * point: SchemaException means a failure that is not the value's fault, while this one is thrown by
+ * a value object precisely because the value is wrong. Filing it under SchemaException would make
+ * `catch (SchemaException)` - the way to catch a server fault - swallow a user input rejection.
+ */
+test('a value rejection is not a SchemaException', function () {
+    expect(is_a(ValidationException::class, SchemaException::class, true))->toBeFalse()
+        ->and(is_a(ValidationException::class, ParserException::class, true))->toBeFalse()
+        ->and(is_a(ValidationException::class, CodeGenException::class, true))->toBeFalse();
+});
 
 test('parser failures are catchable as ParserException', function (string $class) {
     expect(is_a($class, ParserException::class, true))->toBeTrue();

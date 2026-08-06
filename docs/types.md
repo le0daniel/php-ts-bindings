@@ -299,6 +299,42 @@ is caught and reported as a validation issue on that field, with the original ex
 debugging — it never reaches the client as an internal error, and never escapes the executor. This
 is where "is a valid email address" belongs, since no PHPStan type can say it.
 
+Any `Throwable` rejects the value, but a bare one has no message the client can be shown, so it
+collapses to the single key `validation.invalid_value` — which cannot tell an empty email from a
+malformed one. (Not `validation.invalid_type`: the backing string or int was proven before the
+factory ran, so the type was right and only the value was refused.) Throw a `ValidationException`
+to say what is actually wrong:
+
+```php
+use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
+
+public static function fromStringValue(string $value): static
+{
+    $messages = [];
+    if ($value === '') {
+        $messages[] = 'Email is required';
+    }
+    if (!str_contains($value, '@')) {
+        $messages[] = 'Email must contain an @';
+    }
+
+    if ($messages !== []) {
+        throw new ValidationException($messages, ['value' => $value]);
+    }
+
+    return new self($value);
+}
+```
+
+Each message becomes its own issue at that field's path, so the client reads
+`{"email": ["Email is required", "Email must contain an @"]}` under `details.fields` of a 422. Pass
+a single string when there is only one thing to say.
+
+The messages go on the wire exactly as written. Whether they are English, a localization key, or
+anything else is your call — this library does not translate. The second argument is the opposite:
+`debugInfo` is server-side only and never leaves the process outside debug mode, so anything a
+client must not see belongs there and not in a message.
+
 **Backed enums may opt in too.** A backed enum implementing `StringValueObject` serializes by its
 backing value instead of the case-name default:
 

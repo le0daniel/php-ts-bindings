@@ -1,5 +1,7 @@
 <?php declare(strict_types=1);
 
+use Le0daniel\PhpTsBindings\Executor\Data\Failure;
+use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
@@ -40,7 +42,7 @@ function errorResolveInfo(): ResolveInfo
 }
 
 test('invalid input yields a 422 carrying the field issues', function () {
-    $exception = InvalidInputException::createFromMessages(['name' => 'Is required']);
+    $exception = new InvalidInputException(new Failure(Issues::fromMessages(['name' => 'Is required'])));
 
     $error = new ErrorPresenter(new ServerConfiguration())
         ->present($exception, errorDefinition(), errorResolveInfo());

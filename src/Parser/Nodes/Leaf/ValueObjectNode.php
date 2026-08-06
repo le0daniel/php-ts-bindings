@@ -8,6 +8,7 @@ use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
@@ -65,7 +66,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
                 $className = $this->className;
                 return $className::fromStringValue($value);
             } catch (Throwable $throwable) {
-                $context->addIssue($this->rejectedByFactoryIssue($value, $throwable));
+                $this->addRejectionIssues($throwable, $value, $context);
                 return Value::INVALID;
             }
         }
@@ -80,7 +81,7 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
             $className = $this->className;
             return $className::fromIntValue($value);
         } catch (Throwable $throwable) {
-            $context->addIssue($this->rejectedByFactoryIssue($value, $throwable));
+            $this->addRejectionIssues($throwable, $value, $context);
             return Value::INVALID;
         }
     }
@@ -142,20 +143,43 @@ final readonly class ValueObjectNode implements NodeInterface, LeafNode, Coercib
 
     /**
      * A throwing factory means the incoming value was rejected, which is a validation failure and
-     * not a server fault. Issue::fromThrowable() is deliberately not used here: it maps to
+     * not a server fault. Issue::fromThrowable() is deliberately not used on this path: it maps to
      * IssueMessage::INTERNAL_ERROR, which would present bad user input as a server error.
+     *
+     * A ValidationException is the factory saying what is wrong, so its messages are reported
+     * verbatim - one issue each. Anything else has no message fit for a client, so it collapses to
+     * the generic key and keeps its own message in the debug info.
+     *
+     * That generic key is INVALID_VALUE, not INVALID_TYPE: parseValue() proved the backing type
+     * before calling the factory, so the string or int is exactly what was declared. What the
+     * factory refused is the value.
      */
-    private function rejectedByFactoryIssue(mixed $value, Throwable $throwable): Issue
+    private function addRejectionIssues(Throwable $throwable, mixed $value, ExecutionContext $context): void
     {
-        return new Issue(
-            IssueMessage::INVALID_TYPE,
-            debugInfo: [
-                'message' => "Value rejected by {$this->className}: {$throwable->getMessage()}",
-                'node' => self::class,
-                'value' => $value,
-            ],
+        if ($throwable instanceof ValidationException) {
+            foreach ($throwable->toIssues($this->rejectionDebugInfo($value, $throwable)) as $issue) {
+                $context->addIssue($issue);
+            }
+            return;
+        }
+
+        $context->addIssue(new Issue(
+            IssueMessage::INVALID_VALUE,
+            debugInfo: $this->rejectionDebugInfo($value, $throwable),
             exception: $throwable,
-        );
+        ));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rejectionDebugInfo(mixed $value, Throwable $throwable): array
+    {
+        return [
+            'message' => "Value rejected by {$this->className}: {$throwable->getMessage()}",
+            'node' => self::class,
+            'value' => $value,
+        ];
     }
 
     private function notAnInstanceIssue(mixed $value): Issue

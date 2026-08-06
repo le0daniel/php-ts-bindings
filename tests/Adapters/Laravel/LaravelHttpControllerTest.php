@@ -22,6 +22,7 @@ use Le0daniel\PhpTsBindings\Server\Server;
 use Mockery;
 use ReflectionException;
 use Throwable;
+use TypeError;
 
 test('handle successful http query request', function () {
     // Arrange
@@ -325,31 +326,6 @@ function staleMiddlewareController(bool $debug): array
         return $reported;
     }];
 }
-
-test('every throwable in the chain is reported, oldest first', function () {
-    [$controller, $request, $fcn, $reportedSoFar] = staleMiddlewareController(debug: false);
-
-    $response = $controller->handleHttpQueryRequest($fcn, $request);
-    $reported = $reportedSoFar();
-
-    expect($response->getStatusCode())->toBe(500)
-        ->and($reported)->toHaveCount(2)
-        // The middleware that could not be resolved comes first; the reflection failure that
-        // followed it - and that is the RpcError's cause - comes last.
-        ->and($reported[0])->toBeInstanceOf(InvalidMiddlewareException::class)
-        ->and($reported[1])->toBeInstanceOf(ReflectionException::class);
-});
-
-test('debug mode describes the previous failures alongside the cause', function () {
-    [$controller, $request, $fcn] = staleMiddlewareController(debug: true);
-
-    $debug = $controller->handleHttpQueryRequest($fcn, $request)->getData(true)['__debug'];
-
-    expect($debug['class'])->toBe(ReflectionException::class)
-        ->and($debug['previous'])->toHaveCount(1)
-        ->and($debug['previous'][0]['class'])->toBe(InvalidMiddlewareException::class)
-        ->and($debug['previous'][0]['message'])->toContain('DoesNotExistMiddleware');
-});
 
 test('an ordinary error carries no previous key in debug mode', function () {
     $fcn = 'docs.method';

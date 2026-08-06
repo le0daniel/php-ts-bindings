@@ -2,6 +2,8 @@
 
 namespace Le0daniel\PhpTsBindings\Contracts\ValueObjects;
 
+use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
+
 /**
  * Marks a class as a value object backed by a single int.
  *
@@ -14,10 +16,17 @@ namespace Le0daniel\PhpTsBindings\Contracts\ValueObjects;
  *
  * fromIntValue() may throw to reject a value. The parser catches any Throwable and reports
  * it as a validation issue on the field, with the original exception attached.
+ *
+ * Throw a ValidationException to choose what the client is told - one issue per message it carries.
+ * Any other Throwable has no message fit for a client, so it collapses to the generic
+ * `validation.invalid_value` key and keeps its message in the debug info.
  */
 interface IntValueObject
 {
     public static function fromIntValue(int $value): static;
 
+    /**
+     * @throws ValidationException
+     */
     public function toIntValue(): int;
 }

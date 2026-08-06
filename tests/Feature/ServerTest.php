@@ -56,6 +56,27 @@ test("Exceptions are exposed through middleware", function () {
         ]);
 });
 
+/**
+ * The end of the road for a ValidationException: the value object rejects, the parse fails, and the
+ * messages it chose come out the other side as the 422 the client reads. Nothing along the way -
+ * InvalidInputException, ErrorPresenter, RpcError - is allowed to flatten them back to a key.
+ */
+test("a value object rejecting with ValidationException reaches the client as a 422 naming each message", function () {
+    $error = executeOperation('test.acceptEmail', ['email' => '']);
+
+    expect($error)->toBeInstanceOf(RpcError::class)
+        ->and($error->type)->toBe(ErrorType::INVALID_INPUT)
+        ->and($error->statusCode)->toBe(422)
+        ->and($error->details)->toEqual([
+            'fields' => [
+                'email' => ['Email is required', 'Email must contain an @'],
+            ],
+        ]);
+
+    expect(executeOperation('test.acceptEmail', ['email' => 'ada@example.test']))
+        ->toBeInstanceOf(RpcSuccess::class);
+});
+
 test("A middleware that does not implement the contract yields an RpcError", function () {
     $server = new Server(
         EagerlyLoadedOperationRegistry::eagerlyDiscover(
@@ -77,7 +98,7 @@ test("A middleware that does not implement the contract yields an RpcError", fun
         ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
         ->and($result->cause)->toBeInstanceOf(ReflectionException::class)
         ->and($result->previous)->toHaveCount(1)
-        ->and($result->previous[0])->toBeInstanceOf(InvalidMiddlewareException::class)
+        ->and($result->previous[0])->toBeInstanceOf(TypeError::class)
         ->and($result->previous[0]->getMessage())->toContain(NotAMiddleware::class);
 });
 

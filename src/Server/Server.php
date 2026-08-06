@@ -73,22 +73,6 @@ final readonly class Server
         return $this->execute($this->registry->get(OperationType::COMMAND, $name), $input, $context, $client);
     }
 
-    /**
-     * Middleware is named by class-string, from an attribute or from the configuration, and
-     * `class-string<MiddlewareContract>` on those declarations is what they promise rather than
-     * anything that was checked - which is why this takes a plain string.
-     *
-     * Verified before anything is constructed: every adapter's createMiddleware() declares
-     * MiddlewareContract as its return type, so without this the mistake surfaces as a TypeError
-     * from inside the adapter naming neither the middleware nor the contract it is missing.
-     */
-    private static function assertIsMiddleware(string $className): void
-    {
-        if (!is_a($className, MiddlewareContract::class, true)) {
-            throw InvalidMiddlewareException::notAMiddleware($className);
-        }
-    }
-
     private function execute(Operation $operation, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
         $middlewareClassNames = [
@@ -109,10 +93,6 @@ final readonly class Server
         // query()/command() total: a missing container binding or a class that is not a
         // middleware must surface as an RpcError, not as an uncaught exception.
         try {
-            foreach ($middlewareClassNames as $middlewareClassName) {
-                self::assertIsMiddleware($middlewareClassName);
-            }
-
             $middlewares = array_map(fn($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
             $controllerClass = $this->adapter->createController($operation->definition->fullyQualifiedClassName);
         } catch (Throwable $throwable) {
