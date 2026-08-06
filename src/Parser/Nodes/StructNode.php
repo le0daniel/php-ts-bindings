@@ -67,7 +67,7 @@ final class StructNode implements NodeInterface, ValidatableNode, WrapsNodes
     #[Override]
     public function validate(): void
     {
-        if (empty($this->properties)) {
+        if (count($this->properties) === 0) {
             throw new ParserException("Cannot create object type with no properties or properties that are not keyed by strings (e.g. ['foo' => 'bar'] is fine, but ['foo'] is not");
         }
     }

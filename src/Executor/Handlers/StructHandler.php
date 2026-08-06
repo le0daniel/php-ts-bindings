@@ -173,6 +173,7 @@ final readonly class StructHandler implements Handler
         }
 
         return match (true) {
+            /* @phpstan-ignore-next-line property.dynamicName */
             property_exists($input, $key) => $input->{$key},
             method_exists($input, '__get') && method_exists($input, '__isset') => $input->__isset($key) ? $input->__get($key) : Value::UNDEFINED,
             default => Value::INVALID,

@@ -40,7 +40,7 @@ trait InteractsWithGenerics
             $state->produceSyntaxError("Expected '>' to end generics");
         }
 
-        if (empty($generics)) {
+        if (count($generics) === 0) {
             $state->produceSyntaxError("Expected at least one generic type, got none");
         }
 

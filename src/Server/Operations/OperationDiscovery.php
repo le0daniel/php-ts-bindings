@@ -49,7 +49,7 @@ final class OperationDiscovery
     {
         foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             $attributes = $method->getAttributes();
-            if (empty($attributes)) {
+            if (count($attributes) === 0) {
                 continue;
             }
 

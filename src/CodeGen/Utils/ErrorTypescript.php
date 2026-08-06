@@ -30,11 +30,11 @@ final readonly class ErrorTypescript
             self::branch(ErrorType::INVALID_INPUT, self::INVALID_INPUT_DETAILS),
         ];
 
-        if (!empty($configuration->unauthenticatedExceptions)) {
+        if (count($configuration->unauthenticatedExceptions) !== 0) {
             $branches[] = self::branch(ErrorType::AUTHENTICATION_ERROR);
         }
 
-        if (!empty($configuration->unauthorizedExceptions)) {
+        if (count($configuration->unauthorizedExceptions) !== 0) {
             $branches[] = self::branch(ErrorType::AUTHORIZATION_ERROR);
         }
 
@@ -55,7 +55,7 @@ final readonly class ErrorTypescript
     private static function domainDetails(ServerConfiguration $configuration, Definition $definition): ?string
     {
         $exposedTypes = ExposedExceptions::exposedTypesFor($definition, $configuration);
-        if (empty($exposedTypes)) {
+        if (count($exposedTypes) === 0) {
             return null;
         }
 

@@ -85,7 +85,7 @@ final readonly class StructConsumer implements TypeConsumer
             $state->produceSyntaxError("Expected brace");
         }
 
-        if (empty($properties)) {
+        if (count($properties) === 0) {
             $state->produceSyntaxError("Expected properties");
         }
 

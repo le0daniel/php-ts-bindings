@@ -155,7 +155,7 @@ DESCRIPTION;
     {
         $issues = OutputDirectory::verify($directory, $files);
 
-        if (!empty($issues)) {
+        if (count($issues) > 0) {
             $count = count($issues);
 
             $this->error("Found {$count} issue(s):");
@@ -217,6 +217,7 @@ DESCRIPTION;
 
         if (count($parts) === 2 && class_exists($parts[0]) && method_exists($parts[0], $parts[1])) {
             $instance = $application->make($parts[0]);
+            /* @phpstan-ignore-next-line method.dynamicName  */
             return $instance->{$parts[1]}(...);
         }
 

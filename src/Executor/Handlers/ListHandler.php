@@ -63,7 +63,7 @@ final readonly class ListHandler implements Handler
             return Value::INVALID;
         }
 
-        if (empty($value)) {
+        if (count($value) === 0) {
             return [];
         }
 

@@ -30,7 +30,7 @@ final readonly class ConstraintNode implements NodeInterface, WrapsNode
     #[Override]
     public function __toString(): string
     {
-        if (empty($this->constraints)) {
+        if (count($this->constraints) === 0) {
             return $this->node->__toString();
         }
 
@@ -47,7 +47,7 @@ final readonly class ConstraintNode implements NodeInterface, WrapsNode
     #[Override]
     public function exportPhpCode(): string
     {
-        if (empty($this->constraints)) {
+        if (count($this->constraints) === 0) {
             return $this->node->exportPhpCode();
         }
 

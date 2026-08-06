@@ -61,7 +61,7 @@ final readonly class BuiltInLeafConsumer implements TypeConsumer
             "non-negative-int",
             'non-positive-int',
             'numeric',
-        ]);
+        ], true);
     }
 
     /**

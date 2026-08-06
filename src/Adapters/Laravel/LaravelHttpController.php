@@ -122,7 +122,7 @@ readonly class LaravelHttpController
             OperationType::COMMAND => $request->json()->all(),
         };
 
-        return empty($inputData) ? null : $inputData;
+        return count($inputData) === 0 ? null : $inputData;
     }
 
     /**

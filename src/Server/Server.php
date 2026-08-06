@@ -127,6 +127,7 @@ final readonly class Server
                     $serializedResult = $this->executor
                         ->serialize(
                             $operation->outputNode(),
+                            /** @phpstan-ignore-next-line method.dynamicName */
                             $controllerClass->{$operation->definition->methodName}($inputValidationResult->value, $context, $client),
                             new SerializationOptions(partialFailures: false),
                         );

@@ -39,8 +39,5 @@ final readonly class TupleNode implements NodeInterface, ValidatableNode, WrapsN
     #[Override]
     public function validate(): void
     {
-        if (empty($this->nodes)) {
-            throw new ParserException("TupleNode must have at least one type");
-        }
     }
 }

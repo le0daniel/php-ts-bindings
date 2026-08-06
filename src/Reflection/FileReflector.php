@@ -197,7 +197,7 @@ final class FileReflector
                 continue;
             }
 
-            if (!in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM])) {
+            if (!in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM], true)) {
                 continue;
             }
 

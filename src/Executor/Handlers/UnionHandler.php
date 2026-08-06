@@ -130,6 +130,7 @@ final readonly class UnionHandler implements Handler
         return match (true) {
             is_array($input) => array_key_exists($key, $input) ? $input[$key] : Value::UNDEFINED,
             $input instanceof ArrayAccess => $input->offsetExists($key) ? $input[$key] : Value::UNDEFINED,
+            /* @phpstan-ignore-next-line property.dynamicName  */
             is_object($input) => property_exists($input, $key) ? $input->{$key} : Value::UNDEFINED,
             default => Value::INVALID,
         };

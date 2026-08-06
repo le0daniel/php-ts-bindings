@@ -80,6 +80,7 @@ final readonly class CustomClassHandler implements Handler
 
             $instance = new $node->fullyQualifiedCastingClass;
             foreach ($arrayValue as $key => $propertyValue) {
+                /** @phpstan-ignore-next-line property.dynamicName */
                 $instance->{$key} = $propertyValue;
             }
             return $instance;

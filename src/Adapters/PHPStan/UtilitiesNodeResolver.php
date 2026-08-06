@@ -19,6 +19,7 @@ use PHPStan\Type\ObjectShapeType;
 use PHPStan\Type\Constant\ConstantStringType;
 use PHPStan\Type\Constant\ConstantArrayType;
 use PHPStan\Reflection\ReflectionProvider;
+use ReflectionProperty;
 
 final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNodeResolverAwareExtension
 {
@@ -174,11 +175,11 @@ final class UtilitiesNodeResolver implements TypeNodeResolverExtension, TypeNode
         $classReflection = $this->reflectionProvider->getClass($className);
 
         $properties = $classReflection->getNativeReflection()->getProperties(
-            \ReflectionProperty::IS_PUBLIC
+            ReflectionProperty::IS_PUBLIC
         );
         $propertyTypes = [];
 
-        /** @var \ReflectionProperty $prop */
+        /** @var \PHPStan\BetterReflection\Reflection\Adapter\ReflectionProperty $prop */
         foreach ($properties as $prop) {
             $propName = $prop->getName();
             $keyType = new ConstantStringType($propName, false);

@@ -115,7 +115,7 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
 
     private function allowsOptional(ReflectionProperty|ReflectionParameter $param): bool
     {
-        if (empty($param->getAttributes(Optional::class))) {
+        if (count($param->getAttributes(Optional::class)) === 0) {
             return false;
         }
 

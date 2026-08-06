@@ -70,7 +70,7 @@ final readonly class TypescriptServerCodeGenerator
             }
         }
 
-        if (!empty($issues)) {
+        if (count($issues) > 0) {
             throw new InvalidGeneratorDependencies($issues);
         }
 

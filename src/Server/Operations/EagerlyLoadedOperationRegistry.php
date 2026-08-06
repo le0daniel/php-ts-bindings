@@ -150,7 +150,7 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
     }
 
     /**
-     * @return Operation[]
+     * @return array<string, Operation>
      */
     #[Override]
     public function all(): array

@@ -28,7 +28,7 @@ final readonly class PhpDoc
      */
     public static function findImportedTypeDefinition(null|false|string $docBlock): array
     {
-        if (empty($docBlock)) {
+        if ($docBlock === false || $docBlock === null) {
             return [];
         }
 
@@ -55,7 +55,7 @@ final readonly class PhpDoc
      */
     public static function findGenerics(null|false|string $docBlock): array
     {
-        if (empty($docBlock)) {
+        if ($docBlock === false || $docBlock === null) {
             return [];
         }
 
@@ -77,7 +77,7 @@ final readonly class PhpDoc
     /** @return array<string,string> */
     public static function findLocallyDefinedTypes(null|false|string $docBlock): array
     {
-        if (empty($docBlock)) {
+        if ($docBlock === false || $docBlock === null) {
             return [];
         }
 

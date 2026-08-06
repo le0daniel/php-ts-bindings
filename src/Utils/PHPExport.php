@@ -57,7 +57,7 @@ final readonly class PHPExport
      */
     public static function exportArray(array $array): string
     {
-        if (empty($array)) {
+        if (count($array) === 0) {
             return '[]';
         }
 

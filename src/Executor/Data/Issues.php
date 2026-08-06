@@ -33,7 +33,7 @@ final readonly class Issues
 
     public function isEmpty(): bool
     {
-        return empty($this->issuesMap);
+        return count($this->issuesMap) === 0;
     }
 
     /** @return list<Issue> */

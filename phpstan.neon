@@ -1,7 +1,10 @@
 includes:
     - extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
 
 parameters:
+    strictRules:
+        booleansInConditions: false
     paths:
         - src/
 

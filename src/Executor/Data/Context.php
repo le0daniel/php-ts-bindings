@@ -64,8 +64,6 @@ final class Context implements ExecutionContext
 
         $current = $this->pathAsString();
         foreach ($this->issues as $path => $issues) {
-            // This is needed as path '0' is transformed to int in php.
-            $path = (string) $path;
             if ($path === $current || str_starts_with($path, "{$current}.")) {
                 unset($this->issues[$path]);
             }
