@@ -2,22 +2,15 @@
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel\Commands;
 
-use Closure;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Routing\Router;
+use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelServiceProvider;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Utils\ArtisanOptions;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeMap;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
-use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
@@ -28,6 +21,8 @@ use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\OutputDirectory;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
+use function sprintf;
 
 final class CodeGenCommand extends Command
 {
@@ -150,51 +145,6 @@ DESCRIPTION;
     }
 
     /**
-     * @return Closure(TypedOperation): string
-     * @throws BindingResolutionException
-     */
-    private function getNamingGenerator(Application $application): Closure
-    {
-        $nameGenerator = match ($this->option('naming')) {
-            'fqn' => function (TypedOperation $operationData): string {
-                $namespace = $operationData->definition->namespace;
-                $name = ucfirst($operationData->definition->name);
-                return "{$namespace}{$name}";
-            },
-            'operation-prefix' => function (TypedOperation $operationData): string {
-                $name = ucfirst($operationData->definition->name);
-                return "{$operationData->definition->namespace}{$name}";
-            },
-            'namespace-postfix' => function (TypedOperation $operationData): string {
-                $namespace = ucfirst($operationData->definition->namespace);
-                $name = $operationData->definition->name;
-                return "{$name}{$namespace}";
-            },
-            'name' => function (TypedOperation $operationData): string {
-                return $operationData->definition->name;
-            },
-            default => null,
-        };
-
-        if ($nameGenerator) {
-            return $nameGenerator;
-        }
-
-        $naming = ArtisanOptions::asString($this->option('naming')) ?? '';
-        $parts = explode('::', $naming, 2);
-
-        if (count($parts) === 2 && class_exists($parts[0]) && method_exists($parts[0], $parts[1])) {
-            $instance = $application->make($parts[0]);
-            return $instance->{$parts[1]}(...);
-        }
-
-        throw new CodeGenException(
-            "Unknown naming mode '{$naming}'. Use one of name, fqn, operation-prefix, "
-            . "namespace-postfix, or Class::method naming your own rule."
-        );
-    }
-
-    /**
      * @param string $directory
      * @param array<string, TypescriptFile> $files
      * @return int
@@ -226,33 +176,23 @@ DESCRIPTION;
         $with = ArtisanOptions::expandOptionsArrayCommaSeparated($this->option('with'));
         $without = ArtisanOptions::expandOptionsArrayCommaSeparated($this->option('without'));
 
-        $includeGenerator = function (string $name, bool $default = true) use ($with, $without): bool {
-            if (in_array($name, $with, true)) {
-                return true;
+        $namingGeneratorName = ($this->option('naming') ?? 'name') |> Assertions::string(...);
+
+        $namingGenerator = match($namingGeneratorName) {
+            'fqn','operation-prefix','namespace-postfix','name' => CodeGenerators::namingGenerator($namingGeneratorName),
+            default => static function (TypedOperation $operation) use ($namingGeneratorName) {
+                if (!is_callable($namingGeneratorName)) {
+                    throw new InvalidArgumentException(sprintf('Expected callable, got %s', gettype($namingGeneratorName)));
+                }
+                return $namingGeneratorName($operation);
             }
-            if (in_array($name, $without, true)) {
-                return false;
-            }
-            return $default;
         };
 
-        $namingGenerator = $this->getNamingGenerator($application);
-
-        $generators = array_filter([
-            $includeGenerator('types', true) ? new EmitTypes() : null,
-            $includeGenerator('bindings', true) ? new EmitOperationClientBindings() : null,
-            $includeGenerator('utils', true) ? new EmitTypeUtils() : null,
-            // On by default: the adapter picks OperationSPAClient for a request carrying the
-            // matching header, so the client that reads its payload ships with it. A project
-            // using a Client of its own drops the file with --without operations-spa.
-            $includeGenerator('operations-spa', true) ? new EmitOperationsSpaClient() : null,
-            $includeGenerator('operations', true) ? new EmitOperations($namingGenerator) : null,
-            $includeGenerator('type-map', false) ? new EmitTypeMap() : null,
-            // Only EmitOperations is given the naming rule: it declares the names, the other two
-            // are handed it as a dependency and ask for them.
-            $includeGenerator('tanstack-query', false) ? new EmitTanstackQuery() : null,
-            $includeGenerator('query-key', false) ? new EmitQueryKey() : null,
-        ], fn($value) => $value !== null);
+        $defaultGenerators = CodeGenerators::fromDefaults(
+            $namingGenerator,
+            with: $with,
+            without: $without,
+        );
 
         $customGenerators = array_map(
             fn(string $className) => $application->make($className),
@@ -261,7 +201,7 @@ DESCRIPTION;
 
         // @phpstan-ignore-next-line arrayValues.list
         return array_values([
-            ...$generators,
+            ...$defaultGenerators,
             ...$customGenerators,
         ]);
     }

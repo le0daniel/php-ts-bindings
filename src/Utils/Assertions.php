@@ -22,4 +22,16 @@ final readonly class Assertions
 
         return $value;
     }
+
+    /**
+     * @phpstan-assert string $value
+     */
+    public static function string(mixed $value): string
+    {
+        if (!is_string($value)) {
+            throw new InvalidArgumentException(\sprintf('Expected string, got %s', gettype($value)));
+        }
+
+        return $value;
+    }
 }
