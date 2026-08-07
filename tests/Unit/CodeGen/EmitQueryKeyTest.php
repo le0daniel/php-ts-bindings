@@ -14,6 +14,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Tests\Mocks\ValueObjects\Email;
@@ -36,7 +37,7 @@ function queryKeyCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator
 
     $file = $emitter->generateOperationCode(
         $typedOperation,
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
+        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
     );
 
     return [$file->code, $file->toString()];
@@ -58,7 +59,7 @@ test('references the input type EmitOperations exports instead of inlining the d
     [$code, $rendered] = queryKeyCodeFor(new TypedOperation(
         new Typescript('{status:OrderStatus;}', new AliasRegistry(['OrderStatus' => '"OPEN"|"SHIPPED"'])),
         new Typescript('Order', new AliasRegistry(['Order' => '{id:number;}'])),
-        Typescript::fromRawString(''),
+        'never',
         queryOperation(),
     ));
 
@@ -75,7 +76,7 @@ test('follows the naming rule of the EmitOperations it depends on', function () 
         new TypedOperation(
             Typescript::fromRawString('{id:number;}'),
             Typescript::fromRawString('string'),
-            Typescript::fromRawString(''),
+            'never',
             queryOperation(),
         ),
         fn (TypedOperation $operation): string => 'orders'.ucfirst($operation->definition->name),

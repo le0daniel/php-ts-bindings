@@ -2,9 +2,23 @@
 
 export type OperationNamespaces = 'accounts'|'catalog'|'shapes';
 
+/*
+ * The finite error catalogue. Every failure is one of these, which is why Failure below is their
+ * union rather than a hole for one. DomainError is the only branch whose payload varies per
+ * operation - the names that operation exposed - and the only one declared conditionally: on
+ * `never` it collapses, so an operation exposing nothing has no 400 branch to narrow to.
+ */
+export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}};
+export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};
+export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
+export type NotFoundError = {code: 404, type: "NOT_FOUND"};
+export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {type: TType}};
+export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
+export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};
+
 export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
-export type Failure<E extends {code: number}> = {success: false, __metadata?: Record<string, unknown>} & E;
-export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
+export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
 
 declare const __brand: unique symbol;
 export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};

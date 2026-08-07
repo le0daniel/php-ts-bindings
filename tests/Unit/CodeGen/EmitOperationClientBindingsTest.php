@@ -7,6 +7,7 @@ namespace Tests\Unit\CodeGen;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
@@ -26,7 +27,7 @@ function bindingFiles(): array
 
     return $emitter->emitFiles(
         [],
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
+        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
         new AliasRegistry(),
     );
 }
@@ -62,6 +63,70 @@ test('declares exactly the imports its body needs', function (string $file, arra
         './lib/types' => ['values' => [], 'types' => ['Result']],
     ]],
 ]);
+
+/**
+ * A request can fail before it ever reaches the server, so the transport can always hand back the
+ * client envelope — and it needs no mention in any of these signatures, because the branch is part of
+ * every Failure whatever the operation exposed. What the caller chooses is only which domain names
+ * the 400 branch carries, so that is all the transport takes.
+ */
+test('the transport takes the exposed names, not a failure shape', function (string $file, string $signature) {
+    expect(bindingFiles()[$file]->toString())->toContain($signature)
+        ->and(bindingFiles()[$file]->toString())->not->toContain('{code: number}');
+})->with([
+    'the interface' => ['OperationClient', 'execute<O, TDomainType extends string = never>('],
+    'the implementation' => ['DefaultClient', 'options?: OperationOptions): Promise<Result<O, TDomainType>>'],
+    'the binding' => ['bindings', 'options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, TDomainType>>'],
+]);
+
+/**
+ * Nothing narrows the catalogue down to one branch here, so nothing has to name one: the exception
+ * and the hook see whatever the server can produce.
+ */
+test('a hook and the exception are typed against the whole catalogue', function () {
+    expect(bindingFiles()['DefaultClient']->toString())
+        ->toContain('export type Hook = (result: Result<unknown, string>) => Promise<void> | void;')
+        ->toContain('private async callHooks<const T extends Result<unknown, string>>(result: T) {')
+        ->and(bindingFiles()['OperationException']->toString())
+        ->toContain('export class OperationException<TDomainType extends string = string> extends Error {')
+        ->toContain('public readonly cause: Failure<TDomainType>;')
+        ->toContain('public static is<TDomainType extends string = string>(e: unknown): e is OperationException<TDomainType> {');
+});
+
+/**
+ * Whatever went wrong is carried, not summarised: an AbortError has to arrive as the DOMException it
+ * was, because throwOnFailure rethrows exactly that one and a re-wrapped copy would not be it.
+ */
+test('a throw anywhere in the request becomes the client envelope, keeping the original as its cause', function () {
+    expect(bindingFiles()['DefaultClient']->toString())
+        ->toContain('const cause = e instanceof Error ? e : new Error(String(e));')
+        ->toContain("const envelop = {success: false, code: 0, type: 'CLIENT_ERROR', cause} satisfies Failure;")
+        ->toContain('return await this.callHooks(envelop);');
+});
+
+/**
+ * The shape is declared once, in the types file, and referenced everywhere else. A second literal
+ * here would be a second definition free to drift from the one operations are typed against.
+ */
+/**
+ * Zero is a real code, assigned by the client itself. The fallback guards a malformed envelope — a
+ * code that is not a number — and a falsy check would fold the client branch into it, reporting a
+ * request that never left as a 500 while isClientError says otherwise.
+ */
+test('the exception reports the client code rather than treating zero as missing', function () {
+    expect(bindingFiles()['OperationException']->toString())
+        ->toContain('return this.cause.code === 0;')
+        ->not->toContain('!code ||');
+});
+
+test('no client file restates the envelope type it imports', function () {
+    // The runtime literal it constructs is not the declaration: that one lives in the types file,
+    // and a second copy here would be free to drift from what operations are typed against.
+    foreach (bindingFiles() as $file) {
+        expect($file->code)->not->toContain('type: "CLIENT_ERROR"')
+            ->and($file->code)->not->toContain('cause: Error');
+    }
+});
 
 /**
  * The transport moves a request and returns the envelope. Whatever a Client implementation puts next

@@ -15,6 +15,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Tests\Mocks\ValueObjects\Email;
@@ -36,7 +37,7 @@ function tanstackCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator
 
     return $emitter->generateOperationCode(
         $typedOperation,
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
+        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
     );
 }
 
@@ -56,7 +57,7 @@ test('references the types and the function EmitOperations declared', function (
     $code = tanstackCodeFor(new TypedOperation(
         Typescript::fromRawString('{id:number;}'),
         Typescript::fromRawString('string'),
-        Typescript::fromRawString(''),
+        'never',
         tanstackOperation(),
     ))->code;
 
@@ -75,7 +76,7 @@ test('follows the naming rule of the EmitOperations it depends on', function () 
         new TypedOperation(
             Typescript::fromRawString('{id:number;}'),
             Typescript::fromRawString('string'),
-            Typescript::fromRawString(''),
+            'never',
             tanstackOperation(),
         ),
         fn (TypedOperation $operation): string => 'orders'.ucfirst($operation->definition->name),
@@ -94,7 +95,7 @@ test('drops the input argument when the operation takes none', function () {
     $code = tanstackCodeFor(new TypedOperation(
         Typescript::fromRawString('null'),
         Typescript::fromRawString('string'),
-        Typescript::fromRawString(''),
+        'never',
         tanstackOperation(),
     ))->code;
 
@@ -110,7 +111,7 @@ test('emits nothing for a command', function () {
     expect(tanstackCodeFor(new TypedOperation(
         Typescript::fromRawString('{id:number;}'),
         Typescript::fromRawString('string'),
-        Typescript::fromRawString(''),
+        'never',
         tanstackOperation(OperationType::COMMAND),
     )))->toBeNull();
 });

@@ -6,6 +6,7 @@ namespace Tests\Unit\CodeGen;
 
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\Data\ToastType;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
@@ -20,7 +21,7 @@ function spaClientFiles(): array
 {
     return new EmitOperationsSpaClient()->emitFiles(
         [],
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
+        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
         new AliasRegistry(),
     );
 }

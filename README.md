@@ -44,7 +44,7 @@ way it does. Each subsystem has its own reference.
 |---|---|
 | [Types](docs/types.md) | The supported PHPStan subset, refinements, utility types, value objects, `#[Castable]`, brands and named types. |
 | [Operations](docs/operations.md) | The attributes, the handler contract, middleware, `ServerConfiguration`. |
-| [Errors](docs/errors.md) | The six categories, exposing a domain error, the generated union, and the exceptions this library throws. |
+| [Errors](docs/errors.md) | The six categories, the client error, exposing a domain error, the generated union, and the exceptions this library throws. |
 | [The server](docs/server.md) | `Server`, operation keys, registries, DI, serving HTTP, preloading, the production cache, extension points. |
 | [The TypeScript client](docs/typescript-client.md) | What codegen writes, the envelope, the transport, all eight generators, writing your own. |
 | [Client directives](docs/client-directives.md) | The optional `Client` side channel for toasts, redirects and cache invalidation. |
@@ -174,7 +174,7 @@ full wiring, dependency injection and error reporting.
 ```typescript
 export type GetResult = {email:(string & Brand<"email">);slug:string;};
 export type GetInput = {id:(number & Brand<"customerId">);};
-export type GetError = /* the operation's error union */;
+export type GetDomainErrors = /* the names this operation exposed, or never */;
 
 export async function get(input: GetInput, options?: OperationOptions) { /* ... */ }
 ```
@@ -188,7 +188,7 @@ const result = await get({id: userId});
 if (result.success) {
     result.data.email;   // (string & Brand<"email">)
 } else {
-    result.type;         // "INVALID_INPUT" | "NOT_FOUND" | "INTERNAL_ERROR" | ...
+    result.type;         // "INVALID_INPUT" | "NOT_FOUND" | "INTERNAL_ERROR" | "CLIENT_ERROR" | ...
 }
 ```
 
@@ -303,7 +303,7 @@ out of the shipped bundle, and that is all. See [operation keys](docs/server.md#
 
 ## Errors
 
-Every failure the client can see is one of six categories:
+Every failure the server can produce is one of six categories:
 
 | Code | `type` | When |
 |---|---|---|
@@ -318,6 +318,10 @@ The table is in resolution order, and the first match wins. That order is why `D
 second to last: an exception you have explicitly mapped onto a category stays in that category even
 when it is named for the client.
 
+A client has one more failure available to it, and no server sends it: `CLIENT_ERROR`, code 0, for
+the request that never arrived. It carries the exception that stopped it under `cause` instead of
+`details`.
+
 Exposing a domain error takes both a declaration and a name — `#[Throws]` on the operation, and
 either `as:` on that declaration or `#[ExposeAs]` on the exception class:
 
@@ -331,14 +335,26 @@ public function create(array $input): array { /* ... */ }
 {"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"type": "invalid-name"}}
 ```
 
-Which categories an operation can produce is what the generated union says, and it says nothing else:
+Because the catalogue is closed, `Failure` is the union of what your server can produce rather than a
+hole for whatever a call site passes. The only thing an operation adds to it is which exceptions it
+exposed, so that is the only thing it takes:
 
 ```typescript
-export type CreateError =
-    {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}
-  | {code: 404, type: "NOT_FOUND"}
-  | {code: 500, type: "INTERNAL_ERROR"};
+export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
+    & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
 ```
+
+```typescript
+export type CreateDomainErrors = never;
+export type LockDomainErrors = "account_locked"|"quota_exceeded";
+```
+
+That is all an operation module declares about errors — name the envelope as `Failure<LockDomainErrors>`
+where you need it. `never` is not an absence to handle: `DomainError` erases itself on it, so an
+operation that exposes nothing has no 400 branch at all and `result.code === 400` will not compile
+against it. Naming the branches also means a consumer can write
+`(error: ClientError | InternalError) => boolean` once and reuse it, instead of restating a literal
+shape at every call site.
 
 `details` appears only where the category cannot say everything on its own — `INVALID_INPUT` carries
 `fields`, `DOMAIN_ERROR` carries `type` — and is absent everywhere else, which is exactly what the

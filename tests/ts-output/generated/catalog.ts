@@ -9,7 +9,7 @@ import {queryOptions, useQuery} from '@tanstack/react-query';
 
 export type PrepareResult = Draft;
 export type PrepareInput = DraftInput;
-export type PrepareError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
+export type PrepareDomainErrors = never;
 
 /**
  * Type: QUERY
@@ -18,7 +18,7 @@ export type PrepareError = {code: 422, type: "INVALID_INPUT", details: {fields: 
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\CatalogOperations::prepare
  */
 export async function prepare(input: PrepareInput, options?: OperationOptions) {
-    return await executeOperation<PrepareInput, PrepareResult, PrepareError>(
+    return await executeOperation<PrepareInput, PrepareResult, PrepareDomainErrors>(
         'query', 
         'catalog.prepare', 
         input, 
@@ -51,7 +51,7 @@ export function prepareQueryKey(input: PrepareInput) {
 
 export type ProductResult = Product;
 export type ProductInput = {id:(number & Brand<"productId">);};
-export type ProductError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
+export type ProductDomainErrors = never;
 
 /**
  * Type: QUERY
@@ -60,7 +60,7 @@ export type ProductError = {code: 422, type: "INVALID_INPUT", details: {fields: 
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\CatalogOperations::product
  */
 export async function product(input: ProductInput, options?: OperationOptions) {
-    return await executeOperation<ProductInput, ProductResult, ProductError>(
+    return await executeOperation<ProductInput, ProductResult, ProductDomainErrors>(
         'query', 
         'catalog.product', 
         input, 
@@ -93,7 +93,7 @@ export function productQueryKey(input: ProductInput) {
 
 export type RestockResult = {product:Product;restockedAt:string;};
 export type RestockInput = {amount:number;price:Money;sku:Sku;};
-export type RestockError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
+export type RestockDomainErrors = never;
 
 /**
  * Type: COMMAND
@@ -102,7 +102,7 @@ export type RestockError = {code: 422, type: "INVALID_INPUT", details: {fields: 
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\CatalogOperations::restock
  */
 export async function restock(input: RestockInput, options?: OperationOptions) {
-    return await executeOperation<RestockInput, RestockResult, RestockError>(
+    return await executeOperation<RestockInput, RestockResult, RestockDomainErrors>(
         'command', 
         'catalog.restock', 
         input, 
@@ -112,7 +112,7 @@ export async function restock(input: RestockInput, options?: OperationOptions) {
 
 export type SearchResult = {results:Array<Product>;total:number;};
 export type SearchInput = {availability?:Availability;limit?:number;term:string;};
-export type SearchError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
+export type SearchDomainErrors = never;
 
 /**
  * Type: QUERY
@@ -121,7 +121,7 @@ export type SearchError = {code: 422, type: "INVALID_INPUT", details: {fields: R
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\CatalogOperations::search
  */
 export async function search(input: SearchInput, options?: OperationOptions) {
-    return await executeOperation<SearchInput, SearchResult, SearchError>(
+    return await executeOperation<SearchInput, SearchResult, SearchDomainErrors>(
         'query', 
         'catalog.search', 
         input, 

@@ -115,23 +115,33 @@ final class EmitOperations implements DependsOn, GeneratesOperationCode
         return $this->baseTypeName($operation).'Result';
     }
 
-    public function errorTypeName(TypedOperation $operation): string
+    /**
+     * The names the operation exposed, and the whole of what it contributes to its own error type -
+     * the rest of the catalogue is the server's, and the types file already declares it as Failure.
+     * A consumer that wants the envelope named writes Failure<GetDomainErrors>, so emitting that
+     * alias here as well would only be a second name for a type spelled out of one word.
+     */
+    public function domainErrorTypeName(TypedOperation $operation): string
     {
-        return $this->baseTypeName($operation).'Error';
+        return $this->baseTypeName($operation).'DomainErrors';
     }
 
     /**
      * The types below reference named types by their alias, which lives in the generated types
-     * file: every alias the operation's registries carry is imported. Brand is imported
-     * unconditionally — inline brands reference it, yet it is never a registry key — and a linter
-     * drops it where unused.
+     * file: every alias the operation's registries carry is imported. Nothing from the error
+     * catalogue is among them - a module names none of it. Brand is imported unconditionally —
+     * inline brands reference it, yet it is never a registry key — and a linter drops it where
+     * unused.
      *
      * @return list<TypescriptImport>
      */
     private function aliasImports(TypedOperation $operation): array
     {
         return [
-            $this->types->importFromTypes(types: ['Brand', ...$operation->usedAliases()]),
+            $this->types->importFromTypes(types: [
+                'Brand',
+                ...$operation->usedAliases(),
+            ]),
         ];
     }
 
@@ -142,7 +152,7 @@ final class EmitOperations implements DependsOn, GeneratesOperationCode
         $name = $this->operationName($operation);
         $resultTypeName = $this->resultTypeName($operation);
         $resultInputTypeName = $this->inputTypeName($operation);
-        $errorTypeName = $this->errorTypeName($operation);
+        $domainErrorTypeName = $this->domainErrorTypeName($operation);
 
         $imports = [
             $this->bindings->importFromBindings(values: ['executeOperation']),
@@ -163,11 +173,11 @@ TypeScript;
                 <<<TypeScript
 export type {$resultTypeName} = {$operation->outputDef->type};
 export type {$resultInputTypeName} = null;
-export type {$errorTypeName} = {$operation->errorDef->type};
+export type {$domainErrorTypeName} = {$operation->domainErrors};
 
 {$docBlock}
 export async function {$name}(options?: OperationOptions) {
-    return await executeOperation<{$resultInputTypeName}, {$resultTypeName}, {$errorTypeName}>(
+    return await executeOperation<{$resultInputTypeName}, {$resultTypeName}, {$domainErrorTypeName}>(
         '{$definition->type->lowerCase()}', 
         '{$operation->key}', 
         null, 
@@ -183,11 +193,11 @@ TypeScript,
             <<<TypeScript
 export type {$resultTypeName} = {$operation->outputDef->type};
 export type {$resultInputTypeName} = {$operation->inputDef->type};
-export type {$errorTypeName} = {$operation->errorDef->type};
+export type {$domainErrorTypeName} = {$operation->domainErrors};
 
 {$docBlock}
 export async function {$name}(input: {$resultInputTypeName}, options?: OperationOptions) {
-    return await executeOperation<{$resultInputTypeName}, {$resultTypeName}, {$errorTypeName}>(
+    return await executeOperation<{$resultInputTypeName}, {$resultTypeName}, {$domainErrorTypeName}>(
         '{$definition->type->lowerCase()}', 
         '{$operation->key}', 
         input, 

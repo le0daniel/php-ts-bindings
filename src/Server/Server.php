@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server;
 
+use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Contracts\ServerAdapter;
@@ -44,6 +45,11 @@ final readonly class Server
     ) {
         $this->executor = new SchemaExecutor();
         $this->errorPresenter = new ErrorPresenter($configuration);
+    }
+
+    public function toMetadata(string $queryRoute, string $commandRoute): ServerMetadata
+    {
+        return new ServerMetadata($queryRoute, $commandRoute, $this->configuration);
     }
 
     public function query(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess

@@ -32,7 +32,7 @@ final class EmitTypeMap implements DependsOn, GeneratesLibFiles
             $carry[$operation->definition->type->lowerCase()][$operation->definition->fullyQualifiedName()] = [
                 'input' => $operation->inputDef->type,
                 'output' => $operation->outputDef->type,
-                'errors' => $operation->errorDef->type,
+                'errors' => "Failure<{$operation->domainErrors}>",
             ];
 
             return $carry;
@@ -49,7 +49,8 @@ final class EmitTypeMap implements DependsOn, GeneratesLibFiles
         // Written next to the types file rather than standing on its own: the map inlines the
         // aliases EmitTypes declares, and they only resolve while it sits next to them. Brand is
         // imported unconditionally — an inlined brand references it, yet it is never a registry
-        // key — and a linter drops it where unused.
+        // key — and a linter drops it where unused. So is Failure, which every operation's error
+        // entry is written in terms of.
         return [
             'type-map' => new TypescriptFile(
                 <<<TypeScript
@@ -59,7 +60,7 @@ final class EmitTypeMap implements DependsOn, GeneratesLibFiles
 export type TypeMap = {$mapAsTsTypeString};
 TypeScript,
                 imports: [
-                    $this->emitTypes->importFromTypes(types: ['Brand', ...$registry->usedAliases()]),
+                    $this->emitTypes->importFromTypes(types: ['Brand', 'Failure', ...$registry->usedAliases()]),
                 ]
             ),
         ];

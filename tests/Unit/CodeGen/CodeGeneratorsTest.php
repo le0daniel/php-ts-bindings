@@ -16,6 +16,7 @@ use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
@@ -44,7 +45,7 @@ function usersModuleFor(string|\Closure $naming): string
 
     $files = new TypescriptServerCodeGenerator(
         CodeGenerators::fromDefaults($naming),
-    )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
+    )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()));
 
     return $files['users.ts']->toString();
 }

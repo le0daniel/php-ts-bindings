@@ -19,7 +19,6 @@ use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
-use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 
@@ -32,12 +31,12 @@ final readonly class TypescriptServerCodeGenerator
     private const string VALID_MODULE_NAME = '/^[a-zA-Z0-9_\-]+$/';
 
     /**
-     * @param  array<GeneratesLibFiles|GeneratesOperationCode>  $generators
+     * @param array<GeneratesLibFiles|GeneratesOperationCode> $generators
      *
      * @throws InvalidGeneratorDependencies
      */
     public function __construct(
-        private array $generators,
+        private array               $generators,
         private TypescriptGenerator $typescriptGenerator = new TypescriptGenerator(),
     ) {
         $this->resolveGeneratorDependencies();
@@ -61,13 +60,13 @@ final readonly class TypescriptServerCodeGenerator
         }
 
         foreach ($this->generators as $generator) {
-            if (! $generator instanceof DependsOn) {
+            if (!$generator instanceof DependsOn) {
                 continue;
             }
 
             foreach ($generator->dependsOnGenerator() as $className) {
-                if (! array_key_exists($className, $instances)) {
-                    $issues[] = 'Generator '.$generator::class." depends on {$className} which is not registered.";
+                if (!array_key_exists($className, $instances)) {
+                    $issues[] = 'Generator ' . $generator::class . " depends on {$className} which is not registered.";
                 }
             }
         }
@@ -77,20 +76,20 @@ final readonly class TypescriptServerCodeGenerator
         }
 
         foreach ($this->generators as $generator) {
-            if (! $generator instanceof DependsOn) {
+            if (!$generator instanceof DependsOn) {
                 continue;
             }
 
             // Each generator sees what it declared and nothing else, so a dependency it never asked
             // for cannot quietly become one it relies on.
-            $generator->setDependencies(
-                array_intersect_key($instances, array_flip($generator->dependsOnGenerator())),
-            );
+            array_flip($generator->dependsOnGenerator())
+                |> (static fn ($x) => array_intersect_key($instances, $x))
+                |> $generator->setDependencies(...);
         }
     }
 
     /**
-     * @param  list<string>  $ignore
+     * @param list<string> $ignore
      * @return array<string, TypescriptFile>
      */
     public function generate(Server $server, ServerMetadata $metadata, array $ignore = []): array
@@ -102,8 +101,8 @@ final readonly class TypescriptServerCodeGenerator
          */
         $filteredDefinitions = array_filter(
             $server->registry->all(),
-            fn (Operation $operation): bool => ! in_array($operation->definition->namespace, $ignore, true)
-                && ! in_array($operation->definition->fullyQualifiedName(), $ignore, true),
+            fn (Operation $operation): bool => !in_array($operation->definition->namespace, $ignore, true)
+                    && !in_array($operation->definition->fullyQualifiedName(), $ignore, true),
         ) |> array_values(...);
 
         // Cross-operation and cross-direction alias conflicts are only caught when every pass hands
@@ -123,8 +122,7 @@ final readonly class TypescriptServerCodeGenerator
             return new TypedOperation(
                 inputDef: $this->typescriptGenerator->toTypescript($inputNode, IO::INPUT, $registry),
                 outputDef: $this->typescriptGenerator->toTypescript($outputNode, IO::OUTPUT, $registry),
-                errorDef: ErrorTypescript::forOperation($server->configuration, $operation->definition)
-                    |> Typescript::fromRawString(...),
+                domainErrors: ErrorTypescript::domainTypesFor($server->configuration, $operation->definition),
                 operation: $operation,
             );
         }, $filteredDefinitions);
@@ -153,8 +151,8 @@ final readonly class TypescriptServerCodeGenerator
     }
 
     /**
-     * @param  list<TypedOperation>  $definitions
-     * @param  AliasRegistry  $registry  The run's shared registry, holding every alias any pass produced.
+     * @param list<TypedOperation> $definitions
+     * @param AliasRegistry $registry The run's shared registry, holding every alias any pass produced.
      * @return array<string, TypescriptFile>
      */
     private function generateLibFiles(array $definitions, ServerMetadata $metadata, AliasRegistry $registry): array
@@ -162,11 +160,11 @@ final readonly class TypescriptServerCodeGenerator
         return array_reduce(
             $this->generators,
             /**
-             * @param  array<string, TypescriptFile>  $carry
+             * @param array<string, TypescriptFile> $carry
              * @return array<string, TypescriptFile>
              */
             function (array $carry, $codeGenerator) use ($definitions, $metadata, $registry): array {
-                if (! $codeGenerator instanceof GeneratesLibFiles) {
+                if (!$codeGenerator instanceof GeneratesLibFiles) {
                     return $carry;
                 }
 
@@ -193,7 +191,7 @@ final readonly class TypescriptServerCodeGenerator
     }
 
     /**
-     * @param  list<TypedOperation>  $definitions
+     * @param list<TypedOperation> $definitions
      * @return array<string, TypescriptFile>
      */
     private function generateOperationDefinitions(array $definitions, ServerMetadata $metadata): array
@@ -209,8 +207,8 @@ final readonly class TypescriptServerCodeGenerator
             if (preg_match(self::VALID_MODULE_NAME, $namespace) !== 1) {
                 throw new CodeGenException(
                     "Invalid namespace '{$namespace}' on "
-                    ."{$operationData->definition->fullyQualifiedClassName}::{$operationData->definition->methodName}. "
-                    .'A namespace becomes a module file name and must only contain a-z, A-Z, 0-9, - and _.'
+                    . "{$operationData->definition->fullyQualifiedClassName}::{$operationData->definition->methodName}. "
+                    . 'A namespace becomes a module file name and must only contain a-z, A-Z, 0-9, - and _.'
                 );
             }
 
@@ -221,7 +219,7 @@ final readonly class TypescriptServerCodeGenerator
             $file = $operationFiles[$fileKey] ?? new TypescriptFile();
 
             foreach ($this->generators as $codeGenerator) {
-                if (! $codeGenerator instanceof GeneratesOperationCode) {
+                if (!$codeGenerator instanceof GeneratesOperationCode) {
                     continue;
                 }
 

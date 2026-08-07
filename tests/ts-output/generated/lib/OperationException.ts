@@ -3,27 +3,30 @@
 import type {Failure} from './types';
 
 /**
- * Generic over the operation's error union, so `e.cause.type` narrows to the branches the
- * operation can actually produce rather than to any.
+ * Generic over the names the operation exposed, so `e.cause.details.type` narrows to those rather
+ * than to any string. The rest of the catalogue is the server's and needs no naming here.
  */
-export class OperationException<E extends {code: number} = {code: number}> extends Error {
-    public readonly cause: Failure<E>;
+export class OperationException<TDomainType extends string = string> extends Error {
+    public readonly cause: Failure<TDomainType>;
 
-    get code(): number {
-        const code = this.cause.code;
-        if (!code || typeof code !== 'number' || Number.isNaN(code)) {
-            return 500;
-        }
-
-        return code;
+    /**
+     * The request never reached the server, so nothing here came off the wire and `cause.cause`
+     * holds the exception that actually stopped it.
+     */
+    get isClientError(): boolean {
+        return this.cause.code === 0;
     }
 
-    constructor(cause: Failure<E>) {
+    get code(): number {
+        return this.cause.code;
+    }
+
+    constructor(cause: Failure<TDomainType>) {
         super(`Operation failed with code ${cause.code}`);
         this.cause = cause;
     }
 
-    public static is<E extends {code: number} = {code: number}>(e: unknown): e is OperationException<E> {
+    public static is<TDomainType extends string = string>(e: unknown): e is OperationException<TDomainType> {
         return e instanceof OperationException;
     }
 }

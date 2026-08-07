@@ -6,13 +6,13 @@
  * Nothing here runs. It exists to be typechecked by `composer codegen:fixture`.
  */
 import {find, lock} from '../generated/accounts';
-import type {ProductError} from '../generated/catalog';
+import type {ProductDomainErrors} from '../generated/catalog';
 import {prepare, product, productQueryKey, productQueryOptions, restock, search, useProductQuery} from '../generated/catalog';
 import {createDefaultClient, setClient} from '../generated/lib/bindings';
 import type {OperationsClientPayload} from '../generated/lib/client-operations-spa';
 import {containsOperationSpaPayload} from '../generated/lib/client-operations-spa';
 import {OperationException} from '../generated/lib/OperationException';
-import type {Brand, Product} from '../generated/lib/types';
+import type {Brand, ClientError, Failure, InternalError, Product} from '../generated/lib/types';
 import type {TypeMap} from '../generated/lib/type-map';
 import {throwOnFailure} from '../generated/lib/utils';
 import {defaults, submit, useDefaultsQuery} from '../generated/shapes';
@@ -38,6 +38,11 @@ export async function readProduct(): Promise<Product | null> {
         case 422:
             console.warn('invalid input', result.details.fields);
             return null;
+        case 0:
+            // The one branch no server sent. The request never got there, so what went wrong is the
+            // exception itself rather than anything that came off the wire, and it arrives intact.
+            console.error('request failed', result.cause.message);
+            return null;
         case 404:
         case 500:
             // `details` only exists where the category cannot say everything on its own. Here it
@@ -50,6 +55,49 @@ export async function readProduct(): Promise<Product | null> {
 }
 
 /**
+ * The catalogue is the whole server's, but a 400 is not: `catalog.product` exposes no exception, so
+ * its Failure is instantiated with `never` and the branch is gone rather than present-but-empty.
+ * The comparison below has nothing to overlap with, which is the guarantee — an operation cannot be
+ * asked about a failure it can never produce.
+ */
+export async function productHasNoDomainError(): Promise<void> {
+    const result = await product({id: productId});
+    if (result.success) {
+        return;
+    }
+
+    // @ts-expect-error
+    if (result.code === 400) {
+        console.debug(result);
+    }
+}
+
+/**
+ * Every branch is a named type declared once, so a handler can be written against the ones it cares
+ * about and reused across operations — rather than each call site restating the literal shape.
+ */
+function isWorthRetrying(error: ClientError | InternalError): boolean {
+    // A cancelled request is not a failure worth repeating; anything else that never reached the
+    // server is. Narrowing the parameter on `code` reaches `cause`, which only one branch has.
+    return error.code === 500 || !(error.cause instanceof DOMException);
+}
+
+export async function readProductOrRetryLater(): Promise<Product | 'retry' | null> {
+    const result = await product({id: productId});
+    if (result.success) {
+        return result.data;
+    }
+
+    // The compiler checks that these two branches are the ones the helper accepts, instead of
+    // taking the call site's word for it.
+    if (result.code === 0 || result.code === 500) {
+        return isWorthRetrying(result) ? 'retry' : null;
+    }
+
+    return null;
+}
+
+/**
  * throwOnFailure narrows the same union by asserting, for code that would rather catch than branch.
  */
 export async function readProductOrThrow(): Promise<Product> {
@@ -58,11 +106,13 @@ export async function readProductOrThrow(): Promise<Product> {
         throwOnFailure(result);
         return result.data;
     } catch (error) {
-        // A catch clause variable is `unknown` whatever was thrown, so the operation's error union
-        // is named here rather than inferred. OperationException is generic over it, which is what
-        // makes `cause.type` the discriminated union instead of any.
-        if (OperationException.is<ProductError>(error)) {
-            const failureType: ProductError['type'] = error.cause.type;
+        // A catch clause variable is `unknown` whatever was thrown, so what the operation exposed is
+        // named here rather than inferred. OperationException is generic over exactly that — the rest
+        // of the catalogue is the server's and needs no naming.
+        if (OperationException.is<ProductDomainErrors>(error)) {
+            // No <Name>Error is generated: the envelope is Failure with the operation's names in it,
+            // which is the whole of what an alias for it would have said.
+            const failureType: Failure<ProductDomainErrors>['type'] = error.cause.type;
             console.error('operation failed', error.code, failureType);
 
             if (error.cause.code === 422) {

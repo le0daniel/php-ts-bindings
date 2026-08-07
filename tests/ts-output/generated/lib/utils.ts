@@ -13,12 +13,19 @@ export function queryKey(ns: QueryNamespaces, ...args: unknown[]): [string, ...u
  * Narrows a Result to its success branch, throwing otherwise, for call sites that would rather
  * catch than branch.
  *
- * The error union is deliberately not inferred here: a catch clause variable is `unknown` in
- * TypeScript whatever was thrown, so no signature on this function could carry E to the catch.
- * Name it there instead - `OperationException.is<ProductError>(e)` types `e.cause` for you.
+ * The exposed names are deliberately not inferred here: a catch clause variable is `unknown` in
+ * TypeScript whatever was thrown, so no signature on this function could carry them to the catch.
+ * Name them there instead - `OperationException.is<ProductDomainErrors>(e)` types `e.cause` for you.
  */
-export function throwOnFailure<const T>(result: Result<T, any>): asserts result is Success<T> {
-    if (!result.success) {
-        throw new OperationException(result);
+export function throwOnFailure<const T>(result: Result<T, string>): asserts result is Success<T> {
+    if (result.success) {
+        return;
     }
+    
+    // Client errors are thrown as-is.
+    if (result.type === "CLIENT_ERROR") {
+        throw result.cause;
+    }
+    
+    throw new OperationException(result);
 }

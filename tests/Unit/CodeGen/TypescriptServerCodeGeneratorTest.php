@@ -18,6 +18,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
@@ -50,7 +51,7 @@ function generateFor(array $classes, ?array $generators = null): array
             new EmitTypeUtils(),
             new EmitOperations(),
         ],
-    )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
+    )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()));
 }
 
 test('attribute brands declare no aliases in lib/types.ts, only the Brand helper', function () {
@@ -74,6 +75,58 @@ test('renders brands inline in the operation types and imports the Brand helper'
         ->toContain('export type CreateInput = {name:string;};')
         ->toContain('export type CreateResult = {id:(number & Brand<"customerId">);};')
         ->toContain("import type {Brand} from './lib/types';");
+});
+
+/**
+ * The catalogue is the server's, so an operation module names none of it — not even Failure. All it
+ * declares is which names it exposed, and `never` where it exposed nothing, which erases the 400
+ * branch of the Failure those names are eventually handed to.
+ */
+test('an operation module declares only what it adds to the catalogue', function () {
+    $operations = generateFor([UserOperations::class])['users.ts']->toString();
+
+    expect($operations)
+        ->toContain('export type GetDomainErrors = never;')
+        ->toContain('export type CreateDomainErrors = never;')
+        ->toContain('executeOperation<GetInput, GetResult, GetDomainErrors>(')
+        // Nothing from the catalogue is written down here, so nothing here can drift from it. That
+        // includes Failure: a `GetError = Failure<GetDomainErrors>` alias would be a second name for
+        // a type already spelled out of one word.
+        ->not->toContain('GetError')
+        ->not->toContain('Failure')
+        ->not->toContain('InvalidInputError')
+        ->not->toContain('NotFoundError')
+        ->not->toContain('InternalError')
+        ->not->toContain('ClientError')
+        ->not->toContain('AuthenticationError')
+        ->not->toContain('AuthorizationError')
+        ->not->toContain('DomainError<');
+});
+
+/**
+ * Nothing maps onto the two auth categories on this server, so neither is reachable — and a Failure
+ * naming a branch the server cannot produce would say otherwise. The declarations stay: they are
+ * names a consumer may still write a handler against.
+ */
+test('the failure union names only the categories this server can produce', function () {
+    $types = generateFor([UserOperations::class])['lib/types.ts']->toString();
+    preg_match('/^export type Failure.*$/m', $types, $matches);
+
+    expect($matches[0])
+        ->toBe('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);')
+        ->and($types)->toContain('export type AuthenticationError =')
+        ->toContain('export type AuthorizationError =');
+});
+
+test('the branch shapes are declared once, not restated per operation', function () {
+    $files = generateFor([UserOperations::class]);
+
+    expect($files['lib/types.ts']->toString())
+        ->toContain('export type NotFoundError = {code: 404, type: "NOT_FOUND"};')
+        ->and($files['users.ts']->toString())
+        ->not->toContain('"NOT_FOUND"')
+        ->not->toContain('"INTERNAL_ERROR"')
+        ->not->toContain('Record<string, string[]>');
 });
 
 test('declares named types once in lib/types.ts, nested aliases and inline brands included', function () {

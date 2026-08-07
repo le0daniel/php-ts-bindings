@@ -7,6 +7,7 @@ namespace Tests\Unit\CodeGen;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
@@ -52,6 +53,6 @@ final class TsOutputFixture
 
         return new TypescriptServerCodeGenerator(
             CodeGenerators::fromDefaults('name', with: ['type-map', 'tanstack-query', 'query-key']),
-        )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
+        )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()));
     }
 }

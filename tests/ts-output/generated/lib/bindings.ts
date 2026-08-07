@@ -21,7 +21,7 @@ export function setClient(operationClient: OperationClient|null): void {
     client = operationClient;
 }
 
-export async function executeOperation<I, O, E extends {code: number}>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, E>> {
+export async function executeOperation<I, O, TDomainType extends string = never>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, TDomainType>> {
     if (options?.client) {
         return await options.client.execute(type, key, input, options);
     }

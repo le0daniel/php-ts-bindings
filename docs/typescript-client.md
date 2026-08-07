@@ -45,8 +45,9 @@ Every call resolves to:
 
 ```typescript
 export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
-export type Failure<E extends {code: number}> = {success: false, __metadata?: Record<string, unknown>} & E;
-export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
+export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
+    & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
 ```
 
 That is the whole envelope, and both extra keys are the library's own — `jsonSerialize()` writes
@@ -60,8 +61,13 @@ belongs to whichever [`Client`](client-directives.md) produced it, and a failure
 directives at all. Naming it without describing it is the honest half: you know to look there, and
 the guard that shipped with your client is what makes it typed.
 
+The failure branch is the union of what *this* server's [error catalogue](errors.md#the-generated-error-union)
+holds — which categories are in it depends on how you mapped your exceptions — and the only thing an
+operation adds is which domain errors it exposed.
+
 Alongside them, each operation gets its own three types — `<Name>Input`, `<Name>Result` and
-`<Name>Error` — and `<Name>Error` is [the union of what that operation can really produce](errors.md#the-generated-error-union).
+`<Name>DomainErrors`, the names that operation exposed or `never`. Where you need the failure branch
+named, it is `Failure<<Name>DomainErrors>`.
 
 ## Wiring up the transport
 
@@ -97,8 +103,8 @@ transport serves. `{fqn}` is where the operation key goes, and both are required
 
 `throwOnFailure(result)`, from `lib/utils.ts`, narrows a `Result` to its success branch and throws an
 `OperationException` otherwise, for call sites that would rather not branch. A `catch` variable is
-`unknown` in TypeScript whatever was thrown, so name the operation's error union at the guard to get
-it back:
+`unknown` in TypeScript whatever was thrown, so name what the operation exposed at the guard to get
+it back — the rest of the catalogue is the server's and needs no naming:
 
 ```typescript
 try {
@@ -106,7 +112,7 @@ try {
     throwOnFailure(result);
     return result.data;
 } catch (e) {
-    if (OperationException.is<GetError>(e)) {
+    if (OperationException.is<GetDomainErrors>(e)) {
         e.cause.type;   // "INVALID_INPUT" | "NOT_FOUND" | ...
         e.code;         // the HTTP code, 500 if the payload had none
     }

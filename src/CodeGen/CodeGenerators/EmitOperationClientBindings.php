@@ -117,20 +117,29 @@ export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client
  * Moves a request and resolves to the envelope. A server may put more next to the data, and it
  * travels through untouched — describing it here would tie every transport to one Client
  * implementation's schema. Reach for the guard the implementation ships instead.
+ *
+ * The only thing an operation adds to the error catalogue is which domain errors it exposed, so that
+ * is all this takes. ClientError needs no mention: a request can fail before it reaches the server,
+ * and Failure carries that branch whatever the operation declared.
  */
 export interface OperationClient {
-    execute<O, E extends {code: number}>(
+    execute<O, TDomainType extends string = never>(
         type: "command"|"query",
         key: string,
         input: unknown,
         options?: OperationOptions
-    ): Promise<Result<O, E>>;
+    ): Promise<Result<O, TDomainType>>;
 }
 TypeScript, [
                 $this->types->importFromTypes(types: ['Result']),
             ]),
             self::DEFAULT_CLIENT_FILE => new TypescriptFile(<<<'TypeScript'
-export type Hook = (result: Result<unknown, {code: number}>) => Promise<void> | void;
+/**
+ * A hook sees the envelope of any operation, so it is typed against the widest domain union rather
+ * than any one operation's. Every category is still there to discriminate on — the catalogue is the
+ * server's, not the operation's.
+ */
+export type Hook = (result: Result<unknown, string>) => Promise<void> | void;
 
 export class DefaultClient implements OperationClient {
 
@@ -167,7 +176,7 @@ export class DefaultClient implements OperationClient {
             }).join('&');
     }
 
-    private async callHooks<const T extends Result<unknown, {code: number}>>(result: T) {
+    private async callHooks<const T extends Result<unknown, string>>(result: T) {
         try {
             await Promise.all(this.hooks.map(hook => hook(result)));
             return result;
@@ -177,7 +186,7 @@ export class DefaultClient implements OperationClient {
         }
     }
 
-    async execute<O, E extends {code: number}>(type: "command" | "query", key: string, input: unknown, options?: OperationOptions): Promise<Result<O, E>> {
+    async execute<O, TDomainType extends string = never>(type: "command" | "query", key: string, input: unknown, options?: OperationOptions): Promise<Result<O, TDomainType>> {
         const route = this.options.paths[type].substring(0, 1) === '/' ? this.options.paths[type].substring(1) : this.options.paths[type];
         const fullPath = `${this.options.baseUrl ?? ''}/${route.replace('{fqn}', key)}`;
 
@@ -198,34 +207,46 @@ export class DefaultClient implements OperationClient {
             headers['Content-Type'] = 'application/json';
         }
 
-        const queryParams = type === 'query' && input && typeof input === 'object'
-            ? `?${this.createJsonEncodedQueryParams(input)}`
-            : '';
+        try {
+            const queryParams = type === 'query' && input && typeof input === 'object'
+                ? `?${this.createJsonEncodedQueryParams(input)}`
+                : '';
 
-        const response = await this.fetcher(`${fullPath}${queryParams}`, {
-            method: type === 'query' ? 'GET' : 'POST',
-            signal,
-            headers,
-            body: type === 'command' ? JSON.stringify(input) : undefined,
-        });
+            const response = await this.fetcher(`${fullPath}${queryParams}`, {
+                method: type === 'query' ? 'GET' : 'POST',
+                signal,
+                headers,
+                body: type === 'command' ? JSON.stringify(input) : undefined,
+            });
 
-        const json = await response.json();
-        if (!json || typeof json !== 'object') {
-            throw new Error('Invalid response body. Could not parse json correctly.');
+            const json = await response.json();
+            if (!json || typeof json !== 'object') {
+                throw new Error('Invalid response body. Could not parse json correctly.');
+            }
+
+            // Spread first: whatever the server put next to the envelope — a client's directives, say —
+            // rides along untyped rather than being dropped by a transport that never knew about it.
+            if (response.ok) {
+                return await this.callHooks({...json, success: true} as Success<O>);
+            }
+
+            return await this.callHooks({
+                ...json,
+                success: false,
+                code: json?.code ?? response.status,
+                type: json?.type ?? 'INTERNAL_ERROR'
+            } as Failure<TDomainType>);
+        } catch (e: unknown) {
+            // Anything thrown between here and the response being read: the request never completed,
+            // so there is no server error to report and the cause is the answer. It is carried as
+            // itself rather than summarised — throwOnFailure rethrows an AbortError exactly, and a
+            // re-wrapped copy would no longer be that DOMException.
+            //
+            // No type argument: this branch is in every Failure, whatever the operation exposed.
+            const cause = e instanceof Error ? e : new Error(String(e));
+            const envelop = {success: false, code: 0, type: 'CLIENT_ERROR', cause} satisfies Failure;
+            return await this.callHooks(envelop);
         }
-
-        // Spread first: whatever the server put next to the envelope — a client's directives, say —
-        // rides along untyped rather than being dropped by a transport that never knew about it.
-        if (response.ok) {
-            return await this.callHooks({...json, success: true} as Success<O>);
-        }
-
-        return await this.callHooks({
-            ...json,
-            success: false,
-            code: json?.code ?? response.status,
-            type: json?.type ?? 'INTERNAL_ERROR'
-        } as Failure<E>);
     }
 
     registerHook(hook: Hook): () => void {
@@ -242,27 +263,30 @@ TypeScript, [
             ]),
             self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<'TypeScript'
 /**
- * Generic over the operation's error union, so `e.cause.type` narrows to the branches the
- * operation can actually produce rather than to any.
+ * Generic over the names the operation exposed, so `e.cause.details.type` narrows to those rather
+ * than to any string. The rest of the catalogue is the server's and needs no naming here.
  */
-export class OperationException<E extends {code: number} = {code: number}> extends Error {
-    public readonly cause: Failure<E>;
+export class OperationException<TDomainType extends string = string> extends Error {
+    public readonly cause: Failure<TDomainType>;
 
-    get code(): number {
-        const code = this.cause.code;
-        if (!code || typeof code !== 'number' || Number.isNaN(code)) {
-            return 500;
-        }
-
-        return code;
+    /**
+     * The request never reached the server, so nothing here came off the wire and `cause.cause`
+     * holds the exception that actually stopped it.
+     */
+    get isClientError(): boolean {
+        return this.cause.code === 0;
     }
 
-    constructor(cause: Failure<E>) {
+    get code(): number {
+        return this.cause.code;
+    }
+
+    constructor(cause: Failure<TDomainType>) {
         super(`Operation failed with code ${cause.code}`);
         this.cause = cause;
     }
 
-    public static is<E extends {code: number} = {code: number}>(e: unknown): e is OperationException<E> {
+    public static is<TDomainType extends string = string>(e: unknown): e is OperationException<TDomainType> {
         return e instanceof OperationException;
     }
 }
@@ -287,7 +311,7 @@ export function setClient(operationClient: OperationClient|null): void {
     client = operationClient;
 }
 
-export async function executeOperation<I, O, E extends {code: number}>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, E>> {
+export async function executeOperation<I, O, TDomainType extends string = never>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, TDomainType>> {
     if (options?.client) {
         return await options.client.execute(type, key, input, options);
     }

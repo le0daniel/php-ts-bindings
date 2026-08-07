@@ -7,13 +7,14 @@ The short version lives in the [README](../README.md); this is the full picture.
 - [The six categories](#the-six-categories)
 - [Exposing a domain error](#exposing-a-domain-error)
 - [The generated error union](#the-generated-error-union)
+- [The client error](#the-client-error)
 - [When `details` appears](#when-details-appears)
 - [Your own validation](#your-own-validation)
 - [Exceptions this library throws](#exceptions-this-library-throws)
 
 ## The six categories
 
-Every failure the client can see is one of six:
+Every failure the server can produce is one of six:
 
 | Code | `type` | When |
 |---|---|---|
@@ -35,6 +36,11 @@ code, which is why `$result->type->value` and `$result->statusCode` cannot disag
 which of *its* exceptions belong in which category, with
 [`ServerConfiguration::withExceptions()`](operations.md#serverconfiguration) — not which categories
 exist.
+
+Six is what a *server* can answer. A client has one more failure available to it — the request that
+never arrived — and that one is [`CLIENT_ERROR`](#the-client-error), code 0. It is deliberately not
+an `ErrorType`: nothing on the server can produce it, and giving `ErrorPresenter` a case for it would
+be claiming otherwise.
 
 ## Exposing a domain error
 
@@ -73,19 +79,88 @@ exception, the operation's name wins.
 
 ## The generated error union
 
-Because both the runtime and the code generator read those attributes from the same place, the
-generated error union cannot drift from the responses it describes. An operation that declares
-nothing gets:
+Every branch is declared once, in the generated types file, as a named envelope:
 
 ```typescript
-export type CreateError =
-    {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}
-  | {code: 404, type: "NOT_FOUND"}
-  | {code: 500, type: "INTERNAL_ERROR"};
+export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}};
+export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};
+export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
+export type NotFoundError = {code: 404, type: "NOT_FOUND"};
+export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {type: TType}};
+export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
+export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};
 ```
 
-The 401 and 403 branches appear only once you have actually mapped exceptions onto them, so the
-union describes what this server can really produce.
+Because the catalogue is closed, `Failure` is the *union* of the ones your server can produce rather
+than a hole for whatever a call site passes in:
+
+```typescript
+export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
+    & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
+```
+
+The 401 and 403 branches appear in it only once you have actually mapped exceptions onto them, so the
+union describes what *this* server can really produce. What varies per operation is one thing only —
+the names it exposed — so that is the one thing `Failure` is parameterised on, and the one thing an
+operation module declares. An operation that declares nothing gets:
+
+```typescript
+export type CreateDomainErrors = never;
+```
+
+and one that exposes two exceptions gets:
+
+```typescript
+export type LockDomainErrors = "account_locked"|"quota_exceeded";
+```
+
+There is no generated `<Name>Error` alias: `Failure<LockDomainErrors>` already says it, and a second
+name for it would be one more place the same fact is written down.
+
+`never` is not an absence a consumer has to handle. `DomainError` erases itself on it, which is why
+its declaration is a conditional: an operation exposing nothing has no 400 branch at all, and
+
+```typescript
+const result = await create(input);
+if (!result.success && result.code === 400) { /* ... */ }
+//                    ~~~~~~~~~~~~~~~~~~~~ no overlap — this does not compile
+```
+
+The brackets in `[TType] extends [never]` stop the conditional distributing, so two exposed names
+stay one branch carrying a union under `details.type` rather than splitting into two.
+
+Because both the runtime and the code generator read the same attributes from the same place, none of
+this can drift from the responses it describes. Naming the branches is also what lets a consumer
+write one handler and reuse it, instead of restating a literal shape at every call site:
+
+```typescript
+function isWorthRetrying(error: ClientError | InternalError): boolean { /* ... */ }
+```
+
+## The client error
+
+**`CLIENT_ERROR` is the branch no server sends.** The request never got there — the network was
+down, the response was not JSON, the call was cancelled — so there is no envelope to report and the
+client mints one, with code 0 and the exception itself under `cause`:
+
+```typescript
+const result = await lock({id});
+if (!result.success && result.code === 0) {
+    console.error(result.cause.message);   // cause: Error
+}
+```
+
+It is carried rather than summarised, which matters for cancellation: `throwOnFailure` rethrows an
+`AbortError` as the `DOMException` it was, so a Tanstack refetch aborting its predecessor is not
+reported as a failed query. A re-wrapped copy would no longer be that exception.
+
+Every client can produce it, and no signature has to say so: the branch is part of every `Failure`,
+so `OperationClient.execute` returning `Promise<Result<O, TDomainType>>` already includes it whatever
+the operation exposed. There is nothing for an implementation to remember to add.
+
+Reached through `OperationException`, the envelope is `e.cause` and the original exception is
+`e.cause.cause`; `e.isClientError` is the shorter way to ask.
 
 ## When `details` appears
 
@@ -94,6 +169,9 @@ of the six: `INVALID_INPUT` carries `fields`, and `DOMAIN_ERROR` carries the `ty
 domain error it is. For the other four, `code` and `type` are the whole answer and restating it
 under `details` would put the same string on the wire twice, so the key is absent — and the
 generated branch has no such property, so narrowing on `type` will not offer you one.
+
+`CLIENT_ERROR` has no `details` either. What it carries instead is `cause`, and that is a live
+`Error` rather than anything that came off the wire — the one branch whose payload was never JSON.
 
 This is why `jsonSerialize()` is the only thing that gets the envelope exactly right: it omits the
 key rather than sending `null`, which is what the generated union declares.

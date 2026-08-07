@@ -9,7 +9,7 @@ import {queryOptions, useQuery} from '@tanstack/react-query';
 
 export type FindResult = {id:number;term:string;};
 export type FindInput = {availability?:(null|Availability);term:string;};
-export type FindError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 400, type: "DOMAIN_ERROR", details: {type: "account_locked"}}|{code: 500, type: "INTERNAL_ERROR"};
+export type FindDomainErrors = "account_locked";
 
 /**
  * Type: QUERY
@@ -18,7 +18,7 @@ export type FindError = {code: 422, type: "INVALID_INPUT", details: {fields: Rec
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\AccountOperations::find
  */
 export async function find(input: FindInput, options?: OperationOptions) {
-    return await executeOperation<FindInput, FindResult, FindError>(
+    return await executeOperation<FindInput, FindResult, FindDomainErrors>(
         'query', 
         'accounts.find', 
         input, 
@@ -51,7 +51,7 @@ export function findQueryKey(input: FindInput) {
 
 export type LockResult = {locked:true;};
 export type LockInput = {id:number;};
-export type LockError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 400, type: "DOMAIN_ERROR", details: {type: "account_locked"}|{type: "quota_exceeded"}}|{code: 500, type: "INTERNAL_ERROR"};
+export type LockDomainErrors = "account_locked"|"quota_exceeded";
 
 /**
  * Type: COMMAND
@@ -60,7 +60,7 @@ export type LockError = {code: 422, type: "INVALID_INPUT", details: {fields: Rec
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\AccountOperations::lock
  */
 export async function lock(input: LockInput, options?: OperationOptions) {
-    return await executeOperation<LockInput, LockResult, LockError>(
+    return await executeOperation<LockInput, LockResult, LockDomainErrors>(
         'command', 
         'accounts.lock', 
         input, 
@@ -70,7 +70,7 @@ export async function lock(input: LockInput, options?: OperationOptions) {
 
 export type UnlockResult = {unlocked:true;};
 export type UnlockInput = {id:number;};
-export type UnlockError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
+export type UnlockDomainErrors = never;
 
 /**
  * Type: COMMAND
@@ -79,7 +79,7 @@ export type UnlockError = {code: 422, type: "INVALID_INPUT", details: {fields: R
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\AccountOperations::unlock
  */
 export async function unlock(input: UnlockInput, options?: OperationOptions) {
-    return await executeOperation<UnlockInput, UnlockResult, UnlockError>(
+    return await executeOperation<UnlockInput, UnlockResult, UnlockDomainErrors>(
         'command', 
         'accounts.unlock', 
         input, 

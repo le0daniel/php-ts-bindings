@@ -92,7 +92,11 @@ DESCRIPTION;
         }
 
         try {
-            $metadata = new ServerMetadata($queryRoute->uri(), $commandRoute->uri());
+            $metadata = new ServerMetadata(
+                $queryRoute->uri(),
+                $commandRoute->uri(),
+                $server->configuration
+            );
 
             $codeGenerator = new TypescriptServerCodeGenerator(
                 $this->getGeneratorsFromInput($application),

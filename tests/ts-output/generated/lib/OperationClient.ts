@@ -8,12 +8,16 @@ export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client
  * Moves a request and resolves to the envelope. A server may put more next to the data, and it
  * travels through untouched — describing it here would tie every transport to one Client
  * implementation's schema. Reach for the guard the implementation ships instead.
+ *
+ * The only thing an operation adds to the error catalogue is which domain errors it exposed, so that
+ * is all this takes. ClientError needs no mention: a request can fail before it reaches the server,
+ * and Failure carries that branch whatever the operation declared.
  */
 export interface OperationClient {
-    execute<O, E extends {code: number}>(
+    execute<O, TDomainType extends string = never>(
         type: "command"|"query",
         key: string,
         input: unknown,
         options?: OperationOptions
-    ): Promise<Result<O, E>>;
+    ): Promise<Result<O, TDomainType>>;
 }

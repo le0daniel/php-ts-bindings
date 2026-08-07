@@ -7,12 +7,13 @@ namespace Tests\Unit\CodeGen;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
@@ -42,8 +43,8 @@ function emitTypesFor(string $inputType, string $outputType): string
     $output = $generator->toTypescript($operation->outputNode(), IO::OUTPUT, $registry);
 
     $files = new EmitTypes()->emitFiles(
-        [new TypedOperation($input, $output, Typescript::fromRawString(''), $operation)],
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
+        [new TypedOperation($input, $output, 'never', $operation)],
+        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
         $registry,
     );
 
@@ -53,7 +54,7 @@ function emitTypesFor(string $inputType, string $outputType): string
 test('rejects an alias colliding with a declaration the types file always contains', function (string $alias) {
     $registry = new AliasRegistry([$alias => '{a:string;}']);
 
-    expect(fn () => new EmitTypes()->emitFiles([], new ServerMetadata('/query/{fqn}', '/command/{fqn}'), $registry))
+    expect(fn () => new EmitTypes()->emitFiles([], new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()), $registry))
         ->toThrow(UnsupportedTypeException::class, 'collides with a declaration');
 })->with([
     'the Brand helper generic' => ['Brand'],
@@ -61,7 +62,82 @@ test('rejects an alias colliding with a declaration the types file always contai
     'the success branch' => ['Success'],
     'the failure branch' => ['Failure'],
     'the namespace union' => ['OperationNamespaces'],
+    'the invalid input envelope' => ['InvalidInputError'],
+    'the authentication envelope' => ['AuthenticationError'],
+    'the authorization envelope' => ['AuthorizationError'],
+    'the not found envelope' => ['NotFoundError'],
+    'the domain envelope' => ['DomainError'],
+    'the internal envelope' => ['InternalError'],
+    'the client envelope' => ['ClientError'],
 ]);
+
+/**
+ * The reserved list is the catalogue itself, not a copy of it: a name added to one and forgotten in
+ * the other is a user alias that silently generates a second, conflicting declaration.
+ */
+test('every envelope the catalogue declares is reserved', function () {
+    foreach (ErrorTypescript::envelopeNames() as $name) {
+        expect(fn () => new EmitTypes()->emitFiles(
+            [],
+            new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+            new AliasRegistry([$name => '{a:string;}']),
+        ))->toThrow(UnsupportedTypeException::class, 'collides with a declaration');
+    }
+});
+
+/**
+ * Failure is a union of references, so the shapes have to be declared here or nothing resolves them.
+ * Generic over the exposed exception names for the one branch that varies.
+ */
+test('the finite error catalogue is declared in the types file', function () {
+    $types = emitTypesFor(
+        'array{id: \\'.UserId::class.'}',
+        'array{email: \\'.Email::class.'}',
+    );
+
+    expect($types)
+        ->toContain('export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}};')
+        ->toContain('export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};')
+        ->toContain('export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};')
+        ->toContain('export type NotFoundError = {code: 404, type: "NOT_FOUND"};')
+        ->toContain('export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {type: TType}};')
+        ->toContain('export type InternalError = {code: 500, type: "INTERNAL_ERROR"};')
+        ->toContain('export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};');
+});
+
+/**
+ * The catalogue is closed, so Failure is the union of what this server can produce rather than a
+ * hole for whatever a caller passes. What remains parameterised is the only thing an operation can
+ * add to it: the names it exposed.
+ */
+test('Failure is the union of the categories the server can produce, not a type parameter', function () {
+    $types = emitTypesFor(
+        'array{id: \\'.UserId::class.'}',
+        'array{email: \\'.Email::class.'}',
+    );
+
+    expect($types)
+        ->toContain('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);')
+        ->not->toContain('{code: number}');
+});
+
+/**
+ * Declared unconditionally, referenced only where reachable: naming a branch this server cannot
+ * produce would claim it can, while reserving the name costs nothing.
+ */
+test('an unmapped auth category is declared but stays out of Failure', function () {
+    $types = emitTypesFor(
+        'array{id: \\'.UserId::class.'}',
+        'array{email: \\'.Email::class.'}',
+    );
+
+    preg_match('/^export type Failure.*$/m', $types, $matches);
+
+    expect($types)->toContain('export type AuthenticationError =')
+        ->toContain('export type AuthorizationError =')
+        ->and($matches[0])->not->toContain('AuthenticationError')
+        ->and($matches[0])->not->toContain('AuthorizationError');
+});
 
 test('the envelope names the client side channel without describing what is in it', function () {
     $types = emitTypesFor(
@@ -74,7 +150,7 @@ test('the envelope names the client side channel without describing what is in i
     // belongs to the implementation that emits it, which for the one this library ships is
     // lib/client-operations-spa.ts.
     expect($types)
-        ->toContain('export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;')
+        ->toContain('export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;')
         ->toContain('__client?: unknown')
         ->not->toContain('operations-spa')
         ->not->toContain('OperationsClientPayload')
@@ -94,7 +170,7 @@ test('the branches declare exactly what jsonSerialize can put on each of them', 
     // because jsonSerialize() leaves either key off when there is nothing to say.
     expect($types)
         ->toContain('export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}')
-        ->toContain('export type Failure<E extends {code: number}> = {success: false, __metadata?: Record<string, unknown>} & E;');
+        ->toContain('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (');
 });
 
 test('attribute brands stay inline and declare no alias, only the Brand helper is exported', function () {

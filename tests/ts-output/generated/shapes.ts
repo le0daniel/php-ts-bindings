@@ -9,7 +9,7 @@ import {queryOptions, useQuery} from '@tanstack/react-query';
 
 export type DefaultsResult = {always:true;answer:42;anything:unknown;count:number;createdAt:string;day:string;either:(string|number);enabled:boolean;literal:"fixed";lookup:Record<string,number>;maybe:(null|Availability);nested:{deep:{value:string;};};nothing:null;pair:[string,number];products:Array<Product>;ratio:number;tags:Array<string>;text:string;};
 export type DefaultsInput = null;
-export type DefaultsError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
+export type DefaultsDomainErrors = never;
 
 /**
  * Type: QUERY
@@ -18,7 +18,7 @@ export type DefaultsError = {code: 422, type: "INVALID_INPUT", details: {fields:
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\ShapeOperations::defaults
  */
 export async function defaults(options?: OperationOptions) {
-    return await executeOperation<DefaultsInput, DefaultsResult, DefaultsError>(
+    return await executeOperation<DefaultsInput, DefaultsResult, DefaultsDomainErrors>(
         'query', 
         'shapes.defaults', 
         null, 
@@ -51,7 +51,7 @@ export function defaultsQueryKey() {
 
 export type RoundtripResult = {filters:Record<string,Array<string>>;page?:number;term:string;};
 export type RoundtripInput = {filters:Record<string,Array<string>>;page?:number;term:string;};
-export type RoundtripError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
+export type RoundtripDomainErrors = never;
 
 /**
  * Type: QUERY
@@ -60,7 +60,7 @@ export type RoundtripError = {code: 422, type: "INVALID_INPUT", details: {fields
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\ShapeOperations::roundtrip
  */
 export async function roundtrip(input: RoundtripInput, options?: OperationOptions) {
-    return await executeOperation<RoundtripInput, RoundtripResult, RoundtripError>(
+    return await executeOperation<RoundtripInput, RoundtripResult, RoundtripDomainErrors>(
         'query', 
         'shapes.roundtrip', 
         input, 
@@ -93,7 +93,7 @@ export function roundtripQueryKey(input: RoundtripInput) {
 
 export type SubmitResult = {accepted:boolean;id:(number & Brand<"productId">);};
 export type SubmitInput = {dryRun?:boolean;payload:{id:(number & Brand<"productId">);when:string;};};
-export type SubmitError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}}|{code: 404, type: "NOT_FOUND"}|{code: 500, type: "INTERNAL_ERROR"};
+export type SubmitDomainErrors = never;
 
 /**
  * Type: COMMAND
@@ -102,7 +102,7 @@ export type SubmitError = {code: 422, type: "INVALID_INPUT", details: {fields: R
  * @php Tests\Unit\CodeGen\Mocks\TsOutput\ShapeOperations::submit
  */
 export async function submit(input: SubmitInput, options?: OperationOptions) {
-    return await executeOperation<SubmitInput, SubmitResult, SubmitError>(
+    return await executeOperation<SubmitInput, SubmitResult, SubmitDomainErrors>(
         'command', 
         'shapes.submit', 
         input, 

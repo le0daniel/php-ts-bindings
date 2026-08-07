@@ -14,7 +14,7 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Tests\Mocks\ValueObjects\Email;
@@ -43,8 +43,8 @@ function emitUtilsFor(OperationType $type = OperationType::QUERY, string $namesp
     ]);
 
     $files = $emitter->emitFiles(
-        [new TypedOperation($input, $output, Typescript::fromRawString(''), $operation)],
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}'),
+        [new TypedOperation($input, $output, 'never', $operation)],
+        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
         $registry,
     );
 
@@ -59,8 +59,19 @@ test('throwOnFailure lives next to queryKey, not in the transport bindings', fun
     // It narrows the envelope; it knows nothing about how a request was made. Keeping it here means
     // a project generating no transport bindings at all still gets it.
     expect(emitUtilsFor())
-        ->toContain('export function throwOnFailure<const T>(result: Result<T, any>): asserts result is Success<T>')
+        ->toContain('export function throwOnFailure<const T>(result: Result<T, string>): asserts result is Success<T>')
         ->toContain('throw new OperationException(result);');
+});
+
+/**
+ * A cancelled request is not a failed operation. Tanstack aborts the in flight query on every
+ * refetch, and an OperationException raised for that would surface as a rendered error instead of
+ * the refetch it actually was, so the original DOMException is rethrown untouched.
+ */
+test('an aborted request is rethrown as itself rather than wrapped', function () {
+    expect(emitUtilsFor())
+        ->toContain('if (result.type === "CLIENT_ERROR") {')
+        ->toContain('throw result.cause;');
 });
 
 test('the utils carry no knowledge of any specific client implementation', function () {

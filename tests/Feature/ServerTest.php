@@ -112,9 +112,9 @@ test('Middleware emits typescript middleware', function () {
     );
 
     $operation = $server->registry->get(OperationType::COMMAND, 'test.run');
-    $union = ErrorTypescript::forOperation($server->configuration, $operation->definition);
+    $domainErrors = ErrorTypescript::domainTypesFor($server->configuration, $operation->definition);
 
-    expect($union)->toContain('{code: 400, type: "DOMAIN_ERROR", details: {type: "invalid_name"}}');
+    expect($domainErrors)->toBe('"invalid_name"');
 });
 /**
  * The cached registry pools every operation's schemas together, so these cases only mean anything
@@ -174,12 +174,12 @@ test('a globally configured middleware contributes its #[Throws] to the runtime 
         ->and($error->type)->toBe(ErrorType::DOMAIN_ERROR)
         ->and($error->details)->toEqual(['type' => 'global_middleware_failed']);
 
-    $errorUnion = ErrorTypescript::forOperation(
+    $domainErrors = ErrorTypescript::domainTypesFor(
         $configuration,
         $registry->get(OperationType::COMMAND, 'test.run')->definition,
     );
 
-    expect($errorUnion)->toContain('"global_middleware_failed"');
+    expect($domainErrors)->toContain('"global_middleware_failed"');
 });
 
 test('an operation level declaration still wins over a global one for the same exception', function () {
