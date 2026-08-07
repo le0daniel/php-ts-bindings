@@ -1,8 +1,10 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\CodeGen\Mocks;
 
-use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\{Query};
 use Tests\Mocks\Named\Customer;
 
 /**

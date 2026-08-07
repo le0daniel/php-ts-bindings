@@ -64,24 +64,45 @@ final class FileReflector
         $tokens = $this->tokens();
         $namespaces = [];
         $numTokens = count($tokens);
+        $depth = 0;
 
         for ($i = 0; $i < $numTokens; $i++) {
             $token = $tokens[$i];
+
+            // A group use's own braces never reach here: parseUseStatement consumes them and
+            // returns the index of the closing `;`.
+            if ($token === '{') {
+                $depth++;
+
+                continue;
+            }
+            if ($token === '}') {
+                $depth--;
+
+                continue;
+            }
 
             if (! is_array($token) || $token[0] !== T_USE) {
                 continue;
             }
 
-            // Skip `use function` and `use const`
-            $nextToken = self::peekNextSignificantToken($tokens, $i, $numTokens);
-            if ($nextToken && in_array($nextToken[0], [T_FUNCTION, T_CONST], true)) {
+            // Imports are top level statements. Inside a body, `use` composes a trait.
+            if ($depth > 0) {
                 continue;
             }
 
-            [$fullyQualifiedClassName, $alias, $i] = self::parseUseStatement($tokens, $i, $numTokens);
+            // Skip `use function` and `use const`. A null means the next token is punctuation,
+            // which for a `use` only ever means the `(` of a closure's capture list - not an
+            // import, and reading it as one would scan into the closure body.
+            $nextToken = self::peekNextSignificantToken($tokens, $i, $numTokens);
+            if ($nextToken === null || in_array($nextToken[0], [T_FUNCTION, T_CONST], true)) {
+                continue;
+            }
 
-            if ($fullyQualifiedClassName) {
-                if ($alias) {
+            [$imports, $i] = self::parseUseStatement($tokens, $i, $numTokens);
+
+            foreach ($imports as [$fullyQualifiedClassName, $alias]) {
+                if ($alias !== null) {
                     $namespaces[$fullyQualifiedClassName] = $alias;
                 } else {
                     $namespaces[] = $fullyQualifiedClassName;
@@ -262,37 +283,80 @@ final class FileReflector
     }
 
     /**
+     * Reads one `use` statement, from its T_USE token up to the terminating `;`.
+     *
+     * A single import yields one entry; a group (`use App\Data\{Order, Customer as C};`) yields one
+     * per member, each carrying its own alias. The leading name arrives as T_STRING when it has a
+     * single segment, T_NAME_QUALIFIED otherwise, and T_NAME_FULLY_QUALIFIED when it was written
+     * with a leading backslash - all three have to be read or the import is silently lost.
+     *
      * @param  list<string|array{int, string, int}>  $tokens
-     * @return array{string, string|null, int}
+     * @return array{list<array{string, string|null}>, int} The imports and the index of the `;`.
      */
     private static function parseUseStatement(array $tokens, int $startIndex, int $maxIndex): array
     {
-        $fullyQualifiedClassname = '';
+        $imports = [];
+        $prefix = '';
+        $name = null;
         $alias = null;
+        $expectAlias = false;
         $i = $startIndex + 1;
 
-        while ($i < $maxIndex) {
+        for (; $i < $maxIndex; $i++) {
             $token = $tokens[$i];
+
             if ($token === ';') {
                 break;
             }
 
-            if (is_array($token)) {
-                switch ($token[0]) {
-                    case T_NAME_QUALIFIED:
-                        $fullyQualifiedClassname = $token[1];
-                        break;
-                    case T_AS:
-                        $aliasToken = self::peekNextSignificantToken($tokens, $i, $maxIndex);
-                        if ($aliasToken && $aliasToken[0] === T_STRING) {
-                            $alias = $aliasToken[1];
-                        }
-                        break;
-                }
+            // Everything read so far is the group's shared prefix; the members follow.
+            if ($token === '{') {
+                $prefix = $name === null ? '' : "{$name}\\";
+                $name = null;
+                $alias = null;
+
+                continue;
             }
-            $i++;
+
+            if ($token === ',') {
+                if ($name !== null) {
+                    $imports[] = [$prefix.$name, $alias];
+                }
+                $name = null;
+                $alias = null;
+                $expectAlias = false;
+
+                continue;
+            }
+
+            if (! is_array($token)) {
+                continue;
+            }
+
+            if ($token[0] === T_AS) {
+                $expectAlias = true;
+
+                continue;
+            }
+
+            if (! in_array($token[0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED], true)) {
+                continue;
+            }
+
+            if ($expectAlias) {
+                $alias = $token[1];
+                $expectAlias = false;
+
+                continue;
+            }
+
+            $name = $token[1];
         }
 
-        return [$fullyQualifiedClassname, $alias, $i];
+        if ($name !== null) {
+            $imports[] = [$prefix.$name, $alias];
+        }
+
+        return [$imports, $i];
     }
 }

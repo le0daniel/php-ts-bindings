@@ -27,6 +27,7 @@ use Tests\Unit\CodeGen\Mocks\AsymmetricNamedOperations;
 use Tests\Unit\CodeGen\Mocks\ConflictingNamedOperations;
 use Tests\Unit\CodeGen\Mocks\NameClashOperations;
 use Tests\Unit\CodeGen\Mocks\NamedOperations;
+use Tests\Unit\CodeGen\Mocks\InheritingOperations;
 use Tests\Unit\CodeGen\Mocks\PerDirectionNamedOperations;
 use Tests\Unit\CodeGen\Mocks\UnrepresentableOperations;
 use Tests\Unit\CodeGen\Mocks\UserOperations;
@@ -248,6 +249,17 @@ test('fails the run when a generator imports from one that is not registered', f
 test('fails the run when two classes resolve to the same name with different shapes', function () {
     expect(fn () => generateFor([ConflictingNamedOperations::class]))
         ->toThrow(UnsupportedTypeException::class, 'Customer');
+});
+
+test('an inherited operation resolves its PHPDoc against the file that declares it', function () {
+    // InheritingOperations registers a method it does not declare, and neither its file nor its
+    // namespace knows InheritedResult. Taking the scope from the registered class looked for
+    // Tests\Unit\CodeGen\Mocks\InheritedResult and found nothing.
+    $operations = generateFor([InheritingOperations::class])['inherited.ts']->toString();
+
+    expect($operations)
+        ->toContain('export type GetInput = {result:{label:string;};};')
+        ->toContain('export type GetResult = {label:string;};');
 });
 
 test('fails the whole run when an operation input has no TypeScript representation', function () {

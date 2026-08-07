@@ -20,11 +20,13 @@ final readonly class Namespaces
      * Will Return
      * ```
      *  [
-     *      'Models' => 'App\Models',
-     *      'User' => 'App\Models\User',
-     *      'UserContract' => 'App\Contracts\User',
+     *      'models' => 'App\Models',
+     *      'user' => 'App\Models\User',
+     *      'usercontract' => 'App\Contracts\User',
      *  ]
      * ```
+     *
+     * Keys are lowercased because PHP resolves `use` aliases case insensitively.
      *
      * Names come from a file's parsed `use` statements, so they are strings that look like class
      * names but are not verified to name anything. Typing them class-string would be a guarantee
@@ -38,9 +40,9 @@ final readonly class Namespaces
         $map = [];
         foreach ($namespaces as $namespace => $alias) {
             if (is_int($namespace)) {
-                $map[Strings::classBaseName($alias)] = self::withoutLeadingSlash($alias);
+                $map[strtolower(Strings::classBaseName($alias))] = self::withoutLeadingSlash($alias);
             } else {
-                $map[$alias] = self::withoutLeadingSlash($namespace);
+                $map[strtolower($alias)] = self::withoutLeadingSlash($namespace);
             }
         }
 
@@ -53,6 +55,14 @@ final readonly class Namespaces
     }
 
     /**
+     * PHP's name resolution and nothing else, matching PHPStan's NameScope::resolveStringName().
+     *
+     * There is deliberately no "this already looks fully qualified" check: a qualified name whose
+     * first segment is not imported is relative, however absolute it looks, and guessing otherwise
+     * makes resolution depend on which unrelated classes a file happens to import. Reflection is the
+     * one source that hands over names that really are absolute, and TypeReflector marks those with
+     * a leading backslash before they ever get here.
+     *
      * @param  array<string, string>  $namespacesMap
      */
     public static function toFullyQualifiedClassName(string $className, ?string $namespace, array $namespacesMap): string
@@ -65,7 +75,7 @@ final readonly class Namespaces
         // the alias are appended: `use App\Models;` plus `Models\User` is App\Models\User, not
         // App\Models\Models\User.
         $segments = explode('\\', $className);
-        $lookupKey = $segments[0];
+        $lookupKey = strtolower($segments[0]);
         if (array_key_exists($lookupKey, $namespacesMap)) {
             $remaining = array_slice($segments, 1);
 
@@ -74,26 +84,6 @@ final readonly class Namespaces
                 : $namespacesMap[$lookupKey].'\\'.implode('\\', $remaining);
         }
 
-        // If reflection->getType()->getName() is used, it already returns a fully qualified class name.
-        // In case we did not find an import match, we check if the classname is imported anywhere already. If this is the case, we return it.
-        if (array_any($namespacesMap, fn (string $usedClass) => self::isWithin($className, $usedClass))) {
-            return $className;
-        }
-
-        if ($namespace !== null && ! self::isWithin($className, $namespace)) {
-            return $namespace.'\\'.$className;
-        }
-
-        return $className;
-    }
-
-    /**
-     * Whether $className is $parent itself or sits below it, compared on a namespace boundary.
-     * A raw prefix test would put `Application` inside `App`, and `App\Models\UserProfile` inside
-     * `App\Models\User`.
-     */
-    private static function isWithin(string $className, string $parent): bool
-    {
-        return $className === $parent || str_starts_with($className, "{$parent}\\");
+        return $namespace === null ? $className : $namespace.'\\'.$className;
     }
 }

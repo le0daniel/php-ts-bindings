@@ -10,6 +10,7 @@ use Le0daniel\PhpTsBindings\Reflection\FileReflector;
 use Le0daniel\PhpTsBindings\Utils;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionMethod;
 use ReflectionParameter;
 use ReflectionProperty;
 
@@ -19,19 +20,30 @@ use ReflectionProperty;
 final readonly class ParsingScope
 {
     /**
+     * Alias => fully qualified name, keyed lowercase. PHP resolves `use` aliases case
+     * insensitively, so the keys are normalized here rather than trusted: a hand-written map -
+     * this is public API - would otherwise silently miss on the wrong casing.
+     *
+     * @var array<string, string>
+     */
+    public array $usedNamespaceMap;
+
+    /**
      * @param  array<string, string>  $usedNamespaceMap
      * @param  array<string, string>  $localTypes
      * @param  array<string, ImportedType>  $importedTypes
      * @param  array<string, NodeInterface>  $generics
+     * @param  class-string|null  $declaredInClass
      */
     public function __construct(
         public ?string $namespace = null,
-        public array $usedNamespaceMap = [],
+        array $usedNamespaceMap = [],
         public array $localTypes = [],
         public array $importedTypes = [],
         public array $generics = [],
         public ?string $declaredInClass = null,
     ) {
+        $this->usedNamespaceMap = array_change_key_case($usedNamespaceMap);
     }
 
     /**
@@ -97,6 +109,34 @@ final readonly class ParsingScope
 
         // ToDo: Identify the generics that should be passed down. Currently ignored.
         return self::fromReflectionClass($declaringClass);
+    }
+
+    /**
+     * A method's PHPDoc is written where the method is, which for an inherited or trait-composed
+     * method is not the class it was reached through. The file is taken from the method itself
+     * rather than from getDeclaringClass(), because for a trait method that reports the composing
+     * class while the `use` statements the PHPDoc relies on live in the trait's file.
+     */
+    public function descendIntoDeclaringFileOf(ReflectionMethod $method): self
+    {
+        $fileName = $method->getFileName();
+        if ($fileName === false || $fileName === $this->declaringFile()) {
+            return $this;
+        }
+
+        // ToDo: Identify the generics that should be passed down. Currently ignored.
+        return self::fromFilePath($fileName);
+    }
+
+    private function declaringFile(): ?string
+    {
+        if ($this->declaredInClass === null) {
+            return null;
+        }
+
+        $fileName = new ReflectionClass($this->declaredInClass)->getFileName();
+
+        return $fileName === false ? null : $fileName;
     }
 
     /**

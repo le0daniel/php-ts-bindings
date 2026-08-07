@@ -540,10 +540,19 @@ test('Test date time literals', function () {
 
 test('Test date time with a namespace', function () {
     $parser = new TypeParser();
+
+    // Inside a namespace a bare `DateTime` needs an import, exactly as PHP resolves it - the
+    // built-in classes get no special treatment. Written absolute it resolves on its own.
     /** @var UnionNode $node */
-    $node = $parser->parse(\DateTime::class, new ParsingScope('SomeName\\Space'));
+    $node = $parser->parse(\DateTime::class, new ParsingScope('SomeName\\Space', ['DateTime' => \DateTime::class]));
     expect($node)->toBeInstanceOf(DateTimeNode::class);
     compareToOptimizedAst($node);
+
+    $absolute = $parser->parse('\\'.\DateTime::class, new ParsingScope('SomeName\\Space'));
+    expect($absolute)->toBeInstanceOf(DateTimeNode::class);
+
+    expect(fn () => $parser->parse(\DateTime::class, new ParsingScope('SomeName\\Space')))
+        ->toThrow(InvalidSyntaxException::class);
 });
 
 test('Test EnumCase and class const literal', function () {

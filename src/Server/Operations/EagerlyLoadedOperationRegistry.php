@@ -97,11 +97,17 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
             // Lazily execute the parsing.
             $factories[$fullyQualifiedKey] = static function () use ($definition, $parser, $key) {
                 $classReflection = new ReflectionClass($definition->fullyQualifiedClassName);
-                $inputParameter = $classReflection->getMethod($definition->methodName)->getParameters()[0];
+                $method = $classReflection->getMethod($definition->methodName);
+                $inputParameter = $method->getParameters()[0];
 
-                $parsingContext = ParsingScope::fromReflectionClass($classReflection);
+                // A class can register a method it inherited, whose PHPDoc was written against a
+                // different file's namespace and imports. @param and @return share that one
+                // docblock, so both resolve in the file the method is written in.
+                $parsingContext = ParsingScope::fromReflectionClass($classReflection)
+                    ->descendIntoDeclaringFileOf($method);
+
                 $input = fn () => $parser->parse(TypeReflector::reflectParameter($inputParameter), $parsingContext);
-                $output = fn () => $parser->parse(TypeReflector::reflectReturnType($classReflection->getMethod($definition->methodName)), $parsingContext);
+                $output = fn () => $parser->parse(TypeReflector::reflectReturnType($method), $parsingContext);
 
                 return new Operation($key, $definition, $input, $output);
             };
