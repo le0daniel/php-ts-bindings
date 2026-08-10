@@ -39,4 +39,17 @@ final readonly class Assertions
 
         return $value;
     }
+
+    /**
+     * @phpstan-assert true $value
+     * @param mixed $value
+     * @return true
+     */
+    public static function true(mixed $value): true
+    {
+        if ($value !== true) {
+            throw new InvalidArgumentException(\sprintf('Expected true, got %s', gettype($value)));
+        }
+        return true;
+    }
 }

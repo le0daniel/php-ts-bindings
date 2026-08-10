@@ -6,6 +6,7 @@ namespace Le0daniel\PhpTsBindings\CodeGen\Utils;
 
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use SplFileInfo;
@@ -17,6 +18,17 @@ use SplFileInfo;
  */
 final class OutputDirectory
 {
+    public static function clear(string $directory): void
+    {
+        foreach (self::existingFileNames($directory) as $fileName) {
+            $realpath = "{$directory}/{$fileName}" |> realpath(...) |> Assertions::string(...);
+
+            if (self::isGeneratedFile($realpath)) {
+                unlink($realpath) |> Assertions::true(...);
+            }
+        }
+    }
+
     /**
      * @param  array<string, TypescriptFile>  $files  Keys are paths relative to the directory.
      */
