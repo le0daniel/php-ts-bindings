@@ -89,8 +89,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     public static function serverFactory(
         Application        $app,
         ?OperationRegistry $operations,
-    ): Server
-    {
+    ): Server {
         $config = $app->make('config');
 
         $operations ??= EagerlyLoadedOperationRegistry::eagerlyDiscover(
