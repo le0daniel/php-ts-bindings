@@ -13,6 +13,8 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ClearOptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\CodeGenCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
@@ -74,10 +76,10 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
     private static function customKeyGenerator(Application $app, mixed $className): OperationKeyGenerator
     {
-        if (! is_string($className) || $className === '') {
+        if (!is_string($className) || $className === '') {
             throw new InvalidArgumentException(
                 "operations.key.mode is 'custom', so operations.key.className must name a class "
-                .'implementing '.OperationKeyGenerator::class.'.'
+                . 'implementing ' . OperationKeyGenerator::class . '.'
             );
         }
 
@@ -85,9 +87,10 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     }
 
     public static function serverFactory(
-        Application $app,
+        Application        $app,
         ?OperationRegistry $operations,
-    ): Server {
+    ): Server
+    {
         $config = $app->make('config');
 
         $operations ??= EagerlyLoadedOperationRegistry::eagerlyDiscover(
@@ -129,7 +132,7 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
 
             return self::serverFactory(
                 $app,
-                $isRepositoryCached ? require (base_path('bootstrap/cache/operations.php')) : null
+                $isRepositoryCached ? require(base_path('bootstrap/cache/operations.php')) : null
             );
         });
 
@@ -143,12 +146,20 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         // We bind the default server to the default laravel Http Controller.
         $this->app->bind(LaravelHttpController::class, function (Application $app): LaravelHttpController {
             $config = $app->make('config');
-            $context = $config->get('operations.context');
+
+            /** @var class-string<ContextFactory> $contextFactoryClassName */
+            $contextFactoryClassName = $config->get('operations.context');
+
+            /** @var class-string<ClientFactory>|null $clientFactoryClassName */
+            $clientFactoryClassName = $config->get('operations.client');
 
             return new LaravelHttpController(
                 $app->make(self::DEFAULT_SERVER),
                 $app->make(ExceptionHandler::class),
-                $context ? $app->make($context) : null,
+                $contextFactoryClassName ? $app->make($contextFactoryClassName) : null,
+                $clientFactoryClassName === null
+                    ? new OperationClientFactory()
+                    : $app->make($clientFactoryClassName),
                 $config->get('app.debug', false),
             );
         });
@@ -160,11 +171,11 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
     public function boot(): void
     {
         $this->publishes([
-            __DIR__.'/config/config.php' => config_path('operations.php'),
+            __DIR__ . '/config/config.php' => config_path('operations.php'),
         ]);
 
         $this->mergeConfigFrom(
-            __DIR__.'/config/config.php',
+            __DIR__ . '/config/config.php',
             'operations'
         );
 

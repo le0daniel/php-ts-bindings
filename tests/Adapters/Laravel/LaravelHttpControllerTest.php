@@ -8,11 +8,14 @@ use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\OperationClientFactory;
 use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Adapters\PsrContainerAdapter;
+use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
@@ -125,7 +128,7 @@ test('an operations-spa request gets the client directives appended', function (
     $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
     $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
 
-    $request->headers->set(LaravelHttpController::CLIENT_ID_HEADER, 'operations-spa');
+    $request->headers->set(OperationClientFactory::CLIENT_ID_HEADER, 'operations-spa');
     $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
 
     $controller = new LaravelHttpController(
@@ -376,7 +379,7 @@ test('directives queued before a failure never reach the client', function () {
     $exceptionHandler = Mockery::mock(ExceptionHandler::class);
     $app = Mockery::mock(Application::class);
     $request = Request::create('/query/docs.method', 'GET', ['name' => 'some_value']);
-    $request->headers->set(LaravelHttpController::CLIENT_ID_HEADER, 'operations-spa');
+    $request->headers->set(OperationClientFactory::CLIENT_ID_HEADER, 'operations-spa');
 
     $operationDefinition = new Definition(OperationType::QUERY, 'MyClass', 'someMethod', 'method', 'docs', []);
     $operation = new Operation(
@@ -414,4 +417,61 @@ test('directives queued before a failure never reach the client', function () {
             'code' => 500,
             'type' => 'INTERNAL_ERROR',
         ]);
+});
+
+test('a custom client factory decides the client, not the header', function () {
+    $fcn = 'docs.method';
+
+    $typeParser = new TypeParser();
+    $operationRegistry = Mockery::mock(OperationRegistry::class);
+    $exceptionHandler = Mockery::mock(ExceptionHandler::class);
+    $app = Mockery::mock(Application::class);
+    // No X-Client-Id header: the default factory would pick the NullClient here.
+    $request = Request::create('/query/docs.method', 'GET', ['name' => 'some_value']);
+
+    $operationDefinition = new Definition(OperationType::QUERY, 'MyClass', 'someMethod', 'method', 'docs', []);
+    $operation = new Operation(
+        'somekey',
+        $operationDefinition,
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
+    );
+
+    $controllerInstance = new class () {
+        public function someMethod(array $input, null $context, Client $client): array
+        {
+            $client->success('Saved');
+
+            return ['id' => '123', 'name' => $input['name']];
+        }
+    };
+
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
+    $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
+
+    $clientFactory = new class () implements ClientFactory {
+        public function createClientFromHttpRequest(Request $request): Client
+        {
+            return new OperationSPAClient();
+        }
+    };
+
+    $response = new LaravelHttpController(
+        new Server($operationRegistry, new PsrContainerAdapter(container: $app)),
+        $exceptionHandler,
+        null,
+        clientFactory: $clientFactory,
+    )->handleHttpQueryRequest($fcn, $request);
+
+    expect($response->getData(true))->toEqual([
+        'success' => true,
+        'data' => ['id' => '123', 'name' => 'some_value'],
+        '__client' => [
+            'toasts' => [
+                ['type' => 'success', 'message' => 'Saved'],
+            ],
+            'type' => 'operations-spa',
+        ],
+    ]);
 });

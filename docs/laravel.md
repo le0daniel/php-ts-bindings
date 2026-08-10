@@ -12,6 +12,7 @@ operation is see [operations](operations.md), for what the error categories mean
 - [Configuration](#configuration)
 - [Routes](#routes)
 - [Context](#context)
+- [Client](#client)
 - [What the adapter decides for you](#what-the-adapter-decides-for-you)
 - [Artisan commands](#artisan-commands)
 - [Production](#production)
@@ -52,6 +53,7 @@ php artisan operations:codegen resources/js/operations
 |---|---|---|
 | `discovery_path` | `app_path('Operations')` | Where operations are discovered. A string or a list of them. |
 | `context` | `null` | A `ContextFactory` class, building the `$context` every handler receives from the request. |
+| `client` | `null` | A `ClientFactory` class, building the `Client` every handler receives from the request. `null` uses `OperationClientFactory`. |
 | `key.mode` | `obfuscate` | `obfuscate`, `plain`, or `custom` with `key.className`. |
 | `key.pepper` | `"none"` | Salt for `obfuscate` — the literal string `none`, not "no pepper". |
 | `key.className` | `null` | An `OperationKeyGenerator`, required for `custom` and ignored otherwise. |
@@ -118,6 +120,31 @@ final class OperationContextFactory implements ContextFactory
 The class is resolved through the container, so it may take constructor arguments. Leave the config
 `null` and every handler receives `null` as its context.
 
+## Client
+
+`client` names a class implementing `ClientFactory`, whose single method builds the `Client` every
+handler and middleware receives — the collector for [client directives](client-directives.md):
+
+```php
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
+
+final class MobileAwareClientFactory implements ClientFactory
+{
+    public function createClientFromHttpRequest(Request $request): Client
+    {
+        return match ($request->header('X-Client-Id')) {
+            'operations-spa' => new OperationSPAClient(),
+            'mobile-app' => new MobileClient(),
+            default => new NullClient(),
+        };
+    }
+}
+```
+
+The class is resolved through the container, so it may take constructor arguments. Leave the config
+`null` and the default `OperationClientFactory` applies: the header `X-Client-Id: operations-spa`
+selects `OperationSPAClient`, every other request gets a `NullClient`.
+
 ## What the adapter decides for you
 
 Everything the provider and the HTTP controller pick without asking.
@@ -155,7 +182,8 @@ Everything the provider and the HTTP controller pick without asking.
 - Empty input of either kind becomes `null`.
 - **`X-Client-Id: operations-spa`** — exactly that value — selects `OperationSPAClient`. Every other
   request gets a `NullClient`, and [client directives](client-directives.md) go nowhere
-  without warning. The generated client sends the header on every call.
+  without warning. The generated client sends the header on every call. This is the default
+  `OperationClientFactory`; the [`client` config key](#client) replaces it.
 
 ### Responses
 

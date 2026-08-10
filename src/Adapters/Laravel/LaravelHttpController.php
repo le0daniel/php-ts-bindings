@@ -9,11 +9,9 @@ use Illuminate\Http;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
-use Le0daniel\PhpTsBindings\Contracts\Client;
 use Le0daniel\PhpTsBindings\Contracts\RpcResult;
-use Le0daniel\PhpTsBindings\Server\Client\NullClient;
-use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
@@ -27,12 +25,11 @@ readonly class LaravelHttpController
 
     public const string COMMAND_NAME = '__command_route';
 
-    public const string CLIENT_ID_HEADER = 'X-Client-Id';
-
     public function __construct(
         private Server $server,
         private ExceptionHandler $exceptionHandler,
         private ?ContextFactory $contextFactory,
+        private ClientFactory $clientFactory = new OperationClientFactory(),
         private bool $debug = false,
     ) {
     }
@@ -58,7 +55,7 @@ readonly class LaravelHttpController
             $fqn,
             input: $this->gatherInputFromRequest(OperationType::QUERY, $request),
             context: $this->contextFactory?->createContextFromHttpRequest($request),
-            client: $this->createClient($request),
+            client: $this->clientFactory->createClientFromHttpRequest($request),
         )
                 |> $this->reportExceptions(...)
                 |> $this->produceJsonResponse(...);
@@ -73,7 +70,7 @@ readonly class LaravelHttpController
             $fqn,
             input: $this->gatherInputFromRequest(OperationType::COMMAND, $request),
             context: $this->contextFactory?->createContextFromHttpRequest($request),
-            client: $this->createClient($request),
+            client: $this->clientFactory->createClientFromHttpRequest($request),
         )
                 |> $this->reportExceptions(...)
                 |> $this->produceJsonResponse(...);
@@ -91,15 +88,6 @@ readonly class LaravelHttpController
         }
 
         return $result;
-    }
-
-    private function createClient(Http\Request $request): Client
-    {
-        if ($request->header(self::CLIENT_ID_HEADER) === 'operations-spa') {
-            return new OperationSPAClient();
-        }
-
-        return new NullClient();
     }
 
     /**

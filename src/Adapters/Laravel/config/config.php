@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Database\RecordNotFoundException;
 use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Session\TokenMismatchException;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
@@ -26,6 +27,17 @@ return [
      * @see ContextFactory
      */
     'context' => null,
+
+    /**
+     * Define a class name used to create the client for all operations.
+     * It must implement Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory
+     *
+     * Null uses the OperationClientFactory: the header `X-Client-Id: operations-spa`
+     * selects the OperationSPAClient, everything else gets the NullClient.
+     *
+     * @see ClientFactory
+     */
+    'client' => null,
 
     /**
      * Defines the ID length to use for the cache keys. Usually 10 is enough. If you face

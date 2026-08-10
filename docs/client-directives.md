@@ -31,7 +31,8 @@ a contract. `OperationSPAClient` is meant to be picked when the request carries
 `X-Client-Id: operations-spa` — exactly that header, exactly that value — and any other request gets
 a `NullClient` whose every method is a no-op, so handlers never need to know which kind is on the
 other end, and nothing warns when a directive goes nowhere. Choosing between them is the transport's
-job; the core never inspects a request. The [Laravel adapter](laravel.md#requests) does it for you.
+job; the core never inspects a request. The [Laravel adapter](laravel.md#requests) delegates that
+choice to a `ClientFactory`, defaulting to exactly this header rule.
 
 ## The payload
 
