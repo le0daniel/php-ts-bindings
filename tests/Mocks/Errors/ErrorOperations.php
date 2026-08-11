@@ -22,8 +22,8 @@ final class ErrorOperations
      * Naming at the declaration site: UnexposedException carries no #[ExposeAs] and is exposed
      * anyway, while ExposedDomainException's own name is overridden.
      */
-    #[Throws(UnexposedException::class, as: 'renamed_failure')]
-    #[Throws(ExposedDomainException::class, as: 'overridden_failure')]
+    #[Throws(UnexposedException::class, name: 'renamed_failure')]
+    #[Throws(ExposedDomainException::class, name: 'overridden_failure')]
     public function declaresRenamedThrows(): void
     {
     }

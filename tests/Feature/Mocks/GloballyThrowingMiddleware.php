@@ -20,7 +20,7 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
  */
 final class GloballyThrowingMiddleware implements MiddlewareContract
 {
-    #[Throws(GlobalMiddlewareException::class, as: 'global_middleware_failed')]
+    #[Throws(GlobalMiddlewareException::class, name: 'global_middleware_failed')]
     public function handle(mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
     {
         if (is_array($input) && ($input['name'] ?? null) === 'global-boom') {

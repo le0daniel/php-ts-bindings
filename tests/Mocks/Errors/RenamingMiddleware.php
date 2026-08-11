@@ -20,9 +20,9 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
  */
 final class RenamingMiddleware implements MiddlewareContract
 {
-    #[Throws(MiddlewareDomainException::class, as: 'renamed_middleware_failure')]
-    #[Throws(ExposedDomainException::class, as: 'middleware_name')]
-    #[Throws(UnexposedException::class, as: 'middleware_named_it')]
+    #[Throws(MiddlewareDomainException::class, name: 'renamed_middleware_failure')]
+    #[Throws(ExposedDomainException::class, name: 'middleware_name')]
+    #[Throws(UnexposedException::class, name: 'middleware_named_it')]
     public function handle(mixed $input, Closure $next, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
     {
         return $next($input);

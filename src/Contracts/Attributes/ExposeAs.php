@@ -5,18 +5,30 @@ declare(strict_types=1);
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
 use Attribute;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 
-/**
- * Marks an exception as Exposable to the client, under the given type name.
- *
- * This is the exception's own name, used by every operation that declares it via #[Throws]. A
- * #[Throws(..., as: ...)] naming it at the declaration site overrides this one.
- */
 #[Attribute(Attribute::TARGET_CLASS)]
 final readonly class ExposeAs
 {
     public function __construct(
-        public string $type
+        public ErrorType $type = ErrorType::DOMAIN_ERROR,
+        public ?string $name = null,
     ) {
+    }
+
+    public function isValid(): bool
+    {
+        if (
+            ($this->type === ErrorType::DOMAIN_ERROR && $this->name === null) ||
+            ($this->type !== ErrorType::DOMAIN_ERROR && $this->name !== null)
+        ) {
+            return false;
+        }
+
+        if ($this->type === ErrorType::INVALID_INPUT) {
+            return false;
+        }
+
+        return true;
     }
 }

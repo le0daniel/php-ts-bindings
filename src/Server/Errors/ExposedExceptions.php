@@ -66,7 +66,7 @@ final readonly class ExposedExceptions
             // The first name given wins. The operation is reflected before the middleware wrapping
             // it, so an operation states its own contract first; and because only a name displaces
             // null, a bare #[Throws] never silences an `as` declared elsewhere for the same class.
-            $declared[$throws->exceptionClass] ??= $throws->as ?? self::exposeAsOf($throws->exceptionClass);
+            $declared[$throws->exceptionClass] ??= $throws->name ?? self::exposeAsOf($throws->exceptionClass);
         }
 
         return $declared;
