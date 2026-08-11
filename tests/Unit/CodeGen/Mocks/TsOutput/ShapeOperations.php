@@ -31,7 +31,7 @@ final class ShapeOperations
      *     literal: 'fixed',
      *     answer: 42,
      *     always: true,
-     *     tags: list<string>,
+     *     tags: string[],
      *     lookup: array<string, int>,
      *     pair: array{string, int},
      *     either: string|int,

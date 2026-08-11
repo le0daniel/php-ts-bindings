@@ -324,8 +324,12 @@ operation handler or a middleware's `handle()` — decides the category, and onl
 declared nothing do the configured category lists apply. Everything unrecognised is a 500.
 
 A client has one more failure available to it, and no server sends it: `CLIENT_ERROR`, code 0, for
-the request that never arrived. It carries the exception that stopped it under `cause` instead of
-`details`.
+the request that never arrived — or was answered by something other than the server, like a CSRF
+middleware's 419 or a proxy's error page. The generated client never trusts the HTTP status line:
+only a body carrying the envelope above is reported as the server's answer (the check is
+`isValidEnvelop` from `lib/utils.ts`), and anything else becomes `CLIENT_ERROR`, carrying the
+exception that stopped it under `cause` instead of `details`, plus the raw `response`
+(`httpStatusCode`, and `jsonResponse` when the body parsed as JSON) when HTTP answered at all.
 
 Exposing a domain error takes both a declaration and a name — `#[Throws]` on the throwing scope, and
 either `name:` on that declaration or `#[ExposeAs]` on the exception class:

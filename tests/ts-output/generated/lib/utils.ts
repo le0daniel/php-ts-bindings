@@ -10,6 +10,42 @@ export function queryKey(ns: QueryNamespaces, ...args: unknown[]): [string, ...u
 }
 
 /**
+ * The wire discriminants a server can actually answer with, by name. CLIENT_ERROR has no entry on
+ * purpose: that branch is minted by the client itself, so a body claiming it is never believed.
+ */
+const SERVER_ERROR_CODES: Record<string, number> = {
+    DOMAIN_ERROR: 400,
+    AUTHENTICATION_ERROR: 401,
+    AUTHORIZATION_ERROR: 403,
+    NOT_FOUND: 404,
+    INVALID_INPUT: 422,
+    INTERNAL_ERROR: 500,
+};
+
+/**
+ * Whether a value is an envelope the server can have sent. Anything between the browser and the
+ * handler — a CSRF middleware, a proxy error page — can answer with a status and a body, so
+ * `success`, `type` and `code` have to be present and agree with the catalogue before a body is
+ * believed. The typeof check on `code` is load-bearing: an unknown type looked up in the map
+ * yields undefined, and a missing code must not match it.
+ */
+export function isValidEnvelop(value: unknown): value is Result<unknown, string> {
+    if (!value || typeof value !== 'object') {
+        return false;
+    }
+
+    const {success, code, type} = value as Record<string, unknown>;
+    if (success === true) {
+        return 'data' in value;
+    }
+
+    return success === false
+        && typeof type === 'string'
+        && typeof code === 'number'
+        && SERVER_ERROR_CODES[type] === code;
+}
+
+/**
  * Narrows a Result to its success branch, throwing otherwise, for call sites that would rather
  * catch than branch.
  *

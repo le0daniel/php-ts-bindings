@@ -45,7 +45,8 @@ final readonly class Server
         public OperationRegistry   $registry,
         private ServerAdapter      $adapter = new NewInstanceAdapter(),
         public ServerConfiguration $configuration = new ServerConfiguration(),
-    ) {
+    )
+    {
         $this->executor = new SchemaExecutor();
         $this->classifier = new ErrorClassifier(
             authenticationExceptions: $configuration->unauthenticatedExceptions,
@@ -54,28 +55,28 @@ final readonly class Server
         );
     }
 
-    public function query(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
+    public function query(string $key, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        if (!$this->registry->has(OperationType::QUERY, $name)) {
+        if (!$this->registry->has(OperationType::QUERY, $key)) {
             return $this->present(
-                new OperationNotFoundException("Operation with name: {$name} was not found."),
+                new OperationNotFoundException("Operation with key: {$key} was not found."),
                 null,
             );
         }
 
-        return $this->execute($this->registry->get(OperationType::QUERY, $name), $input, $context, $client);
+        return $this->execute($this->registry->get(OperationType::QUERY, $key), $input, $context, $client);
     }
 
-    public function command(string $name, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
+    public function command(string $key, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        if (!$this->registry->has(OperationType::COMMAND, $name)) {
+        if (!$this->registry->has(OperationType::COMMAND, $key)) {
             return $this->present(
-                new OperationNotFoundException("Operation with name: {$name} was not found."),
+                new OperationNotFoundException("Operation with key: {$key} was not found."),
                 null,
             );
         }
 
-        return $this->execute($this->registry->get(OperationType::COMMAND, $name), $input, $context, $client);
+        return $this->execute($this->registry->get(OperationType::COMMAND, $key), $input, $context, $client);
     }
 
     private function execute(Operation $operation, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
@@ -99,7 +100,7 @@ final readonly class Server
         // middleware must surface as an RpcError, not as an uncaught exception. Nothing was
         // executing yet, so there is no scope whose declarations could apply.
         try {
-            $middlewares = array_map(fn ($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
+            $middlewares = array_map(fn($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
             $controllerClass = $this->adapter->createController($operation->definition->fullyQualifiedClassName);
         } catch (Throwable $throwable) {
             return $this->present($throwable, $resolveInfo);
@@ -107,7 +108,7 @@ final readonly class Server
 
         return new ContextualPipeline(
             middlewares: $middlewares,
-            onError: fn (Throwable $throwable, ?ExceptionScope $scope): RpcError => $this->present(
+            onError: fn(Throwable $throwable, ?ExceptionScope $scope): RpcError => $this->present(
                 $throwable,
                 $resolveInfo,
                 $scope,
@@ -176,47 +177,57 @@ final readonly class Server
      * Presenting may itself throw (a stale class name failing reflection): that is a bug in the
      * setup, not a request-time condition, and it is allowed to escape.
      *
-     * @param  ExceptionScope|null  $scope  the scope the exception came from, or null when nothing
+     * @param ExceptionScope|null $scope the scope the exception came from, or null when nothing
      *                                      was executing (unknown operation, resolution failure) or the failure is the server's own
      *                                      (input/output mismatch): only the classifier applies.
      *
      * @throws ReflectionException
      */
     private function present(
-        Throwable $throwable,
-        ?ResolveInfo $info,
+        Throwable       $throwable,
+        ?ResolveInfo    $info,
         ?ExceptionScope $scope = null,
-    ): RpcError {
-        // If a scope is given, try to resolve the exception within its own declarations. A
-        // globally configured middleware may not expose domain errors - it runs for every
-        // operation, so a domain vocabulary there would leak into all of them.
-        if ($scope) {
-            $definedExceptions = ThrowAttributeResolver::resolveReflection(
-                $scope->toReflection(),
-                allowDomainErrors: !in_array($scope->className, $this->configuration->middleware, true),
-            )['data'];
+    ): RpcError
+    {
+        try {
+            // If a scope is given, try to resolve the exception within its own declarations. A
+            // globally configured middleware may not expose domain errors - it runs for every
+            // operation, so a domain vocabulary there would leak into all of them.
+            if ($scope) {
+                $definedExceptions = ThrowAttributeResolver::resolveReflection(
+                    $scope->toReflection(),
+                    allowDomainErrors: !in_array($scope->className, $this->configuration->middleware, true),
+                )['data'];
 
-            foreach ($definedExceptions as $className => $presentConfig) {
-                if ($throwable instanceof $className) {
-                    return new RpcError(
-                        type: $presentConfig['type'],
-                        cause: $throwable,
-                        details: isset($presentConfig['name']) ? ['name' => $presentConfig['name']] : null,
-                        resolveInfo: $info,
-                    );
+                foreach ($definedExceptions as $className => $presentConfig) {
+                    if ($throwable instanceof $className) {
+                        return new RpcError(
+                            type: $presentConfig['type'],
+                            cause: $throwable,
+                            details: isset($presentConfig['name']) ? ['name' => $presentConfig['name']] : null,
+                            resolveInfo: $info,
+                        );
+                    }
                 }
             }
+
+            $type = $this->classifier->classify($throwable);
+
+            return new RpcError(
+                type: $type,
+                cause: $throwable,
+                details: $type === ErrorType::INVALID_INPUT && $throwable instanceof InvalidInputException
+                    ? ['fields' => $throwable->failure->issues->serializeToFieldsArray()]
+                    : null,
+                resolveInfo: $info,
+            );
+        } catch (Throwable $throwable) {
+            return new RpcError(
+                type: ErrorType::INTERNAL_ERROR,
+                cause: $throwable,
+                details: null,
+                resolveInfo: $info,
+            );
         }
-
-        $type = $this->classifier->classify($throwable);
-
-        return new RpcError(
-            type: $type,
-            cause: $throwable,
-            details: $type === ErrorType::INVALID_INPUT && $throwable instanceof InvalidInputException
-                ? ['fields' => $throwable->failure->issues->serializeToFieldsArray()]
-                : null,
-            resolveInfo: $info,
-        );
     }
 }

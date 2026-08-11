@@ -6,6 +6,7 @@ namespace Tests\Unit\CodeGen;
 
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
@@ -23,7 +24,10 @@ use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 function bindingFiles(): array
 {
     $emitter = new EmitOperationClientBindings();
-    $emitter->setDependencies([EmitTypes::class => new EmitTypes()]);
+    $emitter->setDependencies([
+        EmitTypes::class => new EmitTypes(),
+        EmitTypeUtils::class => new EmitTypeUtils(),
+    ]);
 
     return $emitter->emitFiles(
         [],
@@ -50,10 +54,11 @@ test('declares exactly the imports its body needs', function (string $file, arra
     ]],
     'DefaultClient' => ['DefaultClient', [
         './lib/OperationClient' => ['values' => [], 'types' => ['OperationClient', 'OperationOptions']],
-        './lib/types' => ['values' => [], 'types' => ['Failure', 'Result', 'Success']],
+        './lib/types' => ['values' => [], 'types' => ['Failure', 'Result']],
+        './lib/utils' => ['values' => ['isValidEnvelop'], 'types' => []],
     ]],
     'OperationException' => ['OperationException', [
-        './lib/types' => ['values' => [], 'types' => ['Failure']],
+        './lib/types' => ['values' => [], 'types' => ['ClientError', 'Failure']],
     ]],
     // DefaultClient is constructed, so it is a value import; a type only import would leave
     // `new DefaultClient(...)` referencing nothing at runtime.
@@ -105,20 +110,49 @@ test('a throw anywhere in the request becomes the client envelope, keeping the o
 });
 
 /**
- * The shape is declared once, in the types file, and referenced everywhere else. A second literal
- * here would be a second definition free to drift from the one operations are typed against.
+ * The status line is never consulted: a CSRF middleware answering 419 with its own JSON, a proxy
+ * answering 502 with an HTML page, or a framework writing a 200 around garbage all set whatever
+ * status they like. Only the body can prove the server answered, so every response — ok or not —
+ * goes through the envelope guard and is returned exactly as parsed when it passes.
  */
+test('every response goes through the envelope guard, whatever the status line said', function () {
+    expect(bindingFiles()['DefaultClient']->toString())
+        ->toContain('const json: unknown = await response.json().catch(() => undefined);')
+        ->toContain('if (isValidEnvelop(json)) {')
+        ->toContain('return await this.callHooks(json as Result<O, TDomainType>);')
+        ->not->toContain('response.ok')
+        ->not->toContain('json?.code ?? response.status')
+        ->not->toContain("json?.type ?? 'INTERNAL_ERROR'");
+});
+
 /**
- * Zero is a real code, assigned by the client itself. The fallback guards a malformed envelope — a
- * code that is not a number — and a falsy check would fold the client branch into it, reporting a
- * request that never left as a 500 while isClientError says otherwise.
+ * What was actually received survives on the minted envelope: the status always, the parsed body
+ * only when there was one to parse — an absent key rather than an undefined value.
  */
-test('the exception reports the client code rather than treating zero as missing', function () {
+test('a response that is not the envelope becomes the client branch carrying what was received', function () {
+    expect(bindingFiles()['DefaultClient']->toString())
+        ->toContain('cause: new Error(`Invalid response envelope (HTTP status ${response.status})`),')
+        ->toContain('? {httpStatusCode: response.status}')
+        ->toContain(': {httpStatusCode: response.status, jsonResponse: json},');
+});
+
+/**
+ * Zero is a real code, assigned by the client itself. A method rather than a getter, because
+ * TypeScript allows a type predicate only on a function — and the predicate is what narrows
+ * `cause` to the client branch at the call site.
+ */
+test('the exception narrows to the client branch through a type-guard method', function () {
     expect(bindingFiles()['OperationException']->toString())
+        ->toContain('public isClientError(): this is OperationException<TDomainType> & {cause: Failure<TDomainType> & ClientError} {')
         ->toContain('return this.cause.code === 0;')
+        ->not->toContain('get isClientError')
         ->not->toContain('!code ||');
 });
 
+/**
+ * The shape is declared once, in the types file, and referenced everywhere else. A second literal
+ * here would be a second definition free to drift from the one operations are typed against.
+ */
 test('no client file restates the envelope type it imports', function () {
     // The runtime literal it constructs is not the declaration: that one lives in the types file,
     // and a second copy here would be free to drift from what operations are typed against.
@@ -176,14 +210,16 @@ test('no body hand-writes an import line', function () {
     expect($raw)->toBe([]);
 });
 
-test('every import names a file this generator emits, or the types file', function () {
+// utils is allowed alongside types: the envelope guard the transport gates every response through
+// is the utils generator's, declared as a dependency the same way EmitTypes is.
+test('every import names a file this generator emits, the types file, or the utils file', function () {
     $emitted = array_keys(bindingFiles());
 
     $unknown = [];
     foreach (bindingFiles() as $file) {
         foreach ($file->imports as $import) {
             $name = str_replace('./lib/', '', $import->from);
-            if ($name !== 'types' && ! in_array($name, $emitted, true)) {
+            if ($name !== 'types' && $name !== 'utils' && ! in_array($name, $emitted, true)) {
                 $unknown[] = $import->from;
             }
         }

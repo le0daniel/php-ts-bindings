@@ -15,8 +15,8 @@ use Le0daniel\PhpTsBindings\Utils\Assertions;
 use Override;
 
 /**
- * Not readonly: the EmitTypes its files import from is injected after construction, which is the
- * only way it can be the same instance the generator runs.
+ * Not readonly: the EmitTypes and EmitTypeUtils its files import from are injected after
+ * construction, which is the only way they can be the same instances the generator runs.
  */
 final class EmitOperationClientBindings implements DependsOn, GeneratesLibFiles
 {
@@ -29,6 +29,8 @@ final class EmitOperationClientBindings implements DependsOn, GeneratesLibFiles
     private const string OPERATION_EXCEPTION_FILE = 'OperationException';
 
     private EmitTypes $types;
+
+    private EmitTypeUtils $utils;
 
     /**
      * One method per file this generator writes, so nothing outside spells a file name it does not
@@ -91,6 +93,7 @@ final class EmitOperationClientBindings implements DependsOn, GeneratesLibFiles
     {
         return [
             EmitTypes::class,
+            EmitTypeUtils::class,
         ];
     }
 
@@ -100,6 +103,10 @@ final class EmitOperationClientBindings implements DependsOn, GeneratesLibFiles
         $this->types = Assertions::instanceOf(
             EmitTypes::class,
             $dependencies[EmitTypes::class] ?? null,
+        );
+        $this->utils = Assertions::instanceOf(
+            EmitTypeUtils::class,
+            $dependencies[EmitTypeUtils::class] ?? null,
         );
     }
 
@@ -219,23 +226,24 @@ export class DefaultClient implements OperationClient {
                 body: type === 'command' ? JSON.stringify(input) : undefined,
             });
 
-            const json = await response.json();
-            if (!json || typeof json !== 'object') {
-                throw new Error('Invalid response body. Could not parse json correctly.');
-            }
-
-            // Spread first: whatever the server put next to the envelope — a client's directives, say —
-            // rides along untyped rather than being dropped by a transport that never knew about it.
-            if (response.ok) {
-                return await this.callHooks({...json, success: true} as Success<O>);
+            // The status line is never consulted: anything between the browser and the handler can
+            // write one, so only the body can prove the server answered. A valid envelope is
+            // returned exactly as parsed, success or failure — whatever the server put next to it
+            // (a client's directives, say) rides along untouched.
+            const json: unknown = await response.json().catch(() => undefined);
+            if (isValidEnvelop(json)) {
+                return await this.callHooks(json as Result<O, TDomainType>);
             }
 
             return await this.callHooks({
-                ...json,
                 success: false,
-                code: json?.code ?? response.status,
-                type: json?.type ?? 'INTERNAL_ERROR'
-            } as Failure<TDomainType>);
+                code: 0,
+                type: 'CLIENT_ERROR',
+                cause: new Error(`Invalid response envelope (HTTP status ${response.status})`),
+                response: json === undefined
+                    ? {httpStatusCode: response.status}
+                    : {httpStatusCode: response.status, jsonResponse: json},
+            } satisfies Failure);
         } catch (e: unknown) {
             // Anything thrown between here and the response being read: the request never completed,
             // so there is no server error to report and the cause is the answer. It is carried as
@@ -259,7 +267,8 @@ export class DefaultClient implements OperationClient {
 }
 TypeScript, [
                 $this->importFromOperationClient(types: ['OperationClient', 'OperationOptions']),
-                $this->types->importFromTypes(types: ['Failure', 'Result', 'Success']),
+                $this->types->importFromTypes(types: ['Failure', 'Result']),
+                $this->utils->importFromUtils(values: ['isValidEnvelop']),
             ]),
             self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<'TypeScript'
 /**
@@ -270,10 +279,12 @@ export class OperationException<TDomainType extends string = string> extends Err
     public readonly cause: Failure<TDomainType>;
 
     /**
-     * The request never reached the server, so nothing here came off the wire and `cause.cause`
-     * holds the exception that actually stopped it.
+     * No server answered this one — the request never left, or what came back was not the server's
+     * envelope — so nothing on it came off the wire and `cause.cause` holds the exception that
+     * stopped it. A method rather than a getter, because TypeScript allows a type predicate only on
+     * a function: calling it narrows `cause` to the client branch.
      */
-    get isClientError(): boolean {
+    public isClientError(): this is OperationException<TDomainType> & {cause: Failure<TDomainType> & ClientError} {
         return this.cause.code === 0;
     }
 
@@ -291,7 +302,7 @@ export class OperationException<TDomainType extends string = string> extends Err
     }
 }
 TypeScript, [
-                $this->types->importFromTypes(types: ['Failure']),
+                $this->types->importFromTypes(types: ['ClientError', 'Failure']),
             ]),
             self::BINDINGS_FILE => new TypescriptFile(<<<TypeScript
 let client: OperationClient|null;

@@ -8,6 +8,9 @@ use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 
+/**
+ * @internal
+ */
 final class InvalidOutputException extends SchemaException
 {
     public Issues $issues {

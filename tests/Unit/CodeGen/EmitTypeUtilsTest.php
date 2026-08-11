@@ -12,6 +12,7 @@ use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
@@ -81,6 +82,33 @@ test('the utils carry no knowledge of any specific client implementation', funct
         ->not->toContain('operations-spa')
         ->not->toContain('ClientToast')
         ->not->toContain('ClientRedirect');
+});
+
+/**
+ * The guard is a public util, not transport-private: what the transport itself trusts, an
+ * application can reuse on any payload claiming to be an envelope. CLIENT_ERROR has no entry on
+ * purpose — that branch is minted by the client itself, so a body claiming it is never believed.
+ */
+test('isValidEnvelop only believes what the server can actually send', function () {
+    expect(emitUtilsFor())
+        ->toContain('export function isValidEnvelop(value: unknown): value is Result<unknown, string> {')
+        ->toContain('const SERVER_ERROR_CODES: Record<string, number> = {')
+        ->toContain("&& typeof code === 'number'")
+        ->toContain('&& SERVER_ERROR_CODES[type] === code;')
+        ->not->toContain('CLIENT_ERROR: 0');
+});
+
+/**
+ * The map in the emitted guard and the ErrorType enum are two literals, so this is the guard
+ * against drift between them: a case added to the enum and forgotten in the heredoc would make the
+ * client refuse a category the server really answers with.
+ */
+test('the guard map mirrors the ErrorType catalogue', function () {
+    $utils = emitUtilsFor();
+
+    foreach (ErrorType::cases() as $case) {
+        expect($utils)->toContain("{$case->name}: {$case->value},");
+    }
 });
 
 test('imports the envelope as types and the exception as a value', function () {

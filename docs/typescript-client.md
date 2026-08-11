@@ -46,7 +46,7 @@ Every call resolves to:
 ```typescript
 export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
 export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
-    & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+    & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
 export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
 ```
 
@@ -96,6 +96,15 @@ runs a callback on every response and returns a function that unregisters it. Sw
 transport by implementing `OperationClient` — `setClient()` and the per-call `options.client` both
 take one.
 
+The status line is never consulted. Anything between the browser and the handler — a CSRF
+middleware, a throttler, a proxy's error page — can write both a status and a body, so every
+response goes through `isValidEnvelop` from `lib/utils.ts` instead: a valid envelope (success or
+failure) is returned exactly as parsed, whatever the status said, and anything else becomes
+[`CLIENT_ERROR`](errors.md#the-client-error) with the raw `response` (`httpStatusCode`, and
+`jsonResponse` when the body parsed as JSON) attached. The guard is exported, so a payload from
+anywhere else — SSR state, a cache — can be believed or refused the same way before being read as
+an envelope.
+
 The URLs come from `ServerMetadata('/query/{fqn}', '/command/{fqn}')`, the two routes *your*
 transport serves. `{fqn}` is where the operation key goes, and both are required to contain it.
 
@@ -114,7 +123,7 @@ try {
 } catch (e) {
     if (OperationException.is<GetDomainErrors>(e)) {
         e.cause.type;   // "INVALID_INPUT" | "NOT_FOUND" | ...
-        e.code;         // the HTTP code, 500 if the payload had none
+        e.code;         // the category's code — only a validated envelope ever gets here
     }
     throw e;
 }

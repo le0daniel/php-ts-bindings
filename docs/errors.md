@@ -40,9 +40,9 @@ which of *its* exceptions belong in which category, with
 exist.
 
 Six is what a *server* can answer. A client has one more failure available to it — the request that
-never arrived — and that one is [`CLIENT_ERROR`](#the-client-error), code 0. It is deliberately not
-an `ErrorType`: nothing on the server can produce it, and giving the server a case for it would
-be claiming otherwise.
+never arrived, or was answered by something other than the server — and that one is
+[`CLIENT_ERROR`](#the-client-error), code 0. It is deliberately not an `ErrorType`: nothing on the
+server can produce it, and giving the server a case for it would be claiming otherwise.
 
 ## Exposing a domain error
 
@@ -101,7 +101,7 @@ export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
 export type NotFoundError = {code: 404, type: "NOT_FOUND"};
 export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};
 export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
-export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};
+export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error, response?: {httpStatusCode: number, jsonResponse?: unknown}};
 ```
 
 Because the catalogue is closed, `Failure` is the *union* of all of it rather than a hole for
@@ -153,27 +153,40 @@ function isWorthRetrying(error: ClientError | InternalError): boolean { /* ... *
 
 ## The client error
 
-**`CLIENT_ERROR` is the branch no server sends.** The request never got there — the network was
-down, the response was not JSON, the call was cancelled — so there is no envelope to report and the
-client mints one, with code 0 and the exception itself under `cause`:
+**`CLIENT_ERROR` is the branch no server sends.** The request never got there — or something
+answered in the server's place. The network was down, the call was cancelled, a CSRF middleware
+answered 419 with its own JSON, a proxy answered 502 with an HTML page, a framework wrapped a 200
+around garbage. `DefaultClient` never consults the status line: every response goes through
+`isValidEnvelop` from `lib/utils.ts`, and only a body that is the server's own envelope — `success`,
+and on failure a known `type` with the `code` that type owns — is reported as the server's answer.
+Anything else mints this branch, with code 0 and the exception itself under `cause`:
 
 ```typescript
 const result = await lock({id});
 if (!result.success && result.code === 0) {
-    console.error(result.cause.message);   // cause: Error
+    console.error(result.cause.message);              // cause: Error
+    console.warn(result.response?.httpStatusCode);    // 419, when HTTP answered at all
+    console.debug(result.response?.jsonResponse);     // the body, when it parsed as JSON
 }
 ```
 
-It is carried rather than summarised, which matters for cancellation: `throwOnFailure` rethrows an
-`AbortError` as the `DOMException` it was, so a Tanstack refetch aborting its predecessor is not
-reported as a failed query. A re-wrapped copy would no longer be that exception.
+When an HTTP response did arrive, what was received survives under `response`: `httpStatusCode`
+always, `jsonResponse` only when the body parsed as JSON. A request that never completed has no
+`response` key at all, so its presence is what separates "something answered wrongly" from "nothing
+answered". It lives on the envelope only — `throwOnFailure` rethrows the bare `cause`, so there is
+no `response` to find in a catch block.
+
+The cause is carried rather than summarised, which matters for cancellation: `throwOnFailure`
+rethrows an `AbortError` as the `DOMException` it was, so a Tanstack refetch aborting its
+predecessor is not reported as a failed query. A re-wrapped copy would no longer be that exception.
 
 Every client can produce it, and no signature has to say so: the branch is part of every `Failure`,
 so `OperationClient.execute` returning `Promise<Result<O, TDomainType>>` already includes it whatever
 the operation exposed. There is nothing for an implementation to remember to add.
 
 Reached through `OperationException`, the envelope is `e.cause` and the original exception is
-`e.cause.cause`; `e.isClientError` is the shorter way to ask.
+`e.cause.cause`; `e.isClientError()` is the shorter way to ask — a type guard, so past it `e.cause`
+*is* the client branch.
 
 ## When `details` appears
 
@@ -183,8 +196,9 @@ domain error it is. For the other four, `code` and `type` are the whole answer a
 under `details` would put the same string on the wire twice, so the key is absent — and the
 generated branch has no such property, so narrowing on `type` will not offer you one.
 
-`CLIENT_ERROR` has no `details` either. What it carries instead is `cause`, and that is a live
-`Error` rather than anything that came off the wire — the one branch whose payload was never JSON.
+`CLIENT_ERROR` has no `details` either. What it carries instead is `cause` — a live `Error` rather
+than anything that came off the wire — and, when an HTTP response did arrive, the raw `response`
+next to it.
 
 This is why `jsonSerialize()` is the only thing that gets the envelope exactly right: it omits the
 key rather than sending `null`, which is what the generated union declares.

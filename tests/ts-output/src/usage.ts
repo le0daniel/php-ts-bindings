@@ -14,7 +14,7 @@ import {containsOperationSpaPayload} from '../generated/lib/client-operations-sp
 import {OperationException} from '../generated/lib/OperationException';
 import type {Brand, ClientError, Failure, InternalError, Product} from '../generated/lib/types';
 import type {TypeMap} from '../generated/lib/type-map';
-import {throwOnFailure} from '../generated/lib/utils';
+import {isValidEnvelop, throwOnFailure} from '../generated/lib/utils';
 import {defaults, submit, useDefaultsQuery} from '../generated/shapes';
 
 setClient(createDefaultClient(fetch));
@@ -295,4 +295,66 @@ export async function clientChannelIsNamedButNotDescribed(id: number): Promise<v
     if (containsOperationSpaPayload(result)) {
         console.debug(result.__client.type satisfies 'operations-spa');
     }
+}
+
+/**
+ * A failed HTTP status is not blindly a server failure: a body that is not the server's envelope
+ * arrives as the client branch, carrying the raw response for whoever wants to look.
+ */
+export async function inspectRawResponse(): Promise<void> {
+    const result = await product({id: productId});
+    if (result.success) {
+        return;
+    }
+
+    if (result.code === 0) {
+        // Only the client branch carries it, and it is optional: a request that never left has no
+        // response at all, and a non-JSON body has no jsonResponse.
+        const status: number | undefined = result.response?.httpStatusCode;
+        const body: unknown = result.response?.jsonResponse;
+        console.warn('not a server answer', status, body, result.cause.message);
+        return;
+    }
+
+    // A real server failure has nothing raw to show — the envelope is the answer.
+    // @ts-expect-error
+    console.debug(result.response);
+}
+
+/**
+ * The guard the transport itself trusts is exported, so a payload from anywhere else — SSR state,
+ * a cache — can be believed (or not) the same way, and past it the value is the envelope.
+ */
+export function readEmbeddedEnvelope(raw: unknown): unknown {
+    if (!isValidEnvelop(raw)) {
+        return null;
+    }
+
+    return raw.success ? raw.data : raw.code;
+}
+
+/**
+ * isClientError is a method and a type guard: past it, `cause` *is* the client branch — which a
+ * getter could never say, because TypeScript allows a predicate only on a function.
+ */
+export function reportFailure(error: OperationException<ProductDomainErrors>): string {
+    // Before the guard the union still holds every branch, so the client-only keys are not there.
+    // @ts-expect-error
+    console.debug(error.cause.response);
+
+    // The old getter shape is gone; an unmigrated call site reads a truthy function and fails to
+    // compile rather than silently taking every failure for a client one.
+    // @ts-expect-error
+    if (error.isClientError) {
+        console.debug('unreachable');
+    }
+
+    if (error.isClientError()) {
+        const cause: Error = error.cause.cause;
+        const status: number | undefined = error.cause.response?.httpStatusCode;
+        error.cause.type satisfies 'CLIENT_ERROR';
+        return `${cause.message} (${status ?? 'no response'})`;
+    }
+
+    return error.message;
 }

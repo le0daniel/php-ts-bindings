@@ -112,7 +112,7 @@ test('the finite error catalogue is declared in the types file', function () {
         ->toContain('export type NotFoundError = {code: 404, type: "NOT_FOUND"};')
         ->toContain('export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};')
         ->toContain('export type InternalError = {code: 500, type: "INTERNAL_ERROR"};')
-        ->toContain('export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};');
+        ->toContain('export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error, response?: {httpStatusCode: number, jsonResponse?: unknown}};');
 });
 
 /**
