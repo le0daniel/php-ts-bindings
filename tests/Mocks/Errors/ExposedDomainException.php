@@ -7,7 +7,7 @@ namespace Tests\Mocks\Errors;
 use Exception;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 
-#[ExposeAs('domain_failure')]
+#[ExposeAs(name: 'domain_failure')]
 final class ExposedDomainException extends Exception
 {
 }

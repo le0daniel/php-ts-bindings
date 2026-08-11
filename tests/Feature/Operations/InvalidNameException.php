@@ -6,7 +6,7 @@ namespace Tests\Feature\Operations;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 
-#[ExposeAs('invalid_name')]
+#[ExposeAs(name: 'invalid_name')]
 final class InvalidNameException extends \Exception
 {
 }

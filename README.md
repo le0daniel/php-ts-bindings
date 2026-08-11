@@ -263,17 +263,22 @@ is proven before your handler sees it. Output is your own code, so a mismatch is
 something the client is asked to handle — and refinements are checked on the way in only, because
 static analysis already established them on the way out.
 
-**`query()` and `command()` are total.** Every `Throwable` — including one thrown while resolving
-your handler, or while working out how to present another error — comes back as an `RpcError`.
-`$next()` inside a middleware never throws either, so post-processing runs whether the operation
-succeeded or failed. A transport never needs a `try`.
+**`query()` and `command()` return an `RpcError` for every failure of your operation.** An
+exception from a handler or middleware — including one thrown while resolving your handler — comes
+back as an `RpcError`, and `$next()` inside a middleware never throws, so post-processing runs
+whether the operation succeeded or failed. The one thing that escapes as an exception is a failure
+of error presentation itself (a stale class name failing reflection): that is a bug in the setup,
+not a request, and burying it in a substitute 500 would only hide it.
 
 **Six error categories, and nothing is exposed by accident.** Surfacing a domain error takes a
 `#[Throws]` declaration *and* a name; everything unrecognised is a 500. The category list is closed
 on purpose — it is what the server needs to run, not an extension point.
 
-**Runtime and codegen read the same attributes.** `ErrorPresenter` and the TypeScript error union
-consult one source, so the generated union cannot describe responses the server does not produce.
+**Runtime and codegen read the same attributes.** The server and the TypeScript error union consult
+one source — the `#[Throws]` declarations resolved per scope — so the generated union cannot
+describe responses the server does not produce. A declaration covers throws from its own scope only:
+the operation method, or the middleware that declared it. A middleware registered globally through
+`ServerConfiguration` cannot expose domain errors at all.
 
 **Codegen is a build step.** The client lives in your repo, nothing is published to npm, and
 `OutputDirectory` only ever touches files carrying its own marker — so it cannot delete or overwrite
@@ -314,34 +319,34 @@ Every failure the server can produce is one of six categories:
 | 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* gave a name |
 | 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
 
-The table is in resolution order, and the first match wins. That order is why `DOMAIN_ERROR` sits
-second to last: an exception you have explicitly mapped onto a category stays in that category even
-when it is named for the client.
+The scope that threw is consulted first: a `#[Throws]` declaration on the throwing method — the
+operation handler or a middleware's `handle()` — decides the category, and only where that scope
+declared nothing do the configured category lists apply. Everything unrecognised is a 500.
 
 A client has one more failure available to it, and no server sends it: `CLIENT_ERROR`, code 0, for
 the request that never arrived. It carries the exception that stopped it under `cause` instead of
 `details`.
 
-Exposing a domain error takes both a declaration and a name — `#[Throws]` on the operation, and
-either `as:` on that declaration or `#[ExposeAs]` on the exception class:
+Exposing a domain error takes both a declaration and a name — `#[Throws]` on the throwing scope, and
+either `name:` on that declaration or `#[ExposeAs]` on the exception class:
 
 ```php
 #[Command('users')]
-#[Throws(InvalidNameException::class, as: 'invalid-name')]
+#[Throws(InvalidNameException::class, name: 'invalid-name')]
 public function create(array $input): array { /* ... */ }
 ```
 
 ```json
-{"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"type": "invalid-name"}}
+{"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"name": "invalid-name"}}
 ```
 
-Because the catalogue is closed, `Failure` is the union of what your server can produce rather than a
-hole for whatever a call site passes. The only thing an operation adds to it is which exceptions it
-exposed, so that is the only thing it takes:
+Because the catalogue is closed, `Failure` is the union of all of it rather than a hole for whatever
+a call site passes. The only thing an operation adds to it is which exceptions it exposed, so that
+is the only thing it takes:
 
 ```typescript
 export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
-    & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+    & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
 ```
 
 ```typescript

@@ -381,14 +381,6 @@ test('directives queued before a failure never reach the client', function () {
     $request = Request::create('/query/docs.method', 'GET', ['name' => 'some_value']);
     $request->headers->set(OperationClientFactory::CLIENT_ID_HEADER, 'operations-spa');
 
-    $operationDefinition = new Definition(OperationType::QUERY, 'MyClass', 'someMethod', 'method', 'docs', []);
-    $operation = new Operation(
-        'somekey',
-        $operationDefinition,
-        fn () => $typeParser->parse('array{name: string}'),
-        fn () => $typeParser->parse('array{id: string, name: string}'),
-    );
-
     $controllerInstance = new class () {
         public function someMethod(array $input, null $context, Client $client): array
         {
@@ -396,9 +388,20 @@ test('directives queued before a failure never reach the client', function () {
             $client->redirect('/docs/123');
             $client->invalidate('docs');
 
-            throw new RuntimeException('the save did not happen after all');
+            throw new \RuntimeException('the save did not happen after all');
         }
     };
+
+    // The real class name, not a placeholder: the handler throws, so the server reflects this
+    // scope's #[Throws] declarations - a class that does not exist would escape as a
+    // ReflectionException instead of presenting the 500.
+    $operationDefinition = new Definition(OperationType::QUERY, $controllerInstance::class, 'someMethod', 'method', 'docs', []);
+    $operation = new Operation(
+        'somekey',
+        $operationDefinition,
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
+    );
 
     $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
     $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);

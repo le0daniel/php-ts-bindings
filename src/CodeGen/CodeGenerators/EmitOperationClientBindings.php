@@ -263,7 +263,7 @@ TypeScript, [
             ]),
             self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<'TypeScript'
 /**
- * Generic over the names the operation exposed, so `e.cause.details.type` narrows to those rather
+ * Generic over the names the operation exposed, so `e.cause.details.name` narrows to those rather
  * than to any string. The rest of the catalogue is the server's and needs no naming here.
  */
 export class OperationException<TDomainType extends string = string> extends Error {

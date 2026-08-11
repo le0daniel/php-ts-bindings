@@ -6,7 +6,6 @@ namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
@@ -21,24 +20,25 @@ final readonly class EmitTypes implements GeneratesLibFiles
 
     /**
      * Declarations this file always contains. An alias claiming one of these names would generate
-     * a second, conflicting declaration right next to them.
+     * a second, conflicting declaration right next to them. The envelope names mirror the
+     * declarations in the heredoc below - a branch added there needs its name added here.
      *
-     * The error envelopes are asked of the catalogue rather than copied out of it: a branch added
-     * there and forgotten here is a user alias free to shadow it.
-     *
-     * @return list<string>
+     * @var list<string>
      */
-    private static function reservedAliases(): array
-    {
-        return [
-            'Brand',
-            'Success',
-            'Failure',
-            'Result',
-            'OperationNamespaces',
-            ...ErrorTypescript::envelopeNames(),
-        ];
-    }
+    private const array RESERVED_ALIASES = [
+        'Brand',
+        'Success',
+        'Failure',
+        'Result',
+        'OperationNamespaces',
+        'InvalidInputError',
+        'AuthenticationError',
+        'AuthorizationError',
+        'NotFoundError',
+        'DomainError',
+        'InternalError',
+        'ClientError',
+    ];
 
     /**
      * Every declaration above lives in this file, so importing one is asking here for it. Not
@@ -63,9 +63,8 @@ final readonly class EmitTypes implements GeneratesLibFiles
     #[Override]
     public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
     {
-        $reserved = self::reservedAliases();
         foreach ($registry->usedAliases() as $alias) {
-            if (in_array($alias, $reserved, true)) {
+            if (in_array($alias, self::RESERVED_ALIASES, true)) {
                 throw UnsupportedTypeException::reservedAlias($alias);
             }
         }
@@ -78,16 +77,6 @@ final readonly class EmitTypes implements GeneratesLibFiles
                 $uniqueNamespaces[] = $namespace;
             }
         }
-
-        // Declared here and referenced everywhere else: Failure names these rather than restating
-        // their shapes, and only this file resolves the names.
-        $errorEnvelopes = ErrorTypescript::envelopeDeclarations();
-
-        // Which of them Failure is a union of depends on how this server maps exceptions onto them,
-        // which is why it is emitted per run rather than written out here.
-        $failureUnion = ErrorTypescript::failureUnion($metadata->configuration);
-        $domainTypeParameter = ErrorTypescript::DOMAIN_TYPE_PARAMETER;
-        $noDomainTypes = ErrorTypescript::NO_DOMAIN_TYPES;
 
         // The shared registry holds every alias any pass produced; the types file declares them
         // all, so every operation file can import any key of its own definitions' registries.
@@ -104,13 +93,19 @@ export type OperationNamespaces = {$this->generateNamespaceUnion($uniqueNamespac
  * The finite error catalogue. Every failure is one of these, which is why Failure below is their
  * union rather than a hole for one. DomainError is the only branch whose payload varies per
  * operation - the names that operation exposed - and the only one declared conditionally: on
- * `{$noDomainTypes}` it collapses, so an operation exposing nothing has no 400 branch to narrow to.
+ * `never` it collapses, so an operation exposing nothing has no 400 branch to narrow to.
  */
-{$errorEnvelopes}
+export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}};
+export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};
+export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
+export type NotFoundError = {code: 404, type: "NOT_FOUND"};
+export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};
+export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
+export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};
 
 export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
-export type Failure<{$domainTypeParameter} extends string = {$noDomainTypes}> = {success: false, __metadata?: Record<string, unknown>} & ({$failureUnion});
-export type Result<T, {$domainTypeParameter} extends string = {$noDomainTypes}> = Success<T> | Failure<{$domainTypeParameter}>;
+export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
 
 declare const __brand: unique symbol;
 export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};

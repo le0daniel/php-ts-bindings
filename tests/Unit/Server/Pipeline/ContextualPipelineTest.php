@@ -13,6 +13,7 @@ use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
+use Le0daniel\PhpTsBindings\Server\Errors\ExceptionScope;
 use Le0daniel\PhpTsBindings\Server\Pipeline\ContextualPipeline;
 use RuntimeException;
 use stdClass;
@@ -38,13 +39,13 @@ function trace(RpcSuccess|RpcError $result, string $entry): RpcSuccess|RpcError
 /**
  * @param  list<MiddlewareContract<string>>  $middlewares
  * @param  Closure(mixed): (RpcSuccess|RpcError)  $destination
- * @param  (Closure(Throwable): RpcError)|null  $onError
+ * @param  (Closure(Throwable, ExceptionScope): RpcError)|null  $onError
  */
 function runPipeline(array $middlewares, Closure $destination, ?Closure $onError = null): RpcSuccess|RpcError
 {
     return new ContextualPipeline(
         middlewares: $middlewares,
-        onError: $onError ?? fn (Throwable $throwable): RpcError => new RpcError(
+        onError: $onError ?? fn (Throwable $throwable, ?ExceptionScope $scope): RpcError => new RpcError(
             ErrorType::INTERNAL_ERROR,
             $throwable,
             ['type' => 'PRESENTED'],
@@ -164,6 +165,51 @@ test('a throwing destination becomes an RpcError handed back to the innermost mi
         ->and($result->cause->getMessage())->toBe('destination exploded');
 });
 
+test('onError receives the full scope of the middleware whose ring threw', function () {
+    $seenScope = null;
+    $throwing = middleware(function (): RpcSuccess|RpcError {
+        throw new RuntimeException('inner exploded');
+    });
+
+    runPipeline(
+        [
+            middleware(fn (mixed $input, Closure $next): RpcSuccess|RpcError => $next($input)),
+            $throwing,
+        ],
+        fn (): RpcSuccess => succeed(),
+        function (Throwable $throwable, ExceptionScope $scope) use (&$seenScope): RpcError {
+            $seenScope = $scope;
+
+            return new RpcError(ErrorType::INTERNAL_ERROR, $throwable, null, pipelineResolveInfo());
+        },
+    );
+
+    expect($seenScope)->toBeInstanceOf(ExceptionScope::class)
+        ->and($seenScope->className)->toBe($throwing::class)
+        ->and($seenScope->methodName)->toBe('handle');
+});
+
+test('onError receives null when the destination threw', function () {
+    $seenScope = null;
+
+    runPipeline(
+        // The middleware between the destination and the surface must not become the scope: the
+        // conversion happens where the throw happened, not at the outermost ring.
+        [middleware(fn (mixed $input, Closure $next): RpcSuccess|RpcError => $next($input))],
+        function (): RpcSuccess {
+            throw new RuntimeException('destination exploded');
+        },
+        function (Throwable $throwable, ?ExceptionScope $scope) use (&$seenScope): RpcError {
+            $seenScope = $scope;
+
+            return new RpcError(ErrorType::INTERNAL_ERROR, $throwable, null, pipelineResolveInfo());
+        },
+    );
+
+    // The class and method come from the ResolveInfo the pipeline executes under.
+    expect($seenScope)->toBeNull();
+});
+
 test('an RpcError returned by a middleware travels outward untouched', function () {
     $presented = 0;
 
@@ -178,7 +224,7 @@ test('an RpcError returned by a middleware travels outward untouched', function 
             )),
         ],
         fn (): RpcSuccess => succeed(),
-        function (Throwable $throwable) use (&$presented): RpcError {
+        function (Throwable $throwable, ExceptionScope $scope) use (&$presented): RpcError {
             $presented++;
 
             return new RpcError(ErrorType::INTERNAL_ERROR, $throwable, ['type' => 'PRESENTED'], pipelineResolveInfo());
@@ -192,8 +238,11 @@ test('an RpcError returned by a middleware travels outward untouched', function 
         ->and($presented)->toBe(0);
 });
 
-test('the pipeline still returns an RpcError when the error handler itself fails', function () {
-    $result = runPipeline(
+test('a throwing error handler escapes the pipeline', function () {
+    // onError must never throw - presenting is the server's job and there is nobody here to ask
+    // for an envelope when presenting itself fails. Substituting one would only bury the bug, so
+    // the failure escapes as itself.
+    expect(fn () => runPipeline(
         [
             middleware(function (): RpcSuccess|RpcError {
                 throw new RuntimeException('inner exploded');
@@ -203,14 +252,5 @@ test('the pipeline still returns an RpcError when the error handler itself fails
         function (): RpcError {
             throw new RuntimeException('the presenter is broken too');
         },
-    );
-
-    expect($result)->toBeInstanceOf(RpcError::class)
-        ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($result->details)->toBeNull()
-        ->and($result->cause->getMessage())->toBe('the presenter is broken too')
-        // The failure that got the presenter called is not lost just because the presenter failed.
-        ->and($result->previous)->toHaveCount(1)
-        ->and($result->previous[0]->getMessage())->toBe('inner exploded')
-        ->and($result->resolveInfo?->fullyQualifiedName)->toBe('test.operation');
+    ))->toThrow(RuntimeException::class, 'the presenter is broken too');
 });

@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 /**
  * Declared with #[Throws] and exposed, so it becomes one branch of the operation's DOMAIN_ERROR.
  */
-#[ExposeAs('account_locked')]
+#[ExposeAs(name: 'account_locked')]
 final class AccountLockedException extends Exception
 {
 }

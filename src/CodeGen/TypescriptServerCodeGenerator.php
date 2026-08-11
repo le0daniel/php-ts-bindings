@@ -17,10 +17,12 @@ use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Errors\ThrowAttributeResolver;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
+use ReflectionMethod;
 
 final readonly class TypescriptServerCodeGenerator
 {
@@ -94,6 +96,23 @@ final readonly class TypescriptServerCodeGenerator
      */
     public function generate(Server $server, ServerMetadata $metadata, array $ignore = []): array
     {
+        // A globally configured middleware runs for every operation, so its #[Throws] declarations
+        // take part in no operation's vocabulary: a domain error there would leak one operation's
+        // names into all of them. The runtime silently ignores such a declaration and answers 500,
+        // which is exactly why it is refused loudly here, at build time.
+        foreach ($server->configuration->middleware as $middlewareClass) {
+            $issues = ThrowAttributeResolver::resolveReflection(
+                new ReflectionMethod($middlewareClass, 'handle'),
+                allowDomainErrors: false,
+            )['issues'];
+
+            if (count($issues) > 0) {
+                throw new CodeGenException(
+                    "Invalid #[Throws] declarations on globally configured middleware {$middlewareClass}: ".implode(' ', $issues),
+                );
+            }
+        }
+
         /**
          * Filter out some operations that are not needed.
          *
@@ -112,7 +131,7 @@ final readonly class TypescriptServerCodeGenerator
 
         // Bound once: inputNode()/outputNode() run the parse closure on every call, so asking twice
         // parses every schema in the run twice.
-        $definitions = array_map(function (Operation $operation) use ($server, $registry): TypedOperation {
+        $definitions = array_map(function (Operation $operation) use ($registry): TypedOperation {
             $inputNode = $operation->inputNode();
             $outputNode = $operation->outputNode();
 
@@ -122,7 +141,7 @@ final readonly class TypescriptServerCodeGenerator
             return new TypedOperation(
                 inputDef: $this->typescriptGenerator->toTypescript($inputNode, IO::INPUT, $registry),
                 outputDef: $this->typescriptGenerator->toTypescript($outputNode, IO::OUTPUT, $registry),
-                domainErrors: ErrorTypescript::domainTypesFor($server->configuration, $operation->definition),
+                domainErrors: ErrorTypescript::domainTypesFor($operation->definition),
                 operation: $operation,
             );
         }, $filteredDefinitions);

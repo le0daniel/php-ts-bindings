@@ -83,6 +83,11 @@ return [
      * A list of global middleware class names run on every single Operation (Query and Command).
      * Every class must implement Le0daniel\PhpTsBindings\Contracts\MiddlewareContract.
      *
+     * A global middleware cannot expose domain errors: a #[Throws(..., name: ...)] on its handle()
+     * would leak one operation's vocabulary into all of them, so the declaration is ignored at
+     * runtime and refused by code generation. Mapping onto a non-domain category - e.g.
+     * #[Throws(Expired::class, type: ErrorType::AUTHENTICATION_ERROR)] - is fine.
+     *
      * $next() always hands back an RpcSuccess or an RpcError - a failure further in is converted
      * before it reaches you, so post-processing runs either way.
      *
@@ -102,10 +107,11 @@ return [
 
     /**
      * Map your exceptions onto the server's built-in error categories. Anything not listed here and
-     * neither marked with #[ExposeAs] nor named via #[Throws(..., as: ...)] is reported to the
+     * neither marked with #[ExposeAs] nor named via #[Throws(..., name: ...)] is reported to the
      * client as an internal error.
      *
-     * Matching is instanceof: listing a base class covers every subclass of it.
+     * Matching is instanceof: listing a base class covers every subclass of it. A #[Throws]
+     * declaration on the throwing scope wins over these lists.
      */
     'exceptions' => [
         'unauthenticated' => [

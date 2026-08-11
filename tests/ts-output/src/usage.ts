@@ -43,6 +43,8 @@ export async function readProduct(): Promise<Product | null> {
             // exception itself rather than anything that came off the wire, and it arrives intact.
             console.error('request failed', result.cause.message);
             return null;
+        case 401:
+        case 403:
         case 404:
         case 500:
             // `details` only exists where the category cannot say everything on its own. Here it
@@ -177,8 +179,8 @@ export async function lockAccount(id: number): Promise<OperationsClientPayload |
 
     if (!result.success && result.code === 400) {
         // Two exposed exceptions become a union the client discriminates on.
-        const type: 'account_locked' | 'quota_exceeded' = result.details.type;
-        console.warn(type);
+        const name: 'account_locked' | 'quota_exceeded' = result.details.name;
+        console.warn(name);
         return null;
     }
 

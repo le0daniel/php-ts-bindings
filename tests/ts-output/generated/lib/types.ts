@@ -12,12 +12,12 @@ export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fie
 export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};
 export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
 export type NotFoundError = {code: 404, type: "NOT_FOUND"};
-export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {type: TType}};
+export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};
 export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
 export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};
 
 export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
-export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
 export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
 
 declare const __brand: unique symbol;

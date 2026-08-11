@@ -29,6 +29,7 @@ use Tests\Unit\CodeGen\Mocks\ConflictingNamedOperations;
 use Tests\Unit\CodeGen\Mocks\NameClashOperations;
 use Tests\Unit\CodeGen\Mocks\NamedOperations;
 use Tests\Unit\CodeGen\Mocks\InheritingOperations;
+use Tests\Feature\Mocks\GloballyThrowingMiddleware;
 use Tests\Unit\CodeGen\Mocks\PerDirectionNamedOperations;
 use Tests\Unit\CodeGen\Mocks\UnrepresentableOperations;
 use Tests\Unit\CodeGen\Mocks\UserOperations;
@@ -104,18 +105,15 @@ test('an operation module declares only what it adds to the catalogue', function
 });
 
 /**
- * Nothing maps onto the two auth categories on this server, so neither is reachable — and a Failure
- * naming a branch the server cannot produce would say otherwise. The declarations stay: they are
- * names a consumer may still write a handler against.
+ * Every category is always in the union: which of an application's exceptions land in which
+ * category is runtime configuration, and the union does not shrink around it.
  */
-test('the failure union names only the categories this server can produce', function () {
+test('the failure union always names the whole catalogue', function () {
     $types = generateFor([UserOperations::class])['lib/types.ts']->toString();
     preg_match('/^export type Failure.*$/m', $types, $matches);
 
     expect($matches[0])
-        ->toBe('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);')
-        ->and($types)->toContain('export type AuthenticationError =')
-        ->toContain('export type AuthorizationError =');
+        ->toBe('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);');
 });
 
 test('the branch shapes are declared once, not restated per operation', function () {
@@ -297,6 +295,23 @@ test('fails the run when a generator imports from one that is not registered', f
         new EmitOperationClientBindings(),
         new EmitOperations(),
     ]))->toThrow(InvalidGeneratorDependencies::class);
+});
+
+test('fails the run when a globally configured middleware declares a domain error', function () {
+    // The runtime silently ignores the declaration and answers 500, so build time is where a
+    // domain error on a global middleware gets refused loudly, naming the middleware.
+    $server = new Server(
+        EagerlyLoadedOperationRegistry::withClasses([UserOperations::class], keyGenerator: new PlainlyExposedKeyGenerator()),
+        configuration: new ServerConfiguration()->withMiddlewares(GloballyThrowingMiddleware::class),
+    );
+
+    expect(fn () => new TypescriptServerCodeGenerator([
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(),
+    ])->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}', $server->configuration)))
+        ->toThrow(CodeGenException::class, GloballyThrowingMiddleware::class);
 });
 
 test('fails the run when two classes resolve to the same name with different shapes', function () {

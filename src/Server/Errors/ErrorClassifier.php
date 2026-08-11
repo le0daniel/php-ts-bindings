@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Errors;
 
@@ -18,8 +20,7 @@ final readonly class ErrorClassifier
         public array $authenticationExceptions,
         public array $authorizationExceptions,
         public array $notFoundExceptions,
-    )
-    {
+    ) {
     }
 
     /**
@@ -50,7 +51,7 @@ final readonly class ErrorClassifier
     {
         return array_any(
             $exceptions,
-            static fn($exception) => is_a($className, $exception, true)
+            static fn ($exception) => is_a($className, $exception, true)
         );
     }
 }

@@ -27,7 +27,7 @@ test('an error carries the category twice, as the status code and as the discrim
 test('a category that says everything on its own emits no details key', function (ErrorType $type) {
     $error = new RpcError($type, new RuntimeException('nope'), null, errorInfo());
 
-    // Restating the category under `details.type` would be the same string on the wire twice, and
+    // Restating the category under `details` would be the same string on the wire twice, and
     // the generated branch declares no such property - narrowing on `type` must not offer one.
     expect($error->jsonSerialize())->not->toHaveKey('details');
 })->with([
@@ -48,7 +48,7 @@ test('the two categories the code alone cannot describe carry their details', fu
     $domain = new RpcError(
         ErrorType::DOMAIN_ERROR,
         new RuntimeException('nope'),
-        ['type' => 'invalid_name'],
+        ['name' => 'invalid_name'],
         errorInfo(),
     );
 
@@ -61,7 +61,7 @@ test('the two categories the code alone cannot describe carry their details', fu
         'success' => false,
         'code' => 400,
         'type' => 'DOMAIN_ERROR',
-        'details' => ['type' => 'invalid_name'],
+        'details' => ['name' => 'invalid_name'],
     ]);
 });
 
@@ -81,7 +81,7 @@ test('a failure never carries client directives', function () {
     // An error result holds no Client at all, and that is the point: a handler that toasts "Saved"
     // and then throws must not have that toast reach the browser. Whatever was queued before the
     // failure is dropped with the request.
-    $error = new RpcError(ErrorType::DOMAIN_ERROR, new RuntimeException('nope'), ['type' => 'x'], errorInfo())
+    $error = new RpcError(ErrorType::DOMAIN_ERROR, new RuntimeException('nope'), ['name' => 'x'], errorInfo())
         ->withMetadata(['some' => 'metadata']);
 
     expect($error->jsonSerialize())->not->toHaveKey('__client')

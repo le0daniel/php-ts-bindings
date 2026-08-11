@@ -53,14 +53,14 @@ test('Exceptions are exposed through middleware', function () {
     expect($error)->toBeInstanceOf(RpcError::class)
         ->and($error->type)->toBe(ErrorType::DOMAIN_ERROR)
         ->and($error->details)->toEqual([
-            'type' => 'invalid_name',
+            'name' => 'invalid_name',
         ]);
 });
 
 /**
  * The end of the road for a ValidationException: the value object rejects, the parse fails, and the
  * messages it chose come out the other side as the 422 the client reads. Nothing along the way -
- * InvalidInputException, ErrorPresenter, RpcError - is allowed to flatten them back to a key.
+ * InvalidInputException, the server's presentation, RpcError - is allowed to flatten them back to a key.
  */
 test('a value object rejecting with ValidationException reaches the client as a 422 naming each message', function () {
     $error = executeOperation('test.acceptEmail', ['email' => '']);
@@ -92,15 +92,13 @@ test('A middleware that does not implement the contract yields an RpcError', fun
     // Named, not a TypeError from inside the adapter: the class-string is checked before
     // anything is constructed, so the message says which class and which contract.
     //
-    // Two things fail here, and the chain keeps both: the class is rejected as a middleware, and
-    // then reflecting the same class to work out what the operation exposes fails as well. The
-    // second one is the most recent and is what made this a 500, so it is the cause.
+    // Nothing was executing yet, so no scope's #[Throws] declarations are consulted and nothing is
+    // reflected: the rejection itself is the cause, with no secondary failure to chain.
     expect($result)->toBeInstanceOf(RpcError::class)
         ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
-        ->and($result->cause)->toBeInstanceOf(ReflectionException::class)
-        ->and($result->previous)->toHaveCount(1)
-        ->and($result->previous[0])->toBeInstanceOf(TypeError::class)
-        ->and($result->previous[0]->getMessage())->toContain(NotAMiddleware::class);
+        ->and($result->cause)->toBeInstanceOf(TypeError::class)
+        ->and($result->cause->getMessage())->toContain(NotAMiddleware::class)
+        ->and($result->previous)->toBe([]);
 });
 
 test('Middleware emits typescript middleware', function () {
@@ -112,7 +110,7 @@ test('Middleware emits typescript middleware', function () {
     );
 
     $operation = $server->registry->get(OperationType::COMMAND, 'test.run');
-    $domainErrors = ErrorTypescript::domainTypesFor($server->configuration, $operation->definition);
+    $domainErrors = ErrorTypescript::domainTypesFor($operation->definition);
 
     expect($domainErrors)->toBe('"invalid_name"');
 });
@@ -157,10 +155,11 @@ test('an output that does not match its declared type is an internal error, not 
         ->and($result->cause)->toBeInstanceOf(InvalidOutputException::class);
 });
 
-test('a globally configured middleware contributes its #[Throws] to the runtime and the codegen', function () {
-    // Definition::$middleware only ever held what #[Middleware] put there, so a #[Throws] on a
-    // middleware registered through ServerConfiguration was ignored by both the presenter and the
-    // generated error union - the exception surfaced as a 500.
+test('a globally configured middleware cannot contribute domain errors', function () {
+    // Domain errors belong to the operation: its own method or the middleware it declared via
+    // #[Middleware]. A middleware registered through ServerConfiguration applies to every operation,
+    // so a #[Throws(..., name: ...)] there would leak one operation's vocabulary into all of them -
+    // the declaration is ignored, the exception surfaces as a 500, and the union never names it.
     $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(
         __DIR__.'/Operations',
         keyGenerator: new PlainlyExposedKeyGenerator(),
@@ -171,27 +170,27 @@ test('a globally configured middleware contributes its #[Throws] to the runtime 
     $error = $server->command('test.run', ['name' => 'global-boom'], null, new NullClient());
 
     expect($error)->toBeInstanceOf(RpcError::class)
-        ->and($error->type)->toBe(ErrorType::DOMAIN_ERROR)
-        ->and($error->details)->toEqual(['type' => 'global_middleware_failed']);
+        ->and($error->type)->toBe(ErrorType::INTERNAL_ERROR)
+        ->and($error->details)->toBeNull();
 
     $domainErrors = ErrorTypescript::domainTypesFor(
-        $configuration,
         $registry->get(OperationType::COMMAND, 'test.run')->definition,
     );
 
-    expect($domainErrors)->toContain('"global_middleware_failed"');
+    expect($domainErrors)->not->toContain('"global_middleware_failed"');
 });
 
-test('an operation level declaration still wins over a global one for the same exception', function () {
+test('an operation scoped middleware still names its own throw with a global middleware present', function () {
     $registry = EagerlyLoadedOperationRegistry::eagerlyDiscover(
         __DIR__.'/Operations',
         keyGenerator: new PlainlyExposedKeyGenerator(),
     );
     $configuration = new ServerConfiguration()->withMiddlewares(GloballyThrowingMiddleware::class);
 
-    // test.run declares InvalidNameException itself; the global middleware must not displace it.
+    // NameCheckingMiddleware is declared by test.run via #[Middleware] and throws from its own
+    // ring: the global middleware contributes nothing and displaces nothing.
     $error = new Server($registry, configuration: $configuration)
         ->command('test.run', ['name' => 'invalid'], null, new NullClient());
 
-    expect($error->details)->toEqual(['type' => 'invalid_name']);
+    expect($error->details)->toEqual(['name' => 'invalid_name']);
 });

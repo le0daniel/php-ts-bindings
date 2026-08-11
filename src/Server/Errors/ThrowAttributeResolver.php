@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Errors;
 
@@ -20,11 +22,10 @@ final readonly class ThrowAttributeResolver
      */
     public static function collectDomainErrorNamesFromDefinition(
         Definition $definition,
-    ): array
-    {
+    ): array {
         $reflections = [
             new ReflectionMethod($definition->fullyQualifiedClassName, $definition->methodName),
-            ... array_map(static fn($className) => new ReflectionMethod($className, 'handle'), $definition->middleware),
+            ... array_map(static fn ($className) => new ReflectionMethod($className, 'handle'), $definition->middleware),
         ];
 
         $names = [];
@@ -48,8 +49,7 @@ final readonly class ThrowAttributeResolver
     public static function resolveReflection(
         ReflectionClass|ReflectionMethod $reflection,
         bool $allowDomainErrors,
-    ): array
-    {
+    ): array {
         $issues = [];
         $exceptions = [];
 
@@ -78,7 +78,7 @@ final readonly class ThrowAttributeResolver
 
             if (!$declaration->isValid()) {
                 $attributeName = $declaration::class
-                        |> (static fn($name) => explode('\\', $name))
+                        |> (static fn ($name) => explode('\\', $name))
                         |> array_last(...);
 
                 $issues[] = "#[{$attributeName}] attribute declaration is not valid.";
@@ -116,11 +116,10 @@ final readonly class ThrowAttributeResolver
      */
     private static function throwableAttributes(
         ReflectionClass|ReflectionMethod $reflection,
-    ): array
-    {
+    ): array {
         $attributes = $reflection->getAttributes(Throws::class);
         return array_map(
-            static fn(ReflectionAttribute $attribute): Throws => $attribute->newInstance(),
+            static fn (ReflectionAttribute $attribute): Throws => $attribute->newInstance(),
             $attributes,
         );
     }

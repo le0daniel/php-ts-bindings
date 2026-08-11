@@ -25,10 +25,12 @@ Every failure the server can produce is one of six:
 | 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* gave a name |
 | 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
 
-The table is in resolution order, and the first match wins. That order is why `DOMAIN_ERROR` sits
-second to last: an exception you have explicitly mapped onto a category stays in that category even
-when it is named for the client. Anything unrecognised is a 500 — an exception is never exposed by
-accident.
+The scope that threw is consulted first. A `#[Throws]` declaration on the throwing method — the
+operation handler, or the `handle()` of a middleware the operation declared — decides the category,
+whether that is a named `DOMAIN_ERROR` or an explicit mapping like
+`#[Throws(GoneException::class, type: ErrorType::NOT_FOUND)]`. Only where the throwing scope
+declared nothing do the configured category lists apply. Anything unrecognised is a 500 — an
+exception is never exposed by accident.
 
 The catalogue is closed. It is `ErrorType`, an `int`-backed enum whose value *is* the HTTP status
 code, which is why `$result->type->value` and `$result->statusCode` cannot disagree, and why
@@ -39,16 +41,16 @@ exist.
 
 Six is what a *server* can answer. A client has one more failure available to it — the request that
 never arrived — and that one is [`CLIENT_ERROR`](#the-client-error), code 0. It is deliberately not
-an `ErrorType`: nothing on the server can produce it, and giving `ErrorPresenter` a case for it would
+an `ErrorType`: nothing on the server can produce it, and giving the server a case for it would
 be claiming otherwise.
 
 ## Exposing a domain error
 
-**It takes a declaration and a name.** The operation declares that it can throw the exception, and
+**It takes a declaration and a name.** The scope that throws the exception declares it, and
 something gives that exception a name the client sees. The exception can carry its own:
 
 ```php
-#[ExposeAs('invalid_name')]
+#[ExposeAs(name: 'invalid_name')]
 final class InvalidNameException extends Exception {}
 
 #[Command('users')]
@@ -57,25 +59,36 @@ public function create(array $input): array { /* ... */ }
 ```
 
 ```json
-{"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"type": "invalid_name"}}
+{"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"name": "invalid_name"}}
 ```
 
-Or the declaration can name it on the spot with `as`, which needs no `#[ExposeAs]` at all — the
+Or the declaration can name it on the spot with `name:`, which needs no `#[ExposeAs]` at all — the
 point being that the exception does not have to be yours to annotate:
 
 ```php
 #[Command('users')]
-#[Throws(InvalidNameException::class, as: 'invalid-name')]
+#[Throws(InvalidNameException::class, name: 'invalid-name')]
 public function create(array $input): array { /* ... */ }
 ```
 
-`as` always wins over `#[ExposeAs]`, so the same exception can read differently per operation. What
-`as` does not do is skip the declaration: an exception no operation declares with `#[Throws]` is
-still a 500, and so is one that is declared but named nowhere.
+`name:` always wins over `#[ExposeAs]`, so the same exception can read differently per operation.
+What `name:` does not do is skip the declaration: an exception the throwing scope does not declare
+with `#[Throws]` is still a 500, and so is one that is declared but named nowhere.
 
-`#[Throws]` on a [middleware's](operations.md#middleware) `handle()` counts as a declaration for
-every operation that middleware wraps. When an operation and its middleware declare the same
-exception, the operation's name wins.
+**A declaration covers throws from its own scope only.** `#[Throws]` on the operation method covers
+what the handler throws; `#[Throws]` on a [middleware's](operations.md#middleware) `handle()` covers
+what that middleware throws. An exception the handler declares but a middleware throws — or the
+other way around — is a 500: the declaration and the throw did not come from the same place. Each
+scope names its own throws, so the same exception class can surface under a different name per
+scope, and the generated union carries every name any scope of the operation can produce.
+
+A middleware registered globally through
+[`ServerConfiguration::withMiddlewares()`](operations.md#serverconfiguration) cannot expose domain
+errors at all: it runs for every operation, so a domain vocabulary there would leak into all of
+them. The runtime ignores such a declaration — the exception surfaces as a 500 — and code
+generation refuses it outright, naming the middleware. A global middleware may still map an
+exception onto a non-domain category, e.g. `#[Throws(ExpiredException::class, type:
+ErrorType::AUTHENTICATION_ERROR)]`.
 
 ## The generated error union
 
@@ -86,24 +99,24 @@ export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fie
 export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};
 export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
 export type NotFoundError = {code: 404, type: "NOT_FOUND"};
-export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {type: TType}};
+export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};
 export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
 export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};
 ```
 
-Because the catalogue is closed, `Failure` is the *union* of the ones your server can produce rather
-than a hole for whatever a call site passes in:
+Because the catalogue is closed, `Failure` is the *union* of all of it rather than a hole for
+whatever a call site passes in:
 
 ```typescript
 export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
-    & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+    & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
 export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
 ```
 
-The 401 and 403 branches appear in it only once you have actually mapped exceptions onto them, so the
-union describes what *this* server can really produce. What varies per operation is one thing only —
-the names it exposed — so that is the one thing `Failure` is parameterised on, and the one thing an
-operation module declares. An operation that declares nothing gets:
+Every branch is always in the union: which of an application's exceptions land in which category is
+runtime configuration, and the union does not shrink around it. What varies per operation is one
+thing only — the names it exposed — so that is the one thing `Failure` is parameterised on, and the
+one thing an operation module declares. An operation that declares nothing gets:
 
 ```typescript
 export type CreateDomainErrors = never;
@@ -128,7 +141,7 @@ if (!result.success && result.code === 400) { /* ... */ }
 ```
 
 The brackets in `[TType] extends [never]` stop the conditional distributing, so two exposed names
-stay one branch carrying a union under `details.type` rather than splitting into two.
+stay one branch carrying a union under `details.name` rather than splitting into two.
 
 Because both the runtime and the code generator read the same attributes from the same place, none of
 this can drift from the responses it describes. Naming the branches is also what lets a consumer
@@ -165,7 +178,7 @@ Reached through `OperationException`, the envelope is `e.cause` and the original
 ## When `details` appears
 
 **`details` only appears where the category cannot say everything on its own**, which is exactly two
-of the six: `INVALID_INPUT` carries `fields`, and `DOMAIN_ERROR` carries the `type` naming which
+of the six: `INVALID_INPUT` carries `fields`, and `DOMAIN_ERROR` carries the `name` naming which
 domain error it is. For the other four, `code` and `type` are the whole answer and restating it
 under `details` would put the same string on the wire twice, so the key is absent — and the
 generated branch has no such property, so narrowing on `type` will not offer you one.
@@ -214,7 +227,7 @@ had to remember to.
 **Something else decides it — that is a domain error.** "Already taken" needs the database; "the
 account is locked" needs the account. The input was well formed and the request still cannot
 proceed, which is a 400, not a 422. Declare it with `#[Throws]` and give it a name, per
-[Exposing a domain error](#exposing-a-domain-error). The client gets `details.type` naming which
+[Exposing a domain error](#exposing-a-domain-error). The client gets `details.name` naming which
 rule failed, and — unlike a free-text message — the generated union makes it a case it must handle.
 
 ## Exceptions this library throws
@@ -235,6 +248,9 @@ a [value object](types.md#value-objects) rejected a value. It never escapes the 
 reaches a client as itself, only as the issues it produced. Making it a `SchemaException` would mean
 that catching a server fault also caught a user typing their email wrong.
 
-Nothing is thrown out of `Server::query()` or `Server::command()` — both are total, and every
-`Throwable` comes back as an `RpcError`. The exceptions above surface at discovery, at parse time or
-during code generation instead, which is to say: at build time, not at request time.
+A `Throwable` from a handler or middleware never escapes `Server::query()` or `Server::command()` —
+it comes back as an `RpcError`. What does escape is a failure of error presentation itself, e.g. a
+stale class name failing reflection while the throwing scope's declarations are read: that is a bug
+in the setup, and it surfaces as the exception it is rather than as a substitute 500. The
+exceptions above surface at discovery, at parse time or during code generation instead, which is to
+say: at build time, not at request time.

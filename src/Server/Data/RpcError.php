@@ -20,10 +20,8 @@ final class RpcError implements RpcResult
      * @param  Throwable  $cause  The most recent failure - the one that decided this result. On an
      *                            ordinary error that is simply the exception the application threw.
      * @param  list<Throwable>  $previous  Everything that failed before $cause, oldest first. Empty on
-     *                                     every ordinary error, and non empty only when handling one failure produced another: a
-     *                                     stale #[Middleware] class name makes ExposedExceptions throw while categorising, and the
-     *                                     result is then an INTERNAL_ERROR because the catalogue could not be consulted, not because
-     *                                     the original deserved a 500. Reporters want all of them.
+     *                                     every ordinary error; a transport chaining one failure behind another keeps both here,
+     *                                     because reporters want all of them.
      * @param  array<string, mixed>  $metadata
      *
      * @internal Constructed by the server. Applications receive one, they do not build one.

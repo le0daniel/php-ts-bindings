@@ -10,21 +10,25 @@ use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
-use Le0daniel\PhpTsBindings\Server\Errors\ErrorPresenter;
+use Le0daniel\PhpTsBindings\Server\Errors\ExceptionScope;
 use Throwable;
 
 /**
  * Runs the middlewares as an onion around the destination, first middleware outermost.
  *
- * INVARIANT: nothing escapes this pipeline as a Throwable. Every ring - and the destination -
- * is wrapped, so a failure is turned into an RpcError right where it happened and handed back to
- * the enclosing middleware as the return value of its $next() call. The stack is never unwound
- * past a middleware, which means outer rings always get to run their post-processing on the error.
+ * A failure inside a ring or the destination is turned into an RpcError right where it happened
+ * and handed back to the enclosing middleware as the return value of its $next() call. The stack
+ * is never unwound past a middleware, which means outer rings always get to run their
+ * post-processing on the error.
  *
- * The conversion goes through $onError, so failures are presented the same way whether they come
- * from a middleware or from the operation itself. If $onError fails too there is nobody left to
- * ask, so the pipeline falls back to a bare INTERNAL_ERROR rather than letting the request crash -
- * carrying the failure it was asked to present in `previous`, so neither of the two is lost.
+ * The conversion goes through $onError, together with the scope that threw: the full class name
+ * and method name of the middleware whose handle() ring caught the exception, or null for the
+ * destination - the pipeline only knows its middlewares, and whoever built the destination is the
+ * one who knows what it wraps and presents its scope itself.
+ *
+ * $onError must never throw - presenting an error is the server's job, and there is nobody here
+ * to ask for an envelope when presenting itself fails. If it throws anyway, the pipeline lets it
+ * escape rather than burying the bug in a substitute error.
  *
  * @phpstan-import-type Next from MiddlewareContract
  *
@@ -34,7 +38,7 @@ final readonly class ContextualPipeline
 {
     /**
      * @param  list<MiddlewareContract<TContext>>  $middlewares
-     * @param  Closure(Throwable): RpcError  $onError
+     * @param  Closure(Throwable, ExceptionScope|null): RpcError  $onError
      * @param  Closure(mixed): (RpcSuccess|RpcError)  $destination
      */
     public function __construct(
@@ -49,11 +53,11 @@ final readonly class ContextualPipeline
      */
     public function execute(mixed $input, mixed $context, ResolveInfo $info, Client $client): RpcSuccess|RpcError
     {
-        $next = function (mixed $input) use ($info): RpcSuccess|RpcError {
+        $next = function (mixed $input): RpcSuccess|RpcError {
             try {
                 return ($this->destination)($input);
             } catch (Throwable $throwable) {
-                return $this->toRpcError($throwable, $info);
+                return ($this->onError)($throwable, null);
             }
         };
 
@@ -76,17 +80,8 @@ final readonly class ContextualPipeline
             try {
                 return $middleware->handle($input, $next, $context, $info, $client);
             } catch (Throwable $throwable) {
-                return $this->toRpcError($throwable, $info);
+                return ($this->onError)($throwable, new ExceptionScope($middleware::class, 'handle'));
             }
         };
-    }
-
-    private function toRpcError(Throwable $throwable, ResolveInfo $info): RpcError
-    {
-        try {
-            return ($this->onError)($throwable);
-        } catch (Throwable $failedToPresent) {
-            return ErrorPresenter::internalError($failedToPresent, $info, [$throwable]);
-        }
     }
 }

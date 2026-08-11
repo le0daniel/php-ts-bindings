@@ -22,8 +22,7 @@ final readonly class Throws
         public string  $exceptionClass,
         ?ErrorType     $type = null,
         public ?string $name = null,
-    )
-    {
+    ) {
         $this->type = $type ?? ($this->name ? ErrorType::DOMAIN_ERROR : null);
     }
 

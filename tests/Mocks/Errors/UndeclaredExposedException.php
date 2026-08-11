@@ -10,7 +10,7 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 /**
  * Carries #[ExposeAs], but no operation declares it via #[Throws]: it must not become a domain error.
  */
-#[ExposeAs('undeclared_failure')]
+#[ExposeAs(name: 'undeclared_failure')]
 final class UndeclaredExposedException extends Exception
 {
 }

@@ -13,8 +13,10 @@ use Le0daniel\PhpTsBindings\Server\Data\RpcError;
 use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 
 /**
- * Registered through ServerConfiguration::withMiddlewares() rather than #[Middleware], which is
- * the case that never reached ExposedExceptions.
+ * Registered through ServerConfiguration::withMiddlewares() rather than #[Middleware]. It runs for
+ * every operation, which is exactly why its #[Throws(..., name: ...)] must be ignored: a global
+ * middleware cannot contribute domain errors, so this throw surfaces as a 500 and codegen refuses
+ * the declaration outright.
  *
  * @implements MiddlewareContract<mixed>
  */

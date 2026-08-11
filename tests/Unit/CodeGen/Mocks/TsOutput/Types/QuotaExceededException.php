@@ -11,7 +11,7 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
  * The second exposed exception of one operation: the DOMAIN_ERROR details become a union, which is
  * what the client discriminates on.
  */
-#[ExposeAs('quota_exceeded')]
+#[ExposeAs(name: 'quota_exceeded')]
 final class QuotaExceededException extends Exception
 {
 }

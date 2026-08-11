@@ -17,8 +17,8 @@ to all of them. The short version lives in the [README](../README.md); this is t
 | `#[Query(namespace, name)]` | method | A read operation, served over GET. |
 | `#[Command(namespace, name)]` | method | A write operation, served over POST. |
 | `#[Middleware(class)]` | class, method, repeatable | Middleware to run around this operation. |
-| `#[Throws(ExceptionClass, as: ?string)]` | method, repeatable | Declares an exception the operation may throw, optionally naming it for the client. |
-| `#[ExposeAs(type)]` | exception class | The exception's own name, for every operation that declares it. |
+| `#[Throws(ExceptionClass, type: ?ErrorType, name: ?string)]` | method, repeatable | Declares an exception this method may throw — a named domain error, or an explicit category mapping. |
+| `#[ExposeAs(type: ErrorType, name: ?string)]` | exception class | The exception's own category and name, for every scope that declares it. |
 | `#[Optional]` | property, parameter | The field may be absent from input. |
 | `#[Castable(strategy)]` | class | A plain class may be built from input. |
 | `#[Brand(name)]` | class | Makes the generated TypeScript type opaque. |
@@ -140,10 +140,13 @@ new ServerConfiguration()->withMiddlewares(AuthMiddleware::class, LoggingMiddlew
 method-level, and within each group they run in declaration order. The first one listed is the first
 to see the input and the last to see the result.
 
-`#[Throws]` on a middleware's `handle()` contributes to the error union of every operation it wraps —
-globally configured or attached with `#[Middleware]`, both count — so the generated TypeScript knows
-about middleware failures too. It takes `as` like any other declaration, and when an operation and
-its middleware declare the same exception, the operation's name wins.
+`#[Throws]` on a middleware's `handle()` covers what that middleware itself throws — a declaration
+never covers a throw from another scope. A middleware attached with `#[Middleware]` contributes its
+named domain errors to the error union of every operation that declared it, so the generated
+TypeScript knows about middleware failures too. A globally configured middleware cannot expose
+domain errors at all: such a declaration is ignored at runtime and refused by code generation. It
+takes `name:` like any other declaration, and since each scope names its own throws, the same
+exception can surface under a different name per scope — the union carries every name.
 
 Middleware can also attach metadata to whichever result it is holding, with `withMetadata()` /
 `appendMetadata()`. It travels to the client under `__metadata` on both branches — see

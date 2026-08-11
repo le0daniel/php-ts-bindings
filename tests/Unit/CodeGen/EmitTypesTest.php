@@ -7,8 +7,8 @@ namespace Tests\Unit\CodeGen;
 use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Data\IO;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
@@ -72,11 +72,21 @@ test('rejects an alias colliding with a declaration the types file always contai
 ]);
 
 /**
- * The reserved list is the catalogue itself, not a copy of it: a name added to one and forgotten in
- * the other is a user alias that silently generates a second, conflicting declaration.
+ * The reserved list and the declarations are two literals in EmitTypes, so this is the guard
+ * against drift between them: a declaration added to the heredoc and forgotten in the reserved
+ * list is a user alias that silently generates a second, conflicting declaration.
  */
-test('every envelope the catalogue declares is reserved', function () {
-    foreach (ErrorTypescript::envelopeNames() as $name) {
+test('every declaration the types file always contains is reserved', function () {
+    $types = new EmitTypes()->emitFiles(
+        [],
+        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+        new AliasRegistry(),
+    )['types']->toString();
+
+    preg_match_all('/^export type (\w+)/m', $types, $matches);
+    expect($matches[1])->not->toBe([]);
+
+    foreach ($matches[1] as $name) {
         expect(fn () => new EmitTypes()->emitFiles(
             [],
             new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
@@ -100,32 +110,33 @@ test('the finite error catalogue is declared in the types file', function () {
         ->toContain('export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};')
         ->toContain('export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};')
         ->toContain('export type NotFoundError = {code: 404, type: "NOT_FOUND"};')
-        ->toContain('export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {type: TType}};')
+        ->toContain('export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};')
         ->toContain('export type InternalError = {code: 500, type: "INTERNAL_ERROR"};')
         ->toContain('export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error};');
 });
 
 /**
- * The catalogue is closed, so Failure is the union of what this server can produce rather than a
- * hole for whatever a caller passes. What remains parameterised is the only thing an operation can
- * add to it: the names it exposed.
+ * The catalogue is closed, so Failure is the union of all of it rather than a hole for whatever a
+ * caller passes. What remains parameterised is the only thing an operation can add to it: the
+ * names it exposed.
  */
-test('Failure is the union of the categories the server can produce, not a type parameter', function () {
+test('Failure is the union of the whole catalogue, not a type parameter', function () {
     $types = emitTypesFor(
         'array{id: \\'.UserId::class.'}',
         'array{email: \\'.Email::class.'}',
     );
 
     expect($types)
-        ->toContain('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);')
+        ->toContain('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);')
         ->not->toContain('{code: number}');
 });
 
 /**
- * Declared unconditionally, referenced only where reachable: naming a branch this server cannot
- * produce would claim it can, while reserving the name costs nothing.
+ * Which of an application's exceptions land in which category is runtime configuration, and the
+ * union does not shrink around it: every branch is always reachable, whatever the server was
+ * configured with.
  */
-test('an unmapped auth category is declared but stays out of Failure', function () {
+test('the auth branches are in Failure without any exceptions mapped onto them', function () {
     $types = emitTypesFor(
         'array{id: \\'.UserId::class.'}',
         'array{email: \\'.Email::class.'}',
@@ -133,10 +144,35 @@ test('an unmapped auth category is declared but stays out of Failure', function 
 
     preg_match('/^export type Failure.*$/m', $types, $matches);
 
-    expect($types)->toContain('export type AuthenticationError =')
-        ->toContain('export type AuthorizationError =')
-        ->and($matches[0])->not->toContain('AuthenticationError')
-        ->and($matches[0])->not->toContain('AuthorizationError');
+    expect($matches[0])->toContain('AuthenticationError')
+        ->toContain('AuthorizationError');
+});
+
+test('every name the failure union references is declared in the same file', function () {
+    $types = emitTypesFor(
+        'array{id: \\'.UserId::class.'}',
+        'array{email: \\'.Email::class.'}',
+    );
+
+    preg_match('/^export type Failure.*& \((.*)\);$/m', $types, $matches);
+    expect($matches[1] ?? '')->not->toBe('');
+
+    foreach (explode('|', $matches[1]) as $reference) {
+        expect($types)->toContain('export type '.strtok($reference, '<'));
+    }
+});
+
+test('every ErrorType case has an envelope carrying its discriminant', function () {
+    // The catalogue is a plain literal, so this is the guard against a category added to
+    // ErrorType without a TypeScript shape to describe it.
+    $types = emitTypesFor(
+        'array{id: \\'.UserId::class.'}',
+        'array{email: \\'.Email::class.'}',
+    );
+
+    foreach (ErrorType::cases() as $type) {
+        expect($types)->toContain('type: "'.$type->name.'"');
+    }
 });
 
 test('the envelope names the client side channel without describing what is in it', function () {
