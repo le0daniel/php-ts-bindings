@@ -3,11 +3,13 @@
 Type-safe RPC between a PHP backend and a TypeScript frontend, driven by the types you have already
 written.
 
-You annotate a method with `#[Query]` or `#[Command]` and type its input and output with PHPStan
-annotations. From that, this library validates every incoming request against those types,
-serializes the response to match them, and generates a TypeScript client whose call signatures are
-those same types. There is no schema to declare, no resource class to maintain, and no second source
-of truth to keep in sync — the PHPStan type *is* the contract.
+The goal is what server actions give a Next.js app — call a typed function on the client, have it
+run on the server — built for PHP, and split explicitly into **queries** and **commands** (CQRS:
+queries read, commands write). You annotate a method with `#[Query]` or `#[Command]` and type its
+input and output with PHPStan annotations. From that, this library validates every incoming request
+against those types, serializes the response to match them, and generates a TypeScript client whose
+call signatures are those same types. There is no schema to declare, no resource class to maintain,
+and no second source of truth to keep in sync — the PHPStan type *is* the contract.
 
 ```php
 /**
@@ -25,15 +27,28 @@ export type GetResult = {email:(string & Brand<"email">);slug:string;};
 const result = await get({id: userId});
 ```
 
-**What it is not.** Not a validator — it proves the types your code declares, and nothing beyond
-them. Not an ORM serializer. Not a schema DSL. If a rule cannot be expressed as a PHPStan type, this
-library will not check it for you; [value objects](docs/types.md#value-objects) are where such rules
-belong.
+Requires **PHP 8.5** and nothing else — no dependencies, no framework coupling on either side. Pair
+it with React, Angular or vanilla TypeScript on the front, and any PHP framework or none on the
+back. A first-party [Laravel adapter](docs/laravel.md) ships in the box and is entirely optional.
 
-Requires **PHP 8.5** and nothing else — no dependencies, no framework coupling. A first-party
-[Laravel adapter](docs/laravel.md) ships in the box and is entirely optional.
+## What this library is not
 
----
+Every line here is a decision, not a gap — [the decisions](#the-decisions) below carries the
+reasoning for each. Read this before investing; it is the complete list of hard edges.
+
+- **Not a validator.** It proves the types your code declares, and nothing beyond them. Rich
+  validation is still needed — and it is not a middleware concern: it belongs in
+  [value objects](docs/types.md#value-objects) and DTOs.
+- **Not an ORM serializer.** It does not work with Eloquent models or Laravel Collections, on
+  purpose. Return plain PHP objects a type checker can see through.
+- **Not a framework.** No routing, no transport, no HTTP layer decided for you — and JSON only:
+  streams, files and other non-JSON responses are out of scope.
+- **Not frontend-opinionated.** The generated client is plain TypeScript with zero runtime
+  dependencies; wire it into React, Angular, vanilla — anything.
+- **Not useful without PHPStan.** Run it at level 6 or above, or the annotations this library
+  trusts as the contract are unchecked claims.
+- **Not all of PHPStan.** The parser understands a deliberate subset; bare `array` and bare
+  `object` are rejected outright. [→ Types](#types)
 
 ## Documentation
 
@@ -50,9 +65,8 @@ way it does. Each subsystem has its own reference.
 | [Client directives](docs/client-directives.md) | The optional `Client` side channel for toasts, redirects and cache invalidation. |
 | [The Laravel adapter](docs/laravel.md) | Config, routes, context, the `operations:*` artisan commands. |
 
-On this page: [Install](#install) · [Quickstart](#quickstart) · [Core concepts](#core-concepts) ·
-[Design decisions](#design-decisions) · [Errors](#errors) · [Types](#types) ·
-[Contributing](#contributing)
+On this page: [Install](#install) · [Quickstart](#quickstart) · [Architecture](#architecture) ·
+[Errors](#errors) · [Types](#types) · [Contributing](#contributing)
 
 ## Install
 
@@ -69,6 +83,12 @@ not resolve:
 includes:
     - vendor/le0daniel/php-ts-bindings/extension.neon
 ```
+
+The extension is half of it; the level is the other half. This library proves at runtime exactly
+what your annotations claim — but only PHPStan proves that your annotations match your code. Run it
+at **level 6 or above** (level 6 is where missing parameter and return types start being reported;
+this library itself holds level 8). Below that, the contract your client compiles against has no
+witness on the PHP side.
 
 **On Laravel**, the service provider is auto-discovered, `config/operations.php` is publishable, and
 four `operations:*` artisan commands handle discovery, code generation and the production cache. The
@@ -138,7 +158,11 @@ $server = new Server(
 
 $files = new TypescriptServerCodeGenerator(
     CodeGenerators::fromDefaults('name'),
-)->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}'));
+)->generate($server, new ServerMetadata(
+    '/query/{fqn}',
+    '/command/{fqn}',
+    $server->configuration,
+));
 
 OutputDirectory::write(__DIR__ . '/resources/js/operations', $files);
 ```
@@ -149,7 +173,8 @@ opt-in — and what it returns is a plain list, so you can append your own or sk
 your own array. See [the generators](docs/typescript-client.md#generators) for the whole menu.
 
 The two URLs are the routes *your* transport serves; `{fqn}` is where the operation key goes, and
-both are required to contain it.
+both are required to contain it. The configuration rides along because which error categories the
+generated `Failure` union names depends on how this server maps exceptions.
 
 **Serve those two routes.** One GET for queries, one POST for commands. `jsonSerialize()` is the
 whole envelope the generated client reads, so a transport is two lines:
@@ -167,7 +192,9 @@ respondJson($result->statusCode, $result->jsonSerialize());
 ```
 
 Neither call ever throws — see [the server](docs/server.md#serving-operations-over-http) for the
-full wiring, dependency injection and error reporting.
+full wiring, dependency injection and error reporting. `$myContext` and that `NullClient` are two of
+the three arguments every handler receives; [the three arguments](#the-three-arguments) below is
+what they mean.
 
 **You get a `users.ts` module**, matching the namespace:
 
@@ -195,7 +222,9 @@ if (result.success) {
 Passing `{id: 1}` is a compile error: `number` is not assignable to `UserId`'s branded type. Sending
 it anyway is a 422 at runtime, because the server proves the same type it published.
 
-## Core concepts
+## Architecture
+
+### One request through the server
 
 **`Server`** takes a registry of operations and runs one. Both methods are total — every
 `Throwable`, including a failure resolving your handler, comes back as an `RpcError`:
@@ -205,63 +234,102 @@ public function query(string $name, mixed $input, mixed $context, Client $client
 public function command(string $name, mixed $input, mixed $context, Client $client): RpcSuccess|RpcError
 ```
 
+**Input is parsed, output is serialized.** Input arrives from outside, so every claim its type
+makes is proven before your handler sees it — a mismatch is a 422. Output is your own code, so an
+output that does not match its type is a 500 rather than something the client is asked to handle.
+The PHPStan *refinements* on top of a type (`positive-int`, `non-empty-string`) are checked on the
+way in only, because static analysis already established them on the way out.
+
 **`$name` is the operation's *key*, not its plain name.** An `OperationKeyGenerator` turns
 `namespace` + `name` into what the client calls: `PlainlyExposedKeyGenerator` gives literal keys,
-`HashSha256KeyGenerator` opaque ones. The generated TypeScript always embeds whichever key the server
-produced, so this only matters when you call the server by hand — but
+`HashSha256KeyGenerator` opaque ones — which is not a security boundary, it only keeps your
+operation names out of the shipped bundle. The generated TypeScript always embeds whichever key the
+server produced, so this only matters when you call the server by hand — but
 [pass one explicitly](docs/server.md#operation-keys), because the discovery default is peppered with
 a publicly known string.
 
-**`OperationRegistry`** holds the operations. `EagerlyLoadedOperationRegistry` discovers them by
-scanning directories; schemas are parsed lazily, per operation, on first use.
+**`OperationRegistry`** holds the operations: `EagerlyLoadedOperationRegistry` discovers them by
+scanning directories (schemas are parsed lazily, per operation, on first use), and
 `CachedOperationRegistry` is the compiled form for [production](docs/server.md#production).
-
 **`ServerAdapter`** builds your handler classes and middleware — two methods, and the seam for
-dependency injection. `NewInstanceAdapter` is the default (`new $className()`, no constructor
-arguments); `PsrContainerAdapter` resolves both through a PSR-11 container. A failure to resolve is
-caught and returned as an `RpcError`, which is part of what keeps the server total.
+dependency injection: `NewInstanceAdapter` is the default, `PsrContainerAdapter` resolves through a
+PSR-11 container. A failure to resolve is caught and returned as an `RpcError`, which is part of
+what keeps the server total.
 
-**The handler contract.** Your method is called with exactly three arguments, positionally:
+**`RpcResult`** is the interface both outcomes implement. It carries `statusCode` — 200 on success,
+the error category's own code otherwise — and it is `JsonSerializable`: `jsonSerialize()` produces
+the whole envelope the generated client reads, so a transport is a status code and a body.
+Middleware can attach metadata; it travels under `__metadata` and the library puts nothing in it.
+
+**[→ The server](docs/server.md)** for keys, registries, HTTP, preloading and the production cache.
+**[→ Operations](docs/operations.md)** for the attributes, the full signature rules and middleware.
+
+### The three arguments
+
+Your method is called with exactly three arguments, positionally — input, context, client:
 
 ```php
 public function get(array $input, MyContext $context, Client $client): array
 ```
 
-`$input` is the parsed, validated input — already hydrated into whatever your type declares. **Its
-type is the whole input contract.** `$context` is whatever you passed to `Server::query()`; the
-library never touches it. `$client` is the [side channel](docs/client-directives.md) back to the
-frontend. You may declare a prefix of the three, but not a subset. An operation that takes no input
-types its parameter as `null`, and every generator drops the argument.
+You may declare a prefix of the three, never a subset: `($input)` and `($input, $context)` are
+fine, skipping `$context` to reach `$client` is not. An operation that takes no input types its
+parameter as `null`, and every generator drops the argument.
 
-**Input is parsed, output is serialized.** Input is untrusted, so every claim its type makes is
-proven. Output is checked against its declared type too, and an output that does not match is a 500.
-The PHPStan *refinements* on top of the type are not re-checked on the way out, because static
-analysis already established those.
+**`$input` is the request.** Parsed, validated, hydrated into whatever your type declares. Its
+PHPStan type is the whole input contract — by the time your handler runs, every claim that type
+makes has been proven.
 
-**`RpcResult`** is the interface both outcomes implement. It carries `statusCode` — 200 on success,
-the error category's own code otherwise — `resolveInfo`, `metadata`, and it is `JsonSerializable`:
-`jsonSerialize()` produces the whole envelope the generated client reads. A middleware can attach
-metadata with `withMetadata()` / `appendMetadata()`; it travels under `__metadata` and the library
-puts nothing in it.
+**`$context` is everything else the operation needs.** To the library it is `mixed`: whatever you
+pass to `Server::query()` arrives untouched. Put in it what your operations require — data from the
+actual request, the authenticated user, the tenant. On Laravel, a
+[`ContextFactory`](docs/laravel.md#context) builds it per request.
 
-**[→ Operations](docs/operations.md)** for the attributes, the full signature rules and middleware.
-**[→ The server](docs/server.md)** for keys, registries, HTTP, preloading and the production cache.
+**`$client` is the side channel back to the frontend.** Not for data — for what rides alongside it:
+toasts, redirects, cache invalidations. The interface is closed — `toast()`, the `success()` /
+`error()` / `warning()` / `alert()` / `info()` shorthands, `redirect()` and `invalidate()`; there is
+no arbitrary-directive method. And the library ships the channel, not the behavior: nothing pops up
+until *you* implement the hooks on the frontend —
+[`registerHook()`](docs/typescript-client.md#wiring-up-the-transport) on the generated client sees
+every envelope, and `containsOperationSpaPayload()` narrows the deliberately-`unknown` `__client`
+into typed toasts, a redirect and invalidation keys. What a toast looks like, or what an
+invalidation invalidates, is your frontend's decision.
+**[→ Client directives](docs/client-directives.md)**
 
-## Design decisions
+**Context and client are the only two mutable things in the pipeline.** Both are created once per
+request and passed through as-is — middleware and handler see and mutate the same two objects, and
+they are the designated seams for state and side effects. Everything else moves by value: the input
+is a freshly parsed value, and what comes back is a new envelope.
+
+### The decisions
 
 **The PHPStan type is the contract.** No schema DSL, no resource class, no generated PHP to keep
 beside your code. The annotation you already wrote for static analysis is the one the runtime proves
 and the generator emits, so there is no second source of truth that can drift.
 
 **It is not a validator.** It proves the types your code declares and nothing beyond them. A rule
-that is not a type — "this email is not already taken" — belongs in a
-[value object](docs/types.md#value-objects) or your own code, and can still
-[ride the same 422](docs/errors.md#your-own-validation).
+that is not a type — "this email is not already taken" — still needs writing, and it is not a
+middleware concern: middleware is invisible to the type system and to the reader of the operation.
+Rich validation belongs in [value objects](docs/types.md#value-objects) and DTOs, where the rule
+travels with the type and can still [ride the same 422](docs/errors.md#your-own-validation). That
+is the whole answer; there is no validation extension point because there is nothing to extend.
 
-**Input is parsed, output is serialized.** Input arrives from outside and every claim its type makes
-is proven before your handler sees it. Output is your own code, so a mismatch is a 500 rather than
-something the client is asked to handle — and refinements are checked on the way in only, because
-static analysis already established them on the way out.
+**JSON is the transport, and PHP's `array` is two types.** The wire format forces a decision PHP
+never makes you make: `array` is both a list and a dictionary, and JSON must pick `[]` or `{}`. So
+bare `array` is rejected rather than guessed at — `list<T>`, `array<int, T>` and `array<string, T>`
+say which of the two you meant. The same commitment bounds the library: JSON in, JSON out, and
+streams, files and other non-JSON responses are out of scope rather than unimplemented.
+
+**No Eloquent, no Collections — on purpose.** What an Eloquent model or a Collection actually
+contains is invisible to the type checker, so a contract built on one would be a guess. This
+library does not work with them and is not intended to. Return plain PHP objects and shapes PHPStan
+can see through, and treat the operation as your view layer: a fully typed mapping from model or
+DTO to the response shape the client compiles against.
+
+**PHPStan at level 6 or above is assumed.** The runtime proves what the annotation claims — but
+only PHPStan proves the annotation against your code. Below level 6, missing parameter and return
+types go unreported, and the type safety this library promises quietly stops being checked anywhere.
+Most of the value is only real if static analysis is actually run, and run strictly.
 
 **`query()` and `command()` return an `RpcError` for every failure of your operation.** An
 exception from a handler or middleware — including one thrown while resolving your handler — comes
@@ -299,12 +367,12 @@ leaving each transport to remember.
 constructor parameter is not a change to the generated type. Enums travel as their **case names**,
 not their backing values, unless the class opts in by implementing `StringValueObject`.
 
-**Zero dependencies, no framework coupling.** Every integration point is an interface —
-`ServerAdapter`, `OperationKeyGenerator`, `OperationRegistry`, `Client`, and the generator contracts.
-Laravel is an adapter over those seams, not a requirement.
-
-One thing obfuscated operation keys are *not* is a security boundary: they keep your operation names
-out of the shipped bundle, and that is all. See [operation keys](docs/server.md#operation-keys).
+**A few interfaces at the seams, attributes everywhere else.** Every integration point is an
+interface — `ServerAdapter`, `OperationKeyGenerator`, `OperationRegistry`, `Client`, and the
+generator contracts — and those are the only contracts this library forces on you. Everything you
+declare on your own code is an attribute (`#[Query]`, `#[Command]`, `#[Throws]`, `#[Brand]`, …), so
+an operations class is plain PHP that extends nothing. Zero dependencies either way, and no
+framework chosen for you: Laravel is an adapter over those seams, not a requirement.
 
 ## Errors
 
@@ -323,13 +391,11 @@ The scope that threw is consulted first: a `#[Throws]` declaration on the throwi
 operation handler or a middleware's `handle()` — decides the category, and only where that scope
 declared nothing do the configured category lists apply. Everything unrecognised is a 500.
 
-A client has one more failure available to it, and no server sends it: `CLIENT_ERROR`, code 0, for
-the request that never arrived — or was answered by something other than the server, like a CSRF
-middleware's 419 or a proxy's error page. The generated client never trusts the HTTP status line:
-only a body carrying the envelope above is reported as the server's answer (the check is
-`isValidEnvelop` from `lib/utils.ts`), and anything else becomes `CLIENT_ERROR`, carrying the
-exception that stopped it under `cause` instead of `details`, plus the raw `response`
-(`httpStatusCode`, and `jsonResponse` when the body parsed as JSON) when HTTP answered at all.
+A client has one more failure available to it, and no server sends it: `CLIENT_ERROR`, code 0,
+minted by the generated client for the request that never got a real answer. The client never
+trusts the HTTP status line — only a body carrying the envelope counts as the server's answer, so a
+proxy's error page or a CSRF middleware's 419 becomes `CLIENT_ERROR`, carrying the cause and the
+raw response. [→ The client error](docs/errors.md#the-client-error)
 
 Exposing a domain error takes both a declaration and a name — `#[Throws]` on the throwing scope, and
 either `name:` on that declaration or `#[ExposeAs]` on the exception class:
@@ -344,33 +410,18 @@ public function create(array $input): array { /* ... */ }
 {"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"name": "invalid-name"}}
 ```
 
-Because the catalogue is closed, `Failure` is the union of all of it rather than a hole for whatever
-a call site passes. The only thing an operation adds to it is which exceptions it exposed, so that
-is the only thing it takes:
+The generated `Failure` is a closed union — the catalogue above, parameterised only on the
+domain-error names an operation exposed. Two consequences worth knowing before you meet them: an
+operation that exposes nothing gets `never`, which *erases* the 400 branch entirely — against such
+an operation, `result.code === 400` will not even compile — and every branch is a named type, so a
+handler like `(error: ClientError | InternalError) => boolean` is written once and reused. `details`
+exists only where the category cannot say everything on its own: `INVALID_INPUT` carries `fields`,
+`DOMAIN_ERROR` carries the name, everything else has none.
 
-```typescript
-export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
-    & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
-```
-
-```typescript
-export type CreateDomainErrors = never;
-export type LockDomainErrors = "account_locked"|"quota_exceeded";
-```
-
-That is all an operation module declares about errors — name the envelope as `Failure<LockDomainErrors>`
-where you need it. `never` is not an absence to handle: `DomainError` erases itself on it, so an
-operation that exposes nothing has no 400 branch at all and `result.code === 400` will not compile
-against it. Naming the branches also means a consumer can write
-`(error: ClientError | InternalError) => boolean` once and reuse it, instead of restating a literal
-shape at every call site.
-
-`details` appears only where the category cannot say everything on its own — `INVALID_INPUT` carries
-`fields`, `DOMAIN_ERROR` carries `type` — and is absent everywhere else, which is exactly what the
-generated branches declare.
-
-**[→ Errors](docs/errors.md)** — the full mechanics, `InvalidInputException::createFromMessages()`
-for your own validation, and the exception hierarchy this library throws at build time.
+**[→ Errors](docs/errors.md)** — the full mechanics, the generated union, where your own validation
+lives (a value object throwing `ValidationException` rides the same 422; anything the value alone
+cannot decide is a named domain error — there is no hand-built 422), and the exceptions this
+library throws at build time.
 
 ## Types
 
@@ -392,12 +443,9 @@ Most of what PHPStan can express about a shape, this library can parse, serializ
 | `positive-int`, `non-empty-string`, … | `number`, `string` — refinement enforced server-side |
 
 Object properties are emitted in a canonical order, sorted by name — which is why `age` comes first
-above. Declaration order does not reach the client, so reordering a PHP property is not a change to
-the generated type.
-
-**An enum travels as its case names, not its backing values.** `MyEnum` emits `("OPEN"|"SHIPPED")`
-even when it is `enum MyEnum: string { case OPEN = 'open'; }`. A backed enum that should travel as
-its backing value opts in by implementing `StringValueObject`.
+above. An enum travels as its **case names**, never its backing values — `"OPEN"`, not `'open'` —
+unless the class implements `StringValueObject`; [the decisions](#the-decisions) has the reasoning
+for both.
 
 Local and imported types work too: `@phpstan-type` and `@phpstan-import-type` are resolved against
 the declaring class, as are `use` statements and generics.
