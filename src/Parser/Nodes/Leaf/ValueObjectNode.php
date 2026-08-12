@@ -13,7 +13,6 @@ use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
@@ -26,7 +25,7 @@ use Throwable;
  * indistinguishable from its backing primitive; a #[Brand] (carried by a wrapping MetadataNode)
  * is what keeps the two apart on the TypeScript side.
  */
-final readonly class ValueObjectNode implements Coercible, LeafNode, NodeInterface
+final readonly class ValueObjectNode implements Coercible, LeafNode
 {
     /**
      * @param  class-string<StringValueObject|IntValueObject>  $className

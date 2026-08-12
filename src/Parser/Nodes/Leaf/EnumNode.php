@@ -9,12 +9,11 @@ use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 use UnitEnum;
 
-final class EnumNode implements LeafNode, NodeInterface
+final class EnumNode implements LeafNode
 {
     /** @var array<string, UnitEnum> */
     private array $cases;
@@ -82,7 +81,7 @@ final class EnumNode implements LeafNode, NodeInterface
     #[Override]
     public function serializeValue(mixed $value, ExecutionContext $context): mixed
     {
-        if (! is_a($value, $this->enumClassName)) {
+        if (!is_object($value) ||! is_a($value, $this->enumClassName)) {
             $context->addIssue(Issue::invalidType($this->enumClassName, $value));
 
             return Value::INVALID;
