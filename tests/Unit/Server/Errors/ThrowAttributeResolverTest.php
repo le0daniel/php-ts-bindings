@@ -115,14 +115,15 @@ test('a domain error declaration is rejected when domain errors are not allowed'
     'resolved through the ExposeAs on the exception' => 'declaresViaExposeAsNamedDomain',
 ]);
 
-test('non-domain declarations resolve even when domain errors are not allowed', function (string $method, string $exceptionClass) {
+test('non-domain declarations resolve even when domain errors are not allowed', function (string $method, string $exceptionClass, ErrorType $type) {
     expect(resolveThrows($method, allowDomainErrors: false))->toBe([
-        'data' => [$exceptionClass => ['type' => ErrorType::NOT_FOUND]],
+        'data' => [$exceptionClass => ['type' => $type]],
         'issues' => [],
     ]);
 })->with([
-    'explicit type' => ['declaresExplicitNotFound', UnexposedException::class],
-    'type from ExposeAs' => ['declaresViaExposeAsNotFound', NotFoundExposedException::class],
+    'explicit type' => ['declaresExplicitNotFound', UnexposedException::class, ErrorType::NOT_FOUND],
+    'type from ExposeAs' => ['declaresViaExposeAsNotFound', NotFoundExposedException::class, ErrorType::NOT_FOUND],
+    'explicit rate limited' => ['declaresExplicitRateLimited', UnexposedException::class, ErrorType::RATE_LIMITED],
 ]);
 
 test('an invalid Throws declaration is reported and not resolved', function (string $method) {

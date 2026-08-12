@@ -12,6 +12,7 @@ use Illuminate\Support\Facades;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
 use Le0daniel\PhpTsBindings\Contracts\RpcResult;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
@@ -142,7 +143,7 @@ readonly class LaravelHttpController
     {
         $jsonResponse = $result->jsonSerialize();
         if (! $this->debug) {
-            return new JsonResponse($jsonResponse, status: $result->statusCode);
+            return new JsonResponse($jsonResponse, status: $result->statusCode, headers: self::headersFor($result));
         }
 
         // We append some general debug information
@@ -169,7 +170,28 @@ readonly class LaravelHttpController
 
         return new JsonResponse(
             $jsonResponse,
-            status: $result->statusCode
+            status: $result->statusCode,
+            headers: self::headersFor($result),
         );
+    }
+
+    /**
+     * The standard header next to the envelope's own field: proxies and generic HTTP clients
+     * read the header, the generated client reads details.retryIn.
+     *
+     * @return array<string, string>
+     */
+    private static function headersFor(RpcResult $result): array
+    {
+        if (
+            $result instanceof RpcError
+            && $result->type === ErrorType::RATE_LIMITED
+            && is_array($result->details)
+            && is_int($result->details['retryIn'] ?? null)
+        ) {
+            return ['Retry-After' => (string) $result->details['retryIn']];
+        }
+
+        return [];
     }
 }

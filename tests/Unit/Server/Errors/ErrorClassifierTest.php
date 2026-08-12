@@ -13,6 +13,7 @@ use Tests\Mocks\Errors\UnexposedException;
 use Tests\Mocks\Errors\UserMissingException;
 use Tests\Unit\Server\Errors\Mocks\RequiresLoginInterface;
 use Tests\Unit\Server\Errors\Mocks\SessionExpiredException;
+use Tests\Unit\Server\Errors\Mocks\TooManyAttemptsException;
 use Tests\Unit\Server\Errors\Mocks\UnauthenticatedException;
 use Tests\Unit\Server\Errors\Mocks\UnauthorizedException;
 
@@ -25,6 +26,7 @@ function classifyError(Throwable|string $exception): ErrorType
         authenticationExceptions: [UnauthenticatedException::class, RequiresLoginInterface::class],
         authorizationExceptions: [UnauthorizedException::class],
         notFoundExceptions: [RecordMissingException::class],
+        rateLimitedExceptions: [TooManyAttemptsException::class],
     )->classify($exception);
 }
 
@@ -34,19 +36,19 @@ function invalidInputException(): InvalidInputException
 }
 
 test('an InvalidInputException instance is classified as invalid input without any configuration', function () {
-    $classifier = new ErrorClassifier([], [], []);
+    $classifier = new ErrorClassifier([], [], [], []);
 
     expect($classifier->classify(invalidInputException()))->toBe(ErrorType::INVALID_INPUT);
 });
 
 test('the InvalidInputException class-string is classified as invalid input without any configuration', function () {
-    $classifier = new ErrorClassifier([], [], []);
+    $classifier = new ErrorClassifier([], [], [], []);
 
     expect($classifier->classify(InvalidInputException::class))->toBe(ErrorType::INVALID_INPUT);
 });
 
 test('invalid input wins even when InvalidInputException is listed in a configured category', function () {
-    $classifier = new ErrorClassifier([], [], [InvalidInputException::class]);
+    $classifier = new ErrorClassifier([], [], [InvalidInputException::class], []);
 
     expect($classifier->classify(invalidInputException()))->toBe(ErrorType::INVALID_INPUT);
 });
@@ -82,7 +84,7 @@ test('an exception not present in any list falls back to an internal error', fun
 ]);
 
 test('with no configured lists every regular exception is an internal error', function () {
-    $classifier = new ErrorClassifier([], [], []);
+    $classifier = new ErrorClassifier([], [], [], []);
 
     expect($classifier->classify(new RuntimeException('Something failed')))->toBe(ErrorType::INTERNAL_ERROR);
 });
@@ -91,6 +93,7 @@ test('authentication wins when a class is configured as both authentication and 
     $classifier = new ErrorClassifier(
         [UnauthenticatedException::class],
         [UnauthenticatedException::class],
+        [],
         [],
     );
 
@@ -102,13 +105,32 @@ test('authorization wins when a class is configured as both authorization and no
         [],
         [UnauthorizedException::class],
         [UnauthorizedException::class],
+        [],
     );
 
     expect($classifier->classify(new UnauthorizedException()))->toBe(ErrorType::AUTHORIZATION_ERROR);
 });
 
+test('a configured rate limited exception is classified as rate limited', function (Throwable|string $exception) {
+    expect(classifyError($exception))->toBe(ErrorType::RATE_LIMITED);
+})->with([
+    'instance' => [new TooManyAttemptsException()],
+    'class-string' => [TooManyAttemptsException::class],
+]);
+
+test('not found wins when a class is configured as both not found and rate limited', function () {
+    $classifier = new ErrorClassifier(
+        [],
+        [],
+        [TooManyAttemptsException::class],
+        [TooManyAttemptsException::class],
+    );
+
+    expect($classifier->classify(new TooManyAttemptsException()))->toBe(ErrorType::NOT_FOUND);
+});
+
 test('listing a subclass does not cover its parent class', function () {
-    $classifier = new ErrorClassifier([], [], [UserMissingException::class]);
+    $classifier = new ErrorClassifier([], [], [UserMissingException::class], []);
 
     expect($classifier->classify(new RecordMissingException()))->toBe(ErrorType::INTERNAL_ERROR);
 });
@@ -119,7 +141,7 @@ test('an unknown class-string never throws and falls back to an internal error',
 });
 
 test('an OperationNotFoundException is classified as not found without any configuration', function (Throwable|string $exception) {
-    $classifier = new ErrorClassifier([], [], []);
+    $classifier = new ErrorClassifier([], [], [], []);
 
     expect($classifier->classify($exception))->toBe(ErrorType::NOT_FOUND);
 })->with([

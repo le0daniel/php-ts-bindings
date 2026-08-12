@@ -26,6 +26,7 @@ use Le0daniel\PhpTsBindings\Server\Errors\ErrorClassifier;
 use Le0daniel\PhpTsBindings\Server\Errors\ExceptionScope;
 use Le0daniel\PhpTsBindings\Server\Errors\ThrowAttributeResolver;
 use Le0daniel\PhpTsBindings\Server\Pipeline\ContextualPipeline;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
 use ReflectionException;
 use Throwable;
 
@@ -45,13 +46,13 @@ final readonly class Server
         public OperationRegistry   $registry,
         private ServerAdapter      $adapter = new NewInstanceAdapter(),
         public ServerConfiguration $configuration = new ServerConfiguration(),
-    )
-    {
+    ) {
         $this->executor = new SchemaExecutor();
         $this->classifier = new ErrorClassifier(
             authenticationExceptions: $configuration->unauthenticatedExceptions,
             authorizationExceptions: $configuration->unauthorizedExceptions,
             notFoundExceptions: $configuration->notFoundExceptions,
+            rateLimitedExceptions: $configuration->rateLimitedExceptions,
         );
     }
 
@@ -100,7 +101,7 @@ final readonly class Server
         // middleware must surface as an RpcError, not as an uncaught exception. Nothing was
         // executing yet, so there is no scope whose declarations could apply.
         try {
-            $middlewares = array_map(fn($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
+            $middlewares = array_map(fn ($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
             $controllerClass = $this->adapter->createController($operation->definition->fullyQualifiedClassName);
         } catch (Throwable $throwable) {
             return $this->present($throwable, $resolveInfo);
@@ -108,7 +109,7 @@ final readonly class Server
 
         return new ContextualPipeline(
             middlewares: $middlewares,
-            onError: fn(Throwable $throwable, ?ExceptionScope $scope): RpcError => $this->present(
+            onError: fn (Throwable $throwable, ?ExceptionScope $scope): RpcError => $this->present(
                 $throwable,
                 $resolveInfo,
                 $scope,
@@ -187,8 +188,7 @@ final readonly class Server
         Throwable       $throwable,
         ?ResolveInfo    $info,
         ?ExceptionScope $scope = null,
-    ): RpcError
-    {
+    ): RpcError {
         try {
             // If a scope is given, try to resolve the exception within its own declarations. A
             // globally configured middleware may not expose domain errors - it runs for every
@@ -204,7 +204,7 @@ final readonly class Server
                         return new RpcError(
                             type: $presentConfig['type'],
                             cause: $throwable,
-                            details: isset($presentConfig['name']) ? ['name' => $presentConfig['name']] : null,
+                            details: $this->detailsFor($presentConfig['type'], $throwable, $presentConfig['name'] ?? null),
                             resolveInfo: $info,
                         );
                     }
@@ -216,9 +216,7 @@ final readonly class Server
             return new RpcError(
                 type: $type,
                 cause: $throwable,
-                details: $type === ErrorType::INVALID_INPUT && $throwable instanceof InvalidInputException
-                    ? ['fields' => $throwable->failure->issues->serializeToFieldsArray()]
-                    : null,
+                details: $this->detailsFor($type, $throwable),
                 resolveInfo: $info,
             );
         } catch (Throwable $throwable) {
@@ -229,5 +227,24 @@ final readonly class Server
                 resolveInfo: $info,
             );
         }
+    }
+
+    /**
+     * Shapes the details from the already resolved category - never from the exception class
+     * alone. RATE_LIMITED always carries {retryIn: ?int}: the branch's shape must not depend on
+     * whether a resolver is configured, only the value may.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function detailsFor(ErrorType $type, Throwable $throwable, ?string $domainName = null): ?array
+    {
+        return match ($type) {
+            ErrorType::DOMAIN_ERROR => ['name' => Assertions::string($domainName)],
+            ErrorType::INVALID_INPUT => $throwable instanceof InvalidInputException
+                ? ['fields' => $throwable->failure->issues->serializeToFieldsArray()]
+                : null,
+            ErrorType::RATE_LIMITED => ['retryIn' => $this->configuration->resolveRetryIn?->__invoke($throwable)],
+            default => null,
+        };
     }
 }

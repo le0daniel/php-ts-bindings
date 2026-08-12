@@ -101,6 +101,7 @@ test('an operation module declares only what it adds to the catalogue', function
         ->not->toContain('ClientError')
         ->not->toContain('AuthenticationError')
         ->not->toContain('AuthorizationError')
+        ->not->toContain('RateLimitedError')
         ->not->toContain('DomainError<');
 });
 
@@ -113,7 +114,7 @@ test('the failure union always names the whole catalogue', function () {
     preg_match('/^export type Failure.*$/m', $types, $matches);
 
     expect($matches[0])
-        ->toBe('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);');
+        ->toBe('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|RateLimitedError|DomainError<TDomainType>|InternalError|ClientError);');
 });
 
 test('the branch shapes are declared once, not restated per operation', function () {

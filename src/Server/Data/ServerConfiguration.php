@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
+use Closure;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use NoDiscard;
 use Throwable;
@@ -18,6 +19,10 @@ final readonly class ServerConfiguration
      * @param  list<class-string<Throwable>>  $notFoundExceptions
      * @param  list<class-string<Throwable>>  $unauthenticatedExceptions
      * @param  list<class-string<Throwable>>  $unauthorizedExceptions
+     * @param  list<class-string<Throwable>>  $rateLimitedExceptions
+     * @param  (Closure(Throwable): (int|null))|null  $resolveRetryIn
+     *         Given the throwable that surfaced as RATE_LIMITED, the seconds until a retry may
+     *         succeed, or null when unknown. Consulted only after the category is resolved.
      */
     public function __construct(
         public bool $coerceQueryInput = false,
@@ -25,6 +30,8 @@ final readonly class ServerConfiguration
         public array $notFoundExceptions = [],
         public array $unauthenticatedExceptions = [],
         public array $unauthorizedExceptions = [],
+        public array $rateLimitedExceptions = [],
+        public ?Closure $resolveRetryIn = null,
     ) {
     }
 
@@ -42,6 +49,8 @@ final readonly class ServerConfiguration
             notFoundExceptions: $this->notFoundExceptions,
             unauthenticatedExceptions: $this->unauthenticatedExceptions,
             unauthorizedExceptions: $this->unauthorizedExceptions,
+            rateLimitedExceptions: $this->rateLimitedExceptions,
+            resolveRetryIn: $this->resolveRetryIn,
         );
     }
 
@@ -51,12 +60,14 @@ final readonly class ServerConfiguration
      * @param  list<class-string<Throwable>>  $notFound
      * @param  list<class-string<Throwable>>  $unauthenticated
      * @param  list<class-string<Throwable>>  $unauthorized
+     * @param  list<class-string<Throwable>>  $rateLimited
      */
     #[NoDiscard]
     public function withExceptions(
         array $notFound = [],
         array $unauthenticated = [],
         array $unauthorized = [],
+        array $rateLimited = [],
     ): self {
         return new self(
             coerceQueryInput: $this->coerceQueryInput,
@@ -64,6 +75,19 @@ final readonly class ServerConfiguration
             notFoundExceptions: [...$this->notFoundExceptions, ...$notFound],
             unauthenticatedExceptions: [...$this->unauthenticatedExceptions, ...$unauthenticated],
             unauthorizedExceptions: [...$this->unauthorizedExceptions, ...$unauthorized],
+            rateLimitedExceptions: [...$this->rateLimitedExceptions, ...$rateLimited],
+            resolveRetryIn: $this->resolveRetryIn,
         );
+    }
+
+    /**
+     * @param  Closure(Throwable): (int|null)  $resolveRetryIn
+     */
+    #[NoDiscard]
+    public function withRetryInResolver(Closure $resolveRetryIn): self
+    {
+        return clone($this, [
+            "resolveRetryIn" => $resolveRetryIn,
+        ]);
     }
 }

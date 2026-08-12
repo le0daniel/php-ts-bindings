@@ -15,6 +15,7 @@ use Tests\Feature\ErrorHandling\ForbiddenException;
 use Tests\Feature\ErrorHandling\GoneException;
 use Tests\Feature\ErrorHandling\SessionExpiredException;
 use Tests\Feature\ErrorHandling\SharedException;
+use Tests\Feature\ErrorHandling\TooManyRequestsException;
 
 function errorHandlingServer(?ServerConfiguration $configuration = null): Server
 {
@@ -107,6 +108,57 @@ test('the throwing scope declaration wins over a configured category for the sam
     expect($error)->toBeInstanceOf(RpcError::class)
         ->and($error->type)->toBe(ErrorType::DOMAIN_ERROR)
         ->and($error->details)->toEqual(['name' => 'conflict']);
+});
+
+test('a listed rate limited exception carries the resolved retryIn', function () {
+    $configuration = new ServerConfiguration()
+        ->withExceptions(rateLimited: [TooManyRequestsException::class])
+        ->withRetryInResolver(fn (Throwable $throwable): ?int => 30);
+
+    $error = executeErrorOperation('errors.throwsUnclassified', 'rate-limited', $configuration);
+
+    expect($error)->toBeInstanceOf(RpcError::class)
+        ->and($error->type)->toBe(ErrorType::RATE_LIMITED)
+        ->and($error->statusCode)->toBe(429)
+        ->and($error->details)->toBe(['retryIn' => 30]);
+});
+
+test('a rate limited error without a resolver still carries the details with a null retryIn', function () {
+    // The branch always declares {retryIn: number | null} - configuring a resolver must change
+    // the value, never the shape.
+    $configuration = new ServerConfiguration()->withExceptions(rateLimited: [TooManyRequestsException::class]);
+
+    $error = executeErrorOperation('errors.throwsUnclassified', 'rate-limited', $configuration);
+
+    expect($error)->toBeInstanceOf(RpcError::class)
+        ->and($error->type)->toBe(ErrorType::RATE_LIMITED)
+        ->and($error->details)->toBe(['retryIn' => null]);
+});
+
+test('a #[Throws] mapping to rate limited gets the resolved retryIn like the configured list does', function () {
+    $configuration = new ServerConfiguration()
+        ->withRetryInResolver(fn (Throwable $throwable): ?int => $throwable instanceof TooManyRequestsException ? 12 : null);
+
+    $error = executeErrorOperation('errors.throwsMappedRateLimited', configuration: $configuration);
+
+    expect($error)->toBeInstanceOf(RpcError::class)
+        ->and($error->type)->toBe(ErrorType::RATE_LIMITED)
+        ->and($error->statusCode)->toBe(429)
+        ->and($error->details)->toBe(['retryIn' => 12]);
+});
+
+test('a throwing retryIn resolver surfaces as an internal error, not a broken rate limit', function () {
+    // Presentation has one safety net: whatever fails while shaping the error becomes a 500.
+    // A buggy resolver is a server bug and must not ship a half-formed 429.
+    $configuration = new ServerConfiguration()
+        ->withExceptions(rateLimited: [TooManyRequestsException::class])
+        ->withRetryInResolver(fn (Throwable $throwable): ?int => throw new LogicException('resolver bug'));
+
+    $error = executeErrorOperation('errors.throwsUnclassified', 'rate-limited', $configuration);
+
+    expect($error)->toBeInstanceOf(RpcError::class)
+        ->and($error->type)->toBe(ErrorType::INTERNAL_ERROR)
+        ->and($error->details)->toBeNull();
 });
 
 test('an unknown operation is not found with no resolve info', function () {

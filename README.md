@@ -59,7 +59,7 @@ way it does. Each subsystem has its own reference.
 |---|---|
 | [Types](docs/types.md) | The supported PHPStan subset, refinements, utility types, value objects, `#[Castable]`, brands and named types. |
 | [Operations](docs/operations.md) | The attributes, the handler contract, middleware, `ServerConfiguration`. |
-| [Errors](docs/errors.md) | The six categories, the client error, exposing a domain error, the generated union, and the exceptions this library throws. |
+| [Errors](docs/errors.md) | The seven categories, the client error, exposing a domain error, the generated union, and the exceptions this library throws. |
 | [The server](docs/server.md) | `Server`, operation keys, registries, DI, serving HTTP, preloading, the production cache, extension points. |
 | [The TypeScript client](docs/typescript-client.md) | What codegen writes, the envelope, the transport, all eight generators, writing your own. |
 | [Client directives](docs/client-directives.md) | The optional `Client` side channel for toasts, redirects and cache invalidation. |
@@ -338,7 +338,7 @@ whether the operation succeeded or failed. The one thing that escapes as an exce
 of error presentation itself (a stale class name failing reflection): that is a bug in the setup,
 not a request, and burying it in a substitute 500 would only hide it.
 
-**Six error categories, and nothing is exposed by accident.** Surfacing a domain error takes a
+**Seven error categories, and nothing is exposed by accident.** Surfacing a domain error takes a
 `#[Throws]` declaration *and* a name; everything unrecognised is a 500. The category list is closed
 on purpose — it is what the server needs to run, not an extension point.
 
@@ -376,7 +376,7 @@ framework chosen for you: Laravel is an adapter over those seams, not a requirem
 
 ## Errors
 
-Every failure the server can produce is one of six categories:
+Every failure the server can produce is one of seven categories:
 
 | Code | `type` | When |
 |---|---|---|
@@ -384,6 +384,7 @@ Every failure the server can produce is one of six categories:
 | 401 | `AUTHENTICATION_ERROR` | An exception you mapped as unauthenticated |
 | 403 | `AUTHORIZATION_ERROR` | An exception you mapped as unauthorized |
 | 404 | `NOT_FOUND` | Unknown operation, or an exception you mapped as not-found |
+| 429 | `RATE_LIMITED` | An exception you mapped as rate-limited |
 | 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* gave a name |
 | 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
 
@@ -416,7 +417,8 @@ operation that exposes nothing gets `never`, which *erases* the 400 branch entir
 an operation, `result.code === 400` will not even compile — and every branch is a named type, so a
 handler like `(error: ClientError | InternalError) => boolean` is written once and reused. `details`
 exists only where the category cannot say everything on its own: `INVALID_INPUT` carries `fields`,
-`DOMAIN_ERROR` carries the name, everything else has none.
+`DOMAIN_ERROR` carries the name, `RATE_LIMITED` always carries `retryIn` (seconds, or `null` when
+unknown — a resolver configures the value, never the shape), everything else has none.
 
 **[→ Errors](docs/errors.md)** — the full mechanics, the generated union, where your own validation
 lives (a value object throwing `ValidationException` rides the same 422; anything the value alone

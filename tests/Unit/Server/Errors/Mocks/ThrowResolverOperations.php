@@ -24,6 +24,11 @@ final class ThrowResolverOperations
     {
     }
 
+    #[Throws(UnexposedException::class, ErrorType::RATE_LIMITED)]
+    public function declaresExplicitRateLimited(): void
+    {
+    }
+
     #[Throws(UnexposedException::class, name: 'direct_name')]
     public function declaresNamedDomainError(): void
     {

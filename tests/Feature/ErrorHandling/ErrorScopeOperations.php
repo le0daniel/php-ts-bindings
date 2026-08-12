@@ -87,8 +87,20 @@ final class ErrorScopeOperations
             'unauthenticated-subclass' => new TokenExpiredException(),
             'unauthorized' => new ForbiddenException(),
             'not-found' => new GoneException(),
+            'rate-limited' => new TooManyRequestsException(),
             default => new RuntimeException('plain boom'),
         };
+    }
+
+    /**
+     * @param  array{value: string}  $data
+     * @return array{ok: bool}
+     */
+    #[Command('errors')]
+    #[Throws(TooManyRequestsException::class, type: ErrorType::RATE_LIMITED)]
+    public function throwsMappedRateLimited(array $data): array
+    {
+        throw new TooManyRequestsException();
     }
 
     /**

@@ -4,7 +4,7 @@ Two error models live in this library, and they never meet. One is the finite se
 client can see; the other is the exceptions the library itself throws, all of them at build time.
 The short version lives in the [README](../README.md); this is the full picture.
 
-- [The six categories](#the-six-categories)
+- [The seven categories](#the-seven-categories)
 - [Exposing a domain error](#exposing-a-domain-error)
 - [The generated error union](#the-generated-error-union)
 - [The client error](#the-client-error)
@@ -12,9 +12,9 @@ The short version lives in the [README](../README.md); this is the full picture.
 - [Your own validation](#your-own-validation)
 - [Exceptions this library throws](#exceptions-this-library-throws)
 
-## The six categories
+## The seven categories
 
-Every failure the server can produce is one of six:
+Every failure the server can produce is one of seven:
 
 | Code | `type` | When |
 |---|---|---|
@@ -22,6 +22,7 @@ Every failure the server can produce is one of six:
 | 401 | `AUTHENTICATION_ERROR` | An exception you mapped as unauthenticated |
 | 403 | `AUTHORIZATION_ERROR` | An exception you mapped as unauthorized |
 | 404 | `NOT_FOUND` | Unknown operation, or an exception you mapped as not-found |
+| 429 | `RATE_LIMITED` | An exception you mapped as rate-limited |
 | 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* gave a name |
 | 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
 
@@ -39,7 +40,7 @@ which of *its* exceptions belong in which category, with
 [`ServerConfiguration::withExceptions()`](operations.md#serverconfiguration) — not which categories
 exist.
 
-Six is what a *server* can answer. A client has one more failure available to it — the request that
+Seven is what a *server* can answer. A client has one more failure available to it — the request that
 never arrived, or was answered by something other than the server — and that one is
 [`CLIENT_ERROR`](#the-client-error), code 0. It is deliberately not an `ErrorType`: nothing on the
 server can produce it, and giving the server a case for it would be claiming otherwise.
@@ -99,6 +100,7 @@ export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fie
 export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};
 export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
 export type NotFoundError = {code: 404, type: "NOT_FOUND"};
+export type RateLimitedError = {code: 429, type: "RATE_LIMITED", details: {retryIn: number | null}};
 export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};
 export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
 export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error, response?: {httpStatusCode: number, jsonResponse?: unknown}};
@@ -109,7 +111,7 @@ whatever a call site passes in:
 
 ```typescript
 export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
-    & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);
+    & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|RateLimitedError|DomainError<TDomainType>|InternalError|ClientError);
 export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
 ```
 
@@ -190,11 +192,20 @@ Reached through `OperationException`, the envelope is `e.cause` and the original
 
 ## When `details` appears
 
-**`details` only appears where the category cannot say everything on its own**, which is exactly two
-of the six: `INVALID_INPUT` carries `fields`, and `DOMAIN_ERROR` carries the `name` naming which
-domain error it is. For the other four, `code` and `type` are the whole answer and restating it
-under `details` would put the same string on the wire twice, so the key is absent — and the
-generated branch has no such property, so narrowing on `type` will not offer you one.
+**`details` only appears where the category cannot say everything on its own**, which is exactly
+three of the seven: `INVALID_INPUT` carries `fields`, `DOMAIN_ERROR` carries the `name` naming which
+domain error it is, and `RATE_LIMITED` carries `retryIn`. For the other four, `code` and `type` are
+the whole answer and restating it under `details` would put the same string on the wire twice, so
+the key is absent — and the generated branch has no such property, so narrowing on `type` will not
+offer you one.
+
+`RATE_LIMITED` is the one deliberate exception to "only where it says something": its `details` is
+*always* present, with `retryIn` as the seconds until a retry may succeed or `null` when the server
+could not tell. The branch's shape must not depend on runtime configuration — configuring a resolver
+with [`ServerConfiguration::withRetryInResolver()`](operations.md#serverconfiguration) changes the
+value, never the shape. The resolver receives the throwable that surfaced as rate-limited and is
+consulted only after the category is resolved, whether that happened through the configured list or
+a `#[Throws(..., type: ErrorType::RATE_LIMITED)]` declaration.
 
 `CLIENT_ERROR` has no `details` either. What it carries instead is `cause` — a live `Error` rather
 than anything that came off the wire — and, when an HTTP response did arrive, the raw `response`

@@ -92,9 +92,9 @@ test('the utils carry no knowledge of any specific client implementation', funct
 test('isValidEnvelop only believes what the server can actually send', function () {
     expect(emitUtilsFor())
         ->toContain('export function isValidEnvelop(value: unknown): value is Result<unknown, string> {')
-        ->toContain('const SERVER_ERROR_CODES: Record<string, number> = {')
+        ->toContain('const SERVER_ERROR_CODES = {')
         ->toContain("&& typeof code === 'number'")
-        ->toContain('&& SERVER_ERROR_CODES[type] === code;')
+        ->toContain('&& SERVER_ERROR_CODES[type as keyof typeof SERVER_ERROR_CODES] === code;')
         ->not->toContain('CLIENT_ERROR: 0');
 });
 

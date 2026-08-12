@@ -11,5 +11,6 @@ enum ErrorType: int
     case AUTHORIZATION_ERROR = 403;
     case NOT_FOUND = 404;
     case INVALID_INPUT = 422;
+    case RATE_LIMITED = 429;
     case INTERNAL_ERROR = 500;
 }

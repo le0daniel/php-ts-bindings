@@ -103,7 +103,9 @@ failure) is returned exactly as parsed, whatever the status said, and anything e
 [`CLIENT_ERROR`](errors.md#the-client-error) with the raw `response` (`httpStatusCode`, and
 `jsonResponse` when the body parsed as JSON) attached. The guard is exported, so a payload from
 anywhere else — SSR state, a cache — can be believed or refused the same way before being read as
-an envelope.
+an envelope. That cuts both ways for throttling: a gateway or route middleware answering 429 with
+its *own* body is `CLIENT_ERROR` like any other imposter — only the server's own envelope narrows
+to `RATE_LIMITED`.
 
 The URLs come from `ServerMetadata('/query/{fqn}', '/command/{fqn}')`, the two routes *your*
 transport serves. `{fqn}` is where the operation key goes, and both are required to contain it.

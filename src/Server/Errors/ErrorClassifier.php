@@ -15,11 +15,13 @@ final readonly class ErrorClassifier
      * @param list<class-string> $authenticationExceptions
      * @param list<class-string> $authorizationExceptions
      * @param list<class-string> $notFoundExceptions
+     * @param list<class-string> $rateLimitedExceptions
      */
     public function __construct(
         public array $authenticationExceptions,
         public array $authorizationExceptions,
         public array $notFoundExceptions,
+        public array $rateLimitedExceptions,
     ) {
     }
 
@@ -38,6 +40,7 @@ final readonly class ErrorClassifier
             $this->matchesAny($className, $this->authenticationExceptions) => ErrorType::AUTHENTICATION_ERROR,
             $this->matchesAny($className, $this->authorizationExceptions) => ErrorType::AUTHORIZATION_ERROR,
             $this->matchesAny($className, $this->notFoundExceptions) => ErrorType::NOT_FOUND,
+            $this->matchesAny($className, $this->rateLimitedExceptions) => ErrorType::RATE_LIMITED,
             default => ErrorType::INTERNAL_ERROR,
         };
     }

@@ -66,6 +66,7 @@ test('rejects an alias colliding with a declaration the types file always contai
     'the authentication envelope' => ['AuthenticationError'],
     'the authorization envelope' => ['AuthorizationError'],
     'the not found envelope' => ['NotFoundError'],
+    'the rate limited envelope' => ['RateLimitedError'],
     'the domain envelope' => ['DomainError'],
     'the internal envelope' => ['InternalError'],
     'the client envelope' => ['ClientError'],
@@ -110,6 +111,7 @@ test('the finite error catalogue is declared in the types file', function () {
         ->toContain('export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};')
         ->toContain('export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};')
         ->toContain('export type NotFoundError = {code: 404, type: "NOT_FOUND"};')
+        ->toContain('export type RateLimitedError = {code: 429, type: "RATE_LIMITED", details: {retryIn: number | null}};')
         ->toContain('export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};')
         ->toContain('export type InternalError = {code: 500, type: "INTERNAL_ERROR"};')
         ->toContain('export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error, response?: {httpStatusCode: number, jsonResponse?: unknown}};');
@@ -127,7 +129,7 @@ test('Failure is the union of the whole catalogue, not a type parameter', functi
     );
 
     expect($types)
-        ->toContain('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|DomainError<TDomainType>|InternalError|ClientError);')
+        ->toContain('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|RateLimitedError|DomainError<TDomainType>|InternalError|ClientError);')
         ->not->toContain('{code: number}');
 });
 

@@ -100,14 +100,15 @@ export function queryKey(ns: QueryNamespaces, ...args: unknown[]): [string, ...u
  * The wire discriminants a server can actually answer with, by name. CLIENT_ERROR has no entry on
  * purpose: that branch is minted by the client itself, so a body claiming it is never believed.
  */
-const SERVER_ERROR_CODES: Record<string, number> = {
+const SERVER_ERROR_CODES = {
     DOMAIN_ERROR: 400,
     AUTHENTICATION_ERROR: 401,
     AUTHORIZATION_ERROR: 403,
     NOT_FOUND: 404,
     INVALID_INPUT: 422,
+    RATE_LIMITED: 429,
     INTERNAL_ERROR: 500,
-};
+} as const;
 
 /**
  * Whether a value is an envelope the server can have sent. Anything between the browser and the
@@ -129,7 +130,7 @@ export function isValidEnvelop(value: unknown): value is Result<unknown, string>
     return success === false
         && typeof type === 'string'
         && typeof code === 'number'
-        && SERVER_ERROR_CODES[type] === code;
+        && SERVER_ERROR_CODES[type as keyof typeof SERVER_ERROR_CODES] === code;
 }
 
 /**

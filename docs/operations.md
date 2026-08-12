@@ -167,11 +167,26 @@ new ServerConfiguration()->withExceptions(
     notFound: [EntityNotFoundException::class],
     unauthenticated: [NotLoggedInException::class],
     unauthorized: [ForbiddenException::class],
+    rateLimited: [TooManyRequestsException::class],
 )
 ```
 
-Without this, nothing produces a 401, 403 or 404 except an unknown operation — every other
+Without this, nothing produces a 401, 403, 404 or 429 except an unknown operation — every other
 exception is a 500.
+
+`withRetryInResolver()` gives the `RATE_LIMITED` category its `retryIn`: a closure receiving the
+throwable and returning the seconds until a retry may succeed, or `null` when unknown. It is
+consulted only after an error resolved as rate-limited — through the list above or a
+`#[Throws(..., type: ErrorType::RATE_LIMITED)]` declaration — and without one, `details.retryIn` is
+simply `null`; the [branch's shape never changes](errors.md#when-details-appears):
+
+```php
+new ServerConfiguration()->withRetryInResolver(
+    fn (Throwable $throwable): ?int => $throwable instanceof TooManyRequestsException
+        ? $throwable->retryAfterSeconds
+        : null,
+)
+```
 
 `coerceQueryInput` (default `false`) applies to **queries only**, and exists because a URL carries no
 types. The generated client JSON-encodes each query value, so a transport that decodes it again

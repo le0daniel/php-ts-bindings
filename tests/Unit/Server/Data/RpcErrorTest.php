@@ -37,7 +37,7 @@ test('a category that says everything on its own emits no details key', function
     'internal' => [ErrorType::INTERNAL_ERROR],
 ]);
 
-test('the two categories the code alone cannot describe carry their details', function () {
+test('the three categories the code alone cannot describe carry their details', function () {
     $invalidInput = new RpcError(
         ErrorType::INVALID_INPUT,
         new RuntimeException('bad'),
@@ -52,6 +52,13 @@ test('the two categories the code alone cannot describe carry their details', fu
         errorInfo(),
     );
 
+    $rateLimited = new RpcError(
+        ErrorType::RATE_LIMITED,
+        new RuntimeException('slow down'),
+        ['retryIn' => 30],
+        errorInfo(),
+    );
+
     expect($invalidInput->jsonSerialize())->toBe([
         'success' => false,
         'code' => 422,
@@ -62,6 +69,25 @@ test('the two categories the code alone cannot describe carry their details', fu
         'code' => 400,
         'type' => 'DOMAIN_ERROR',
         'details' => ['name' => 'invalid_name'],
+    ])->and($rateLimited->jsonSerialize())->toBe([
+        'success' => false,
+        'code' => 429,
+        'type' => 'RATE_LIMITED',
+        'details' => ['retryIn' => 30],
+    ]);
+});
+
+test('a rate limited error without a known retryIn still ships the details key', function () {
+    // The RATE_LIMITED branch always declares {retryIn: number | null} - its shape must not
+    // depend on whether a resolver is configured. Null filtering is top level only, so the
+    // nested null survives onto the wire on purpose.
+    $error = new RpcError(ErrorType::RATE_LIMITED, new RuntimeException('slow down'), ['retryIn' => null], errorInfo());
+
+    expect($error->jsonSerialize())->toBe([
+        'success' => false,
+        'code' => 429,
+        'type' => 'RATE_LIMITED',
+        'details' => ['retryIn' => null],
     ]);
 });
 

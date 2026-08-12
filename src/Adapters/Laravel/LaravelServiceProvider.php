@@ -15,6 +15,7 @@ use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\ListCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Commands\OptimizeCommand;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\RetryInResolver;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
@@ -101,16 +102,27 @@ final class LaravelServiceProvider extends ServiceProvider implements Deferrable
         /** @var list<class-string<MiddlewareContract>> $middlewares */
         $middlewares = $config->get('operations.middleware', []) |> array_values(...);
 
+        $configuration = new ServerConfiguration()
+            ->withMiddlewares(...$middlewares)
+            ->withExceptions(
+                notFound: $config->get('operations.exceptions.not_found', []),
+                unauthenticated: $config->get('operations.exceptions.unauthenticated', []),
+                unauthorized: $config->get('operations.exceptions.unauthorized', []),
+                rateLimited: $config->get('operations.exceptions.rate_limited', []),
+            );
+
+        /** @var class-string<RetryInResolver>|null $retryInResolverClassName */
+        $retryInResolverClassName = $config->get('operations.retry_in_resolver');
+        if ($retryInResolverClassName !== null) {
+            /** @var RetryInResolver $retryInResolver */
+            $retryInResolver = $app->make($retryInResolverClassName);
+            $configuration = $configuration->withRetryInResolver($retryInResolver->resolveRetryInSeconds(...));
+        }
+
         return new Server(
             registry: $operations,
             adapter: new PsrContainerAdapter(container: $app),
-            configuration: new ServerConfiguration()
-                ->withMiddlewares(...$middlewares)
-                ->withExceptions(
-                    notFound: $config->get('operations.exceptions.not_found', []),
-                    unauthenticated: $config->get('operations.exceptions.unauthenticated', []),
-                    unauthorized: $config->get('operations.exceptions.unauthorized', []),
-                ),
+            configuration: $configuration,
         );
     }
 

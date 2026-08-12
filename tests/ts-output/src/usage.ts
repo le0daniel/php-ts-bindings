@@ -38,6 +38,13 @@ export async function readProduct(): Promise<Product | null> {
         case 422:
             console.warn('invalid input', result.details.fields);
             return null;
+        case 429: {
+            // The one branch that says when to come back. `details` is always declared - the
+            // server could not know a retryIn is a null value, never a missing key.
+            const retryIn: number | null = result.details.retryIn;
+            console.warn('rate limited', retryIn);
+            return null;
+        }
         case 0:
             // The one branch no server sent. The request never got there, so what went wrong is the
             // exception itself rather than anything that came off the wire, and it arrives intact.

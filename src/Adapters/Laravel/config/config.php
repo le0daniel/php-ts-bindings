@@ -10,6 +10,7 @@ use Illuminate\Database\RecordsNotFoundException;
 use Illuminate\Session\TokenMismatchException;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\RetryInResolver;
 use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 
@@ -126,5 +127,23 @@ return [
             RecordNotFoundException::class,
             RecordsNotFoundException::class,
         ],
+
+        /**
+         * The typical entry is Illuminate\Http\Exceptions\ThrottleRequestsException - but only
+         * for throttling inside a handler (e.g. RateLimiter::attempt). Laravel's route-level
+         * throttle middleware answers before the operation runs, so no envelope forms there.
+         */
+        'rate_limited' => [],
     ],
+
+    /**
+     * Define a class name resolving the seconds until a rate limited request may be retried.
+     * It must implement Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\RetryInResolver.
+     *
+     * Null leaves retryIn null: the RATE_LIMITED envelope always carries details.retryIn,
+     * this only decides whether it has a value.
+     *
+     * @see RetryInResolver
+     */
+    'retry_in_resolver' => null,
 ];

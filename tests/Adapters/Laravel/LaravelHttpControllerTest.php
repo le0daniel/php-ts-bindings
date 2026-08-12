@@ -20,6 +20,7 @@ use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Mockery;
 use Throwable;
@@ -420,6 +421,97 @@ test('directives queued before a failure never reach the client', function () {
             'code' => 500,
             'type' => 'INTERNAL_ERROR',
         ]);
+});
+
+/**
+ * A controller whose handler throws an exception the configuration lists as rate limited.
+ *
+ * @return array{LaravelHttpController, Request, string}
+ */
+function rateLimitedController(ServerConfiguration $configuration): array
+{
+    $fcn = 'docs.method';
+
+    $typeParser = new TypeParser();
+    $operationRegistry = Mockery::mock(OperationRegistry::class);
+    $exceptionHandler = Mockery::mock(ExceptionHandler::class);
+    $app = Mockery::mock(Application::class);
+    $request = Request::create('/query/docs.method', 'GET', ['name' => 'some_value']);
+
+    $controllerInstance = new class () {
+        public function someMethod(array $input, null $context, Client $client): array
+        {
+            throw new \RuntimeException('too many attempts');
+        }
+    };
+
+    // The real class name: the handler throws, so the server reflects this scope's #[Throws]
+    // declarations before falling back to the configured lists.
+    $operationDefinition = new Definition(OperationType::QUERY, $controllerInstance::class, 'someMethod', 'method', 'docs', []);
+    $operation = new Operation(
+        'somekey',
+        $operationDefinition,
+        fn () => $typeParser->parse('array{name: string}'),
+        fn () => $typeParser->parse('array{id: string, name: string}'),
+    );
+
+    $operationRegistry->shouldReceive('has')->with(OperationType::QUERY, $fcn)->andReturn(true);
+    $operationRegistry->shouldReceive('get')->with(OperationType::QUERY, $fcn)->andReturn($operation);
+    $app->shouldReceive('get')->with($operationDefinition->fullyQualifiedClassName)->andReturn($controllerInstance);
+    $exceptionHandler->shouldReceive('report')->andReturnNull();
+
+    $controller = new LaravelHttpController(
+        new Server($operationRegistry, new PsrContainerAdapter(container: $app), $configuration),
+        $exceptionHandler,
+        null,
+    );
+
+    return [$controller, $request, $fcn];
+}
+
+test('a rate limited failure answers with the Retry-After header when retryIn is known', function () {
+    $configuration = new ServerConfiguration()
+        ->withExceptions(rateLimited: [\RuntimeException::class])
+        ->withRetryInResolver(fn (Throwable $throwable): ?int => 30);
+
+    [$controller, $request, $fcn] = rateLimitedController($configuration);
+    $response = $controller->handleHttpQueryRequest($fcn, $request);
+
+    expect($response->getStatusCode())->toBe(429)
+        ->and($response->headers->get('Retry-After'))->toBe('30')
+        ->and($response->getData(true))->toEqual([
+            'success' => false,
+            'code' => 429,
+            'type' => 'RATE_LIMITED',
+            'details' => ['retryIn' => 30],
+        ]);
+});
+
+test('a rate limited failure without a known retryIn ships the null in the body and no header', function () {
+    // Retry-After has no way to say "unknown", so the header is only set when there is a number.
+    // The envelope's shape is unaffected: details.retryIn is present either way.
+    $configuration = new ServerConfiguration()->withExceptions(rateLimited: [\RuntimeException::class]);
+
+    [$controller, $request, $fcn] = rateLimitedController($configuration);
+    $response = $controller->handleHttpQueryRequest($fcn, $request);
+
+    expect($response->getStatusCode())->toBe(429)
+        ->and($response->headers->has('Retry-After'))->toBeFalse()
+        ->and($response->getData(true))->toEqual([
+            'success' => false,
+            'code' => 429,
+            'type' => 'RATE_LIMITED',
+            'details' => ['retryIn' => null],
+        ]);
+});
+
+test('other failures never carry a Retry-After header', function () {
+    // Unlisted, so the throw stays an internal error - and the header belongs to 429 alone.
+    [$controller, $request, $fcn] = rateLimitedController(new ServerConfiguration());
+    $response = $controller->handleHttpQueryRequest($fcn, $request);
+
+    expect($response->getStatusCode())->toBe(500)
+        ->and($response->headers->has('Retry-After'))->toBeFalse();
 });
 
 test('a custom client factory decides the client, not the header', function () {

@@ -61,6 +61,8 @@ php artisan operations:codegen resources/js/operations
 | `exceptions.unauthenticated` | `AuthenticationException` | Mapped to 401. |
 | `exceptions.unauthorized` | `TokenMismatchException`, `AuthorizationException` | Mapped to 403. |
 | `exceptions.not_found` | `ModelNotFoundException`, `RecordNotFoundException`, `RecordsNotFoundException` | Mapped to 404. |
+| `exceptions.rate_limited` | `[]` | Mapped to 429. Only matters for throttling inside a handler — Laravel's route-level throttle middleware answers before the operation runs. |
+| `retry_in_resolver` | `null` | A `RetryInResolver` class name resolving `details.retryIn` (seconds) for 429s. When it returns a number, the HTTP controller also sets a standard `Retry-After` header. |
 | `cache.idLength` | `10` | Id length used by the production cache. |
 
 Exception matching is `instanceof`, so listing a base class covers its subclasses. An unrecognised
