@@ -16,7 +16,10 @@ final class CartCommands
      * and both value objects unwrap back to plain scalars on the way out.
      *
      * @param  array{item: LineItemInput}  $input
-     * @return array{count: int, items: list<array{note: string|null, quantity: int, sku: string}>}
+     * @return array{
+     *     count: int,
+     *     items: list<array{note: string|null, quantity: int, sku: string}>
+     * }
      */
     #[Command('cart')]
     public function addItem(array $input): array

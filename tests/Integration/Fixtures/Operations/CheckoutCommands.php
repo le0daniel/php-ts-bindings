@@ -4,17 +4,24 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Fixtures\Operations;
 
+use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
+use stdClass;
 use Tests\Integration\Fixtures\Types\OrderStatus;
 use Tests\Integration\Fixtures\Types\PaymentMethod;
 
+/**
+ * @phpstan-type CardType array{cardNumber: string, kind: 'card'}
+ * @phpstan-type IBanType array{iban: string, kind: 'invoice'}
+ * @phpstan-type TwintType array{kind: 'twint', phone: string}
+ */
 final class CheckoutCommands
 {
     /**
      * Discriminated union on the INPUT side: three inline shapes sharing the literal kind. The
      * output proves a plain backed enum serializes by case name, not backing value.
      *
-     * @param  array{cardNumber: string, kind: 'card'}|array{iban: string, kind: 'invoice'}|array{kind: 'twint', phone: string}  $input
+     * @param CardType|TwintType|IBanType $input
      * @return array{method: PaymentMethod, reference: string}
      */
     #[Command('checkout')]
@@ -30,15 +37,19 @@ final class CheckoutCommands
     /**
      * Int-literal unions and enum-case literals as input types; literal unions on the output.
      *
-     * @param  array{level: 1|2|3, status: OrderStatus::PAID|OrderStatus::PENDING}  $input
+     * @param  object{level: 1|2|3, status: OrderStatus::PAID|OrderStatus::PENDING}  $input
      * @return array{flagged: 'high'|'low', level: 1|2|3}
      */
     #[Command('checkout')]
-    public function flagPriority(array $input): array
+    public function flagPriority(object $input): array
     {
+        if (!$input instanceof stdClass) {
+            throw new InvalidArgumentException('Expected object');
+        }
+
         return [
-            'flagged' => $input['level'] === 1 ? 'high' : 'low',
-            'level' => $input['level'],
+            'flagged' => $input->level === 1 ? 'high' : 'low',
+            'level' => $input->level,
         ];
     }
 }
