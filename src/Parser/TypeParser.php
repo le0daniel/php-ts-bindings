@@ -63,7 +63,6 @@ final readonly class TypeParser
      */
     public static function defaultConsumers(
         GlobalTypeAliases $globalTypeAliases = new GlobalTypeAliases(),
-        bool $allowAllObjectCasting = false,
     ): array {
         return [
             new LiteralConsumer(),
@@ -81,7 +80,7 @@ final readonly class TypeParser
             new ValueObjectConsumer(),
             new EnumConsumer(),
             new DateTimeConsumer(),
-            new UserDefinedObjectConsumer($allowAllObjectCasting),
+            new UserDefinedObjectConsumer(),
             new UtilsConsumer(),
         ];
     }

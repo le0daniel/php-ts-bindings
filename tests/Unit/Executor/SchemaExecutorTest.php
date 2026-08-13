@@ -19,7 +19,11 @@ use Tests\Mocks\ValueObjects\StatusEnum;
 use Tests\Mocks\ValueObjects\UserId;
 use Tests\Mocks\ValueObjects\ValidatedAge;
 use Tests\Mocks\ValueObjects\ValidatedEmail;
+use Tests\Unit\Executor\Mocks\ApiCredentials;
+use Tests\Unit\Executor\Mocks\AuditedNoteInput;
+use Tests\Unit\Executor\Mocks\UpdateProfileInput;
 use Tests\Unit\Executor\Mocks\UserSchema;
+use Tests\Unit\Parser\Data\Stubs\UncastableClass;
 use ValueError;
 
 test('parse success', function (string $type, mixed $value, mixed $expected) {
@@ -563,4 +567,97 @@ test('a castable class hydrates and serializes its value object properties', fun
 
     expect($serialized)->toBeSuccess()
         ->and($serialized->value)->toEqual((object) ['email' => 'ada@example.test', 'ownerId' => 7]);
+});
+
+test('assign-properties hydration applies set hooks and drops output-only payload keys', function () {
+    $parsed = executeParse(UpdateProfileInput::class, [
+        'firstName' => 'Ada',
+        'lastName' => 'Lovelace',
+        'password' => 'secret',
+        'displayName' => '  ada  ',
+        // Assigning any of these would throw; they must be dropped before hydration.
+        'fullName' => 'decoy',
+        'passwordHash' => 'decoy',
+        'unknown' => 'decoy',
+    ]);
+
+    expect($parsed)->toBeSuccess()
+        ->and($parsed->value)->toBeInstanceOf(UpdateProfileInput::class)
+        ->and($parsed->value->firstName)->toBe('Ada')
+        ->and($parsed->value->lastName)->toBe('Lovelace')
+        ->and($parsed->value->displayName)->toBe('ada')
+        ->and($parsed->value->passwordHash)->toBe('terces');
+});
+
+test('assign-properties serialization reads get hooks and skips write-only properties', function () {
+    $profile = new UpdateProfileInput();
+    $profile->firstName = 'Ada';
+    $profile->lastName = 'Lovelace';
+    $profile->password = 'secret';
+    $profile->displayName = 'ada';
+
+    $serialized = executeSerialize(UpdateProfileInput::class, $profile);
+
+    expect($serialized)->toBeSuccess()
+        ->and($serialized->value)->toEqual((object) [
+            'displayName' => 'ada',
+            'firstName' => 'Ada',
+            'fullName' => 'Ada Lovelace',
+            'lastName' => 'Lovelace',
+            'passwordHash' => 'terces',
+        ]);
+});
+
+test('a missing write-only virtual property fails the parse', function () {
+    $result = executeParse(UpdateProfileInput::class, [
+        'firstName' => 'Ada',
+        'lastName' => 'Lovelace',
+        'displayName' => 'ada',
+    ]);
+
+    expect($result)->toBeFailure('validation.missing_property');
+});
+
+test('the zero-argument constructor runs and readonly output stays server-controlled', function () {
+    $parsed = executeParse(AuditedNoteInput::class, [
+        'note' => 'first entry',
+        'recordedBy' => 'spoofed',
+    ]);
+
+    expect($parsed)->toBeSuccess()
+        ->and($parsed->value)->toBeInstanceOf(AuditedNoteInput::class)
+        ->and($parsed->value->note)->toBe('first entry')
+        ->and($parsed->value->recordedBy)->toBe('system');
+
+    $serialized = executeSerialize(AuditedNoteInput::class, $parsed->value);
+
+    expect($serialized)->toBeSuccess()
+        ->and($serialized->value)->toEqual((object) ['note' => 'first entry', 'recordedBy' => 'system']);
+});
+
+test('constructor casting hydrates hidden members and serializes only readable properties', function () {
+    $parsed = executeParse(ApiCredentials::class, [
+        'keyId' => 'key_123',
+        'secret' => 'hunter2',
+    ]);
+
+    expect($parsed)->toBeSuccess()
+        ->and($parsed->value)->toBeInstanceOf(ApiCredentials::class)
+        ->and($parsed->value->keyId)->toBe('key_123');
+
+    $parsed->value->plainSecret = 'hunter2';
+    $serialized = executeSerialize(ApiCredentials::class, $parsed->value);
+
+    expect($serialized)->toBeSuccess()
+        ->and($serialized->value)->toEqual((object) ['keyId' => 'key_123', 'obfuscated' => '*******']);
+});
+
+test('an uncastable class fails on input but serializes to a plain object', function () {
+    expect(executeParse(UncastableClass::class, ['email' => 'ada@example.test', 'name' => 'Ada']))
+        ->toBeFailure();
+
+    $serialized = executeSerialize(UncastableClass::class, new UncastableClass('ada@example.test', 'Ada'));
+
+    expect($serialized)->toBeSuccess()
+        ->and($serialized->value)->toEqual((object) ['email' => 'ada@example.test', 'name' => 'Ada']);
 });

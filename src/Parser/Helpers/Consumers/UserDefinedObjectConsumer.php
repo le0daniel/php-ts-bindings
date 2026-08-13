@@ -22,6 +22,7 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Reflection\AttributesReflector;
 use Le0daniel\PhpTsBindings\Reflection\MetadataAttributes;
+use Le0daniel\PhpTsBindings\Reflection\PropertiesReflector;
 use Le0daniel\PhpTsBindings\Reflection\TypeReflector;
 use Override;
 use ReflectionClass;
@@ -33,20 +34,19 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
 
-    public function __construct(
-        public readonly bool $allowAllObjectCasting = false
-    ) {
+    public function __construct()
+    {
     }
 
     #[Override]
     public function canConsume(ParserState $state): bool
     {
-        if (! $state->currentTokenIs(TokenType::IDENTIFIER)) {
+        if (!$state->currentTokenIs(TokenType::IDENTIFIER)) {
             return false;
         }
 
         $fullyQualifiedClassName = $state->context->toFullyQualifiedClassName($state->current()->value);
-        if (! class_exists($fullyQualifiedClassName) && ! interface_exists($fullyQualifiedClassName)) {
+        if (!class_exists($fullyQualifiedClassName) && !interface_exists($fullyQualifiedClassName)) {
             return false;
         }
 
@@ -68,20 +68,18 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
             return $instance->strategy ?? $this->findCastingStrategy($class);
         }
 
-        if (! $this->allowAllObjectCasting) {
-            return ObjectCastStrategy::NEVER;
-        }
-
-        return $this->findCastingStrategy($class);
+        return ObjectCastStrategy::NEVER;
     }
 
     /**
-     * @param  ReflectionClass<object>  $class
+     * @param ReflectionClass<object> $class
      */
     private function findCastingStrategy(ReflectionClass $class): ObjectCastStrategy
     {
-        $hasConstructor = $class->getConstructor() !== null;
-        if ($hasConstructor) {
+        $constructor = $class->getConstructor();
+        $constructorArgumentCount = $constructor ? count($constructor->getParameters()) : 0;
+
+        if ($constructorArgumentCount > 0) {
             return ObjectCastStrategy::CONSTRUCTOR;
         }
 
@@ -131,7 +129,7 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
         }
 
         $type = $param->getType();
-        if ($type === null || ! $type->allowsNull()) {
+        if ($type === null || !$type->allowsNull()) {
             throw new ParserException('Optional parameter must allow null or provide a default value. PHP does not difference between null and undefined.');
         }
 
@@ -169,8 +167,10 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
     {
         $properties = [];
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
-            if ($property->isReadOnly() || $property->hasHooks()) {
-                throw new ParserException("Property {$property->name} is not writable");
+            $isWritable = PropertiesReflector::isWritableFromPublicScope($property);
+            $isReadable = PropertiesReflector::isReadableFromPublicScope($property);
+            if (!$isWritable && !$isReadable) {
+                continue;
             }
 
             $properties[] = new PropertyNode(
@@ -180,7 +180,11 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
                     $context->descendIntoDeclaringClass($property)
                 ),
                 isOptional: $this->allowsOptional($property),
-                propertyType: PropertyType::BOTH,
+                propertyType: match (true) {
+                    $isWritable && $isReadable => PropertyType::BOTH,
+                    $isWritable => PropertyType::INPUT,
+                    $isReadable => PropertyType::OUTPUT,
+                },
             );
         }
 
@@ -192,7 +196,7 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
     }
 
     /**
-     * @param  ReflectionClass<object>  $reflectionClass
+     * @param ReflectionClass<object> $reflectionClass
      *
      * @throws InvalidSyntaxException
      */
@@ -221,6 +225,10 @@ final readonly class UserDefinedObjectConsumer implements TypeConsumer
         }
 
         foreach ($reflectionClass->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
+            if (!PropertiesReflector::isReadableFromPublicScope($property)) {
+                continue;
+            }
+
             if ($property->isPromoted()) {
                 $index = array_find_key($structProperties, fn (PropertyNode $propertyNode) => $propertyNode->name === $property->getName());
                 if ($index !== null) {

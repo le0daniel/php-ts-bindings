@@ -126,7 +126,7 @@ test('the value object interface wins over the enum consumer', function () {
 });
 
 test('a value object is never treated as a castable object', function () {
-    $parser = new TypeParser(TypeParser::defaultConsumers(allowAllObjectCasting: true));
+    $parser = new TypeParser(TypeParser::defaultConsumers());
 
     expect($parser->parse(Slug::class))->toBeInstanceOf(ValueObjectNode::class);
 });
