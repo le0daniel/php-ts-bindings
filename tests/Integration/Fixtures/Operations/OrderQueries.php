@@ -30,7 +30,11 @@ final class OrderQueries
      * @return array{
      *     createdAt: DateTimeImmutable,
      *     currency: Currency,
-     *     items: non-empty-list<array{lineTotal: Money, quantity: int, sku: string}>,
+     *     items: non-empty-list<array{
+     *          lineTotal: Money,
+     *          quantity: int,
+     *          sku: Sku
+     *     }>,
      *     shippingAddress: Address,
      *     status: OrderStatus,
      *     total: Money,
