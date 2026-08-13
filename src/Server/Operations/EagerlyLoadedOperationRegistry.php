@@ -82,7 +82,7 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
         $factories = [];
         foreach ($discovery->operations as $definition) {
             $key = $keyGenerator->generateKey($definition->namespace, $definition->name);
-            $fullyQualifiedKey = $definition->type->registryKey($key);
+            $fullyQualifiedKey = $definition->type->fullyQualifiedOperationKey($key);
 
             // Keys can be truncated hashes, so two operations can collide on one. Assigning over
             // the entry would leave an operation silently unreachable; ASTOptimizer throws for the
@@ -135,9 +135,9 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
     }
 
     #[Override]
-    public function has(OperationType $type, string $fullyQualifiedKey): bool
+    public function has(OperationType $type, string $key): bool
     {
-        $key = $type->registryKey($fullyQualifiedKey);
+        $key = $type->fullyQualifiedOperationKey($key);
 
         return array_key_exists($key, $this->factories);
     }
@@ -146,9 +146,9 @@ final class EagerlyLoadedOperationRegistry implements OperationRegistry
      * @throws ReflectionException
      */
     #[Override]
-    public function get(OperationType $type, string $fullyQualifiedKey): Operation
+    public function get(OperationType $type, string $key): Operation
     {
-        $key = $type->registryKey($fullyQualifiedKey);
+        $key = $type->fullyQualifiedOperationKey($key);
 
         return $this->instances[$key] ??= $this->factories[$key]();
     }

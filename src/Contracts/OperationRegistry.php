@@ -9,9 +9,9 @@ use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 
 interface OperationRegistry
 {
-    public function has(OperationType $type, string $fullyQualifiedKey): bool;
+    public function has(OperationType $type, string $key): bool;
 
-    public function get(OperationType $type, string $fullyQualifiedKey): Operation;
+    public function get(OperationType $type, string $key): Operation;
 
     /**
      * @return array<string, Operation>

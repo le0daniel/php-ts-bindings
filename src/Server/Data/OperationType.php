@@ -22,8 +22,8 @@ enum OperationType
      * type is part of the key - and every registry has to spell it the same way, or a cache written
      * by one cannot be read by the other.
      */
-    public function registryKey(string $fullyQualifiedKey): string
+    public function fullyQualifiedOperationKey(string $key): string
     {
-        return "{$this->name}@{$fullyQualifiedKey}";
+        return "{$this->name}@{$key}";
     }
 }

@@ -53,6 +53,6 @@ test('the plain generator exposes namespace and name verbatim', function () {
 });
 
 test('a query and a command with the same name are distinct registry keys', function () {
-    expect(OperationType::QUERY->registryKey('users.get'))
-        ->not->toBe(OperationType::COMMAND->registryKey('users.get'));
+    expect(OperationType::QUERY->fullyQualifiedOperationKey('users.get'))
+        ->not->toBe(OperationType::COMMAND->fullyQualifiedOperationKey('users.get'));
 });
