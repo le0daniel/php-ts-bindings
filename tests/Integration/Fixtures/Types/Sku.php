@@ -12,14 +12,16 @@ use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
  * Rejects with ValidationException so the exact message reaches the 422 fields verbatim. The
  * Brand attribute is codegen-only metadata and must have zero effect on the runtime envelope.
  */
-#[Brand]
+#[Brand(static function ($className) {
+    return "sku";
+})]
 final readonly class Sku implements StringValueObject
 {
     private function __construct(public string $value)
     {
     }
 
-    public static function fromStringValue(string $value): static
+    public static function fromStringValue(string $value): self
     {
         if (preg_match('/^[A-Z]{3}-\d{3}$/', $value) !== 1) {
             throw new ValidationException('Sku must match ABC-123', ['value' => $value]);
