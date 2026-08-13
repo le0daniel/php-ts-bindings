@@ -76,16 +76,15 @@ final readonly class ArrayConsumer implements TypeConsumer
         // Handle array structures.
         if ($state->current()->value === 'array' && $state->nextTokenIs(TokenType::LBRACE)) {
             // Handles: array{0: string, 1: int} => tuple
-            if ($state->peek(2)?->type === TokenType::INT && $state->peek(3)?->isAnyTypeOf(TokenType::COLON, TokenType::RBRACE)) {
+            if ($state->peek(2)?->type === TokenType::INT && $state->peek(3)?->is(TokenType::COLON) === true) {
                 return $this->consumeIntegerDeterminedTuple($state, $parser);
             }
 
-            // Handles: array{string,int} => tuple
-            if ($state->peek(3)?->isAnyTypeOf(TokenType::COMMA, TokenType::RBRACE)) {
-                return $this->consumeTuple($state, $parser);
-            }
-
-            $state->produceSyntaxError('Expected array{key: type, ...} or array{key: type, ...} syntax');
+            // Everything else is the unkeyed spelling: array{string, int}. Keyed shapes never
+            // get here because StructConsumer claims them first, and each element is consumed
+            // by the full parser, so an element may span any number of tokens:
+            // array{DateTimeString<'Y-m-d'>, int|null, array{int, int}}.
+            return $this->consumeTuple($state, $parser);
         }
 
         $maxGenerics = $type === 'list' ? 1 : 2;
@@ -184,6 +183,11 @@ final readonly class ArrayConsumer implements TypeConsumer
             $types[] = $parser->consume($state, TokenType::COMMA, TokenType::RBRACE);
         }
 
+        // Input truncated after a comma leaves the cursor on EOF, which advance() refuses.
+        if (! $state->currentTokenIs(TokenType::RBRACE)) {
+            $state->produceSyntaxError('Expected }');
+        }
+
         $state->advance();
         if ($types === []) {
             $state->produceSyntaxError('A tuple must declare at least one type.');
@@ -207,8 +211,14 @@ final readonly class ArrayConsumer implements TypeConsumer
         }
         $state->advance();
 
+        // array{} and a truncated `array{` both land here with no element to consume.
+        if ($state->currentTokenIs(TokenType::RBRACE) || $state->currentTokenIs(TokenType::EOF)) {
+            $state->produceSyntaxError('A tuple must declare at least one type.');
+        }
+
         $types = [];
-        while ($state->canAdvance()) {
+        // The guard above proves the cursor is on a real token, so the body runs at least once.
+        do {
             $types[] = $parser->consume($state, TokenType::COMMA, TokenType::RBRACE);
 
             if ($state->currentTokenIs(TokenType::RBRACE)) {
@@ -224,12 +234,14 @@ final readonly class ArrayConsumer implements TypeConsumer
                 $state->produceSyntaxError('Expected comma for union: array{string, int}');
             }
             $state->advance();
+        } while ($state->canAdvance());
+
+        // Input truncated after a comma leaves the cursor on EOF, which advance() refuses.
+        if (! $state->currentTokenIs(TokenType::RBRACE)) {
+            $state->produceSyntaxError('Expected }');
         }
 
         $state->advance();
-        if ($types === []) {
-            $state->produceSyntaxError('A tuple must declare at least one type.');
-        }
 
         return new TupleNode($types);
     }

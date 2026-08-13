@@ -52,9 +52,9 @@ final class CartCommands
 
     /**
      * Strict Y-m-d parsing in, a tuple of derived dates out. The window derives from the parsed
-     * input date, so the output stays a pure function of the input. The window tuple uses the
-     * integer-keyed spelling: the unkeyed form only detects tuples whose first element is a
-     * single token, so a generic like DateTimeString cannot lead it.
+     * input date, so the output stays a pure function of the input. The window is an unkeyed
+     * tuple (array{A, B}) whose elements are generics — exercising tuple elements that span
+     * more than one token.
      *
      * @param  array{date: DateTimeString<'Y-m-d'>}  $input
      * @return array{confirmed: DateTimeString<'Y-m-d'>, window: array{DateTimeString<'Y-m-d'>, DateTimeString<'Y-m-d'>}}

@@ -447,6 +447,37 @@ test('classic tuple struct', function () {
     compareToOptimizedAst($node);
 });
 
+test('unkeyed tuple elements may span multiple tokens', function (string $type, string $firstElementNode, int $count) {
+    $parser = new TypeParser();
+    /** @var TupleNode $node */
+    $node = $parser->parse($type);
+    expect($node)->toBeInstanceOf(TupleNode::class)
+        ->and($node->nodes)->toHaveCount($count)
+        ->and($node->nodes[0])->toBeInstanceOf($firstElementNode);
+
+    compareToOptimizedAst($node);
+})->with([
+    'generic first element' => ["array{DateTimeString<'Y-m-d'>, DateTimeString<'Y-m-d'>}", DateTimeNode::class, 2],
+    'single generic element' => ["array{DateTimeString<'Y-m-d'>}", DateTimeNode::class, 1],
+    'list first element' => ['array{list<int>, int}', ListNode::class, 2],
+    'union first element' => ['array{int|null, int}', UnionNode::class, 2],
+    'union first element with tailing comma' => ['array{int|null, int,}', UnionNode::class, 2],
+    'literal union first element' => ["array{'a'|'b', int}", UnionNode::class, 2],
+    'nullable first element' => ['array{?string, int}', UnionNode::class, 2],
+    'bracket list first element' => ['array{string[], int}', ListNode::class, 2],
+    'nested tuple first element' => ['array{array{int, int}, int}', TupleNode::class, 2],
+]);
+
+test('an unkeyed tuple can be a struct property', function () {
+    /** @var StructNode $node */
+    $node = new TypeParser()->parse("array{window: array{DateTimeString<'Y-m-d'>, DateTimeString<'Y-m-d'>}}");
+
+    expect($node)->toBeInstanceOf(StructNode::class)
+        ->and($node->getProperty('window')?->node)->toBeInstanceOf(TupleNode::class);
+
+    compareToOptimizedAst($node);
+});
+
 test('a single generic array is a record, not a list', function () {
     $parser = new TypeParser();
     // PHPStan reads array<V> as array<array-key, V>, which permits string keys. Only `list` and
@@ -983,6 +1014,7 @@ test('DateTimeString composes with other types', function (string $type, string 
     'nullable' => ["DateTimeString<'Y-m-d'>|null", '(string|null)'],
     'questionmark nullable' => ["?DateTimeString<'Y-m-d'>", '(null|string)'],
     'in a struct' => ["array{createdAt: DateTimeString<'Y-m-d'>}", '{createdAt:string;}'],
+    'in a tuple' => ["array{DateTimeString<'Y-m-d'>, DateTimeString<'Y-m-d'>}", '[string,string]'],
     'in a list' => ['list<DateTimeString>', 'Array<string>'],
     'bracket list' => ["DateTimeString<'Y-m-d'>[]", 'Array<string>'],
 ]);
@@ -1104,6 +1136,10 @@ test('A truncated array shape is a syntax error, not a PHP Error', function () {
     expect(fn () => new TypeParser()->parse('array{'))
         ->toThrow(InvalidSyntaxException::class)
         ->and(fn () => new TypeParser()->parse('array{a'))
+        ->toThrow(InvalidSyntaxException::class)
+        ->and(fn () => new TypeParser()->parse('array{a,'))
+        ->toThrow(InvalidSyntaxException::class)
+        ->and(fn () => new TypeParser()->parse('array{0: int,'))
         ->toThrow(InvalidSyntaxException::class);
 });
 
