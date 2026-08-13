@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server;
 
+use Closure;
 use Le0daniel\PhpTsBindings\Contracts\OperationKeyGenerator;
 use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\NullNode;
@@ -71,13 +72,22 @@ final readonly class Preloader
     }
 
     /**
+     * For perloading many, you can pass a closure for the context. This is useful if the context is mutated
+     * during execution.
+     *
      * @param  list<array{namespace: string|UnitEnum, name: string, input: mixed}>  $preloads
+     * @param  mixed|(Closure():mixed)  $context
      * @return list<array{response: mixed, queryKey: list<mixed>}>
      */
     public function preloadMany(array $preloads, mixed $context): array
     {
         return array_map(
-            fn (array $preload) => $this->preload($preload['namespace'], $preload['name'], $preload['input'], $context),
+            fn (array $preload) => $this->preload(
+                $preload['namespace'],
+                $preload['name'],
+                $preload['input'],
+                $context instanceof Closure ? $context() : $context
+            ),
             $preloads
         );
     }
