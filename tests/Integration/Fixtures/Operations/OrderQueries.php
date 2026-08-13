@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Fixtures\Operations;
 
 use DateTimeImmutable;
+use InvalidArgumentException;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 use Tests\Integration\Fixtures\Types\Address;
 use Tests\Integration\Fixtures\Types\Currency;
@@ -180,6 +181,10 @@ final class OrderQueries
     #[Query('orders')]
     public function parcelDimensions(array $input): array
     {
+        if (!$input['sku'] instanceof Sku) {
+            throw new InvalidArgumentException('Expected Sku');
+        }
+
         return [
             'dimensionsMm' => [300, 200, 50],
             'sku' => $input['sku']->toStringValue(),
