@@ -37,23 +37,23 @@ readonly class LaravelHttpController
 
     public static function registerQueries(string $routePrefix = 'query'): Route
     {
-        return Facades\Route::get("{$routePrefix}/{fqn}", [self::class, 'handleHttpQueryRequest'])
+        return Facades\Route::get("{$routePrefix}/{key}", [self::class, 'handleHttpQueryRequest'])
             ->name(self::QUERY_NAME);
     }
 
     public static function registerCommands(string $routePrefix = 'command'): Route
     {
-        return Facades\Route::post("{$routePrefix}/{fqn}", [self::class, 'handleHttpCommandRequest'])
+        return Facades\Route::post("{$routePrefix}/{key}", [self::class, 'handleHttpCommandRequest'])
             ->name(self::COMMAND_NAME);
     }
 
     /**
      * @throws Throwable
      */
-    public function handleHttpQueryRequest(string $fqn, Http\Request $request): JsonResponse
+    public function handleHttpQueryRequest(string $key, Http\Request $request): JsonResponse
     {
         return $this->server->query(
-            $fqn,
+            $key,
             input: $this->gatherInputFromRequest(OperationType::QUERY, $request),
             context: $this->contextFactory?->createContextFromHttpRequest($request),
             client: $this->clientFactory->createClientFromHttpRequest($request),
@@ -65,10 +65,10 @@ readonly class LaravelHttpController
     /**
      * @throws Throwable
      */
-    public function handleHttpCommandRequest(string $fqn, Http\Request $request): JsonResponse
+    public function handleHttpCommandRequest(string $key, Http\Request $request): JsonResponse
     {
         return $this->server->command(
-            $fqn,
+            $key,
             input: $this->gatherInputFromRequest(OperationType::COMMAND, $request),
             context: $this->contextFactory?->createContextFromHttpRequest($request),
             client: $this->clientFactory->createClientFromHttpRequest($request),
@@ -151,7 +151,7 @@ readonly class LaravelHttpController
             $jsonResponse['__resolveInfo'] = [
                 'handler' => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
                 'middleware' => $result->resolveInfo->middleware,
-                'fqn' => $result->resolveInfo->fullyQualifiedName,
+                'fullyQualifiedName' => $result->resolveInfo->fullyQualifiedName,
                 'type' => $result->resolveInfo->operationType->name,
             ];
         }

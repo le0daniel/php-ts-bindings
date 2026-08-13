@@ -39,7 +39,7 @@ something yourself with the same instance.
 
 ## Operation keys
 
-**`$name` is the operation's *key*, not its plain name.** An `OperationKeyGenerator` turns
+**`$key` is the operation's *key*, not its plain name.** An `OperationKeyGenerator` turns
 `namespace` + `name` into what the client calls.
 
 | Generator | Produces |

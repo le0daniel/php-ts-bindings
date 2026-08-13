@@ -59,6 +59,6 @@ final class ListCommand extends Command
 
     private function bindUri(string $uri, Operation $operation): string
     {
-        return str_replace('{fqn}', $operation->key, $uri);
+        return str_replace('{key}', $operation->key, $uri);
     }
 }

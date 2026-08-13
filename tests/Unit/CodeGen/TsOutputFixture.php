@@ -53,6 +53,6 @@ final class TsOutputFixture
 
         return new TypescriptServerCodeGenerator(
             CodeGenerators::fromDefaults('name', with: ['type-map', 'tanstack-query', 'query-key']),
-        )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()));
+        )->generate($server, new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()));
     }
 }

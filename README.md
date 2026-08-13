@@ -159,8 +159,8 @@ $server = new Server(
 $files = new TypescriptServerCodeGenerator(
     CodeGenerators::fromDefaults('name'),
 )->generate($server, new ServerMetadata(
-    '/query/{fqn}',
-    '/command/{fqn}',
+    '/query/{key}',
+    '/command/{key}',
     $server->configuration,
 ));
 
@@ -172,7 +172,7 @@ the rule that names the generated functions. `with:` and `without:` change the s
 opt-in — and what it returns is a plain list, so you can append your own or skip the factory and pass
 your own array. See [the generators](docs/typescript-client.md#generators) for the whole menu.
 
-The two URLs are the routes *your* transport serves; `{fqn}` is where the operation key goes, and
+The two URLs are the routes *your* transport serves; `{key}` is where the operation key goes, and
 both are required to contain it. The configuration rides along because which error categories the
 generated `Failure` union names depends on how this server maps exceptions.
 
@@ -182,11 +182,11 @@ whole envelope the generated client reads, so a transport is two lines:
 ```php
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 
-// GET /query/{fqn}  — each query parameter JSON-decoded back into a value
-$result = $server->query($fqn, $input, $myContext, new NullClient());
+// GET /query/{key}  — each query parameter JSON-decoded back into a value
+$result = $server->query($key, $input, $myContext, new NullClient());
 
-// POST /command/{fqn}  — the JSON body
-$result = $server->command($fqn, $input, $myContext, new NullClient());
+// POST /command/{key}  — the JSON body
+$result = $server->command($key, $input, $myContext, new NullClient());
 
 respondJson($result->statusCode, $result->jsonSerialize());
 ```
@@ -240,7 +240,7 @@ output that does not match its type is a 500 rather than something the client is
 The PHPStan *refinements* on top of a type (`positive-int`, `non-empty-string`) are checked on the
 way in only, because static analysis already established them on the way out.
 
-**`$name` is the operation's *key*, not its plain name.** An `OperationKeyGenerator` turns
+**`$key` is the operation's *key*, not its plain name.** An `OperationKeyGenerator` turns
 `namespace` + `name` into what the client calls: `PlainlyExposedKeyGenerator` gives literal keys,
 `HashSha256KeyGenerator` opaque ones — which is not a security boundary, it only keeps your
 operation names out of the shipped bundle. The generated TypeScript always embeds whichever key the

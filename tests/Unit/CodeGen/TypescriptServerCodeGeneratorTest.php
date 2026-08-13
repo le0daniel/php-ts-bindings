@@ -52,7 +52,7 @@ function generateFor(array $classes, ?array $generators = null): array
             new EmitTypeUtils(),
             new EmitOperations(),
         ],
-    )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()));
+    )->generate($server, new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()));
 }
 
 test('attribute brands declare no aliases in lib/types.ts, only the Brand helper', function () {
@@ -311,7 +311,7 @@ test('fails the run when a globally configured middleware declares a domain erro
         new EmitOperationClientBindings(),
         new EmitTypeUtils(),
         new EmitOperations(),
-    ])->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}', $server->configuration)))
+    ])->generate($server, new ServerMetadata('/query/{key}', '/command/{key}', $server->configuration)))
         ->toThrow(CodeGenException::class, GloballyThrowingMiddleware::class);
 });
 

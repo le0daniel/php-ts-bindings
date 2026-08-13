@@ -37,7 +37,7 @@ function tanstackCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator
 
     return $emitter->generateOperationCode(
         $typedOperation,
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+        new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()),
     );
 }
 

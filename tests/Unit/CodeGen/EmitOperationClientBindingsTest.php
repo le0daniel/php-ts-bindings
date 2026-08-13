@@ -31,7 +31,7 @@ function bindingFiles(): array
 
     return $emitter->emitFiles(
         [],
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+        new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()),
         new AliasRegistry(),
     );
 }

@@ -195,7 +195,7 @@ export class DefaultClient implements OperationClient {
 
     async execute<O, TDomainType extends string = never>(type: "command" | "query", key: string, input: unknown, options?: OperationOptions): Promise<Result<O, TDomainType>> {
         const route = this.options.paths[type].substring(0, 1) === '/' ? this.options.paths[type].substring(1) : this.options.paths[type];
-        const fullPath = `${this.options.baseUrl ?? ''}/${route.replace('{fqn}', key)}`;
+        const fullPath = `${this.options.baseUrl ?? ''}/${route.replace('{key}', key)}`;
 
         // Per call wins over the client wide default, and the timeout signal actually fires: a
         // fresh AbortController is never aborted by anything.

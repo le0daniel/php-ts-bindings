@@ -107,8 +107,8 @@ an envelope. That cuts both ways for throttling: a gateway or route middleware a
 its *own* body is `CLIENT_ERROR` like any other imposter — only the server's own envelope narrows
 to `RATE_LIMITED`.
 
-The URLs come from `ServerMetadata('/query/{fqn}', '/command/{fqn}')`, the two routes *your*
-transport serves. `{fqn}` is where the operation key goes, and both are required to contain it.
+The URLs come from `ServerMetadata('/query/{key}', '/command/{key}')`, the two routes *your*
+transport serves. `{key}` is where the operation key goes, and both are required to contain it.
 
 ## Failing loudly
 

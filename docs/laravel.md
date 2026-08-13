@@ -84,8 +84,8 @@ operations belong to:
 use Le0daniel\PhpTsBindings\Adapters\Laravel\LaravelHttpController;
 
 Route::middleware('web')->group(function () {
-    LaravelHttpController::registerQueries();    // GET  /query/{fqn}
-    LaravelHttpController::registerCommands();   // POST /command/{fqn}
+    LaravelHttpController::registerQueries();    // GET  /query/{key}
+    LaravelHttpController::registerCommands();   // POST /command/{key}
 });
 ```
 
@@ -98,9 +98,9 @@ Because you register them, the middleware group, authentication, throttling, ses
 behaviour are entirely your application's choice — the adapter has no opinion and adds nothing to
 the HTTP kernel.
 
-**The route parameter must stay named `{fqn}`.** The generated client substitutes the operation key
+**The route parameter must stay named `{key}`.** The generated client substitutes the operation key
 into that placeholder literally, so a hand-registered route using any other name yields a client
-requesting URLs that still contain `{fqn}` — no error anywhere, just 404s.
+requesting URLs that still contain `{key}` — no error anywhere, just 404s.
 
 ## Context
 

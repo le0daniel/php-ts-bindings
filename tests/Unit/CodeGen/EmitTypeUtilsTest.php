@@ -45,7 +45,7 @@ function emitUtilsFor(OperationType $type = OperationType::QUERY, string $namesp
 
     $files = $emitter->emitFiles(
         [new TypedOperation($input, $output, 'never', $operation)],
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+        new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()),
         $registry,
     );
 

@@ -45,7 +45,7 @@ function usersModuleFor(string|\Closure $naming): string
 
     $files = new TypescriptServerCodeGenerator(
         CodeGenerators::fromDefaults($naming),
-    )->generate($server, new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()));
+    )->generate($server, new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()));
 
     return $files['users.ts']->toString();
 }

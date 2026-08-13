@@ -37,8 +37,8 @@ final readonly class Preloader
     public function preload(string|UnitEnum $namespace, string $name, mixed $input, mixed $context): array
     {
         $namespaceAsString = Strings::toString($namespace);
-        $fqcn = $this->keyGenerator->generateKey($namespaceAsString, $name);
-        $result = $this->server->query($fqcn, $input, $context, new NullClient());
+        $key = $this->keyGenerator->generateKey($namespaceAsString, $name);
+        $result = $this->server->query($key, $input, $context, new NullClient());
 
         if (! $result instanceof RpcSuccess) {
             throw new SchemaException("Failed to preload: {$namespaceAsString}.{$name}");

@@ -11,7 +11,7 @@ export function createDefaultClient(
     options?: {baseUrl?: string; timeoutMs?: number},
 ): DefaultClient {
     return new DefaultClient(fetcher ?? fetch, {
-        paths: {query: '/query/{fqn}', command: '/command/{fqn}'},
+        paths: {query: '/query/{key}', command: '/command/{key}'},
         baseUrl: options?.baseUrl ?? '',
         timeoutMs: options?.timeoutMs ?? 10000,
     });

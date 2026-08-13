@@ -37,7 +37,7 @@ function queryKeyCodeFor(TypedOperation $typedOperation, ?Closure $nameGenerator
 
     $file = $emitter->generateOperationCode(
         $typedOperation,
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+        new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()),
     );
 
     return [$file->code, $file->toString()];

@@ -23,11 +23,11 @@ final readonly class ServerMetadata
         public string $commandUrl,
         public ServerConfiguration $configuration,
     ) {
-        if (! str_contains($this->queryUrl, '{fqn}')) {
-            throw new CodeGenException('Query URL must contain {fqn} placeholder');
+        if (! str_contains($this->queryUrl, '{key}')) {
+            throw new CodeGenException('Query URL must contain {key} placeholder');
         }
-        if (! str_contains($this->commandUrl, '{fqn}')) {
-            throw new CodeGenException('Command URL must contain {fqn} placeholder');
+        if (! str_contains($this->commandUrl, '{key}')) {
+            throw new CodeGenException('Command URL must contain {key} placeholder');
         }
     }
 

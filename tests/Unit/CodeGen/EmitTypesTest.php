@@ -44,7 +44,7 @@ function emitTypesFor(string $inputType, string $outputType): string
 
     $files = new EmitTypes()->emitFiles(
         [new TypedOperation($input, $output, 'never', $operation)],
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+        new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()),
         $registry,
     );
 
@@ -54,7 +54,7 @@ function emitTypesFor(string $inputType, string $outputType): string
 test('rejects an alias colliding with a declaration the types file always contains', function (string $alias) {
     $registry = new AliasRegistry([$alias => '{a:string;}']);
 
-    expect(fn () => new EmitTypes()->emitFiles([], new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()), $registry))
+    expect(fn () => new EmitTypes()->emitFiles([], new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()), $registry))
         ->toThrow(UnsupportedTypeException::class, 'collides with a declaration');
 })->with([
     'the Brand helper generic' => ['Brand'],
@@ -80,7 +80,7 @@ test('rejects an alias colliding with a declaration the types file always contai
 test('every declaration the types file always contains is reserved', function () {
     $types = new EmitTypes()->emitFiles(
         [],
-        new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+        new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()),
         new AliasRegistry(),
     )['types']->toString();
 
@@ -90,7 +90,7 @@ test('every declaration the types file always contains is reserved', function ()
     foreach ($matches[1] as $name) {
         expect(fn () => new EmitTypes()->emitFiles(
             [],
-            new ServerMetadata('/query/{fqn}', '/command/{fqn}', new ServerConfiguration()),
+            new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()),
             new AliasRegistry([$name => '{a:string;}']),
         ))->toThrow(UnsupportedTypeException::class, 'collides with a declaration');
     }
