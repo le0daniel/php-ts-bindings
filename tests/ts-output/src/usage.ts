@@ -171,7 +171,17 @@ export async function readDefaults(): Promise<string> {
     const pair: [string, number] = result.data.pair;
     const lookup: Record<string, number> = result.data.lookup;
 
-    console.debug(answer, either, anything, pair, lookup);
+    // Every array<...> is a record. An int keyed one is Record<string, V>, because that is what a
+    // JSON object key is — indexing it needs the id as a string, and `.map` is not on offer.
+    const byId: Record<string, Product> = result.data.byId;
+    const one: Product | undefined = byId[String(42)];
+
+    // A literal key set is Partial, so a key that PHP never promised reads as undefined rather
+    // than being asserted into existence.
+    const modes: Partial<Record<'draft' | 'live', number>> = result.data.modes;
+    const drafts: number | undefined = modes.draft;
+
+    console.debug(answer, either, anything, pair, lookup, one, drafts);
     return result.data.nested.deep.value;
 }
 

@@ -34,8 +34,10 @@ Everything this library knows how to parse, serialize and emit. The short versio
 | `array{name: string}`, `object{name: string}` | `{name:string;}` |
 | `array{name?: string}` | `{name?:string;}` |
 | `array{a: array{b: string}}` | `{a:{b:string;};}` |
-| `list<string>`, `string[]`, `array<int, string>` | `Array<string>` |
+| `list<string>`, `string[]` | `Array<string>` |
+| `array<string>`, `array<int, string>` | `Record<string,string>` |
 | `array<string, int>` | `Record<string,number>` |
+| `array<'a'\|'b', int>` | `Partial<Record<"a"\|"b",number>>` |
 | `array{string, int}` | `[string,number]` |
 | `array{name: string}\|string` | `({name:string;}\|string)` |
 | `?string` | `(null\|string)` |
@@ -80,6 +82,11 @@ Some PHPStan types narrow a PHP type further than PHP itself can express: `posit
 | `non-empty-list<T>` | `array` | at least one element                           |
 | `non-empty-array<K, V>` | `array` | at least one element                           |
 
+A refinement on a **record key** is enforced the same way, one entry at a time:
+`array<non-empty-string, V>` rejects the `""` key and `array<positive-int, V>` rejects `"0"`. Keys
+are checked exactly as PHP hands them over — see
+[record keys](#record-keys-are-checked-as-php-folded-them) for why nothing coerces them first.
+
 A refinement disappears in TypeScript — `positive-int` is `number` — because TypeScript cannot
 express it either. It is enforced on the server.
 
@@ -107,6 +114,41 @@ library assumes static analysis does its job.
 Serialization still enforces *types*: a `string` where an `int` is declared fails either way, and it
 is not repaired into one — a near miss like the numeric string `"1.5"` for a `float` is reported, not
 cast. Only the PHPStan refinement on top of the type is skipped.
+
+### Record keys are checked as PHP folded them
+
+A JSON object key travels as a string, so it looks like `array<int, V>` could never see the `int`
+it declared. It does, and nothing in this library coerces it: **a PHP array is a hash map that
+folds a canonical decimal integer string into an `int` the moment it becomes a key**, and every
+route in has already done that before a key is checked. `json_decode($json, true)`,
+`get_object_vars()` on the object form, and an array built in PHP all agree — `{"42": …}` is
+already `[42 => …]`, while `{"abc": …}` is still `['abc' => …]`.
+
+So the key is handed to the key type exactly as it arrives, which is also exactly what
+`$record[$key]` will store it under. That is what keeps the parsed array equal to the type that
+declared it, and it has one consequence worth knowing:
+
+```php
+/** @param array<string, string> $input */   // handed {"1": "a"}  →  rejected
+```
+
+PHP has no string key `'1'` to give — it would fold to `int 1` — so accepting it would answer an
+`array<int, string>` under a signature promising string keys. The key is rejected with
+`validation.invalid_key_type` instead. Declare `array<int, V>` when the keys are ids.
+
+Only a *canonical* integer folds, so a key that merely looks numeric is still a string key and is
+accepted by `array<string, V>` unchanged:
+
+| Key | PHP stores | `array<string, V>` | `array<int, V>` |
+|---|---|---|---|
+| `"42"`, `"-1"` | `int` | rejected | accepted |
+| `"01"`, `" 1"`, `"+1"`, `"-0"` | `string` | accepted | rejected |
+| `"1.5"`, `""`, `"abc"` | `string` | accepted | rejected |
+| `"9223372036854775808"` (wider than an int) | `string` | accepted | rejected |
+
+The same rule applies to the key *type*. `array<'1'|'2', V>` describes keys no PHP array can hold,
+so it is a syntax error rather than a type that silently matches nothing — write `array<1|2, V>`.
+`array<'01', V>` is fine, because `'01'` is a genuine string key.
 
 `SerializationOptions::$partialFailures` (on by default for direct `SchemaExecutor` callers) is the
 one exception to "a failure fails": with it on, a value that cannot be serialized under a
@@ -142,9 +184,9 @@ Foo<T = int>                default generic arguments
 ($x is int ? string : bool) conditional types
 ```
 
-PHPStan reads a bare `array` as `array<mixed, mixed>`, which permits string keys, so there is no one
-TypeScript type it means: `Array<unknown>` would be wrong for a keyed array and would drop its keys
-on the way out. Write `list<T>`, `array<int, T>` or `array<string, T>`.
+Nothing in a bare `array` says what the elements are, and unlike `array<V>` there is not even a
+value type to fall back on. It fails like bare `object` does. Write `list<T>`, `T[]`,
+`array<string, T>` or `array<int, T>`.
 
 ### Not recognised at all
 
@@ -167,7 +209,8 @@ The traps — each is accepted by PHPStan and rejected here:
 | You write | What happens |
 |---|---|
 | `object` | Syntax error, "Expected brace". Bare `object` is not `unknown`; write `object{…}`. |
-| `array<non-empty-string, int>` | Rejected. A refined key type is not silently loosened to `string`. |
+| `array<int, T>` | A record, not a list. Only `list<T>` and `T[]` promise a packed `0..n-1` array — see [the README](../README.md#arrays-one-php-structure-two-javascript-ones). |
+| `array<MyEnum, V>`, `array<Email, V>` | Rejected. A key must be `string`, `int` or a union of string/int literals — nothing else fits in front of `=>` in PHP either. |
 | `array{2: string, 5: int}` | Rejected. Integer-keyed tuples must run sequentially from `0`. |
 | `object{0: string}` | Rejected. Object-shape keys must be identifiers or quoted strings. |
 | `list{int, string}` | Psalm's keyed-list syntax. Write `array{int, string}`. |

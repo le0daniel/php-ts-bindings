@@ -9,23 +9,30 @@ use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\ListLength;
 use Le0daniel\PhpTsBindings\Parser\Helpers\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Helpers\RecordKey;
 use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\IntNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\TypeParser;
-use Le0daniel\PhpTsBindings\Utils\Nodes;
 use Override;
 
 /**
  * Most complex consumer. It consumes the php array type which is a bit of everything:
- * array<int> => ListNode
- * array<string, int> => RecordNode
+ * list<int> => ListNode
+ * array<int> => RecordNode<string, int>
+ * array<int, int> => RecordNode<int, int>
+ * array<string, int> => RecordNode<string, int>
  * array{int, int} => TupleNode
  * array{0: int, 1: int} => TupleNode
+ *
+ * The split between the two collections is by keyword, never by key type. `list` is the only
+ * PHPStan type that promises a packed 0..n-1 array, so it is the only one that becomes a JSON
+ * array; everything spelled `array<...>` is a record and goes out as a JSON object. `T[]` joins
+ * `list` in TypeParser::consumeTypeModifiers() - see the README on why that shorthand is read
+ * pragmatically rather than as PHPStan's array<array-key, T>.
  */
 final readonly class ArrayConsumer implements TypeConsumer
 {
@@ -86,37 +93,42 @@ final readonly class ArrayConsumer implements TypeConsumer
         // Consuming of the array type identifier
         $state->advance();
 
-        // No generics. PHPStan reads a bare `array` as array<mixed, mixed>, which permits string
-        // keys - modelling it as a list is not a widening but a different type, and serialization
-        // would silently reindex a keyed array. Bare `object` and `iterable` already fail here,
-        // so this does too rather than emit Array<unknown> and drop keys on the way out.
+        // No generics. Nothing here says what the elements are, and unlike `array<V>` there is not
+        // even a value type to fall back on. Bare `object` and `iterable` already fail here, so
+        // this does too rather than emit Record<string, unknown> and pretend.
         if (! $state->currentTokenIs(TokenType::LT)) {
             $state->produceSyntaxError(
-                "Bare '{$keyword}' has no single representation. Write list<T>, array<int, T> or array<string, T>."
+                "Bare '{$keyword}' has no single representation. Write list<T>, T[], array<string, T> or array<int, T>."
             );
         }
 
         $generics = $this->consumeGenerics($state, $parser, min: 1, max: $maxGenerics);
 
-        if (count($generics) === 1) {
+        if ($type === 'list') {
             return $this->applyEmptiness(new ListNode($generics[0]), $isNonEmpty);
         }
 
-        // A branded key (array<BrandedString<'k'>, V>) is still a string key on the wire.
-        // Constraints are deliberately NOT unwrapped: a constrained key (array<non-empty-string, V>)
-        // could never be validated at runtime, so it is rejected instead of silently loosened.
-        $keyType = Nodes::unwrapMetadata($generics[0]);
-        $node = match (true) {
-            $keyType instanceof StringNode => new RecordNode($generics[1]),
-            $keyType instanceof IntNode => new ListNode($generics[1]),
-            default => $state->produceSyntaxError("Array key type must be 'string' or 'int'. Got: {$keyType}"),
-        };
+        // array<V> is PHPStan's array<array-key, V>. A string key node stands in for array-key:
+        // every PHP array key stringifies, so it accepts all of them, and the wire form of a key
+        // is a string regardless.
+        [$keyNode, $valueNode] = count($generics) === 1
+            ? [new StringNode(), $generics[0]]
+            : [$generics[0], $generics[1]];
 
-        return $this->applyEmptiness($node, $isNonEmpty);
+        // Brands and refinements on the key are welcome - the executor validates keys per entry,
+        // so `array<non-empty-string, V>` is enforceable rather than silently loosened. What is
+        // rejected is a key PHP could not hold in front of `=>` in the first place.
+        if (! RecordKey::isUsableAsKey($keyNode)) {
+            $state->produceSyntaxError(
+                "Array key type must be 'string', 'int' or a union of string/int literals. Got: {$keyNode}"
+            );
+        }
+
+        return $this->applyEmptiness(new RecordNode($keyNode, $valueNode), $isNonEmpty);
     }
 
     /**
-     * ListLength counts a RecordNode as readily as a ListNode - `non-empty-array<string, V>` is a
+     * ListLength counts a RecordNode as readily as a ListNode - `non-empty-array<K, V>` is a
      * record, and both are a plain PHP array by the time the executor sees them.
      */
     private function applyEmptiness(RecordNode|ListNode $node, bool $isNonEmpty): NodeInterface

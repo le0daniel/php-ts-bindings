@@ -10,14 +10,13 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 use UnitEnum;
 
-final readonly class LiteralNode implements Coercible, LeafNode, NodeInterface
+final readonly class LiteralNode implements Coercible, LeafNode
 {
     /**
      * $type and $value must agree; every method below reads one to interpret the other. Checked here

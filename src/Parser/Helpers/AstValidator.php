@@ -36,7 +36,9 @@ final readonly class AstValidator
             }
 
             match ($current::class) {
-                ConstraintNode::class, CustomCastingNode::class, ListNode::class, MetadataNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
+                ConstraintNode::class, CustomCastingNode::class, ListNode::class, MetadataNode::class, PropertyNode::class => $stack[] = $current->node,
+                // A record's key is a node of its own and is walked like any other.
+                RecordNode::class => array_push($stack, $current->keyNode, $current->node),
                 TupleNode::class, IntersectionNode::class, UnionNode::class => array_push($stack, ...$current->nodes),
                 StructNode::class => array_push($stack, ...$current->properties),
                 default => throw new ParserException('Unexpected node: '.$current::class),

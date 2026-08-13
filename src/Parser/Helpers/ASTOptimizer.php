@@ -191,6 +191,7 @@ PHP);
                 $this->dedupeNode($node->node),
             ),
             RecordNode::class => new RecordNode(
+                $this->dedupeNode($node->keyNode),
                 $this->dedupeNode($node->node),
             ),
             TupleNode::class => new TupleNode(

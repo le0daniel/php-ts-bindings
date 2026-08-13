@@ -9,7 +9,10 @@ final readonly class Issues
     public const string ROOT_PATH = '__root';
 
     /**
-     * @param  array<string, list<Issue>>  $issuesMap
+     * Paths are written as strings and read back as array keys, so a path of digits - 'items.0' is
+     * nested and stays a string, but a bare '0' is not - comes back as an int. See Context::$issues.
+     *
+     * @param  array<array-key, list<Issue>>  $issuesMap
      */
     public function __construct(
         public readonly array $issuesMap = [],

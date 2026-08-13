@@ -203,6 +203,21 @@ function executeSerialize(NodeInterface|string $node, mixed $data, Serialization
     return $normalResult;
 }
 
+/**
+ * The wire form, not the PHP form. A record and a packed list are the same PHP array, and
+ * `(object) ['a' => 1]` compares equal to `['a' => 1]`, so a PHP level assertion cannot see the
+ * difference between `{}` and `[]`. Only json_encode can, and `{}` versus `[]` is the whole
+ * guarantee a generated `Record<string, V>` rests on.
+ */
+function serializedJson(NodeInterface|string $node, mixed $data): string
+{
+    $result = executeSerialize($node, $data, new SerializationOptions(partialFailures: false));
+    expect($result)->toBeSuccess();
+    assert($result instanceof Success);
+
+    return json_encode($result->value, JSON_THROW_ON_ERROR);
+}
+
 function validateAst(NodeInterface $node): void
 {
     $optimizer = new ASTOptimizer();

@@ -435,8 +435,9 @@ Most of what PHPStan can express about a shape, this library can parse, serializ
 | `numeric`, `scalar` | `(number)`, `(number\|boolean\|string)` |
 | `'foo'`, `123`, `true`, `MyEnum::CASE` | `"foo"`, `123`, `true`, `"CASE"` |
 | `array{name: string, age?: int}`, `object{name: string}` | `{age?:number;name:string;}` |
-| `list<T>`, `T[]`, `array<int, T>` | `Array<T>` |
-| `array<string, T>` | `Record<string,T>` |
+| `list<T>`, `T[]` | `Array<T>` |
+| `array<T>`, `array<int, T>`, `array<string, T>` | `Record<string,T>` |
+| `array<'a'\|'b', T>` | `Partial<Record<"a"\|"b",T>>` |
 | `array{string, int}` | `[string,number]` |
 | `A\|B`, `?T` | `(A\|B)`, `(null\|T)` |
 | `A&B` (shapes of the same kind) | `({a:string;}&{b:number;})` |
@@ -456,12 +457,100 @@ the declaring class, as are `use` statements and generics.
 `InvalidSyntaxException` when the schema is parsed — `class-string`, `key-of<T>`, `callable(…)`,
 unsealed `array{foo: int, ...}`, conditional types and more. Two traps worth knowing up front: bare
 `object` is a syntax error, not an alias for `unknown` (write `object{…}` with the shape), and bare
-`array` is not `Array<unknown>` — PHPStan reads it as `array<mixed, mixed>`, which permits string
-keys, so write `list<T>`, `array<int, T>` or `array<string, T>`.
+`array` is the same — nothing in it says what the elements are, so write `list<T>`, `T[]`,
+`array<string, T>` or `array<int, T>`.
 
 **[→ Full type reference](docs/types.md)** — refinements, utility types (`Pick`, `Omit`,
 `BrandedString`, `DateTimeString`), value objects, `#[Castable]`, brands and named types, and the
 [full list of what is not supported](docs/types.md#not-supported).
+
+### Arrays: one PHP structure, two JavaScript ones
+
+This is the part of the mapping where the two languages genuinely disagree, and where the library
+is at its most opinionated. It is worth understanding before you write your first `@return`.
+
+A PHP array is an ordered hash map. JSON has two collections — `[…]` and `{…}` — and `json_encode`
+picks between them by looking at the keys it happens to find *at that moment*:
+
+```php
+json_encode([0 => $a, 1 => $b]);  // ["…","…"]   a JSON array
+json_encode([1 => $a, 2 => $b]);  // {"1":…,"2":…}   a JSON object
+json_encode([]);                  // []   an array, even for a type that is conceptually a map
+```
+
+Same declared type. Different wire shape, decided by the data. That is a client type nobody can
+write down, and it is the source of the most tedious bug in any PHP/TypeScript codebase:
+
+```php
+/** @return array<int, User> */
+public function active(): array
+{
+    return array_filter($this->users, fn (User $u) => $u->isActive());
+}
+```
+
+`array_filter` preserves keys. On Monday every user is active, the keys run `0,1,2`, and the
+response is `[{…},{…}]`. On Tuesday user `1` deactivates, the keys run `0,2`, and the same endpoint
+answers `{"0":{…},"2":{…}}`. The client's `User[]` compiled fine and `.map` now throws in
+production. Nothing in PHP warned you, because nothing in PHP was wrong.
+
+**So the declared type decides the wire shape, never the data.**
+
+| You write | You get | Why |
+|---|---|---|
+| `list<T>`, `non-empty-list<T>` | `Array<T>` | `list` is the one PHPStan type that *promises* keys `0..n-1` |
+| `T[]` | `Array<T>` | by convention — see below |
+| `array<T>`, `array<K, T>` | `Record<…>` | an array is a map until proven otherwise |
+
+A record serializes as a JSON object **always** — including when it is empty, which is why the
+serializer hands back a `stdClass` rather than a PHP array. `{}` and `[]` are not interchangeable
+to a client, and `[]` is what a naive `json_encode` would have produced.
+
+**`array<int, T>` is not a list.** It is the case people expect to bend, and it is exactly the one
+that must not. `list<T>` promises contiguous `0..n-1`; `array<int, T>` promises only that the keys
+are integers — entity ids, sparse indices, whatever `array_column($rows, null, 'id')` returned. So
+it maps to `Record<string, T>`:
+
+```php
+/** @return array<int, User> */   →   Record<string, User>
+```
+
+The key is `string` and not `number` because a JSON object key *is* a string — `Record<number, T>`
+reads better at a call site and then lies about what `Object.keys()` hands back. Nothing is lost on
+the way back in: PHP folds a numeric string key into an int the moment it lands in an array, so
+`{"42": …}` parses straight back to `[42 => …]` with an int key.
+
+**That folding is also why a key is never coerced.** A PHP array is a hash map, and every route in
+— `json_decode($json, true)`, `get_object_vars()`, an array built in PHP — has already folded
+`"42"` into `42` before the executor sees it. So the key is checked exactly as it arrives, which is
+exactly what it will be stored under, and the parsed array cannot disagree with the type that
+declared it. The consequence is worth knowing up front: `array<string, V>` handed `{"1": …}`
+**rejects** the key, because PHP has no string key `'1'` to give and accepting it would answer an
+`array<int, V>` under a signature promising string keys. Only a canonical integer folds, so `"01"`,
+`" 1"` and `"1.5"` are genuine string keys and stay accepted.
+
+**`T[]` is the deliberate exception.** PHPStan reads `T[]` as `array<array-key, T>`, so by the rule
+above it would be a record. It is not. In practice nobody writes `string[]` meaning a hash map —
+it is universally read as "a list of strings", and honouring the letter of the spec here would
+break the reasonable expectation of every codebase that uses it. This is an opinionated deviation,
+and it is the only one.
+
+**A known key set gets `Partial`.** When the keys are literals, TypeScript can say more than
+`string`:
+
+```php
+/** @return array<'draft'|'live', int> */   →   Partial<Record<"draft"|"live", number>>
+```
+
+`Record<'draft'|'live', number>` would demand *both* keys be present. A PHP array keyed by
+`'draft'|'live'` promises neither, so `Partial` is what is true — reading `counts.draft` gives
+`number | undefined`, and building one as input lets you omit a key. Keys outside the set are
+rejected when parsing input.
+
+Refinements on the key work too and are enforced per entry on the way in:
+`array<non-empty-string, V>` rejects the `""` key, `array<positive-int, V>` rejects `"0"`. Brands
+on a key are dropped from the emitted type — the key travels as a property name, and a branded key
+type would force a cast on every `Object.keys()` result.
 
 ## Contributing
 

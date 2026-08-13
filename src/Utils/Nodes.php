@@ -23,20 +23,6 @@ final readonly class Nodes
     }
 
     /**
-     * Strips codegen metadata only. Unlike getDeclaringNode(), constraints stay attached — use
-     * this where a ConstraintNode must remain visible, e.g. so a constrained array key is
-     * rejected instead of silently losing its runtime validation.
-     */
-    public static function unwrapMetadata(NodeInterface $node): NodeInterface
-    {
-        while ($node instanceof MetadataNode) {
-            $node = $node->node;
-        }
-
-        return $node;
-    }
-
-    /**
      * @param  list<NodeInterface>  $nodes
      */
     public static function areAllNodesOfSameStructType(array $nodes): bool

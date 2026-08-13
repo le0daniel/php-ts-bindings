@@ -54,6 +54,16 @@ test('parse success', function (string $type, mixed $value, mixed $expected) {
     ['object{id?: string, name: string}|null', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
     ['object{id?: string, name: string}|null', null, null],
     ['array<string, int>', ['my value' => 1], ['my value' => 1]],
+    ['array<string, int>', [], []],
+
+    // A JSON object key travels as a string; json_decode hands numeric ones back as PHP ints, and
+    // an int keyed record wants exactly that.
+    ['array<int, string>', ['0' => 'a', '1' => 'b'], [0 => 'a', 1 => 'b']],
+    ['array<int, string>', ['42' => 'a'], [42 => 'a']],
+    ["array<'one'|'two', string>", ['one' => 'a'], ['one' => 'a']],
+    ["array<'one'|'two', string>", ['two' => 'b', 'one' => 'a'], ['two' => 'b', 'one' => 'a']],
+    ['array<non-empty-string, int>', ['a' => 1], ['a' => 1]],
+    ['array<positive-int, string>', ['1' => 'x'], [1 => 'x']],
 
     [UserSchema::class, (object) ['username' => 'my name', 'age' => 1, 'email' => 'leo@me.test'], new UserSchema(1, 'leo@me.test', 'my name')],
     [UserSchema::class, ['username' => 'my name', 'age' => 1, 'email' => 'leo@me.test'], new UserSchema(1, 'leo@me.test', 'my name')],
@@ -146,8 +156,16 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
     ['object{id?: string, name: string}', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
     ['object{id?: string, name: string}|null', ['name' => 'my name', 'other' => ''], (object) ['name' => 'my name']],
     ['object{id?: string, name: string}|null', null, null],
-    ['array<string>', ['my value', 'my other value'], ['my value', 'my other value']],
+    // Every array<...> leaves as an object, whatever its keys look like. See RecordWireShapeTest
+    // for the JSON these actually encode to - that, not the PHP type, is the guarantee.
+    ['array<string>', ['my value', 'my other value'], (object) ['my value', 'my other value']],
     ['array<string, int>', ['my value' => 1], (object) ['my value' => 1]],
+    ['array<int, string>', [0 => 'a', 1 => 'b'], (object) [0 => 'a', 1 => 'b']],
+    ['array<int, string>', [7 => 'a'], (object) [7 => 'a']],
+    ['array<string, int>', [], (object) []],
+    ["array<'one'|'two', string>", ['one' => 'a'], (object) ['one' => 'a']],
+    ['list<string>', ['a', 'b'], ['a', 'b']],
+    ['list<string>', [], []],
 
     [UserSchema::class, new UserSchema(1, 'leo@me.test', 'my name'), (object) ['username' => 'my name', 'age' => 1]],
 

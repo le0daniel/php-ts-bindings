@@ -36,8 +36,10 @@ use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\InvalidStringLiteralException;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
+use Le0daniel\PhpTsBindings\Utils\Nodes;
 use Tests\Feature\Mocks\Paginated;
 use Tests\Mocks\ResultEnum;
+use Tests\Mocks\ValueObjects\Email;
 use Tests\Unit\Parser\Data\Stubs\Address;
 use Tests\Unit\Parser\Data\Stubs\FullAccount;
 use Tests\Unit\Parser\Data\Stubs\MyUserClass;
@@ -376,7 +378,8 @@ test('non-empty-array keeps its minimum over both key types', function (string $
     compareToOptimizedAst($node);
 })->with([
     ['non-empty-array<string, int>', RecordNode::class],
-    ['non-empty-array<int, int>', ListNode::class],
+    ['non-empty-array<int, int>', RecordNode::class],
+    ['non-empty-array<string>', RecordNode::class],
 ]);
 
 test('the plain list and array types carry no constraint', function (string $type) {
@@ -388,8 +391,8 @@ test('the plain list and array types carry no constraint', function (string $typ
 })->with(['list<int>', 'array<string, int>', 'array<int, int>']);
 
 test('a bare array or list is rejected rather than degraded', function (string $type) {
-    // PHPStan's bare `array` is array<mixed, mixed> and permits string keys. Modelling it as a
-    // list would drop those keys on the way out, so it fails like bare `object` does.
+    // Nothing here says what the elements are, and unlike array<V> there is not even a value type
+    // to fall back on, so it fails like bare `object` does.
     expect(fn () => new TypeParser()->parse($type))
         ->toThrow(InvalidSyntaxException::class, 'has no single representation');
 })->with(['array', 'list', 'non-empty-array', 'non-empty-list']);
@@ -444,12 +447,15 @@ test('classic tuple struct', function () {
     compareToOptimizedAst($node);
 });
 
-test('List struct', function () {
+test('a single generic array is a record, not a list', function () {
     $parser = new TypeParser();
-    /** @var ListNode $node */
+    // PHPStan reads array<V> as array<array-key, V>, which permits string keys. Only `list` and
+    // the T[] shorthand promise a packed array, so this is a record like every other array<...>.
+    /** @var RecordNode $node */
     $node = $parser->parse('array<string>');
-    expect($node)->toBeInstanceOf(ListNode::class);
+    expect($node)->toBeInstanceOf(RecordNode::class);
 
+    expect($node->keyNode)->toBeInstanceOf(StringNode::class);
     expect($node->node)->toBeInstanceOf(StringNode::class);
 
     compareToOptimizedAst($node);
@@ -486,28 +492,88 @@ test('Record struct', function () {
     $node = $parser->parse('array<string, int>');
     expect($node)->toBeInstanceOf(RecordNode::class);
 
+    expect($node->keyNode)->toBeInstanceOf(StringNode::class);
     expect($node->node)->toBeInstanceOf(IntNode::class);
 
     compareToOptimizedAst($node);
 });
 
-test('a constrained array key is rejected, the constraint would be silently unenforceable', function (string $type) {
-    expect(fn () => new TypeParser()->parse($type))
-        ->toThrow(InvalidSyntaxException::class, "Array key type must be 'string' or 'int'");
-})->with([
-    'non-empty-string key' => ['array<non-empty-string, int>'],
-    'positive-int key' => ['array<positive-int, string>'],
-]);
-
-test('a branded array key is still a plain string or int key on the wire', function (string $type, string $expected) {
+test('every array is a record, whatever its key type', function (string $type, string $keyNodeClass) {
+    /** @var RecordNode $node */
     $node = new TypeParser()->parse($type);
 
-    expect($node::class)->toBe($expected);
+    expect($node)->toBeInstanceOf(RecordNode::class)
+        ->and(Nodes::getDeclaringNode($node->keyNode))->toBeInstanceOf($keyNodeClass);
 
     compareToOptimizedAst($node);
 })->with([
-    'branded string key' => ["array<BrandedString<'k'>, int>", RecordNode::class],
-    'branded int key' => ["array<BrandedInt<'k'>, string>", ListNode::class],
+    // The one that used to be a list. An int key says nothing about the keys running 0..n-1, so
+    // it is a record and reaches the client as a JSON object.
+    'int key' => ['array<int, string>', IntNode::class],
+    'string key' => ['array<string, int>', StringNode::class],
+    'implicit array-key' => ['array<string>', StringNode::class],
+    'literal union key' => ["array<'one'|'two', string>", UnionNode::class],
+    'double quoted literal key' => ['array<"one"|"two", string>', UnionNode::class],
+    'int literal union key' => ['array<1|2, string>', UnionNode::class],
+]);
+
+test('list and the T[] shorthand are the only things that stay a list', function (string $type) {
+    // The carve-out, pinned from the other side. `list` promises a packed 0..n-1 array and T[] is
+    // read the same way by convention; nothing else may collapse into one.
+    $node = Nodes::getDeclaringNode(new TypeParser()->parse($type));
+
+    expect($node)->toBeInstanceOf(ListNode::class);
+
+    compareToOptimizedAst($node);
+})->with([
+    'list<string>',
+    'non-empty-list<int>',
+    'string[]',
+    'string[ ]',
+    '(string|int)[]',
+    'int[][]',
+    'array{a: string}[]',
+]);
+
+test('a refined array key is enforced per entry rather than rejected', function (string $type) {
+    // Keys are validated one at a time now, so a refinement on the key is something the executor
+    // can actually prove. It used to be rejected on the grounds that it never could be.
+    /** @var RecordNode $node */
+    $node = new TypeParser()->parse($type);
+
+    expect($node)->toBeInstanceOf(RecordNode::class)
+        ->and($node->keyNode)->toBeInstanceOf(ConstraintNode::class);
+
+    compareToOptimizedAst($node);
+})->with([
+    'non-empty-string key' => ['array<non-empty-string, int>'],
+    'positive-int key' => ['array<positive-int, string>'],
+    'ranged int key' => ['array<int<0, 5>, string>'],
+]);
+
+test('a key PHP could not hold is rejected', function (string $type) {
+    expect(fn () => new TypeParser()->parse($type))
+        ->toThrow(InvalidSyntaxException::class, "Array key type must be 'string', 'int' or a union of string/int literals");
+})->with([
+    'bool key' => ['array<bool, int>'],
+    'mixed key' => ['array<mixed, int>'],
+    'null key' => ['array<null, int>'],
+    'float literal key' => ['array<1.5, int>'],
+    'enum key' => ['array<\\'.ResultEnum::class.', int>'],
+    'value object key' => ['array<\\'.Email::class.', int>'],
+    'shape key' => ['array<array{a: string}, int>'],
+    'partly literal union key' => ["array<'one'|bool, string>"],
+]);
+
+test('a branded array key is a record like any other', function (string $type) {
+    $node = new TypeParser()->parse($type);
+
+    expect($node)->toBeInstanceOf(RecordNode::class);
+
+    compareToOptimizedAst($node);
+})->with([
+    'branded string key' => ["array<BrandedString<'k'>, int>"],
+    'branded int key' => ["array<BrandedInt<'k'>, string>"],
 ]);
 
 test('Test simple literals', function () {

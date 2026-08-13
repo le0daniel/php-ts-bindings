@@ -6,6 +6,7 @@ namespace Le0daniel\PhpTsBindings\Typescript;
 
 use Le0daniel\PhpTsBindings\Data\IO;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Helpers\RecordKey;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\BackingType;
@@ -34,6 +35,7 @@ use Le0daniel\PhpTsBindings\Typescript\Data\Typescript;
 use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Typescript\Utils\Syntax;
+use Le0daniel\PhpTsBindings\Utils\Nodes;
 use UnitEnum;
 
 /**
@@ -84,7 +86,7 @@ final readonly class TypescriptGenerator
             $node instanceof IntersectionNode => $this->intersection($node, $context),
             $node instanceof TupleNode => $this->tuple($node, $context),
             $node instanceof ListNode => "Array<{$this->emit($node->node, $context)}>",
-            $node instanceof RecordNode => "Record<string,{$this->emit($node->node, $context)}>",
+            $node instanceof RecordNode => $this->record($node, $context),
             $node instanceof ConstraintNode => $this->emit($node->node, $context),
             $node instanceof CustomCastingNode => $this->customCasting($node, $context),
 
@@ -218,6 +220,52 @@ final readonly class TypescriptGenerator
         );
 
         return implode('&', $members) |> Syntax::wrapInParentheses(...);
+    }
+
+    /**
+     * A JSON object key is a string, so an int keyed array is `Record<string, V>` and not
+     * `Record<number, V>` - the latter would read well at a call site and then lie about what
+     * Object.keys() hands back. Brands and refinements on the key go the same way: they are proven
+     * server side and have no shape a key type could carry.
+     *
+     * A literal key set is the one case where TypeScript can say more, and there `Partial` carries
+     * the difference between the two languages. `Record<'a'|'b', V>` demands both keys; a PHP
+     * array keyed by 'a'|'b' promises neither, and the executor does not require them either.
+     */
+    private function record(RecordNode $node, EmissionContext $context): string
+    {
+        $value = $this->emit($node->node, $context);
+
+        if (! RecordKey::isClosedKeySet($node->keyNode)) {
+            return "Record<string,{$value}>";
+        }
+
+        return "Partial<Record<{$this->closedKeyUnion($node->keyNode)},{$value}>>";
+    }
+
+    /**
+     * The members of a closed key set, as a JSON object spells them. An int literal is quoted like
+     * any other key for the same reason `int` emits `string`: `array<1|2, V>` arrives as
+     * `{"1": ...}`.
+     */
+    private function closedKeyUnion(NodeInterface $node): string
+    {
+        $declaring = Nodes::getDeclaringNode($node);
+
+        if ($declaring instanceof UnionNode) {
+            $members = array_map(
+                fn (NodeInterface $member): string => $this->closedKeyUnion($member),
+                $declaring->nodes,
+            );
+
+            return implode('|', array_unique($members));
+        }
+
+        // isClosedKeySet() admits nothing but literals and unions of them, and this method is
+        // reached only behind that check.
+        assert($declaring instanceof LiteralNode);
+
+        return Syntax::stringLiteral(RecordKey::literalKeyValue($declaring));
     }
 
     private function tuple(TupleNode $node, EmissionContext $context): string

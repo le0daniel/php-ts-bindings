@@ -194,3 +194,22 @@ test('an operation scoped middleware still names its own throw with a global mid
 
     expect($error->details)->toEqual(['name' => 'invalid_name']);
 });
+
+test('a record whose keys run 0..n reaches the client as a JSON object', function () {
+    // The wire shape, proven through the envelope rather than the executor alone. This is what a
+    // client actually parses, and `byId` is the case that used to arrive as an array whenever the
+    // ids happened to start at 0 and run contiguously.
+    $result = executeOperation('test.packedRecord', ['ping' => true]);
+
+    expect($result)->toBeInstanceOf(RpcSuccess::class);
+
+    // Encoding the envelope itself, which is what the HTTP adapter hands to the client.
+    $body = json_encode($result, JSON_THROW_ON_ERROR);
+
+    expect($body)->toContain('"byId":{"0":{"name":"zero"},"1":{"name":"one"},"2":{"name":"two"}}')
+        ->and($body)->not->toContain('"byId":[')
+        // A list is still a list, and an empty record is still an object.
+        ->and($body)->toContain('"tags":["a","b"]')
+        ->and($body)->toContain('"empty":{}')
+        ->and($body)->not->toContain('"empty":[');
+});

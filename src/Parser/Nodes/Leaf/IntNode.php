@@ -7,11 +7,10 @@ namespace Le0daniel\PhpTsBindings\Parser\Nodes\Leaf;
 use Le0daniel\PhpTsBindings\Executor\Contracts\ExecutionContext;
 use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
 use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
 use Override;
 
-final readonly class IntNode implements Coercible, LeafNode, NodeInterface
+final readonly class IntNode implements Coercible, LeafNode
 {
     use RejectsInvalidType;
 

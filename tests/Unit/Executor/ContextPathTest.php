@@ -63,10 +63,36 @@ test('removing issues at the root removes nested issues', function () {
 
 test('a numeric path segment is still matched', function () {
     // PHP coerces the array key '0' to int, which is why the comparison casts back to string.
+    // The path has to still be entered: standing at the root takes the branch that clears
+    // everything without comparing anything, and the comparison is what is under test.
     $context = new Context();
-    issueAt($context, '0');
+    issueAt($context, '0', 'nested');
 
+    $context->enterPath('0');
+    $context->addIssue(new Issue(IssueMessage::INVALID_TYPE));
     $context->removeCurrentIssues();
+    $context->leavePath();
 
     expect($context->issues)->toBe([]);
+});
+
+test('a numeric path segment does not take a sibling with it', function () {
+    $context = new Context();
+    issueAt($context, '00');
+    issueAt($context, '1');
+
+    $context->enterPath('0');
+    $context->addIssue(new Issue(IssueMessage::INVALID_TYPE));
+    $context->removeCurrentIssues();
+    $context->leavePath();
+
+    expect(array_keys($context->issues))->toBe(['00', 1]);
+});
+
+test('a union inside a list discards its rejected arms without blowing up', function () {
+    // The end to end shape of the same bug: the first element of a list is path '0', the union
+    // records an issue there for the arm it rejects, and clearing it read the key back as an int.
+    expect(executeParse('list<(int|string)>', ['a']))->toBeSuccess()
+        ->and(executeParse('list<(int|string)>', [1, 'a', 2]))->toBeSuccess()
+        ->and(executeParse('array<int, (int|string)>', [0 => 'a']))->toBeSuccess();
 });

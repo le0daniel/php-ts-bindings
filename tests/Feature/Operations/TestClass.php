@@ -37,6 +37,28 @@ final class TestClass
     }
 
     /**
+     * The ids run 0, 1, 2, which is precisely when json_encode would render a PHP array as a JSON
+     * array. `byId` is declared as a record, so it has to answer as an object regardless - the
+     * client's `Record<string, ...>` is either always true or it is worthless.
+     *
+     * @param  array{ping: bool}  $data
+     * @return array{byId: array<int, array{name: string}>, tags: list<string>, empty: array<string, int>}
+     */
+    #[Command('test')]
+    public function packedRecord(array $data): array
+    {
+        return [
+            'byId' => [
+                0 => ['name' => 'zero'],
+                1 => ['name' => 'one'],
+                2 => ['name' => 'two'],
+            ],
+            'tags' => ['a', 'b'],
+            'empty' => [],
+        ];
+    }
+
+    /**
      * Returns something its own return type does not describe: `name` is an int where a string is
      * declared. The whole `user` branch is nullable, which is exactly the shape that used to be
      * answered as a 200 with `user: null`.

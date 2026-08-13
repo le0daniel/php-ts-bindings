@@ -7,7 +7,7 @@ import {queryKey, throwOnFailure} from './lib/utils';
 import type {UseQueryOptions} from '@tanstack/react-query';
 import {queryOptions, useQuery} from '@tanstack/react-query';
 
-export type DefaultsResult = {always:true;answer:42;anything:unknown;count:number;createdAt:string;day:string;either:(string|number);enabled:boolean;literal:"fixed";lookup:Record<string,number>;maybe:(null|Availability);nested:{deep:{value:string;};};nothing:null;pair:[string,number];products:Array<Product>;ratio:number;tags:Array<string>;text:string;};
+export type DefaultsResult = {always:true;answer:42;anything:unknown;byId:Record<string,Product>;count:number;createdAt:string;day:string;either:(string|number);enabled:boolean;literal:"fixed";lookup:Record<string,number>;maybe:(null|Availability);modes:Partial<Record<"draft"|"live",number>>;nested:{deep:{value:string;};};nothing:null;pair:[string,number];products:Array<Product>;ratio:number;tags:Array<string>;text:string;};
 export type DefaultsInput = null;
 export type DefaultsDomainErrors = never;
 

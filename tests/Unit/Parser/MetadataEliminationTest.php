@@ -73,6 +73,8 @@ dataset('metadata positions', [
     'struct property' => "array{t: BrandedString<'tok'>}",
     'list element' => "list<BrandedString<'tok'>>",
     'record value' => "array<string, BrandedString<'tok'>>",
+    'record key' => "array<BrandedString<'tok'>, string>",
+    'record key and value' => "array<BrandedString<'tok'>, BrandedString<'tok'>>",
     'union member' => "BrandedString<'tok'>|int",
     'tuple element' => "array{0: BrandedString<'tok'>, 1: int}",
     'deeply nested' => "array{a: array{b: list<BrandedString<'tok'>>}}",
@@ -134,20 +136,14 @@ test('MetadataNode rejects carrying neither a name nor a brand', function () {
         ->toThrow(ParserException::class, 'meaningless');
 });
 
-test('unwrapMetadata strips the wrapper and leaves everything else alone', function () {
-    $inner = new IntNode();
-
-    expect(Nodes::unwrapMetadata(new MetadataNode($inner, null, 'tag')))->toBe($inner)
-        ->and(Nodes::unwrapMetadata($inner))->toBe($inner);
-});
-
-test('unwrapMetadata keeps constraints attached, unlike getDeclaringNode', function () {
+test('getDeclaringNode looks through both wrappers', function () {
     $constrained = new ConstraintNode(
         new StringNode(),
         [new NonEmptyString()],
     );
-    $wrapped = new MetadataNode($constrained, null, 'tag');
 
-    expect(Nodes::unwrapMetadata($wrapped))->toBe($constrained)
-        ->and(Nodes::getDeclaringNode($wrapped))->toBeInstanceOf(StringNode::class);
+    expect(Nodes::getDeclaringNode(new MetadataNode($constrained, null, 'tag')))
+        ->toBeInstanceOf(StringNode::class)
+        ->and(Nodes::getDeclaringNode($constrained))->toBeInstanceOf(StringNode::class)
+        ->and(Nodes::getDeclaringNode($inner = new IntNode()))->toBe($inner);
 });

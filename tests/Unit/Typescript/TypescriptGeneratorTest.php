@@ -124,9 +124,31 @@ test('emits collection types', function (string $type, string $expected) {
     expect(typescriptOfBoth($type))->toBe($expected);
 })->with([
     'list' => ['list<string>', 'Array<string>'],
+    'non empty list' => ['non-empty-list<string>', 'Array<string>'],
     'array shorthand' => ['string[]', 'Array<string>'],
-    'int keyed array' => ['array<int, string>', 'Array<string>'],
+    'grouped array shorthand' => ['(string|int)[]', 'Array<(string|number)>'],
     'record' => ['array<string, int>', 'Record<string,number>'],
+
+    // A JSON object key is a string, so an int keyed array is Record<string, V>. Record<number, V>
+    // would read well at a call site and then lie about what Object.keys() hands back.
+    'int keyed array' => ['array<int, string>', 'Record<string,string>'],
+    'implicit array-key' => ['array<string>', 'Record<string,string>'],
+    'non empty array' => ['non-empty-array<int, string>', 'Record<string,string>'],
+
+    // A refinement on the key is proven server side and has no shape a key type could carry.
+    'refined string key' => ['array<non-empty-string, int>', 'Record<string,number>'],
+    'refined int key' => ['array<positive-int, int>', 'Record<string,number>'],
+
+    // Only a closed key set lets TypeScript say more than `string`, and there Partial carries the
+    // difference: Record<'a'|'b', V> demands both keys, a PHP array keyed by 'a'|'b' promises none.
+    'literal key union' => ["array<'one'|'two', string>", 'Partial<Record<"one"|"two",string>>'],
+    'single literal key' => ["array<'only', string>", 'Partial<Record<"only",string>>'],
+    'int literal key union' => ['array<1|2, string>', 'Partial<Record<"1"|"2",string>>'],
+    'literal key union dedupes' => ["array<'a'|'b'|'a', string>", 'Partial<Record<"a"|"b",string>>'],
+
+    'record of lists' => ['array<string, list<string>>', 'Record<string,Array<string>>'],
+    'record of records' => ['array<int, array<int, string>>', 'Record<string,Record<string,string>>'],
+    'list of records' => ['list<array<int, string>>', 'Array<Record<string,string>>'],
     'tuple' => ['array{string, int}', '[string,number]'],
     'explicitly keyed tuple' => ['array{0: string, 1: int}', '[string,number]'],
 ]);
@@ -167,6 +189,19 @@ test('an attribute brand renders inline and declares no alias', function (string
         'array<string, \\'.UserId::class.'>',
         'Record<string,(number & Brand<"customerId">)>',
     ],
+]);
+
+test('a brand on a record key is dropped and declares no alias', function (string $type, string $expectedType) {
+    // The key travels as a property name. A branded key type would force the client to cast every
+    // Object.keys() result before it could index with one, and since the key is never emitted the
+    // alias a BrandedString would otherwise register is never collected either.
+    $result = typescriptOf($type);
+
+    expect($result->type)->toBe($expectedType)
+        ->and($result->registry->isEmpty())->toBeTrue();
+})->with([
+    'branded string key' => ["array<BrandedString<'k'>, int>", 'Record<string,number>'],
+    'branded int key' => ["array<BrandedInt<'k'>, string>", 'Record<string,string>'],
 ]);
 
 test('the BrandedString and BrandedInt utilities keep their implicit alias', function (
