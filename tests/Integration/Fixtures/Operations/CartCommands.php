@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Tests\Integration\Fixtures\Operations;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
+use Tests\Integration\Fixtures\NoOpMiddleware;
 use Tests\Integration\Fixtures\Types\Currency;
 use Tests\Integration\Fixtures\Types\LineItemInput;
 use Tests\Integration\Fixtures\Types\Money;
@@ -21,6 +23,7 @@ final class CartCommands
      *     items: list<array{note: string|null, quantity: int, sku: string}>
      * }
      */
+    #[Middleware(NoOpMiddleware::class)]
     #[Command('cart')]
     public function addItem(array $input): array
     {
