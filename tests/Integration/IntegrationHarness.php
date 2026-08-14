@@ -26,6 +26,8 @@ use Le0daniel\PhpTsBindings\Server\Server;
  */
 final class IntegrationHarness
 {
+    public const int CACHE_ID_LENGTH = 12;
+
     private static ?EagerlyLoadedOperationRegistry $eagerRegistry = null;
 
     private static ?CachedOperationRegistry $cachedRegistry = null;
@@ -63,17 +65,22 @@ final class IntegrationHarness
         return $eagerJson;
     }
 
-    private static function eagerRegistry(): EagerlyLoadedOperationRegistry
+    public static function discoverEagerRegistry(): EagerlyLoadedOperationRegistry
     {
         // One global alias so the fixtures can exercise user-registered aliases end-to-end. It
         // only fires on the identifier ApiToken and is inert for every other fixture.
-        return self::$eagerRegistry ??= EagerlyLoadedOperationRegistry::eagerlyDiscover(
+        return EagerlyLoadedOperationRegistry::eagerlyDiscover(
             __DIR__.'/Fixtures/Operations',
             parser: new TypeParser(TypeParser::defaultConsumers(new GlobalTypeAliases([
                 'ApiToken' => static fn (): ConstraintNode => new ConstraintNode(new StringNode(), [new NonEmptyString()]),
             ]))),
             keyGenerator: new PlainlyExposedKeyGenerator(),
         );
+    }
+
+    private static function eagerRegistry(): EagerlyLoadedOperationRegistry
+    {
+        return self::$eagerRegistry ??= self::discoverEagerRegistry();
     }
 
     private static function cachedRegistry(): CachedOperationRegistry
@@ -83,7 +90,7 @@ final class IntegrationHarness
         }
 
         $file = sys_get_temp_dir().'/php-ts-bindings-integration-'.getmypid().'.php';
-        CachedOperationRegistry::writeToCache(self::eagerRegistry(), $file, idLength: 12);
+        CachedOperationRegistry::writeToCache(self::eagerRegistry(), $file, idLength: self::CACHE_ID_LENGTH);
         register_shutdown_function(static function () use ($file): void {
             @unlink($file);
         });

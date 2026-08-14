@@ -7,27 +7,55 @@ namespace Le0daniel\PhpTsBindings\Server\Data;
 use Closure;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 
-final readonly class Operation
+final class Operation
 {
+    private ?NodeInterface $inputNode = null;
+    private ?NodeInterface $outputNode = null;
+
+    /**
+     * @var Closure(): NodeInterface|null
+     */
+    private readonly Closure|null $inputNodeFactory;
+
+    /**
+     * @var Closure(): NodeInterface|null
+     */
+    private readonly Closure|null $outputNodeFactory;
+
     /**
      * @param  NodeInterface|Closure(): NodeInterface  $input
      * @param  NodeInterface|Closure(): NodeInterface  $output
      */
     public function __construct(
-        public string $key,
-        public Definition $definition,
-        private NodeInterface|Closure $input,
-        private NodeInterface|Closure $output,
+        public readonly string $key,
+        public readonly Definition $definition,
+        NodeInterface|Closure $input,
+        NodeInterface|Closure $output,
     ) {
+        if ($input instanceof NodeInterface) {
+            $this->inputNode = $input;
+            $this->inputNodeFactory = null;
+        } else {
+            $this->inputNodeFactory = $input;
+        }
+
+        if ($output instanceof NodeInterface) {
+            $this->outputNode = $output;
+            $this->outputNodeFactory = null;
+        } else {
+            $this->outputNodeFactory = $output;
+        }
     }
 
     public function inputNode(): NodeInterface
     {
-        return $this->input instanceof Closure ? ($this->input)() : $this->input;
+        /** @phpstan-ignore-next-line */
+        return $this->inputNode ??= ($this->inputNodeFactory)();
     }
 
     public function outputNode(): NodeInterface
     {
-        return $this->output instanceof Closure ? ($this->output)() : $this->output;
+        /** @phpstan-ignore-next-line */
+        return $this->outputNode ??= ($this->outputNodeFactory)();
     }
 }
