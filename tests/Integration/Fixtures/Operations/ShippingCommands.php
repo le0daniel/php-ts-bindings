@@ -7,6 +7,8 @@ namespace Tests\Integration\Fixtures\Operations;
 use DateTime;
 use DateTimeImmutable;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
+use Tests\Integration\Fixtures\MetadataMiddleware;
 use Tests\Integration\Fixtures\Types\Address;
 use Tests\Integration\Fixtures\Types\Batch;
 use Tests\Integration\Fixtures\Types\Currency;
@@ -32,6 +34,7 @@ final class ShippingCommands
      * @param  array{instructions: HandlingInstructions}  $input
      */
     #[Command('shipping')]
+    #[Middleware(MetadataMiddleware::class)]
     public function registerHandling(array $input): HandlingInstructions
     {
         return $input['instructions'];
@@ -45,6 +48,7 @@ final class ShippingCommands
      * @return array{destination: PickupPoint|HomeDelivery, eta: DateTime, window: DateTimeString<'d.m.Y H:i'>}
      */
     #[Command('shipping')]
+    #[Middleware(MetadataMiddleware::class, ['value' => 'wow'])]
     public function scheduleDelivery(array $input): array
     {
         return [

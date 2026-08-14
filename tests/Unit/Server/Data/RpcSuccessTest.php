@@ -55,6 +55,8 @@ test('the directives a serializable client collected ride along under __client',
     $result = new RpcSuccess(['id' => '123'], $client, successResolveInfo());
 
     expect($result->jsonSerialize())->toBe([
+        'success' => true,
+        'data' => ['id' => '123'],
         '__client' => [
             'redirect' => ['url' => '/users/123', 'reload' => false],
             'toasts' => [
@@ -62,8 +64,6 @@ test('the directives a serializable client collected ride along under __client',
             ],
             'type' => 'operations-spa',
         ],
-        'success' => true,
-        'data' => ['id' => '123'],
     ]);
 });
 
@@ -72,9 +72,9 @@ test('metadata is absent while empty and present once a middleware attached some
 
     expect($result->jsonSerialize())->not->toHaveKey('__metadata')
         ->and($result->appendMetadata(['durationMs' => 12])->jsonSerialize())->toBe([
-            '__metadata' => ['durationMs' => 12],
             'success' => true,
             'data' => 'ok',
+            '__metadata' => ['durationMs' => 12],
         ]);
 });
 

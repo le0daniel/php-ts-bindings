@@ -11,37 +11,37 @@ use Tests\Integration\IntegrationHarness;
  */
 test('property hooks land per direction: raw in, checksum and summary out', function () {
     expect(IntegrationHarness::commandJson('shipping.registerHandling', '{"instructions":{"code":"frg","raw":"keep-cool"}}'))
-        ->toBe('{"success":true,"data":{"checksum":"looc-peek","code":"frg","summary":"FRG"}}');
+        ->toBe('{"success":true,"data":{"checksum":"looc-peek","code":"frg","summary":"FRG"},"__metadata":{"key":"default1"}}');
 });
 
 test('a virtual set-only property is required on the input side', function () {
     expect(IntegrationHarness::commandJson('shipping.registerHandling', '{"instructions":{"code":"frg"}}'))
-        ->toBe('{"success":false,"code":422,"type":"INVALID_INPUT","details":{"fields":{"instructions":["validation.missing_property"]}}}');
+        ->toBe('{"success":false,"code":422,"type":"INVALID_INPUT","details":{"fields":{"instructions":["validation.missing_property"]}},"__metadata":{"key":"default1"}}');
 });
 
 test('a union of castables resolves the first arm by its properties', function () {
     expect(IntegrationHarness::commandJson('shipping.scheduleDelivery', '{"destination":{"locationCode":"ZH-01"},"window":"01.07.2024 08:00"}'))
-        ->toBe('{"success":true,"data":{"destination":{"locationCode":"ZH-01"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"}}');
+        ->toBe('{"success":true,"data":{"destination":{"locationCode":"ZH-01"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
 });
 
 test('a union of castables resolves the second arm by its properties', function () {
     expect(IntegrationHarness::commandJson('shipping.scheduleDelivery', '{"destination":{"street":"Seeweg 2","zip":"8001"},"window":"01.07.2024 08:00"}'))
-        ->toBe('{"success":true,"data":{"destination":{"street":"Seeweg 2","zip":"8001"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"}}');
+        ->toBe('{"success":true,"data":{"destination":{"street":"Seeweg 2","zip":"8001"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
 });
 
 test('first-match probing wins on a shape satisfying both arms and drops unknown keys', function () {
     expect(IntegrationHarness::commandJson('shipping.scheduleDelivery', '{"destination":{"locationCode":"x","street":"y","zip":"z"},"window":"01.07.2024 08:00"}'))
-        ->toBe('{"success":true,"data":{"destination":{"locationCode":"x"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"}}');
+        ->toBe('{"success":true,"data":{"destination":{"locationCode":"x"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
 });
 
 test('a shape matching neither castable arm reports every arm plus the union', function () {
     expect(IntegrationHarness::commandJson('shipping.scheduleDelivery', '{"destination":{"iban":"x"},"window":"01.07.2024 08:00"}'))
-        ->toBe('{"success":false,"code":422,"type":"INVALID_INPUT","details":{"fields":{"destination":["validation.missing_property","validation.missing_property","validation.invalid_type"]}}}');
+        ->toBe('{"success":false,"code":422,"type":"INVALID_INPUT","details":{"fields":{"destination":["validation.missing_property","validation.missing_property","validation.invalid_type"]}},"__metadata":{"key":"wow"}}');
 });
 
 test('a DateTimeString with a custom format rejects the default format strictly', function () {
     expect(IntegrationHarness::commandJson('shipping.scheduleDelivery', '{"destination":{"locationCode":"ZH-01"},"window":"2024-07-01"}'))
-        ->toBe('{"success":false,"code":422,"type":"INVALID_INPUT","details":{"fields":{"window":["validation.invalid_type"]}}}');
+        ->toBe('{"success":false,"code":422,"type":"INVALID_INPUT","details":{"fields":{"window":["validation.invalid_type"]}},"__metadata":{"key":"wow"}}');
 });
 
 test('a generic castable binds a different type argument per direction', function () {

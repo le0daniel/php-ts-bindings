@@ -71,9 +71,9 @@ final readonly class RpcSuccess implements RpcResult
         ]);
 
         return [
-            ...$metadata,
             'success' => true,
             'data' => $this->data,
+            ...$metadata,
         ];
     }
 }
