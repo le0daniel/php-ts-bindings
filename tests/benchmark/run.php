@@ -18,6 +18,8 @@ declare(strict_types=1);
  * - Both registries memoize Operation instances, so boot and warm-all build a fresh registry per
  *   iteration while steady-state deliberately reuses warm ones.
  * - Warm-all includes boot; warm-all minus boot approximates pure schema resolution cost.
+ * - The end2end row is one full request lifecycle per iteration (boot registry, resolve the
+ *   schema, execute one complex query) - the cost a share-nothing PHP-FPM request actually pays.
  * - Request rows on warm registries should be near parity: both paths execute the same node
  *   graph. A large eager/cached gap there means the eager path is re-resolving (re-parsing)
  *   schemas per call instead of serving memoized nodes.
@@ -33,6 +35,8 @@ require __DIR__.'/../../vendor/autoload.php';
 
 const WARMUP_BOOT = 3;
 const SAMPLES_BOOT = 30;
+const WARMUP_E2E = 5;
+const SAMPLES_E2E = 100;
 const WARMUP_STEADY = 50;
 const SAMPLES_STEADY = 500;
 
@@ -110,6 +114,26 @@ $results[] = [
 
 $configuration = new ServerConfiguration();
 $client = new NullClient();
+
+// One full request lifecycle per iteration, the way share-nothing PHP-FPM pays it: construct
+// the registry, resolve the schema, execute a single complex query.
+$e2eInput = json_decode('{"orderNumber":"ORD-1001"}', true, 512, JSON_THROW_ON_ERROR);
+$e2eRequest = static function (callable $boot) use ($e2eInput, $configuration, $client): mixed {
+    return new Server($boot(), configuration: $configuration)->query('orders.getOrder', $e2eInput, null, $client);
+};
+foreach (['eager' => static fn (): mixed => IntegrationHarness::discoverEagerRegistry(), 'cached' => static fn (): mixed => require $cacheFile] as $name => $boot) {
+    $result = $e2eRequest($boot);
+    if ($result->statusCode !== 200) {
+        fwrite(STDERR, "Aborting: end2end orders.getOrder returned status {$result->statusCode} on the {$name} registry.\n");
+        exit(1);
+    }
+}
+$results[] = [
+    'end2end: boot + one orders.getOrder query',
+    measure(WARMUP_E2E, SAMPLES_E2E, static fn (): mixed => $e2eRequest(static fn (): mixed => IntegrationHarness::discoverEagerRegistry())),
+    measure(WARMUP_E2E, SAMPLES_E2E, static fn (): mixed => $e2eRequest(static fn (): mixed => require $cacheFile)),
+];
+
 $servers = [
     'eager' => new Server(IntegrationHarness::discoverEagerRegistry(), configuration: $configuration),
     'cached' => new Server(require $cacheFile, configuration: $configuration),
@@ -158,5 +182,5 @@ foreach ($results as [$label, $eager, $cached]) {
 
 echo PHP_EOL;
 echo 'Speedup = eager median / cached median; < 1.0 means the cached path is slower.', PHP_EOL;
-echo 'boot/warm-all: fresh registry per iteration ('.SAMPLES_BOOT.' samples). Requests: warm registries ('.SAMPLES_STEADY.' samples).', PHP_EOL;
+echo 'boot/warm-all: fresh registry per iteration ('.SAMPLES_BOOT.' samples). end2end: full lifecycle per iteration ('.SAMPLES_E2E.' samples). Requests: warm registries ('.SAMPLES_STEADY.' samples).', PHP_EOL;
 echo 'Request rows should be near parity - a large gap means eager re-resolves schemas per call.', PHP_EOL;
