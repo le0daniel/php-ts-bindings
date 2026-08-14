@@ -52,8 +52,8 @@ final class OrderQueries
             'createdAt' => new DateTimeImmutable('2024-05-01T12:00:00+00:00'),
             'currency' => Currency::CHF,
             'items' => [
-                ['lineTotal' => new Money(1000, Currency::CHF), 'quantity' => 2, 'sku' => 'ABC-123'],
-                ['lineTotal' => new Money(1495, Currency::CHF), 'quantity' => 1, 'sku' => 'XYZ-999'],
+                ['lineTotal' => new Money(1000, Currency::CHF), 'quantity' => 2, 'sku' => Sku::fromStringValue('ABC-123')],
+                ['lineTotal' => new Money(1495, Currency::CHF), 'quantity' => 1, 'sku' => Sku::fromStringValue('XYZ-999')],
             ],
             'shippingAddress' => $address,
             'status' => OrderStatus::PAID,

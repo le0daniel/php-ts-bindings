@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Integration;
 
+use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
+use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\NonEmptyString;
+use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\StringNode;
+use Le0daniel\PhpTsBindings\Parser\TypeParser;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
@@ -60,8 +65,13 @@ final class IntegrationHarness
 
     private static function eagerRegistry(): EagerlyLoadedOperationRegistry
     {
+        // One global alias so the fixtures can exercise user-registered aliases end-to-end. It
+        // only fires on the identifier ApiToken and is inert for every other fixture.
         return self::$eagerRegistry ??= EagerlyLoadedOperationRegistry::eagerlyDiscover(
             __DIR__.'/Fixtures/Operations',
+            parser: new TypeParser(TypeParser::defaultConsumers(new GlobalTypeAliases([
+                'ApiToken' => static fn (): ConstraintNode => new ConstraintNode(new StringNode(), [new NonEmptyString()]),
+            ]))),
             keyGenerator: new PlainlyExposedKeyGenerator(),
         );
     }
