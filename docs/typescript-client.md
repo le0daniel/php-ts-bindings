@@ -21,7 +21,7 @@ it on disk. Nothing is published to npm; the code lives in your repo.
   lib/OperationClient.ts   the transport interface
   lib/DefaultClient.ts     a fetch implementation of it
   lib/OperationException.ts
-  lib/bindings.ts          createDefaultClient, setClient, executeOperation
+  lib/bindings.ts          createDefaultClient, setClient, registerHook, executeOperation
   lib/utils.ts             queryKey, throwOnFailure
   lib/client-operations-spa.ts   the OperationSPAClient payload and its guard
   <namespace>.ts           one module per namespace, one function per operation
@@ -80,8 +80,10 @@ setClient(createDefaultClient());
 setClient(createDefaultClient(fetch, {baseUrl: 'https://api.example.com', timeoutMs: 5_000}));
 ```
 
-`setClient()` sets one module-global client, so it has to run before the first call — otherwise you
-get `Error('No client set')` at whichever call site happened to be first.
+`setClient()` sets one module-global client, so it has to run before the first call — otherwise
+every call resolves to [`CLIENT_ERROR`](errors.md#the-client-error) with
+`cause: Error('No client set')`. Nothing throws: the generated `executeOperation` resolves, never
+rejects, so a missing client surfaces on the envelope like any other client-side failure.
 
 Every generated function takes an optional second argument:
 
@@ -91,15 +93,25 @@ export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client
 
 `DefaultClient` sends queries as GET with each input value JSON-encoded into a query parameter, and
 commands as POST with a JSON body. `signal` and `timeoutMs` are joined into one `AbortSignal`, and a
-per-call `timeoutMs` overrides the client's default (10s unless you set one). `registerHook(hook)`
-runs a callback on every response and returns a function that unregisters it. Swap the whole
-transport by implementing `OperationClient` — `setClient()` and the per-call `options.client` both
-take one.
+per-call `timeoutMs` overrides the client's default (10s unless you set one).
+
+Hooks are first-party: `registerHook(hook)` from `lib/bindings.ts` runs a callback on every
+operation's envelope — whichever client served it, the module-global one or a per-call
+`options.client` — and returns a function that unregisters it. A hook receives the result and the
+operation it belongs to, `(result, {type, key}) => ...`, and a hook that throws is logged, never
+failing the operation.
+
+Swap the whole transport by implementing `OperationClient` — `setClient()` and the per-call
+`options.client` both take one. A transport only moves bytes: `execute` resolves to
+`{status, jsonBody}`, the raw status line and the parsed body, and it is allowed to simply throw —
+a network failure, an abort, a bad timeout. Envelope validation, `CLIENT_ERROR` minting, and hooks
+all live in `executeOperation`, so a custom transport gets them for free and cannot bypass them.
 
 The status line is never consulted. Anything between the browser and the handler — a CSRF
-middleware, a throttler, a proxy's error page — can write both a status and a body, so every
-response goes through `isValidEnvelop` from `lib/utils.ts` instead: a valid envelope (success or
-failure) is returned exactly as parsed, whatever the status said, and anything else becomes
+middleware, a throttler, a proxy's error page — can write both a status and a body, so
+`executeOperation` gates every body through `isValidEnvelop` from `lib/utils.ts` instead, whatever
+transport produced it: a valid envelope (success or failure) is returned exactly as parsed,
+whatever the status said, and anything else becomes
 [`CLIENT_ERROR`](errors.md#the-client-error) with the raw `response` (`httpStatusCode`, and
 `jsonResponse` when the body parsed as JSON) attached. The guard is exported, so a payload from
 anywhere else — SSR state, a cache — can be believed or refused the same way before being read as

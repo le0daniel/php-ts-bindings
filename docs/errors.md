@@ -158,10 +158,11 @@ function isWorthRetrying(error: ClientError | InternalError): boolean { /* ... *
 **`CLIENT_ERROR` is the branch no server sends.** The request never got there — or something
 answered in the server's place. The network was down, the call was cancelled, a CSRF middleware
 answered 419 with its own JSON, a proxy answered 502 with an HTML page, a framework wrapped a 200
-around garbage. `DefaultClient` never consults the status line: every response goes through
-`isValidEnvelop` from `lib/utils.ts`, and only a body that is the server's own envelope — `success`,
-and on failure a known `type` with the `code` that type owns — is reported as the server's answer.
-Anything else mints this branch, with code 0 and the exception itself under `cause`:
+around garbage. The generated `executeOperation` never consults the status line: every body —
+whatever transport produced it — goes through `isValidEnvelop` from `lib/utils.ts`, and only a body
+that is the server's own envelope — `success`, and on failure a known `type` with the `code` that
+type owns — is reported as the server's answer. Anything else mints this branch, with code 0 and the
+exception itself under `cause`:
 
 ```typescript
 const result = await lock({id});
@@ -182,9 +183,12 @@ The cause is carried rather than summarised, which matters for cancellation: `th
 rethrows an `AbortError` as the `DOMException` it was, so a Tanstack refetch aborting its
 predecessor is not reported as a failed query. A re-wrapped copy would no longer be that exception.
 
-Every client can produce it, and no signature has to say so: the branch is part of every `Failure`,
-so `OperationClient.execute` returning `Promise<Result<O, TDomainType>>` already includes it whatever
-the operation exposed. There is nothing for an implementation to remember to add.
+Every transport can produce it, and no signature has to say so: a transport resolves to the raw
+response — `{status, jsonBody}` — or throws, and the generated `executeOperation` mints this branch
+from either. There is nothing for an implementation to remember to add, and nothing it can forget:
+validation and minting cannot be bypassed. The branch also covers the client that was never wired
+up — `executeOperation` resolves rather than rejects, so a missing `setClient()` answers it with
+`cause: Error('No client set')`.
 
 Reached through `OperationException`, the envelope is `e.cause` and the original exception is
 `e.cause.cause`; `e.isClientError()` is the shorter way to ask — a type guard, so past it `e.cause`

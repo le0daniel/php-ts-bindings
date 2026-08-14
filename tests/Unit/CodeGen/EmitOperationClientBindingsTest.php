@@ -49,80 +49,102 @@ test('declares exactly the imports its body needs', function (string $file, arra
 
     expect($imports)->toBe($expected);
 })->with([
-    'OperationClient' => ['OperationClient', [
-        './lib/types' => ['values' => [], 'types' => ['Result']],
-    ]],
+    // A transport resolves to the raw response and never names the envelope, so there is nothing
+    // for it to reach for.
+    'OperationClient' => ['OperationClient', []],
     'DefaultClient' => ['DefaultClient', [
         './lib/OperationClient' => ['values' => [], 'types' => ['OperationClient', 'OperationOptions']],
-        './lib/types' => ['values' => [], 'types' => ['Failure', 'Result']],
-        './lib/utils' => ['values' => ['isValidEnvelop'], 'types' => []],
     ]],
     'OperationException' => ['OperationException', [
         './lib/types' => ['values' => [], 'types' => ['ClientError', 'Failure']],
     ]],
     // DefaultClient is constructed, so it is a value import; a type only import would leave
-    // `new DefaultClient(...)` referencing nothing at runtime.
+    // `new DefaultClient(...)` referencing nothing at runtime. The guard is a value too: it runs
+    // against every body, whatever transport produced it.
     'bindings' => ['bindings', [
         './lib/DefaultClient' => ['values' => ['DefaultClient'], 'types' => []],
         './lib/OperationClient' => ['values' => [], 'types' => ['OperationClient', 'OperationOptions']],
-        './lib/types' => ['values' => [], 'types' => ['Result']],
+        './lib/types' => ['values' => [], 'types' => ['Failure', 'Result']],
+        './lib/utils' => ['values' => ['isValidEnvelop'], 'types' => []],
     ]],
 ]);
 
 /**
- * A request can fail before it ever reaches the server, so the transport can always hand back the
- * client envelope — and it needs no mention in any of these signatures, because the branch is part of
- * every Failure whatever the operation exposed. What the caller chooses is only which domain names
- * the 400 branch carries, so that is all the transport takes.
+ * A transport moves bytes: it resolves to the status line and the parsed body, with no claim about
+ * either. Only executeOperation speaks in envelopes — it gates the body through the guard and mints
+ * the client branch, so what an operation exposed never concerns any transport.
  */
-test('the transport takes the exposed names, not a failure shape', function (string $file, string $signature) {
+test('the transport resolves to the raw response, only the binding speaks in envelopes', function (string $file, string $signature) {
     expect(bindingFiles()[$file]->toString())->toContain($signature)
         ->and(bindingFiles()[$file]->toString())->not->toContain('{code: number}');
 })->with([
-    'the interface' => ['OperationClient', 'execute<O, TDomainType extends string = never>('],
-    'the implementation' => ['DefaultClient', 'options?: OperationOptions): Promise<Result<O, TDomainType>>'],
-    'the binding' => ['bindings', 'options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, TDomainType>>'],
+    'the interface' => ['OperationClient', '): Promise<{status: number; jsonBody: unknown}>;'],
+    'the implementation' => ['DefaultClient', 'options?: OperationOptions): Promise<{status: number; jsonBody: unknown}>'],
+    'the binding' => ['bindings', 'options?: OperationOptions): Promise<Result<O, TDomainType>>'],
 ]);
 
 /**
- * Nothing narrows the catalogue down to one branch here, so nothing has to name one: the exception
- * and the hook see whatever the server can produce.
+ * No type parameters and no envelope: nothing an implementation returns is trusted anyway — the
+ * binding validates the body whoever produced it — so the interface promises nothing it would have
+ * to take back.
  */
-test('a hook and the exception are typed against the whole catalogue', function () {
+test('the transport takes no type parameters and never names the envelope', function () {
+    expect(bindingFiles()['OperationClient']->toString())
+        ->toContain('execute(')
+        ->not->toContain('execute<')
+        ->not->toContain('Result');
+});
+
+/**
+ * The default transport is one honest fetch: no guard, no catch, no observation. Whatever it throws
+ * is the binding's to catch, and whatever comes back is handed over exactly as received — the
+ * status riding along unconsulted next to the parsed body.
+ */
+test('the default transport neither guards, catches, nor observes', function () {
     expect(bindingFiles()['DefaultClient']->toString())
-        ->toContain('export type Hook = (result: Result<unknown, string>) => Promise<void> | void;')
-        ->toContain('private async callHooks<const T extends Result<unknown, string>>(result: T) {')
-        ->and(bindingFiles()['OperationException']->toString())
-        ->toContain('export class OperationException<TDomainType extends string = string> extends Error {')
-        ->toContain('public readonly cause: Failure<TDomainType>;')
-        ->toContain('public static is<TDomainType extends string = string>(e: unknown): e is OperationException<TDomainType> {');
+        ->toContain('const jsonBody: unknown = await response.json();')
+        ->toContain('return {status: response.status, jsonBody};')
+        ->not->toContain('isValidEnvelop')
+        ->not->toContain('try {')
+        ->not->toContain('CLIENT_ERROR')
+        ->not->toContain('Hook')
+        ->not->toContain('registerHook')
+        ->not->toContain('response.ok');
+});
+
+/**
+ * Hooks are first party: they live in the bindings and see the envelope of every operation,
+ * whichever client — the module global or a per call options.client — served it. Typed against the
+ * widest domain union, because a hook observes any operation's envelope, not one operation's.
+ */
+test('hooks are registered on the bindings and typed against the whole catalogue', function () {
+    expect(bindingFiles()['bindings']->toString())
+        ->toContain("export type Hook = (result: Result<unknown, string>, operation: {type: 'query'|'command'; key: string}) => Promise<void> | void;")
+        ->toContain('export function registerHook(hook: Hook): () => void {')
+        ->toContain("async function callHooks<const T extends Result<unknown, string>>(result: T, operation: {type: 'query'|'command'; key: string}): Promise<T> {");
 });
 
 /**
  * Whatever went wrong is carried, not summarised: an AbortError has to arrive as the DOMException it
  * was, because throwOnFailure rethrows exactly that one and a re-wrapped copy would not be it.
  */
-test('a throw anywhere in the request becomes the client envelope, keeping the original as its cause', function () {
-    expect(bindingFiles()['DefaultClient']->toString())
+test('a throw anywhere below becomes the client envelope, keeping the original as its cause', function () {
+    expect(bindingFiles()['bindings']->toString())
         ->toContain('const cause = e instanceof Error ? e : new Error(String(e));')
-        ->toContain("const envelop = {success: false, code: 0, type: 'CLIENT_ERROR', cause} satisfies Failure;")
-        ->toContain('return await this.callHooks(envelop);');
+        ->toContain('return await callHooks(mintClientError(cause), operation);');
 });
 
 /**
  * The status line is never consulted: a CSRF middleware answering 419 with its own JSON, a proxy
  * answering 502 with an HTML page, or a framework writing a 200 around garbage all set whatever
- * status they like. Only the body can prove the server answered, so every response — ok or not —
- * goes through the envelope guard and is returned exactly as parsed when it passes.
+ * status they like. Only the body can prove the server answered, so every body — from whatever
+ * transport — goes through the envelope guard and is returned exactly as parsed when it passes.
  */
 test('every response goes through the envelope guard, whatever the status line said', function () {
-    expect(bindingFiles()['DefaultClient']->toString())
-        ->toContain('const json: unknown = await response.json().catch(() => undefined);')
-        ->toContain('if (isValidEnvelop(json)) {')
-        ->toContain('return await this.callHooks(json as Result<O, TDomainType>);')
-        ->not->toContain('response.ok')
-        ->not->toContain('json?.code ?? response.status')
-        ->not->toContain("json?.type ?? 'INTERNAL_ERROR'");
+    expect(bindingFiles()['bindings']->toString())
+        ->toContain('if (isValidEnvelop(jsonBody)) {')
+        ->toContain('return await callHooks(jsonBody as Result<O, TDomainType>, operation);')
+        ->not->toContain('response.ok');
 });
 
 /**
@@ -130,10 +152,38 @@ test('every response goes through the envelope guard, whatever the status line s
  * only when there was one to parse — an absent key rather than an undefined value.
  */
 test('a response that is not the envelope becomes the client branch carrying what was received', function () {
-    expect(bindingFiles()['DefaultClient']->toString())
-        ->toContain('cause: new Error(`Invalid response envelope (HTTP status ${response.status})`),')
-        ->toContain('? {httpStatusCode: response.status}')
-        ->toContain(': {httpStatusCode: response.status, jsonResponse: json},');
+    expect(bindingFiles()['bindings']->toString())
+        ->toContain('new Error(`Invalid response envelope (HTTP status ${status})`),')
+        ->toContain('? {httpStatusCode: status}')
+        ->toContain(': {httpStatusCode: status, jsonResponse: jsonBody},');
+});
+
+/**
+ * executeOperation resolves, never rejects: no client at all, a transport that threw, a body that is
+ * not the envelope — each becomes the client branch of the envelope, and the hooks see every one of
+ * them, the valid answer included. One resolution site is what makes that a guarantee rather than a
+ * convention each transport reimplements.
+ */
+test('executeOperation never throws, and hooks see every exit path', function () {
+    $bindings = bindingFiles()['bindings']->toString();
+
+    expect($bindings)
+        ->toContain('const activeClient = options?.client ?? client;')
+        ->toContain("return await callHooks(mintClientError(new Error('No client set')), operation);")
+        ->not->toContain("throw new Error('No client set')")
+        ->not->toContain('& {client?: OperationClient}')
+        ->and(substr_count($bindings, 'return await callHooks('))->toBe(4);
+});
+
+/**
+ * Nothing narrows the catalogue down to one branch here, so nothing has to name one: the exception
+ * sees whatever the server can produce.
+ */
+test('the exception is typed against the whole catalogue', function () {
+    expect(bindingFiles()['OperationException']->toString())
+        ->toContain('export class OperationException<TDomainType extends string = string> extends Error {')
+        ->toContain('public readonly cause: Failure<TDomainType>;')
+        ->toContain('public static is<TDomainType extends string = string>(e: unknown): e is OperationException<TDomainType> {');
 });
 
 /**

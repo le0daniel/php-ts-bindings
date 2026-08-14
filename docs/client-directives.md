@@ -69,7 +69,7 @@ from [the error branch](errors.md) the generated union already gives you.
 `RpcSuccess::jsonSerialize()` writes it, so `lib/types.ts` says it may be there. The *shape* is not:
 `Client` is an extension point, and your own implementation may define an entirely different set of
 directives under a different schema, so neither `lib/types.ts` nor the transport interface commits to
-one it cannot know. The payload travels through `DefaultClient` untouched; what is withheld is only
+one it cannot know. The payload travels through the transport untouched; what is withheld is only
 the claim about what it is.
 
 ## Reading it on the frontend

@@ -290,8 +290,8 @@ toasts, redirects, cache invalidations. The interface is closed — `toast()`, t
 `error()` / `warning()` / `alert()` / `info()` shorthands, `redirect()` and `invalidate()`; there is
 no arbitrary-directive method. And the library ships the channel, not the behavior: nothing pops up
 until *you* implement the hooks on the frontend —
-[`registerHook()`](docs/typescript-client.md#wiring-up-the-transport) on the generated client sees
-every envelope, and `containsOperationSpaPayload()` narrows the deliberately-`unknown` `__client`
+[`registerHook()`](docs/typescript-client.md#wiring-up-the-transport) from the generated bindings
+sees every envelope, and `containsOperationSpaPayload()` narrows the deliberately-`unknown` `__client`
 into typed toasts, a redirect and invalidation keys. What a toast looks like, or what an
 invalidation invalidates, is your frontend's decision.
 **[→ Client directives](docs/client-directives.md)**
@@ -393,7 +393,7 @@ operation handler or a middleware's `handle()` — decides the category, and onl
 declared nothing do the configured category lists apply. Everything unrecognised is a 500.
 
 A client has one more failure available to it, and no server sends it: `CLIENT_ERROR`, code 0,
-minted by the generated client for the request that never got a real answer. The client never
+minted by the generated bindings for the request that never got a real answer. The client never
 trusts the HTTP status line — only a body carrying the envelope counts as the server's answer, so a
 proxy's error page or a CSRF middleware's 419 becomes `CLIENT_ERROR`, carrying the cause and the
 raw response. [→ The client error](docs/errors.md#the-client-error)

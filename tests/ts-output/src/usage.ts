@@ -8,9 +8,11 @@
 import {find, lock} from '../generated/accounts';
 import type {ProductDomainErrors} from '../generated/catalog';
 import {prepare, product, productQueryKey, productQueryOptions, restock, search, useProductQuery} from '../generated/catalog';
-import {createDefaultClient, setClient} from '../generated/lib/bindings';
+import type {Hook} from '../generated/lib/bindings';
+import {createDefaultClient, executeOperation, registerHook, setClient} from '../generated/lib/bindings';
 import type {OperationsClientPayload} from '../generated/lib/client-operations-spa';
 import {containsOperationSpaPayload} from '../generated/lib/client-operations-spa';
+import type {OperationClient} from '../generated/lib/OperationClient';
 import {OperationException} from '../generated/lib/OperationException';
 import type {Brand, ClientError, Failure, InternalError, Product} from '../generated/lib/types';
 import type {TypeMap} from '../generated/lib/type-map';
@@ -238,6 +240,88 @@ export async function restockProduct(): Promise<void> {
  */
 export async function findAccount(signal: AbortSignal): Promise<void> {
     await find({term: 'leo'}, {signal, timeoutMs: 2500});
+}
+
+/**
+ * Hooks are first party: registered on the bindings, not on any client, so one registration
+ * observes every operation whichever transport served it. The second argument names the operation
+ * the envelope belongs to.
+ */
+export function observeEveryOperation(): () => void {
+    const hook: Hook = (result, operation) => {
+        operation.type satisfies 'query' | 'command';
+        const key: string = operation.key;
+
+        if (!result.success && result.code === 401) {
+            console.warn('unauthenticated', key);
+        }
+    };
+
+    const unregister: () => void = registerHook(hook);
+    return unregister;
+}
+
+/**
+ * A transport is a function of request to raw response: implementing one takes no envelope
+ * knowledge at all. The bindings gate whatever it returns, so a stub for a test is three lines —
+ * and it still goes through the same guard, minting, and hooks as the real one.
+ */
+export async function readProductThroughStub(): Promise<Product | null> {
+    const stub: OperationClient = {
+        async execute(type, key, input, options) {
+            console.debug(type, key, input, options?.timeoutMs);
+            return {status: 200, jsonBody: {success: true, data: null}};
+        },
+    };
+
+    const result = await product({id: productId}, {client: stub});
+    return result.success ? result.data : null;
+}
+
+// An unmigrated transport — one that still resolves to the envelope instead of the raw response —
+// fails to compile rather than silently bypassing the gate.
+// @ts-expect-error
+export const envelopeReturningClient: OperationClient = {async execute() { return {success: true, data: null}; }};
+
+/**
+ * DefaultClient is transport only: hooks live on the bindings, and execute resolves to the raw
+ * response rather than the envelope.
+ */
+export async function inspectTransportResponse(): Promise<void> {
+    const transport = createDefaultClient(fetch);
+
+    // The old surface is gone; an unmigrated registration fails to compile rather than silently
+    // observing nothing.
+    // @ts-expect-error
+    transport.registerHook;
+
+    const raw = await transport.execute('query', 'catalog.product', {id: productId});
+    const status: number = raw.status;
+    const body: unknown = raw.jsonBody;
+
+    // The raw response is not the envelope: believing it takes the guard, not a property read.
+    // @ts-expect-error
+    console.debug(raw.success);
+
+    console.debug(status, body);
+}
+
+/**
+ * executeOperation resolves, never rejects: with no client set it answers the client branch, so a
+ * caller branches on the envelope instead of wrapping every call in try/catch.
+ */
+export async function executeDirectly(): Promise<void> {
+    const stub: OperationClient = {
+        async execute() {
+            return {status: 204, jsonBody: undefined};
+        },
+    };
+
+    const result = await executeOperation<null, unknown, never>('query', 'shapes.defaults', null, {client: stub, timeoutMs: 100});
+    if (!result.success && result.code === 0) {
+        result.cause satisfies Error;
+        console.warn('not a server answer', result.response?.httpStatusCode);
+    }
 }
 
 /* The tanstack bindings: a key, options, and the hook built on top of them. */

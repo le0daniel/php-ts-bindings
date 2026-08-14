@@ -121,36 +121,23 @@ final class EmitOperationClientBindings implements DependsOn, GeneratesLibFiles
 export type OperationOptions = {signal?: AbortSignal; timeoutMs?: number; client?: OperationClient};
 
 /**
- * Moves a request and resolves to the envelope. A server may put more next to the data, and it
- * travels through untouched — describing it here would tie every transport to one Client
- * implementation's schema. Reach for the guard the implementation ships instead.
- *
- * The only thing an operation adds to the error catalogue is which domain errors it exposed, so that
- * is all this takes. ClientError needs no mention: a request can fail before it reaches the server,
- * and Failure carries that branch whatever the operation declared.
+ * Moves a request and resolves to what came back: the status line and the body as parsed JSON, with
+ * no claim about either. Everything that interprets a response — the envelope guard, the client
+ * branch, the hooks — lives in executeOperation, once, whatever transport is plugged in. An
+ * implementation only moves bytes, and it is allowed to throw (a network failure, an abort):
+ * executeOperation turns that into the client branch too.
  */
 export interface OperationClient {
-    execute<O, TDomainType extends string = never>(
+    execute(
         type: "command"|"query",
         key: string,
         input: unknown,
         options?: OperationOptions
-    ): Promise<Result<O, TDomainType>>;
+    ): Promise<{status: number; jsonBody: unknown}>;
 }
-TypeScript, [
-                $this->types->importFromTypes(types: ['Result']),
-            ]),
+TypeScript),
             self::DEFAULT_CLIENT_FILE => new TypescriptFile(<<<'TypeScript'
-/**
- * A hook sees the envelope of any operation, so it is typed against the widest domain union rather
- * than any one operation's. Every category is still there to discriminate on — the catalogue is the
- * server's, not the operation's.
- */
-export type Hook = (result: Result<unknown, string>) => Promise<void> | void;
-
 export class DefaultClient implements OperationClient {
-
-    private hooks: Hook[] = [];
 
     constructor(
         private readonly fetcher: typeof window.fetch,
@@ -183,17 +170,12 @@ export class DefaultClient implements OperationClient {
             }).join('&');
     }
 
-    private async callHooks<const T extends Result<unknown, string>>(result: T) {
-        try {
-            await Promise.all(this.hooks.map(hook => hook(result)));
-            return result;
-        } catch (error) {
-            console.error('Error while calling hooks', error);
-            return result;
-        }
-    }
-
-    async execute<O, TDomainType extends string = never>(type: "command" | "query", key: string, input: unknown, options?: OperationOptions): Promise<Result<O, TDomainType>> {
+    /**
+     * One honest fetch: no guard, no catch, no observation. Whatever it throws — an abort, a
+     * network failure, a bad timeout — is executeOperation's to catch, and whatever comes back is
+     * handed over exactly as received, the status riding along unconsulted next to the parsed body.
+     */
+    async execute(type: "command" | "query", key: string, input: unknown, options?: OperationOptions): Promise<{status: number; jsonBody: unknown}> {
         const route = this.options.paths[type].substring(0, 1) === '/' ? this.options.paths[type].substring(1) : this.options.paths[type];
         const fullPath = `${this.options.baseUrl ?? ''}/${route.replace('{key}', key)}`;
 
@@ -214,61 +196,24 @@ export class DefaultClient implements OperationClient {
             headers['Content-Type'] = 'application/json';
         }
 
-        try {
-            const queryParams = type === 'query' && input && typeof input === 'object'
-                ? `?${this.createJsonEncodedQueryParams(input)}`
-                : '';
+        const queryParams = type === 'query' && input && typeof input === 'object'
+            ? `?${this.createJsonEncodedQueryParams(input)}`
+            : '';
 
-            const response = await this.fetcher(`${fullPath}${queryParams}`, {
-                method: type === 'query' ? 'GET' : 'POST',
-                signal,
-                headers,
-                body: type === 'command' ? JSON.stringify(input) : undefined,
-            });
+        const response = await this.fetcher(`${fullPath}${queryParams}`, {
+            method: type === 'query' ? 'GET' : 'POST',
+            signal,
+            headers,
+            body: type === 'command' ? JSON.stringify(input) : undefined,
+        });
 
-            // The status line is never consulted: anything between the browser and the handler can
-            // write one, so only the body can prove the server answered. A valid envelope is
-            // returned exactly as parsed, success or failure — whatever the server put next to it
-            // (a client's directives, say) rides along untouched.
-            const json: unknown = await response.json().catch(() => undefined);
-            if (isValidEnvelop(json)) {
-                return await this.callHooks(json as Result<O, TDomainType>);
-            }
-
-            return await this.callHooks({
-                success: false,
-                code: 0,
-                type: 'CLIENT_ERROR',
-                cause: new Error(`Invalid response envelope (HTTP status ${response.status})`),
-                response: json === undefined
-                    ? {httpStatusCode: response.status}
-                    : {httpStatusCode: response.status, jsonResponse: json},
-            } satisfies Failure);
-        } catch (e: unknown) {
-            // Anything thrown between here and the response being read: the request never completed,
-            // so there is no server error to report and the cause is the answer. It is carried as
-            // itself rather than summarised — throwOnFailure rethrows an AbortError exactly, and a
-            // re-wrapped copy would no longer be that DOMException.
-            //
-            // No type argument: this branch is in every Failure, whatever the operation exposed.
-            const cause = e instanceof Error ? e : new Error(String(e));
-            const envelop = {success: false, code: 0, type: 'CLIENT_ERROR', cause} satisfies Failure;
-            return await this.callHooks(envelop);
-        }
-    }
-
-    registerHook(hook: Hook): () => void {
-        this.hooks.push(hook);
-        return () => {
-            this.hooks = this.hooks.filter(h => h !== hook);
-        }
+        const jsonBody: unknown = await response.json();
+        return {status: response.status, jsonBody};
     }
 
 }
 TypeScript, [
                 $this->importFromOperationClient(types: ['OperationClient', 'OperationOptions']),
-                $this->types->importFromTypes(types: ['Failure', 'Result']),
-                $this->utils->importFromUtils(values: ['isValidEnvelop']),
             ]),
             self::OPERATION_EXCEPTION_FILE => new TypescriptFile(<<<'TypeScript'
 /**
@@ -305,7 +250,24 @@ TypeScript, [
                 $this->types->importFromTypes(types: ['ClientError', 'Failure']),
             ]),
             self::BINDINGS_FILE => new TypescriptFile(<<<TypeScript
-let client: OperationClient|null;
+let client: OperationClient|null = null;
+
+/**
+ * A hook sees the envelope of every operation, whichever client — the module global or a per call
+ * options.client — served it, so it is typed against the widest domain union rather than any one
+ * operation's. Every category is still there to discriminate on. The second argument names the
+ * operation the envelope belongs to.
+ */
+export type Hook = (result: Result<unknown, string>, operation: {type: 'query'|'command'; key: string}) => Promise<void> | void;
+
+let hooks: Hook[] = [];
+
+export function registerHook(hook: Hook): () => void {
+    hooks.push(hook);
+    return () => {
+        hooks = hooks.filter(h => h !== hook);
+    };
+}
 
 export function createDefaultClient(
     fetcher?: typeof window.fetch,
@@ -322,23 +284,73 @@ export function setClient(operationClient: OperationClient|null): void {
     client = operationClient;
 }
 
-export async function executeOperation<I, O, TDomainType extends string = never>(type: 'query'|'command', key: string, input: I, options?: OperationOptions & {client?: OperationClient}): Promise<Result<O, TDomainType>> {
-    if (options?.client) {
-        return await options.client.execute(type, key, input, options);
+/**
+ * A hook that throws never fails the operation: the envelope is the answer, and observing it must
+ * not change it.
+ */
+async function callHooks<const T extends Result<unknown, string>>(result: T, operation: {type: 'query'|'command'; key: string}): Promise<T> {
+    try {
+        await Promise.all(hooks.map(hook => hook(result, operation)));
+    } catch (error) {
+        console.error('Error while calling hooks', error);
     }
 
-    if (client) {
-        return await client.execute(type, key, input, options);
+    return result;
+}
+
+/**
+ * No type argument: this branch is in every Failure, whatever the operation exposed.
+ */
+function mintClientError(error: Error, response?: {httpStatusCode: number; jsonResponse?: unknown}): Failure {
+    return response === undefined
+        ? {success: false, code: 0, type: 'CLIENT_ERROR', cause: error}
+        : {success: false, code: 0, type: 'CLIENT_ERROR', cause: error, response};
+}
+
+/**
+ * Resolves, never rejects: every outcome — a valid envelope, a body that is not the envelope, a
+ * transport that threw, no client at all — comes back as an envelope, and the hooks see every one
+ * of them before the caller does.
+ *
+ * The status line is never consulted: anything between the browser and the handler can write one,
+ * so only a body that is the server's own envelope counts as the server's answer, and a valid one
+ * is returned exactly as parsed — whatever the server put next to it rides along untouched.
+ * Whatever a transport threw is carried as itself rather than summarised: an AbortError has to stay
+ * the DOMException it was for the code that rethrows exactly that one.
+ */
+export async function executeOperation<I, O, TDomainType extends string = never>(type: 'query'|'command', key: string, input: I, options?: OperationOptions): Promise<Result<O, TDomainType>> {
+    const operation = {type, key};
+    const activeClient = options?.client ?? client;
+
+    if (!activeClient) {
+        return await callHooks(mintClientError(new Error('No client set')), operation);
     }
 
-    throw new Error('No client set');
+    try {
+        const {status, jsonBody} = await activeClient.execute(type, key, input, options);
+        if (isValidEnvelop(jsonBody)) {
+            // Narrowed only to the widest envelope: which data rides on success is the operation's
+            // claim, asserted here once for every call site.
+            return await callHooks(jsonBody as Result<O, TDomainType>, operation);
+        }
+
+        return await callHooks(mintClientError(
+            new Error(`Invalid response envelope (HTTP status \${status})`),
+            jsonBody === undefined ? {httpStatusCode: status} : {httpStatusCode: status, jsonResponse: jsonBody},
+        ), operation);
+    } catch (e: unknown) {
+        const cause = e instanceof Error ? e : new Error(String(e));
+        return await callHooks(mintClientError(cause), operation);
+    }
 }
 TypeScript, [
-                $this->types->importFromTypes(types: ['Result']),
+                $this->types->importFromTypes(types: ['Failure', 'Result']),
                 $this->importFromOperationClient(types: ['OperationClient', 'OperationOptions']),
                 // Constructed, not just annotated: a type only import would leave
                 // `new DefaultClient(...)` referencing nothing at runtime.
                 $this->importFromDefaultClient(values: ['DefaultClient']),
+                // The guard every body gates through, whatever transport produced it.
+                $this->utils->importFromUtils(values: ['isValidEnvelop']),
             ]),
         ];
     }

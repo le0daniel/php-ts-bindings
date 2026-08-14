@@ -209,7 +209,8 @@ test('a lib file reaches its siblings directly instead of through lib/', functio
     expect($files['lib/bindings.ts']->toString())->toStartWith(TypescriptFile::MARKER."\n\n".<<<'TypeScript'
     import {DefaultClient} from './DefaultClient';
     import type {OperationClient, OperationOptions} from './OperationClient';
-    import type {Result} from './types';
+    import type {Failure, Result} from './types';
+    import {isValidEnvelop} from './utils';
 
     TypeScript);
 
