@@ -1,30 +1,28 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data;
 
-use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
 use Le0daniel\PhpTsBindings\Contracts\ExportableToPhpCode;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
+use Override;
 
-final class Definition implements ExportableToPhpCode
+final readonly class Definition implements ExportableToPhpCode
 {
     /**
-     * @param OperationType $type
-     * @param class-string<object> $fullyQualifiedClassName
-     * @param string $methodName
-     * @param string $name
-     * @param string $namespace
-     * @param list<class-string> $middleware
+     * @param  class-string<object>  $fullyQualifiedClassName
+     * @param  list<MiddlewareDefinition>  $middleware
      */
     public function __construct(
         public OperationType $type,
-        public string        $fullyQualifiedClassName,
-        public string        $methodName,
-        public string        $name,
-        public string        $namespace,
-        public array         $middleware,
-    )
-    {
+        public string $fullyQualifiedClassName,
+        public string $methodName,
+        public string $name,
+        public string $namespace,
+        public array $middleware,
+    ) {
     }
 
     public function fullyQualifiedName(): string
@@ -32,6 +30,15 @@ final class Definition implements ExportableToPhpCode
         return "{$this->namespace}.{$this->name}";
     }
 
+    /**
+     * @return list<class-string<MiddlewareContract<mixed>>>
+     */
+    public function middlewareClassNames(): array
+    {
+        return array_map(static fn (MiddlewareDefinition $middleware): string => $middleware->middleware, $this->middleware);
+    }
+
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);

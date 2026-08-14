@@ -1,11 +1,12 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Reflection;
 
-use InvalidArgumentException;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 use ReflectionClass;
 use ReflectionException;
-use RuntimeException;
 
 final class FileReflector
 {
@@ -13,10 +14,15 @@ final class FileReflector
     private ?array $tokens = null;
 
     /**
-     * @var array<int|class-string, string|class-string>|null
+     * Keys and values are whatever the file's `use` statements spell; they are not verified to name
+     * anything that exists, so this is not class-string.
+     *
+     * @var array<int|string, string>|null
      */
     private ?array $usedNamespaces = null;
+
     private ?string $namespace = null;
+
     private bool $namespaceParsed = false;
 
     /**
@@ -25,15 +31,14 @@ final class FileReflector
     private ?ReflectionClass $declaredClass = null;
 
     /**
-     * @param string $filePath
-     * @throws InvalidArgumentException
+     * @throws ParserException
      */
     public function __construct(
         public readonly string $filePath
     ) {
         $realPath = realpath($this->filePath);
-        if ($realPath === false || !is_file($realPath) || !is_readable($realPath)) {
-            throw new InvalidArgumentException(
+        if ($realPath === false || ! is_file($realPath) || ! is_readable($realPath)) {
+            throw new ParserException(
                 "File does not exist or is not readable: {$this->filePath}"
             );
         }
@@ -56,27 +61,48 @@ final class FileReflector
             return $this->usedNamespaces;
         }
 
-        $this->ensureTokensAreParsed();
+        $tokens = $this->tokens();
         $namespaces = [];
-        $numTokens = count($this->tokens);
+        $numTokens = count($tokens);
+        $depth = 0;
 
         for ($i = 0; $i < $numTokens; $i++) {
-            $token = $this->tokens[$i];
+            $token = $tokens[$i];
 
-            if (!is_array($token) || $token[0] !== T_USE) {
+            // A group use's own braces never reach here: parseUseStatement consumes them and
+            // returns the index of the closing `;`.
+            if ($token === '{') {
+                $depth++;
+
+                continue;
+            }
+            if ($token === '}') {
+                $depth--;
+
                 continue;
             }
 
-            // Skip `use function` and `use const`
-            $nextToken = $this->peekNextSignificantToken($i, $numTokens);
-            if ($nextToken && in_array($nextToken[0], [T_FUNCTION, T_CONST], true)) {
+            if (! is_array($token) || $token[0] !== T_USE) {
                 continue;
             }
 
-            [$fullyQualifiedClassName, $alias, $i] = $this->parseUseStatement($i, $numTokens);
+            // Imports are top level statements. Inside a body, `use` composes a trait.
+            if ($depth > 0) {
+                continue;
+            }
 
-            if ($fullyQualifiedClassName) {
-                if ($alias) {
+            // Skip `use function` and `use const`. A null means the next token is punctuation,
+            // which for a `use` only ever means the `(` of a closure's capture list - not an
+            // import, and reading it as one would scan into the closure body.
+            $nextToken = self::peekNextSignificantToken($tokens, $i, $numTokens);
+            if ($nextToken === null || in_array($nextToken[0], [T_FUNCTION, T_CONST], true)) {
+                continue;
+            }
+
+            [$imports, $i] = self::parseUseStatement($tokens, $i, $numTokens);
+
+            foreach ($imports as [$fullyQualifiedClassName, $alias]) {
+                if ($alias !== null) {
                     $namespaces[$fullyQualifiedClassName] = $alias;
                 } else {
                     $namespaces[] = $fullyQualifiedClassName;
@@ -98,8 +124,7 @@ final class FileReflector
             return $this->namespace;
         }
 
-        $this->ensureTokensAreParsed();
-        $this->namespace = $this->findNamespaceInTokens();
+        $this->namespace = self::findNamespaceInTokens($this->tokens());
         $this->namespaceParsed = true;
 
         return $this->namespace;
@@ -110,7 +135,8 @@ final class FileReflector
      * and returns a ReflectionClass instance for it.
      *
      * @return ReflectionClass<object>|never
-     * @throws RuntimeException If no class-like structure is found or if the class cannot be loaded.
+     *
+     * @throws ParserException If no class-like structure is found or if the class cannot be loaded.
      * @throws ReflectionException If the class is loaded but cannot be reflected.
      */
     public function getDeclaredClass(): ReflectionClass
@@ -119,13 +145,11 @@ final class FileReflector
             return $this->declaredClass;
         }
 
-        $this->ensureTokensAreParsed();
-
         $namespace = $this->getNamespace();
-        $className = $this->findClassNameInTokens();
+        $className = self::findClassNameInTokens($this->tokens());
 
         if ($className === null) {
-            throw new RuntimeException(
+            throw new ParserException(
                 "No class, interface, trait, or enum found in file: {$this->filePath}"
             );
         }
@@ -134,118 +158,205 @@ final class FileReflector
 
         // This is critical. We must ensure the file is loaded into memory
         // before we can reflect a class from it, especially if not using an autoloader.
-        if (!class_exists($fullyQualifiedClassName, false) && !interface_exists($fullyQualifiedClassName, false) && !trait_exists($fullyQualifiedClassName, false)) {
+        if (! class_exists($fullyQualifiedClassName, false) && ! interface_exists($fullyQualifiedClassName, false) && ! trait_exists($fullyQualifiedClassName, false)) {
             require_once $this->filePath;
         }
 
-        if (!class_exists($fullyQualifiedClassName, false) && !interface_exists($fullyQualifiedClassName, false) && !trait_exists($fullyQualifiedClassName, false)) {
-            throw new RuntimeException("Failed to load class {$fullyQualifiedClassName} from file {$this->filePath}");
+        if (! class_exists($fullyQualifiedClassName, false) && ! interface_exists($fullyQualifiedClassName, false) && ! trait_exists($fullyQualifiedClassName, false)) {
+            throw new ParserException("Failed to load class {$fullyQualifiedClassName} from file {$this->filePath}");
         }
 
         return $this->declaredClass = new ReflectionClass($fullyQualifiedClassName);
     }
 
-    private function ensureTokensAreParsed(): void
+    /**
+     * Returns the tokens rather than only populating $tokens, so callers hold a non-null list and
+     * every read below is provably safe instead of relying on having called this first.
+     *
+     * @return list<string|array{int, string, int}>
+     */
+    private function tokens(): array
     {
-        if ($this->tokens === null) {
-            $content = file_get_contents($this->filePath);
-            if ($content === false) {
-                throw new RuntimeException(
-                    "Could not read file content: {$this->filePath}"
-                );
-            }
-            $this->tokens = token_get_all($content);
+        if ($this->tokens !== null) {
+            return $this->tokens;
         }
+
+        $content = file_get_contents($this->filePath);
+        if ($content === false) {
+            throw new ParserException(
+                "Could not read file content: {$this->filePath}"
+            );
+        }
+
+        return $this->tokens = token_get_all($content);
     }
 
     /**
+     * @param  list<string|array{int, string, int}>  $tokens
      * @return string|null The found namespace name or null.
      */
-    private function findNamespaceInTokens(): ?string
+    private static function findNamespaceInTokens(array $tokens): ?string
     {
-        $count = count($this->tokens);
+        $count = count($tokens);
         for ($i = 0; $i < $count; $i++) {
-            if ($this->tokens[$i][0] === T_NAMESPACE) {
-                $nextToken = $this->peekNextSignificantToken($i, $count);
+            if ($tokens[$i][0] === T_NAMESPACE) {
+                $nextToken = self::peekNextSignificantToken($tokens, $i, $count);
                 if ($nextToken && in_array($nextToken[0], [T_STRING, T_NAME_QUALIFIED], true)) {
                     return $nextToken[1];
                 }
             }
         }
+
         return null;
     }
 
     /**
+     * @param  list<string|array{int, string, int}>  $tokens
      * @return string|null The found class name or null.
      */
-    private function findClassNameInTokens(): ?string
+    private static function findClassNameInTokens(array $tokens): ?string
     {
-        $count = count($this->tokens);
+        $count = count($tokens);
         for ($i = 0; $i < $count; $i++) {
-            $token = $this->tokens[$i];
-            if (!is_array($token)) {
+            $token = $tokens[$i];
+            if (! is_array($token)) {
                 continue;
             }
 
-            if (in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM])) {
-                $nextToken = $this->peekNextSignificantToken($i, $count);
-                if ($nextToken && $nextToken[0] === T_STRING) {
-                    return $nextToken[1];
-                }
+            if (! in_array($token[0], [T_CLASS, T_INTERFACE, T_TRAIT, T_ENUM], true)) {
+                continue;
+            }
+
+            // `Foo::class` tokenizes as T_CLASS too. Only a T_CLASS that is not preceded by `::`
+            // introduces a declaration.
+            $previousToken = self::previousSignificantToken($tokens, $i);
+            if ($token[0] === T_CLASS && $previousToken !== null && $previousToken[0] === T_DOUBLE_COLON) {
+                continue;
+            }
+
+            $nextToken = self::peekNextSignificantToken($tokens, $i, $count);
+            if ($nextToken && $nextToken[0] === T_STRING) {
+                return $nextToken[1];
             }
         }
+
         return null;
     }
 
     /**
-     * @param int $currentIndex
-     * @param int $maxIndex
+     * @param  list<string|array{int, string, int}>  $tokens
+     * @return (array{int, string, int})|null Null when the preceding token is punctuation, which
+     *                                        token_get_all() reports as a plain string rather than an array.
+     */
+    private static function previousSignificantToken(array $tokens, int $currentIndex): ?array
+    {
+        for ($i = $currentIndex - 1; $i >= 0; $i--) {
+            $token = $tokens[$i];
+            if (is_array($token) && $token[0] === T_WHITESPACE) {
+                continue;
+            }
+
+            return is_array($token) ? $token : null;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string|array{int, string, int}>  $tokens
      * @return (array{int, string, int})|null
      */
-    private function peekNextSignificantToken(int $currentIndex, int $maxIndex): ?array
+    private static function peekNextSignificantToken(array $tokens, int $currentIndex, int $maxIndex): ?array
     {
         for ($i = $currentIndex + 1; $i < $maxIndex; $i++) {
-            $token = $this->tokens[$i];
-            if (is_array($token) && $token[0] !== T_WHITESPACE) {
-                return $token;
+            $token = $tokens[$i];
+            if (is_array($token) && $token[0] === T_WHITESPACE) {
+                continue;
             }
+
+            // Punctuation arrives as a plain string, and it always ends the construct being read:
+            // `new class {` must not scan on into the body looking for a name.
+            return is_array($token) ? $token : null;
         }
+
         return null;
     }
 
     /**
-     * @param int $startIndex
-     * @param int $maxIndex
-     * @return array{string, string|null, int}
+     * Reads one `use` statement, from its T_USE token up to the terminating `;`.
+     *
+     * A single import yields one entry; a group (`use App\Data\{Order, Customer as C};`) yields one
+     * per member, each carrying its own alias. The leading name arrives as T_STRING when it has a
+     * single segment, T_NAME_QUALIFIED otherwise, and T_NAME_FULLY_QUALIFIED when it was written
+     * with a leading backslash - all three have to be read or the import is silently lost.
+     *
+     * @param  list<string|array{int, string, int}>  $tokens
+     * @return array{list<array{string, string|null}>, int} The imports and the index of the `;`.
      */
-    private function parseUseStatement(int $startIndex, int $maxIndex): array
+    private static function parseUseStatement(array $tokens, int $startIndex, int $maxIndex): array
     {
-        $fullyQualifiedClassname = '';
+        $imports = [];
+        $prefix = '';
+        $name = null;
         $alias = null;
+        $expectAlias = false;
         $i = $startIndex + 1;
 
-        while ($i < $maxIndex) {
-            $token = $this->tokens[$i];
+        for (; $i < $maxIndex; $i++) {
+            $token = $tokens[$i];
+
             if ($token === ';') {
                 break;
             }
 
-            if (is_array($token)) {
-                switch ($token[0]) {
-                    case T_NAME_QUALIFIED:
-                        $fullyQualifiedClassname = $token[1];
-                        break;
-                    case T_AS:
-                        $aliasToken = $this->peekNextSignificantToken($i, $maxIndex);
-                        if ($aliasToken && $aliasToken[0] === T_STRING) {
-                            $alias = $aliasToken[1];
-                        }
-                        break;
-                }
+            // Everything read so far is the group's shared prefix; the members follow.
+            if ($token === '{') {
+                $prefix = $name === null ? '' : "{$name}\\";
+                $name = null;
+                $alias = null;
+
+                continue;
             }
-            $i++;
+
+            if ($token === ',') {
+                if ($name !== null) {
+                    $imports[] = [$prefix.$name, $alias];
+                }
+                $name = null;
+                $alias = null;
+                $expectAlias = false;
+
+                continue;
+            }
+
+            if (! is_array($token)) {
+                continue;
+            }
+
+            if ($token[0] === T_AS) {
+                $expectAlias = true;
+
+                continue;
+            }
+
+            if (! in_array($token[0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED], true)) {
+                continue;
+            }
+
+            if ($expectAlias) {
+                $alias = $token[1];
+                $expectAlias = false;
+
+                continue;
+            }
+
+            $name = $token[1];
         }
 
-        return [$fullyQualifiedClassname, $alias, $i];
+        if ($name !== null) {
+            $imports[] = [$prefix.$name, $alias];
+        }
+
+        return [$imports, $i];
     }
 }

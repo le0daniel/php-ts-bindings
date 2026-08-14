@@ -1,0 +1,285 @@
+# Errors
+
+Two error models live in this library, and they never meet. One is the finite set of categories a
+client can see; the other is the exceptions the library itself throws, all of them at build time.
+The short version lives in the [README](../README.md); this is the full picture.
+
+- [The seven categories](#the-seven-categories)
+- [Exposing a domain error](#exposing-a-domain-error)
+- [The generated error union](#the-generated-error-union)
+- [The client error](#the-client-error)
+- [When `details` appears](#when-details-appears)
+- [Your own validation](#your-own-validation)
+- [Exceptions this library throws](#exceptions-this-library-throws)
+
+## The seven categories
+
+Every failure the server can produce is one of seven:
+
+| Code | `type` | When |
+|---|---|---|
+| 422 | `INVALID_INPUT` | The input did not match its type |
+| 401 | `AUTHENTICATION_ERROR` | An exception you mapped as unauthenticated |
+| 403 | `AUTHORIZATION_ERROR` | An exception you mapped as unauthorized |
+| 404 | `NOT_FOUND` | Unknown operation, or an exception you mapped as not-found |
+| 429 | `RATE_LIMITED` | An exception you mapped as rate-limited |
+| 400 | `DOMAIN_ERROR` | An exception you declared with `#[Throws]` *and* gave a name |
+| 500 | `INTERNAL_ERROR` | Anything else, including an output that did not match its type |
+
+The scope that threw is consulted first. A `#[Throws]` declaration on the throwing method — the
+operation handler, or the `handle()` of a middleware the operation declared — decides the category,
+whether that is a named `DOMAIN_ERROR` or an explicit mapping like
+`#[Throws(GoneException::class, type: ErrorType::NOT_FOUND)]`. Only where the throwing scope
+declared nothing do the configured category lists apply. Anything unrecognised is a 500 — an
+exception is never exposed by accident.
+
+The catalogue is closed. It is `ErrorType`, an `int`-backed enum whose value *is* the HTTP status
+code, which is why `$result->type->value` and `$result->statusCode` cannot disagree, and why
+`$result->type->name` is exactly the string the client matches on. What an application configures is
+which of *its* exceptions belong in which category, with
+[`ServerConfiguration::withExceptions()`](operations.md#serverconfiguration) — not which categories
+exist.
+
+Seven is what a *server* can answer. A client has one more failure available to it — the request that
+never arrived, or was answered by something other than the server — and that one is
+[`CLIENT_ERROR`](#the-client-error), code 0. It is deliberately not an `ErrorType`: nothing on the
+server can produce it, and giving the server a case for it would be claiming otherwise.
+
+## Exposing a domain error
+
+**It takes a declaration and a name.** The scope that throws the exception declares it, and
+something gives that exception a name the client sees. The exception can carry its own:
+
+```php
+#[ExposeAs(name: 'invalid_name')]
+final class InvalidNameException extends Exception {}
+
+#[Command('users')]
+#[Throws(InvalidNameException::class)]
+public function create(array $input): array { /* ... */ }
+```
+
+```json
+{"success": false, "code": 400, "type": "DOMAIN_ERROR", "details": {"name": "invalid_name"}}
+```
+
+Or the declaration can name it on the spot with `name:`, which needs no `#[ExposeAs]` at all — the
+point being that the exception does not have to be yours to annotate:
+
+```php
+#[Command('users')]
+#[Throws(InvalidNameException::class, name: 'invalid-name')]
+public function create(array $input): array { /* ... */ }
+```
+
+`name:` always wins over `#[ExposeAs]`, so the same exception can read differently per operation.
+What `name:` does not do is skip the declaration: an exception the throwing scope does not declare
+with `#[Throws]` is still a 500, and so is one that is declared but named nowhere.
+
+**A declaration covers throws from its own scope only.** `#[Throws]` on the operation method covers
+what the handler throws; `#[Throws]` on a [middleware's](operations.md#middleware) `handle()` covers
+what that middleware throws. An exception the handler declares but a middleware throws — or the
+other way around — is a 500: the declaration and the throw did not come from the same place. Each
+scope names its own throws, so the same exception class can surface under a different name per
+scope, and the generated union carries every name any scope of the operation can produce.
+
+A middleware registered globally through
+[`ServerConfiguration::withMiddlewares()`](operations.md#serverconfiguration) cannot expose domain
+errors at all: it runs for every operation, so a domain vocabulary there would leak into all of
+them. The runtime ignores such a declaration — the exception surfaces as a 500 — and code
+generation refuses it outright, naming the middleware. A global middleware may still map an
+exception onto a non-domain category, e.g. `#[Throws(ExpiredException::class, type:
+ErrorType::AUTHENTICATION_ERROR)]`.
+
+## The generated error union
+
+Every branch is declared once, in the generated types file, as a named envelope:
+
+```typescript
+export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}};
+export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};
+export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
+export type NotFoundError = {code: 404, type: "NOT_FOUND"};
+export type RateLimitedError = {code: 429, type: "RATE_LIMITED", details: {retryIn: number | null}};
+export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};
+export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
+export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error, response?: {httpStatusCode: number, jsonResponse?: unknown}};
+```
+
+Because the catalogue is closed, `Failure` is the *union* of all of it rather than a hole for
+whatever a call site passes in:
+
+```typescript
+export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>}
+    & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|RateLimitedError|DomainError<TDomainType>|InternalError|ClientError);
+export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
+```
+
+Every branch is always in the union: which of an application's exceptions land in which category is
+runtime configuration, and the union does not shrink around it. What varies per operation is one
+thing only — the names it exposed — so that is the one thing `Failure` is parameterised on, and the
+one thing an operation module declares. An operation that declares nothing gets:
+
+```typescript
+export type CreateDomainErrors = never;
+```
+
+and one that exposes two exceptions gets:
+
+```typescript
+export type LockDomainErrors = "account_locked"|"quota_exceeded";
+```
+
+There is no generated `<Name>Error` alias: `Failure<LockDomainErrors>` already says it, and a second
+name for it would be one more place the same fact is written down.
+
+`never` is not an absence a consumer has to handle. `DomainError` erases itself on it, which is why
+its declaration is a conditional: an operation exposing nothing has no 400 branch at all, and
+
+```typescript
+const result = await create(input);
+if (!result.success && result.code === 400) { /* ... */ }
+//                    ~~~~~~~~~~~~~~~~~~~~ no overlap — this does not compile
+```
+
+The brackets in `[TType] extends [never]` stop the conditional distributing, so two exposed names
+stay one branch carrying a union under `details.name` rather than splitting into two.
+
+Because both the runtime and the code generator read the same attributes from the same place, none of
+this can drift from the responses it describes. Naming the branches is also what lets a consumer
+write one handler and reuse it, instead of restating a literal shape at every call site:
+
+```typescript
+function isWorthRetrying(error: ClientError | InternalError): boolean { /* ... */ }
+```
+
+## The client error
+
+**`CLIENT_ERROR` is the branch no server sends.** The request never got there — or something
+answered in the server's place. The network was down, the call was cancelled, a CSRF middleware
+answered 419 with its own JSON, a proxy answered 502 with an HTML page, a framework wrapped a 200
+around garbage. The generated `executeOperation` never consults the status line: every body —
+whatever transport produced it — goes through `isValidEnvelop` from `lib/utils.ts`, and only a body
+that is the server's own envelope — `success`, and on failure a known `type` with the `code` that
+type owns — is reported as the server's answer. Anything else mints this branch, with code 0 and the
+exception itself under `cause`:
+
+```typescript
+const result = await lock({id});
+if (!result.success && result.code === 0) {
+    console.error(result.cause.message);              // cause: Error
+    console.warn(result.response?.httpStatusCode);    // 419, when HTTP answered at all
+    console.debug(result.response?.jsonResponse);     // the body, when it parsed as JSON
+}
+```
+
+When an HTTP response did arrive, what was received survives under `response`: `httpStatusCode`
+always, `jsonResponse` only when the body parsed as JSON. A request that never completed has no
+`response` key at all, so its presence is what separates "something answered wrongly" from "nothing
+answered". It lives on the envelope only — `throwOnFailure` rethrows the bare `cause`, so there is
+no `response` to find in a catch block.
+
+The cause is carried rather than summarised, which matters for cancellation: `throwOnFailure`
+rethrows an `AbortError` as the `DOMException` it was, so a Tanstack refetch aborting its
+predecessor is not reported as a failed query. A re-wrapped copy would no longer be that exception.
+
+Every transport can produce it, and no signature has to say so: a transport resolves to the raw
+response — `{status, jsonBody}` — or throws, and the generated `executeOperation` mints this branch
+from either. There is nothing for an implementation to remember to add, and nothing it can forget:
+validation and minting cannot be bypassed. The branch also covers the client that was never wired
+up — `executeOperation` resolves rather than rejects, so a missing `setClient()` answers it with
+`cause: Error('No client set')`.
+
+Reached through `OperationException`, the envelope is `e.cause` and the original exception is
+`e.cause.cause`; `e.isClientError()` is the shorter way to ask — a type guard, so past it `e.cause`
+*is* the client branch.
+
+## When `details` appears
+
+**`details` only appears where the category cannot say everything on its own**, which is exactly
+three of the seven: `INVALID_INPUT` carries `fields`, `DOMAIN_ERROR` carries the `name` naming which
+domain error it is, and `RATE_LIMITED` carries `retryIn`. For the other four, `code` and `type` are
+the whole answer and restating it under `details` would put the same string on the wire twice, so
+the key is absent — and the generated branch has no such property, so narrowing on `type` will not
+offer you one.
+
+`RATE_LIMITED` is the one deliberate exception to "only where it says something": its `details` is
+*always* present, with `retryIn` as the seconds until a retry may succeed or `null` when the server
+could not tell. The branch's shape must not depend on runtime configuration — configuring a resolver
+with [`ServerConfiguration::withRetryInResolver()`](operations.md#serverconfiguration) changes the
+value, never the shape. The resolver receives the throwable that surfaced as rate-limited and is
+consulted only after the category is resolved, whether that happened through the configured list or
+a `#[Throws(..., type: ErrorType::RATE_LIMITED)]` declaration.
+
+`CLIENT_ERROR` has no `details` either. What it carries instead is `cause` — a live `Error` rather
+than anything that came off the wire — and, when an HTTP response did arrive, the raw `response`
+next to it.
+
+This is why `jsonSerialize()` is the only thing that gets the envelope exactly right: it omits the
+key rather than sending `null`, which is what the generated union declares.
+
+Validation failures carry `fields`, keyed by dotted path (`__root` for the top level) with
+localization keys as values, e.g. `{"email": ["validation.not_empty_string"]}`.
+
+## Your own validation
+
+**A 422 is the schema's verdict on the input, and only that.** It is produced in exactly one place —
+parsing the input against the operation's declared type — and there is no supported way to hand-build
+one. `InvalidInputException` is `@internal`: you meet it as `RpcError::$cause`, you never throw it.
+That is what keeps the category honest. If any code could mint a 422, `INVALID_INPUT` would stop
+meaning "this did not match the type" and the client could no longer trust it to.
+
+So a rule the type system cannot express goes in one of two places, depending on whether the value
+alone decides it.
+
+**The value decides it — put it in a value object.** "Is a valid email address", "is a positive
+id": no PHPStan type says these, but nothing beyond the value itself is needed to check them. A
+[value object](types.md#value-objects) throwing `ValidationException` rejects the input during
+parsing, and its messages arrive in `details.fields` like any other type failure:
+
+```php
+use Le0daniel\PhpTsBindings\Executor\Exceptions\ValidationException;
+
+public static function fromStringValue(string $value): static
+{
+    if (!str_contains($value, '@')) {
+        throw new ValidationException('Email must contain an @');
+    }
+
+    return new self($value);
+}
+```
+
+The rule now travels with the type. Every operation taking an `Email` enforces it, and none of them
+had to remember to.
+
+**Something else decides it — that is a domain error.** "Already taken" needs the database; "the
+account is locked" needs the account. The input was well formed and the request still cannot
+proceed, which is a 400, not a 422. Declare it with `#[Throws]` and give it a name, per
+[Exposing a domain error](#exposing-a-domain-error). The client gets `details.name` naming which
+rule failed, and — unlike a free-text message — the generated union makes it a case it must handle.
+
+## Exceptions this library throws
+
+A different model entirely: these are *not* what a client sees. Everything this library throws
+implements `PhpTsBindingsException`, so one `catch` covers all of it. Below that are three subsystem
+bases:
+
+| Exception | Thrown when |
+|---|---|
+| `ParserException` | A schema cannot be built — includes `InvalidSyntaxException` (the type is not in the supported subset), `UnexpectedCharacterException` (it does not lex) and `UnknownTypeKeyException` (the optimized cache no longer matches the code). |
+| `SchemaException` | An operation is malformed — a name or key collision, a bad handler signature, a class that is not middleware. `InvalidInputException`, `InvalidOutputException` and `OperationNotFoundException` extend it; they are `@internal` and reach you only as `RpcError::$cause`. |
+| `CodeGenException` | Generation cannot produce valid output — includes `UnsupportedTypeException` (no honest TypeScript for a schema), `InvalidStringLiteralException` (a brand or alias is not an identifier) and `InvalidGeneratorDependencies` (whose `$messages` names each missing generator). |
+
+`ValidationException` is the one exception outside those three, and the only one you are meant to
+throw. The bases all mean the library could not do its job; a `ValidationException` means it did —
+a [value object](types.md#value-objects) rejected a value. It never escapes the executor and never
+reaches a client as itself, only as the issues it produced. Making it a `SchemaException` would mean
+that catching a server fault also caught a user typing their email wrong.
+
+A `Throwable` from a handler or middleware never escapes `Server::query()` or `Server::command()` —
+it comes back as an `RpcError`. What does escape is a failure of error presentation itself, e.g. a
+stale class name failing reflection while the throwing scope's declarations are read: that is a bug
+in the setup, and it surfaces as the exception it is rather than as a substitute 500. The
+exceptions above surface at discovery, at parse time or during code generation instead, which is to
+say: at build time, not at request time.

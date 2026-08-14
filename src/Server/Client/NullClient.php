@@ -1,30 +1,30 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Client;
 
 use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Server\Data\Toast;
+use Override;
 use UnitEnum;
 
-final class NullClient implements Client
+final readonly class NullClient implements Client
 {
+    use InteractsWithToasts;
 
-    public function toast(string $type, string $message): void
+    #[Override]
+    public function toast(Toast $toast): void
     {
-
     }
 
-    public function redirect(string $url): void
+    #[Override]
+    public function redirect(string $url, bool $reload = false): void
     {
-
     }
 
-    public function hardRedirect(string $url): void
+    #[Override]
+    public function invalidate(UnitEnum|string $namespace, mixed ...$key): void
     {
-
-    }
-
-    public function invalidate(UnitEnum|string $namespace, ...$key): void
-    {
-
     }
 }

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Feature\Mocks;
 
@@ -10,10 +12,8 @@ final readonly class CreateUserWithOptionalEmail
 {
     public function __construct(
         public string $username,
-
         #[Optional]
-        public null|string $email = null,
-    )
-    {
+        public ?string $email = null,
+    ) {
     }
 }

@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Data;
 
@@ -25,7 +27,8 @@ enum PropertyType
         };
     }
 
-    public function isOutput(): bool {
+    public function isOutput(): bool
+    {
         return match ($this) {
             self::OUTPUT, self::BOTH => true,
             default => false,

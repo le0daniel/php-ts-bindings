@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Feature\Mocks;
 
@@ -8,13 +10,11 @@ namespace Tests\Feature\Mocks;
 final class Paginated
 {
     /**
-     * @param int $total
-     * @param list<I> $items
+     * @param  list<I>  $items
      */
     public function __construct(
         public readonly array $items,
         public readonly int $total,
-    )
-    {
+    ) {
     }
 }

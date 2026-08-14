@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\PhpStan;
 
@@ -13,22 +15,21 @@ class UtilitiesResolverTest extends TypeInferenceTestCase
     public static function dataFileAsserts(): iterable
     {
         // path to a file with actual asserts of expected types:
-        yield from self::gatherAssertTypes(__DIR__ . '/data/types.php');
+        yield from self::gatherAssertTypes(__DIR__.'/data/types.php');
     }
 
     #[DataProvider('dataFileAsserts')]
-    public function testFileAsserts(
+    public function test_file_asserts(
         string $assertType,
         string $file,
-        mixed  ...$args
-    ): void
-    {
+        mixed ...$args
+    ): void {
         $this->assertFileAsserts($assertType, $file, ...$args);
     }
 
     public static function getAdditionalConfigFiles(): array
     {
         // path to your project's phpstan.neon, or extension.neon in case of custom extension packages
-        return [__DIR__ . '/../../../extension.neon'];
+        return [__DIR__.'/../../../extension.neon'];
     }
 }

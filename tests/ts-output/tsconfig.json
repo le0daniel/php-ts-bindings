@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    // DefaultClient is written against the browser: window.fetch, fetch and AbortSignal.any.
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM"],
+    "module": "ESNext",
+    // Not node16: generated imports are extensionless ('./lib/types'), which is what every bundler
+    // resolves and what node16 rejects.
+    "moduleResolution": "bundler",
+    "strict": true,
+    // Why type-only imports are emitted on their own line instead of merged into the value import.
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true,
+    "types": [],
+
+    // Deliberately not noUnusedLocals / noUnusedParameters: generated modules import Brand
+    // unconditionally, because the generator cannot know whether a brand ends up inlined in that
+    // module, and leaves dropping it to the consuming project's linter.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
+  },
+  "include": ["generated/**/*.ts", "src/**/*.ts"]
+}

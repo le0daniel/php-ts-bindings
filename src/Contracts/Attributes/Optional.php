@@ -1,15 +1,19 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
 use Attribute;
 
 /**
- * Marks a property as Optional from an object. As PHP does only support
- * distinct values, by default, it will cast to NULL. Provide another value
- * if the property is undefined.
+ * Marks a property or promoted parameter as absent-able in input, emitted as `key?:` in TypeScript.
+ *
+ * PHP has no "undefined", so the property needs somewhere to land when input omits it: either a
+ * default value or a nullable type. A property with neither is rejected at parse time rather than
+ * silently receiving null.
  */
-#[Attribute(Attribute::TARGET_PROPERTY| Attribute::TARGET_PARAMETER)]
+#[Attribute(Attribute::TARGET_PROPERTY | Attribute::TARGET_PARAMETER)]
 final readonly class Optional
 {
 }

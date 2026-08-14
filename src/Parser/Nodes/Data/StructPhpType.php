@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Data;
 
@@ -10,11 +12,11 @@ enum StructPhpType: string
     case ARRAY = 'array';
 
     /**
-     * @param array<string, mixed> $input
+     * @param  array<string, mixed>  $input
      * @return array<string, mixed>|stdClass
      */
     public function coerceFromArray(array $input): array|stdClass
     {
-        return $this === self::ARRAY ? $input : (object)$input;
+        return $this === self::ARRAY ? $input : (object) $input;
     }
 }

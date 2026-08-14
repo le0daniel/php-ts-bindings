@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Lexer;
 
@@ -12,8 +14,7 @@ final readonly class SourceLocation
         public int $offset,
         public int $line,
         public int $column,
-    )
-    {
+    ) {
     }
 
     public static function fromOffset(string $input, int $offset): self
@@ -42,7 +43,7 @@ final readonly class SourceLocation
 
         return implode(PHP_EOL, [
             $line,
-            str_repeat(' ', $this->column - 1) . str_repeat('^', max(1, $length)),
+            str_repeat(' ', $this->column - 1).str_repeat('^', max(1, $length)),
         ]);
     }
 }

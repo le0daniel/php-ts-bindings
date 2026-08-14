@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Contracts\Attributes;
 
@@ -10,11 +12,10 @@ use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
  * Only classes that have this attribute can be cast.
  */
 #[Attribute(Attribute::TARGET_CLASS)]
-final class Castable
+final readonly class Castable
 {
     public function __construct(
         public ?ObjectCastStrategy $strategy = null,
-    )
-    {
+    ) {
     }
 }

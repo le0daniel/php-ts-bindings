@@ -1,8 +1,10 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
-final class Namespaces
+final readonly class Namespaces
 {
     /**
      * Example Namespaces:
@@ -18,69 +20,70 @@ final class Namespaces
      * Will Return
      * ```
      *  [
-     *      'Models' => 'App\Models',
-     *      'User' => 'App\Models\User',
-     *      'UserContract' => 'App\Contracts\User',
+     *      'models' => 'App\Models',
+     *      'user' => 'App\Models\User',
+     *      'usercontract' => 'App\Contracts\User',
      *  ]
      * ```
      *
-     * @param array<int, class-string>|array<class-string, string> $namespaces
-     * @return array<string, class-string>
+     * Keys are lowercased because PHP resolves `use` aliases case insensitively.
+     *
+     * Names come from a file's parsed `use` statements, so they are strings that look like class
+     * names but are not verified to name anything. Typing them class-string would be a guarantee
+     * this cannot make - resolution happens later, against the consumers that actually need a class.
+     *
+     * @param  array<int|string, string>  $namespaces
+     * @return array<string, string>
      */
     public static function buildNamespaceAliasMap(array $namespaces): array
     {
         $map = [];
         foreach ($namespaces as $namespace => $alias) {
             if (is_int($namespace)) {
-                /** @var class-string $alias */
-                $map[Strings::classBaseName($alias)] = self::withoutLeadingSlash($alias);
+                $map[strtolower(Strings::classBaseName($alias))] = self::withoutLeadingSlash($alias);
             } else {
-                /** @var class-string $namespace */
-                $map[$alias] = self::withoutLeadingSlash($namespace);
+                $map[strtolower($alias)] = self::withoutLeadingSlash($namespace);
             }
         }
+
         return $map;
     }
 
-    /**
-     * @param class-string $className
-     * @return class-string
-     */
     private static function withoutLeadingSlash(string $className): string
     {
-        /** @var class-string $value */
-        $value = str_starts_with($className, '\\') ? substr($className, 1) : $className;
-        return $value;
+        return str_starts_with($className, '\\') ? substr($className, 1) : $className;
     }
 
     /**
-     * @param array<string, class-string> $namespacesMap
+     * PHP's name resolution and nothing else, matching PHPStan's NameScope::resolveStringName().
+     *
+     * There is deliberately no "this already looks fully qualified" check: a qualified name whose
+     * first segment is not imported is relative, however absolute it looks, and guessing otherwise
+     * makes resolution depend on which unrelated classes a file happens to import. Reflection is the
+     * one source that hands over names that really are absolute, and TypeReflector marks those with
+     * a leading backslash before they ever get here.
+     *
+     * @param  array<string, string>  $namespacesMap
      */
     public static function toFullyQualifiedClassName(string $className, ?string $namespace, array $namespacesMap): string
     {
         if (str_starts_with($className, '\\')) {
-            /** @var class-string $className */
             return self::withoutLeadingSlash($className);
         }
 
-        $lookupKey = explode('\\', $className)[0];
+        // The map holds alias => the full name it was imported as, so only the segments *after*
+        // the alias are appended: `use App\Models;` plus `Models\User` is App\Models\User, not
+        // App\Models\Models\User.
+        $segments = explode('\\', $className);
+        $lookupKey = strtolower($segments[0]);
         if (array_key_exists($lookupKey, $namespacesMap)) {
-            $classNameOrNameSpace = $namespacesMap[$lookupKey];
-            return str_contains($className, '\\')
-                ? $classNameOrNameSpace . '\\' . $className
-                : $classNameOrNameSpace;
+            $remaining = array_slice($segments, 1);
+
+            return $remaining === []
+                ? $namespacesMap[$lookupKey]
+                : $namespacesMap[$lookupKey].'\\'.implode('\\', $remaining);
         }
 
-        // If reflection->getType()->getName() is used, it already returns a fully qualified class name.
-        // In case we did not find an import match, we check if the classname is imported anywhere already. If this is the case, we return it.
-        if (array_any($namespacesMap, fn(string $usedClass) => str_starts_with($className, $usedClass))) {
-            return $className;
-        }
-
-        if ($namespace !== null && !str_starts_with($className, $namespace)) {
-            return $namespace . '\\' . $className;
-        }
-
-        return $className;
+        return $namespace === null ? $className : $namespace.'\\'.$className;
     }
 }

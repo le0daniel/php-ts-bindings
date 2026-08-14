@@ -1,168 +1,128 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
-use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Contracts\ValidatableNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Leaf\BuiltInNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
+use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
 use Le0daniel\PhpTsBindings\Utils\Arrays;
-use RuntimeException;
+use Override;
 
-final class EmitTypes implements GeneratesLibFiles
+final readonly class EmitTypes implements GeneratesLibFiles
 {
+    private const string TYPES_FILE = 'types';
 
     /**
-     * @return array<string, string>
+     * Declarations this file always contains. An alias claiming one of these names would generate
+     * a second, conflicting declaration right next to them. The envelope names mirror the
+     * declarations in the heredoc below - a branch added there needs its name added here.
+     *
+     * @var list<string>
      */
-    public function emitFiles(array $operations, ServerMetadata $metadata): array
+    private const array RESERVED_ALIASES = [
+        'Brand',
+        'Success',
+        'Failure',
+        'Result',
+        'OperationNamespaces',
+        'InvalidInputError',
+        'AuthenticationError',
+        'AuthorizationError',
+        'NotFoundError',
+        'RateLimitedError',
+        'DomainError',
+        'InternalError',
+        'ClientError',
+    ];
+
+    /**
+     * Every declaration above lives in this file, so importing one is asking here for it. Not
+     * static: a generator can only reach this through a dependency it declared, which is what makes
+     * an import of a file no registered generator writes impossible.
+     *
+     * @param  list<string>  $values
+     * @param  list<string>  $types
+     */
+    public function importFromTypes(array $values = [], array $types = []): TypescriptImport
     {
-        $uniqueNamespaces = array_reduce($operations, function (array $carry, TypedOperation $operation) {
-            if (!in_array($operation->operation->definition->namespace, $carry, true)) {
-                return [
-                    ...$carry,
-                    $operation->operation->definition->namespace,
-                ];
+        return new TypescriptImport(
+            Paths::libImport(self::TYPES_FILE),
+            values: $values,
+            types: $types,
+        );
+    }
+
+    /**
+     * @return array<string, TypescriptFile>
+     */
+    #[Override]
+    public function emitFiles(array $operations, ServerMetadata $metadata, AliasRegistry $registry): array
+    {
+        foreach ($registry->usedAliases() as $alias) {
+            if (in_array($alias, self::RESERVED_ALIASES, true)) {
+                throw UnsupportedTypeException::reservedAlias($alias);
             }
-            return $carry;
-        }, []);
+        }
 
-        $brands = array_reduce($operations, function (array $carry, TypedOperation $operation) {
-            $inputBrands = $this->collectBrandedTypes($operation->operation->inputNode(), DefinitionTarget::INPUT);
-            $outputBrands = $this->collectBrandedTypes($operation->operation->outputNode(), DefinitionTarget::OUTPUT);
-            return $this->mergeBrandedTypes($carry, $inputBrands, $outputBrands);
-        }, []);
+        /** @var list<string> $uniqueNamespaces */
+        $uniqueNamespaces = [];
+        foreach ($operations as $operation) {
+            $namespace = $operation->operation->definition->namespace;
+            if (! in_array($namespace, $uniqueNamespaces, true)) {
+                $uniqueNamespaces[] = $namespace;
+            }
+        }
 
-        $brandedTypeStrings = Arrays::mapWithKeys(
-            $brands,
-            function (string $brandName, string $type): string {
-                $capitalizedBrandName = ucfirst($brandName);
-                $encodedBrandName = json_encode($brandName, JSON_THROW_ON_ERROR);
-                return "export type {$capitalizedBrandName} = {$type} & Brand<{$encodedBrandName}>";
-            });
-
-        $brandedTypeString = implode("\n", $brandedTypeStrings);
+        // The shared registry holds every alias any pass produced; the types file declares them
+        // all, so every operation file can import any key of its own definitions' registries.
+        $aliasTypeString = implode("\n", Arrays::mapWithKeys(
+            $registry->toArray(),
+            fn (string $alias, string $definition): string => "export type {$alias} = {$definition}",
+        ));
 
         return [
-            "types" => <<<TypeScript
+            self::TYPES_FILE => new TypescriptFile(<<<TypeScript
 export type OperationNamespaces = {$this->generateNamespaceUnion($uniqueNamespaces)};
 
-export type Success<T> = {success: true, data: T}
-export type Failure<E extends {code: number}> = {success: false} & E;
-export type Result<T, E extends {code: number} = never> = Success<T> | Failure<E>;
-export type WithClientDirectives<T> = T & {__client?: unknown}
-export type SPAClientDirectives<T> = T & {
-    __client: {
-        type: "operations-spa",
-        redirect?: {type: "soft"|"hard"; url: string;},
-        toasts?: {type: 'success'|'error'|'alert'|'info', message: string;}[],
-        invalidations?: [string, string, ...unknown[]][]
-    }
-};
+/*
+ * The finite error catalogue. Every failure is one of these, which is why Failure below is their
+ * union rather than a hole for one. DomainError is the only branch whose payload varies per
+ * operation - the names that operation exposed - and the only one declared conditionally: on
+ * `never` it collapses, so an operation exposing nothing has no 400 branch to narrow to.
+ */
+export type InvalidInputError = {code: 422, type: "INVALID_INPUT", details: {fields: Record<string, string[]>}};
+export type AuthenticationError = {code: 401, type: "AUTHENTICATION_ERROR"};
+export type AuthorizationError = {code: 403, type: "AUTHORIZATION_ERROR"};
+export type NotFoundError = {code: 404, type: "NOT_FOUND"};
+export type RateLimitedError = {code: 429, type: "RATE_LIMITED", details: {retryIn: number | null}};
+export type DomainError<TType extends string> = [TType] extends [never] ? never : {code: 400, type: "DOMAIN_ERROR", details: {name: TType}};
+export type InternalError = {code: 500, type: "INTERNAL_ERROR"};
+export type ClientError = {code: 0, type: "CLIENT_ERROR", cause: Error, response?: {httpStatusCode: number, jsonResponse?: unknown}};
+
+export type Success<T> = {success: true, data: T, __client?: unknown, __metadata?: Record<string, unknown>}
+export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|RateLimitedError|DomainError<TDomainType>|InternalError|ClientError);
+export type Result<T, TDomainType extends string = never> = Success<T> | Failure<TDomainType>;
 
 declare const __brand: unique symbol;
 export type Brand<TBrand extends string> = {readonly [__brand]: TBrand;};
 
-/* All Branded types exported */
-{$brandedTypeString}
-
-TypeScript,
+/* All branded and named types exported */
+{$aliasTypeString}
+TypeScript),
         ];
     }
 
     /**
-     * @param list<string> $namespaces
-     * @return string
+     * @param  list<string>  $namespaces
      */
     private function generateNamespaceUnion(array $namespaces): string
     {
-        return implode("|", array_map(fn(string $namespace) => "'$namespace'", $namespaces));
-    }
-
-    /**
-     * @return array<string, string>
-     */
-    private function collectBrandedTypes(NodeInterface $ast, DefinitionTarget $target): array
-    {
-        /** @var BuiltInNode[] $brandedNodes */
-        $brandedNodes = [];
-
-        $stack = [
-            $ast,
-        ];
-
-        while ($current = array_pop($stack)) {
-            if ($current instanceof ValidatableNode) {
-                $current->validate();
-            }
-
-            if ($current instanceof LeafNode) {
-                if ($current instanceof BuiltInNode && $current->brand !== null) {
-                    $brandedNodes[] = $current;
-                }
-
-                continue;
-            }
-
-            match ($current::class) {
-                ConstraintNode::class, CustomCastingNode::class, ListNode::class, NamedNode::class, PropertyNode::class, RecordNode::class => $stack[] = $current->node,
-                TupleNode::class, IntersectionNode::class, UnionNode::class => array_push($stack, ...$current->types),
-                StructNode::class => array_push($stack, ... $current->properties),
-                default => throw new RuntimeException("Unexpected node: " . $current::class),
-            };
-        }
-
-        $brandedTypes = [];
-        foreach ($brandedNodes as $node) {
-            $typeDefinition = $target === DefinitionTarget::INPUT
-                ? $node->inputDefinition()
-                : $node->outputDefinition();
-
-            if (!isset($brandedTypes[$node->brand])) {
-                $brandedTypes[$node->brand] = $typeDefinition;
-                continue;
-            }
-
-            if ($typeDefinition !== $brandedTypes[$node->brand]) {
-                throw new RuntimeException("Branded type {$node->brand} has different definitions");
-            }
-        }
-
-        return $brandedTypes;
-    }
-
-    /**
-     * @param array<string, string> $brands
-     * @param array<string, string> ...$otherTypes
-     * @return array<string, string>
-     */
-    private function mergeBrandedTypes(array $brands, array ... $otherTypes): array
-    {
-        foreach ($otherTypes as $keyValuePairs) {
-            foreach ($keyValuePairs as $key => $value) {
-                if (!isset($brands[$key])) {
-                    $brands[$key] = $value;
-                    continue;
-                }
-                if ($brands[$key] !== $value) {
-                    throw new RuntimeException("Branded type {$key} has different definitions");
-                }
-            }
-        }
-        return $brands;
+        return implode('|', array_map(fn (string $namespace) => "'$namespace'", $namespaces));
     }
 }

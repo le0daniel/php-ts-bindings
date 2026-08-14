@@ -1,15 +1,20 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
-final class PhpDoc
+final readonly class PhpDoc
 {
     private const array REGEX_PARTS = [
         '{cn}' => '[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*',
         '{fqcn}' => '\\\\?[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*(\\\\[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)*',
     ];
+
     private const string LOCAL_TYPE_REGEX = "/@phpstan-type\s+(?<typeName>[a-zA-Z_\x80-\xff][a-zA-Z0-9_\x80-\xff]*)\s+(?<typeDefinition>[^@]+)/m";
+
     private const string IMPORTED_TYPE_REGEX = '/@phpstan-import-type\s+(?<typeName>{cn})\s+from\s+(?<fromClass>{fqcn})(\s+as\s+(?<alias>{cn}))?/';
+
     private const string GENERICS_TYPE_REGEX = '/@template(-covariant)?\s+(?<genericName>{cn})/';
 
     public static function normalize(string $docBlocks): string
@@ -23,12 +28,11 @@ final class PhpDoc
     }
 
     /**
-     * @param false|string|null $docBlock
      * @return array<string, array{className: string, typeName: string}>
      */
     public static function findImportedTypeDefinition(null|false|string $docBlock): array
     {
-        if (empty($docBlock)) {
+        if ($docBlock === false || $docBlock === null) {
             return [];
         }
 
@@ -46,16 +50,16 @@ final class PhpDoc
                 'typeName' => $importedTypeName,
             ];
         }
+
         return $importedTypes;
     }
 
     /**
-     * @param false|string|null $docBlock
      * @return list<string>
      */
     public static function findGenerics(null|false|string $docBlock): array
     {
-        if (empty($docBlock)) {
+        if ($docBlock === false || $docBlock === null) {
             return [];
         }
 
@@ -67,17 +71,17 @@ final class PhpDoc
             PREG_SET_ORDER
         );
 
-        if (!$result) {
+        if (! $result) {
             return [];
         }
 
-        return array_map(fn(array $match): string => $match['genericName'], $matches);
+        return array_map(fn (array $match): string => $match['genericName'], $matches);
     }
 
     /** @return array<string,string> */
     public static function findLocallyDefinedTypes(null|false|string $docBlock): array
     {
-        if (empty($docBlock)) {
+        if ($docBlock === false || $docBlock === null) {
             return [];
         }
 
@@ -89,7 +93,7 @@ final class PhpDoc
             PREG_SET_ORDER
         );
 
-        if (!$result) {
+        if (! $result) {
             return [];
         }
 

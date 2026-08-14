@@ -1,6 +1,10 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes\Data;
+
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
 
 enum LiteralType: string
 {
@@ -14,13 +18,14 @@ enum LiteralType: string
     public static function identifyPrimitiveTypeValue(mixed $value): LiteralType
     {
         $nativeGetType = gettype($value);
+
         return match ($nativeGetType) {
             'double' => LiteralType::FLOAT,
             'integer' => LiteralType::INT,
             'boolean' => LiteralType::BOOL,
             'NULL' => LiteralType::NULL,
             'string' => LiteralType::STRING,
-            default => throw new \InvalidArgumentException("Unsupported type: {$nativeGetType}"),
+            default => throw new ParserException("Unsupported type: {$nativeGetType}"),
         };
     }
 }

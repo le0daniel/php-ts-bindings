@@ -1,16 +1,32 @@
 {
   "name": "le0daniel/php-ts-bindings",
-  "description": "Library to create type bindings between PHP8 and TS, supporting parsing, serialization and emitting of  TS types for PHP objects/input strongly typed",
+  "description": "Type-safe RPC between a PHP 8.5 backend and a TypeScript frontend, driven by your PHPStan types.",
   "type": "library",
+  "license": "MIT",
+  "keywords": [
+    "rpc",
+    "typescript",
+    "phpstan",
+    "code-generation",
+    "type-safety",
+    "laravel"
+  ],
   "require": {
-    "php": "^8.4"
+    "php": "^8.5"
   },
   "require-dev": {
-    "pestphp/pest": "4.x-dev",
-    "phpstan/phpstan": "2.1.x-dev",
-    "laravel/framework": "^11|^12",
+    "pestphp/pest": "^v4.7.0",
+    "phpstan/phpstan": "^2.1",
+    "laravel/framework": "^13",
     "mockery/mockery": "^1.6",
-    "phpstan/phpstan-strict-rules": "^2.0"
+    "phpstan/phpstan-strict-rules": "^2.0",
+    "psr/container": "^2.0",
+    "laravel/pint": "^1.30"
+  },
+  "suggest": {
+    "laravel/framework": "Enables the first-party Laravel adapter: config, routes, and the operations:* artisan commands.",
+    "phpstan/phpstan": "Include vendor/le0daniel/php-ts-bindings/extension.neon so Pick, Omit, BrandedString, BrandedInt and DateTimeString resolve.",
+    "psr/container": "Required only by PsrContainerAdapter. Install it to resolve handlers and middleware through a PSR-11 container; the default NewInstanceAdapter needs nothing."
   },
   "autoload": {
     "psr-4": {
@@ -37,10 +53,30 @@
   "scripts": {
     "test": "pest",
     "check:types": "phpstan --memory-limit=1G analyse",
+    "check:style": "pint --test",
+    "fix:style": "pint",
     "check:all": [
       "@test",
-      "@check:types"
-    ]
+      "@check:types",
+      "@check:style"
+    ],
+    "check:ts": [
+      "npm ci --prefix tests/ts-output --no-audit --no-fund",
+      "npm --prefix tests/ts-output run typecheck"
+    ],
+    "codegen:fixture": [
+      "@php tests/ts-output/generate.php",
+      "npm --prefix tests/ts-output install --no-audit --no-fund",
+      "npm --prefix tests/ts-output run typecheck"
+    ],
+    "benchmark": "@php tests/benchmark/run.php"
+  },
+  "scripts-descriptions": {
+    "check:style": "Check formatting with Pint (psr12) without writing. Run fix:style to apply.",
+    "fix:style": "Apply Pint formatting in place.",
+    "check:ts": "Typecheck the committed generated TypeScript with tsc --noEmit. Needs node; check:all does not.",
+    "codegen:fixture": "Regenerate tests/ts-output/generated and typecheck it with tsc --noEmit. Run after changing a code generator; commit the result.",
+    "benchmark": "Time cached vs eager operation registries over the integration fixtures. Informational; not part of check:all or CI."
   },
   "extra": {
     "laravel": {

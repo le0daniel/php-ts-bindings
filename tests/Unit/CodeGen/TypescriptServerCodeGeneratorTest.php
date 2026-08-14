@@ -1,0 +1,387 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit\CodeGen;
+
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationClientBindings;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperationsSpaClient;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitQueryKey;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTanstackQuery;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeMap;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypes;
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitTypeUtils;
+use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
+use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
+use Le0daniel\PhpTsBindings\CodeGen\TypescriptServerCodeGenerator;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\ParserException;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
+use Le0daniel\PhpTsBindings\Server\KeyGenerators\PlainlyExposedKeyGenerator;
+use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
+use Le0daniel\PhpTsBindings\Server\Server;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
+use Tests\Unit\CodeGen\Mocks\AsymmetricNamedOperations;
+use Tests\Unit\CodeGen\Mocks\ConflictingNamedOperations;
+use Tests\Unit\CodeGen\Mocks\NameClashOperations;
+use Tests\Unit\CodeGen\Mocks\NamedOperations;
+use Tests\Unit\CodeGen\Mocks\InheritingOperations;
+use Tests\Feature\Mocks\GloballyThrowingMiddleware;
+use Tests\Unit\CodeGen\Mocks\PerDirectionNamedOperations;
+use Tests\Unit\CodeGen\Mocks\UnrepresentableOperations;
+use Tests\Unit\CodeGen\Mocks\UserOperations;
+
+/**
+ * @param  list<class-string>  $classes
+ * @param  list<object>  $generators
+ * @return array<string, TypescriptFile>
+ */
+function generateFor(array $classes, ?array $generators = null): array
+{
+    $server = new Server(
+        EagerlyLoadedOperationRegistry::withClasses($classes, keyGenerator: new PlainlyExposedKeyGenerator()),
+    );
+
+    return new TypescriptServerCodeGenerator(
+        $generators ?? [
+            new EmitTypes(),
+            new EmitOperationClientBindings(),
+            new EmitTypeUtils(),
+            new EmitOperations(),
+        ],
+    )->generate($server, new ServerMetadata('/query/{key}', '/command/{key}', new ServerConfiguration()));
+}
+
+test('attribute brands declare no aliases in lib/types.ts, only the Brand helper', function () {
+    $files = generateFor([UserOperations::class]);
+
+    expect($files)->toHaveKey('lib/types.ts')
+        ->and($files['lib/types.ts']->toString())
+        ->toContain('export type Brand<TBrand extends string>')
+        ->not->toContain('export type CustomerId')
+        ->not->toContain('export type Email')
+        ->not->toContain('Slug');
+});
+
+test('renders brands inline in the operation types and imports the Brand helper', function () {
+    $files = generateFor([UserOperations::class]);
+    $operations = $files['users.ts']->toString();
+
+    expect($operations)
+        ->toContain('export type GetInput = {id:(number & Brand<"customerId">);};')
+        ->toContain('export type GetResult = {email:(string & Brand<"email">);slug:string;};')
+        ->toContain('export type CreateInput = {name:string;};')
+        ->toContain('export type CreateResult = {id:(number & Brand<"customerId">);};')
+        ->toContain("import type {Brand} from './lib/types';");
+});
+
+/**
+ * The catalogue is the server's, so an operation module names none of it — not even Failure. All it
+ * declares is which names it exposed, and `never` where it exposed nothing, which erases the 400
+ * branch of the Failure those names are eventually handed to.
+ */
+test('an operation module declares only what it adds to the catalogue', function () {
+    $operations = generateFor([UserOperations::class])['users.ts']->toString();
+
+    expect($operations)
+        ->toContain('export type GetDomainErrors = never;')
+        ->toContain('export type CreateDomainErrors = never;')
+        ->toContain('executeOperation<GetInput, GetResult, GetDomainErrors>(')
+        // Nothing from the catalogue is written down here, so nothing here can drift from it. That
+        // includes Failure: a `GetError = Failure<GetDomainErrors>` alias would be a second name for
+        // a type already spelled out of one word.
+        ->not->toContain('GetError')
+        ->not->toContain('Failure')
+        ->not->toContain('InvalidInputError')
+        ->not->toContain('NotFoundError')
+        ->not->toContain('InternalError')
+        ->not->toContain('ClientError')
+        ->not->toContain('AuthenticationError')
+        ->not->toContain('AuthorizationError')
+        ->not->toContain('RateLimitedError')
+        ->not->toContain('DomainError<');
+});
+
+/**
+ * Every category is always in the union: which of an application's exceptions land in which
+ * category is runtime configuration, and the union does not shrink around it.
+ */
+test('the failure union always names the whole catalogue', function () {
+    $types = generateFor([UserOperations::class])['lib/types.ts']->toString();
+    preg_match('/^export type Failure.*$/m', $types, $matches);
+
+    expect($matches[0])
+        ->toBe('export type Failure<TDomainType extends string = never> = {success: false, __metadata?: Record<string, unknown>} & (InvalidInputError|AuthenticationError|AuthorizationError|NotFoundError|RateLimitedError|DomainError<TDomainType>|InternalError|ClientError);');
+});
+
+test('the branch shapes are declared once, not restated per operation', function () {
+    $files = generateFor([UserOperations::class]);
+
+    expect($files['lib/types.ts']->toString())
+        ->toContain('export type NotFoundError = {code: 404, type: "NOT_FOUND"};')
+        ->and($files['users.ts']->toString())
+        ->not->toContain('"NOT_FOUND"')
+        ->not->toContain('"INTERNAL_ERROR"')
+        ->not->toContain('Record<string, string[]>');
+});
+
+test('declares named types once in lib/types.ts, nested aliases and inline brands included', function () {
+    $files = generateFor([NamedOperations::class]);
+
+    expect($files['lib/types.ts']->toString())
+        ->toContain('export type Customer = {email:(string & Brand<"email">);name:string;}')
+        ->toContain('export type Order = {customer:Customer;id:(number & Brand<"customerId">);}')
+        ->toContain('export type OrderStatus = ("OPEN"|"SHIPPED")')
+        ->not->toContain('export type Email')
+        ->not->toContain('export type CustomerId');
+});
+
+test('references named types by alias and imports every alias the operation relies on', function () {
+    $operations = generateFor([NamedOperations::class])['orders.ts']->toString();
+
+    // Every alias in the operation's registries is imported — Customer comes along as Order's
+    // dependency. Brand is always imported; a linter drops it where unused. Email is an unnamed
+    // brand, so it is no alias at all and never appears.
+    expect($operations)
+        ->toContain('export type GetResult = Order;')
+        ->toContain('export type GetInput = {status:OrderStatus;};')
+        ->toContain('export type StatusResult = {status:OrderStatus;};')
+        ->toContain('export type StatusInput = {id:(number & Brand<"customerId">);};')
+        ->toContain("import type {Brand, Customer, Order, OrderStatus} from './lib/types'")
+        ->not->toContain('Email');
+});
+
+test('merges what every generator imports into one sorted block per module', function () {
+    $operations = generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(),
+        new EmitQueryKey(),
+        new EmitTanstackQuery(),
+    ])['orders.ts']->toString();
+
+    // Modules are sorted by specifier and each appears exactly once, however the generators ran:
+    // utils collects queryKey — claimed twice and deduped — alongside throwOnFailure, and the
+    // aliases come from both EmitOperations and EmitQueryKey. Type only exports are on their own
+    // line, which is what verbatimModuleSyntax requires.
+    expect($operations)->toStartWith(TypescriptFile::MARKER."\n\n".<<<'TypeScript'
+    import type {OperationOptions} from './lib/OperationClient';
+    import {executeOperation} from './lib/bindings';
+    import type {Brand, Customer, Order, OrderStatus} from './lib/types';
+    import {queryKey, throwOnFailure} from './lib/utils';
+    import type {UseQueryOptions} from '@tanstack/react-query';
+    import {queryOptions, useQuery} from '@tanstack/react-query';
+
+    TypeScript);
+});
+
+test('every generator names an operation the way the one that declares it does', function () {
+    // The naming rule is handed to EmitOperations only. The other two ask it for the names, so a
+    // rule set in one place cannot leave them referencing types and functions no file declares.
+    $operations = generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(fn (TypedOperation $operation): string => 'orders'.ucfirst($operation->definition->name)),
+        new EmitQueryKey(),
+        new EmitTanstackQuery(),
+    ])['orders.ts']->toString();
+
+    expect($operations)
+        ->toContain('export type OrdersGetInput = {status:OrderStatus;};')
+        ->toContain('export async function ordersGet(input: OrdersGetInput, options?: OperationOptions)')
+        ->toContain('export function ordersGetQueryKey(input: OrdersGetInput)')
+        ->toContain('export function ordersGetQueryOptions(input: OrdersGetInput, options?: OrdersGetOptions)')
+        ->toContain('export function useOrdersGetQuery(input: OrdersGetInput,')
+        ->toContain('const result = await ordersGet(input, {signal});');
+});
+
+test('a lib file reaches its siblings directly instead of through lib/', function () {
+    // What an emitter writes is './lib/x' — the way a module at the output root reaches it. A file
+    // that lands in lib/ itself is one directory deeper, so the orchestrator resolves the specifier
+    // once it knows where the file went, and the emitters never learn where that is.
+    $files = generateFor([NamedOperations::class]);
+
+    expect($files['lib/bindings.ts']->toString())->toStartWith(TypescriptFile::MARKER."\n\n".<<<'TypeScript'
+    import {DefaultClient} from './DefaultClient';
+    import type {OperationClient, OperationOptions} from './OperationClient';
+    import type {Failure, Result} from './types';
+    import {isValidEnvelop} from './utils';
+
+    TypeScript);
+
+    expect($files['lib/utils.ts']->toString())->toStartWith(TypescriptFile::MARKER."\n\n".<<<'TypeScript'
+    import {OperationException} from './OperationException';
+    import type {Result, Success} from './types';
+
+    TypeScript);
+
+    expect($files['lib/types.ts']->toString())->not->toContain('import ');
+});
+
+test('the operations-spa client is one self-contained file, and nothing else mentions it', function () {
+    $files = generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperationsSpaClient(),
+        new EmitOperations(),
+        new EmitTypeMap(),
+        new EmitQueryKey(),
+        new EmitTanstackQuery(),
+    ]);
+
+    // Dropping the generator drops the directive support and nothing else, which is what makes
+    // `--without operations-spa` a real option rather than a broken build.
+    expect($files)->toHaveKey('lib/client-operations-spa.ts')
+        ->and($files['lib/client-operations-spa.ts']->toString())
+        ->toContain('export function containsOperationSpaPayload')
+        ->not->toContain('import ');
+
+    foreach ($files as $path => $file) {
+        if ($path === 'lib/client-operations-spa.ts') {
+            continue;
+        }
+
+        expect($file->toString())->not->toContain('client-operations-spa');
+    }
+});
+
+test('no lib file names a module through lib/', function () {
+    $files = generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(),
+        new EmitTypeMap(),
+        new EmitQueryKey(),
+        new EmitTanstackQuery(),
+    ]);
+
+    $wrong = [];
+    foreach ($files as $path => $file) {
+        if (str_starts_with($path, 'lib/') && str_contains($file->toString(), "'./lib/")) {
+            $wrong[] = $path;
+        }
+    }
+
+    expect($wrong)->toBe([]);
+});
+
+test('the type map is written into the types file the types generator owns', function () {
+    $files = generateFor([NamedOperations::class], [new EmitTypes(), new EmitTypeMap()]);
+
+    // Two files: typemap inlines the aliases EmitTypes declares, so it only resolves while
+    // it sits next to them.
+    expect($files)->toHaveKey('lib/type-map.ts')
+        ->and($files['lib/type-map.ts']->toString())
+        ->toContain('export type TypeMap = {');
+});
+
+test('fails the run when a generator depends on one that is not registered', function () {
+    expect(fn () => generateFor([NamedOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTanstackQuery(),
+    ]))->toThrow(InvalidGeneratorDependencies::class);
+});
+
+test('fails the run when a generator imports from one that is not registered', function () {
+    // Nothing declares './lib/types' by hand any more: the import comes from EmitTypes, so a run
+    // without it cannot silently emit an operation module pointing at a file no one writes.
+    expect(fn () => generateFor([NamedOperations::class], [
+        new EmitOperationClientBindings(),
+        new EmitOperations(),
+    ]))->toThrow(InvalidGeneratorDependencies::class);
+});
+
+test('fails the run when a globally configured middleware declares a domain error', function () {
+    // The runtime silently ignores the declaration and answers 500, so build time is where a
+    // domain error on a global middleware gets refused loudly, naming the middleware.
+    $server = new Server(
+        EagerlyLoadedOperationRegistry::withClasses([UserOperations::class], keyGenerator: new PlainlyExposedKeyGenerator()),
+        configuration: new ServerConfiguration()->withMiddlewares(GloballyThrowingMiddleware::class),
+    );
+
+    expect(fn () => new TypescriptServerCodeGenerator([
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(),
+    ])->generate($server, new ServerMetadata('/query/{key}', '/command/{key}', $server->configuration)))
+        ->toThrow(CodeGenException::class, GloballyThrowingMiddleware::class);
+});
+
+test('fails the run when two classes resolve to the same name with different shapes', function () {
+    expect(fn () => generateFor([ConflictingNamedOperations::class]))
+        ->toThrow(UnsupportedTypeException::class, 'Customer');
+});
+
+test('an inherited operation resolves its PHPDoc against the file that declares it', function () {
+    // InheritingOperations registers a method it does not declare, and neither its file nor its
+    // namespace knows InheritedResult. Taking the scope from the registered class looked for
+    // Tests\Unit\CodeGen\Mocks\InheritedResult and found nothing.
+    $operations = generateFor([InheritingOperations::class])['inherited.ts']->toString();
+
+    expect($operations)
+        ->toContain('export type GetInput = {result:{label:string;};};')
+        ->toContain('export type GetResult = {label:string;};');
+});
+
+test('fails the whole run when an operation input has no TypeScript representation', function () {
+    expect(fn () => generateFor([UnrepresentableOperations::class]))
+        ->toThrow(UnsupportedTypeException::class, 'SomeFileInterface');
+});
+
+test('fails the run when one alias would have to describe two shapes', function () {
+    // AstValidator runs before any pass, so this never reaches the emitter.
+    expect(fn () => generateFor([AsymmetricNamedOperations::class]))
+        ->toThrow(ParserException::class, 'resolves to one alias "AsymmetricNamed" for both directions');
+});
+
+test('a name per direction declares both shapes; a single shape is referenced both ways', function () {
+    $files = generateFor([PerDirectionNamedOperations::class]);
+    $types = $files['lib/types.ts']->toString();
+    $operations = $files['articles.ts']->toString();
+
+    expect($types)
+        ->toContain('export type PerDirectionNamed = {visible:string;}')
+        ->toContain('export type PerDirectionNamedInput = {secret:string;}')
+        ->toContain('export type Customer = {email:(string & Brand<"email">);name:string;}');
+
+    // The symmetric class is its alias in both directions — no inlined duplicate of the same shape.
+    expect($operations)
+        ->toContain('export type RoundtripInput = PerDirectionNamedInput;')
+        ->toContain('export type RoundtripResult = PerDirectionNamed;')
+        ->toContain('export type CustomerInput = Customer;')
+        ->toContain('export type CustomerResult = Customer;');
+});
+
+test('a query and a command generating the same name in one module is an error', function () {
+    // Both would emit `export async function get` and `export type GetResult` into clash.ts.
+    // Previously this produced invalid TypeScript without a warning.
+    expect(fn () => generateFor([NameClashOperations::class]))
+        ->toThrow(CodeGenException::class, "Two operations generate the name 'get'");
+});
+
+test('a naming rule that distinguishes them is accepted', function () {
+    // The check asks the generator that owns naming, so a rule which already separates the two
+    // is not rejected for a clash it does not produce.
+    $files = generateFor([NameClashOperations::class], [
+        new EmitTypes(),
+        new EmitOperationClientBindings(),
+        new EmitTypeUtils(),
+        new EmitOperations(
+            fn (TypedOperation $operation): string => $operation->definition->type->lowerCase()
+                .ucfirst($operation->definition->name),
+        ),
+    ]);
+
+    expect($files['clash.ts']->toString())
+        ->toContain('function queryGet')
+        ->toContain('function commandGet');
+});

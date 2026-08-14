@@ -1,7 +1,10 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Lexer;
 
+use Override;
 use Stringable;
 
 /**
@@ -13,10 +16,9 @@ final readonly class Token implements Stringable
 {
     public function __construct(
         public TokenType $type,
-        public string    $value,
-        public int       $offset,
-    )
-    {
+        public string $value,
+        public int $offset,
+    ) {
     }
 
     public function endOffset(): int
@@ -38,6 +40,7 @@ final readonly class Token implements Stringable
         return in_array($this->type, $types, true);
     }
 
+    #[Override]
     public function __toString(): string
     {
         return $this->value;

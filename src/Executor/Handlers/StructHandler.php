@@ -1,30 +1,46 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Handlers;
 
 use ArrayAccess;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
 use Le0daniel\PhpTsBindings\Executor\Data\Issue;
 use Le0daniel\PhpTsBindings\Executor\Data\IssueMessage;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Nodes\PropertyNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
+use Override;
 use stdClass;
 
 /**
  * @implements Handler<StructNode>
  */
-final class StructHandler implements Handler
+final readonly class StructHandler implements Handler
 {
+    /**
+     * StructNode::$properties is typed to admit ReferencedNode because the ASTOptimizer builds
+     * structs out of interned references on its way to exportPhpCode(). Those structs are only ever
+     * exported, never executed: loading the generated file resolves every reference back through the
+     * registry, so a struct reaching a handler always holds real PropertyNodes. Asserted rather than
+     * branched on because the check is free in production and a failure would be a library bug.
+     */
+    private const string REFERENCE_INVARIANT = 'A ReferencedNode must be resolved before execution.';
 
-    /** @param StructNode $node */
+    #[Override]
     public function serialize(NodeInterface $node, mixed $value, Context $context, Executor $executor): Value|stdClass
     {
+        assert($node instanceof StructNode);
+
         $struct = [];
         foreach ($node->properties as $propertyNode) {
-            if (!$propertyNode->propertyType->isOutput()) {
+            assert($propertyNode instanceof PropertyNode, self::REFERENCE_INVARIANT);
+
+            if (! $propertyNode->propertyType->isOutput()) {
                 continue;
             }
 
@@ -33,12 +49,14 @@ final class StructHandler implements Handler
 
             if ($propertyValue === Value::INVALID) {
                 $context->leavePath();
+
                 return Value::INVALID;
             }
 
             if ($propertyValue === Value::UNDEFINED) {
                 if ($propertyNode->isOptional) {
                     $context->leavePath();
+
                     continue;
                 }
 
@@ -49,6 +67,7 @@ final class StructHandler implements Handler
                     ]
                 ));
                 $context->leavePath();
+
                 return Value::INVALID;
             }
 
@@ -70,10 +89,12 @@ final class StructHandler implements Handler
         return (object) $struct;
     }
 
-    /** @param StructNode $node */
+    #[Override]
     public function parse(NodeInterface $node, mixed $value, Context $context, Executor $executor): mixed
     {
-        if (!is_array($value) && !$value instanceof stdClass) {
+        assert($node instanceof StructNode);
+
+        if (! is_array($value) && ! $value instanceof stdClass) {
             $context->addIssue(new Issue(
                 IssueMessage::INVALID_TYPE,
                 [
@@ -81,12 +102,15 @@ final class StructHandler implements Handler
                     'value' => $value,
                 ]
             ));
+
             return Value::INVALID;
         }
 
         $struct = [];
         foreach ($node->properties as $propertyNode) {
-            if (!$propertyNode->propertyType->isInput()) {
+            assert($propertyNode instanceof PropertyNode, self::REFERENCE_INVARIANT);
+
+            if (! $propertyNode->propertyType->isInput()) {
                 continue;
             }
 
@@ -104,12 +128,14 @@ final class StructHandler implements Handler
                     ]
                 ));
                 $context->leavePath();
+
                 return Value::INVALID;
             }
 
             if ($propertyValue === Value::UNDEFINED) {
                 if ($propertyNode->isOptional) {
                     $context->leavePath();
+
                     continue;
                 } else {
                     $context->leavePath();
@@ -119,6 +145,7 @@ final class StructHandler implements Handler
                             'message' => "Missing property: {$propertyNode->name}",
                         ]
                     ));
+
                     return Value::INVALID;
                 }
             }
@@ -150,11 +177,12 @@ final class StructHandler implements Handler
             return $input->offsetExists($key) ? $input[$key] : Value::UNDEFINED;
         }
 
-        if (!is_object($input)) {
+        if (! is_object($input)) {
             return Value::INVALID;
         }
 
         return match (true) {
+            /* @phpstan-ignore-next-line property.dynamicName */
             property_exists($input, $key) => $input->{$key},
             method_exists($input, '__get') && method_exists($input, '__isset') => $input->__isset($key) ? $input->__get($key) : Value::UNDEFINED,
             default => Value::INVALID,

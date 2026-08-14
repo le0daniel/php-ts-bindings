@@ -1,10 +1,9 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor;
 
-use Le0daniel\PhpTsBindings\Contracts\Coercible;
-use Le0daniel\PhpTsBindings\Contracts\LeafNode;
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Data\Value;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Executor;
 use Le0daniel\PhpTsBindings\Executor\Contracts\Handler;
@@ -14,6 +13,7 @@ use Le0daniel\PhpTsBindings\Executor\Data\Issues;
 use Le0daniel\PhpTsBindings\Executor\Data\ParsingOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\SerializationOptions;
 use Le0daniel\PhpTsBindings\Executor\Data\Success;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Executor\Handlers\CustomClassHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\IntersectionHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\ListHandler;
@@ -21,15 +21,19 @@ use Le0daniel\PhpTsBindings\Executor\Handlers\RecordHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\StructHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\TupleHandler;
 use Le0daniel\PhpTsBindings\Executor\Handlers\UnionHandler;
+use Le0daniel\PhpTsBindings\Parser\Contracts\Coercible;
+use Le0daniel\PhpTsBindings\Parser\Contracts\LeafNode;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\IntersectionNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ListNode;
-use Le0daniel\PhpTsBindings\Parser\Nodes\NamedNode;
+use Le0daniel\PhpTsBindings\Parser\Nodes\MetadataNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\RecordNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\StructNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\TupleNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\UnionNode;
+use Override;
 
 final readonly class SchemaExecutor implements Executor
 {
@@ -55,7 +59,6 @@ final readonly class SchemaExecutor implements Executor
     {
         $context = new Context(
             partialFailures: $options->partialFailures,
-            runConstraints: true,
             coercePrimitives: $options->coercePrimitives,
         );
         $result = $this->executeParse($node, $input, $context);
@@ -71,7 +74,6 @@ final readonly class SchemaExecutor implements Executor
     {
         $context = new Context(
             partialFailures: $options->partialFailures,
-            runConstraints: $options->runConstraints,
         );
 
         $result = $this->executeSerialize($node, $output, $context);
@@ -86,18 +88,29 @@ final readonly class SchemaExecutor implements Executor
     /**
      * @internal
      */
+    #[Override]
     public function executeSerialize(NodeInterface $node, mixed $data, Context $context): mixed
     {
-        // Constraints are ignored when serializing.
+        // Constraints are never run when serializing, and there is no option to turn them on.
+        // Parsing proves refinements about input the application did not produce and cannot
+        // trust. Output came out of the application's own code, which PHPStan already analysed
+        // against the very return type being serialized here - re-checking it would pay at
+        // runtime for a guarantee static analysis has already given.
         if ($node instanceof ConstraintNode) {
             return $this->executeSerialize($node->node, $data, $context);
         }
 
+        // Ordered by how often each case is hit. Leaves outnumber every other node in a typical
+        // schema, and MetadataNode is last because the optimizer strips it: in a cached AST that
+        // arm can never match.
         $serializedValue = match (true) {
-            array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->serialize($node, $data, $context, $this),
-            $node instanceof NamedNode => $this->executeSerialize($node->node, $data, $context),
             $node instanceof LeafNode => $node->serializeValue($data, $context),
-            default => Value::INVALID,
+            array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->serialize($node, $data, $context, $this),
+            // Codegen metadata has no runtime effect.
+            $node instanceof MetadataNode => $this->executeSerialize($node->node, $data, $context),
+            // A node class no handler claims is a broken AST, not invalid data. Returning INVALID
+            // here would answer with an empty failure; AstValidator throws for the same case.
+            default => throw new SchemaException('Unexpected node: '.$node::class),
         };
 
         // Allow for catching errors at null boundaries during serialization.
@@ -111,23 +124,28 @@ final readonly class SchemaExecutor implements Executor
     /**
      * @internal
      */
+    #[Override]
     public function executeParse(NodeInterface $node, mixed $data, Context $context): mixed
     {
         if ($node instanceof ConstraintNode) {
             $constrainedValue = $this->executeParse($node->node, $data, $context);
-            if ($constrainedValue === Value::INVALID || !$node->areConstraintsFulfilled($constrainedValue, $context)) {
+            if ($constrainedValue === Value::INVALID || ! $node->areConstraintsFulfilled($constrainedValue, $context)) {
                 return Value::INVALID;
             }
+
             return $constrainedValue;
         }
 
+        // Ordered by how often each case is hit; see executeSerialize().
         return match (true) {
-            array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
-            $node instanceof NamedNode => $this->executeParse($node->node, $data, $context),
             $node instanceof LeafNode => $context->coercePrimitives && $node instanceof Coercible
                 ? $node->parseValue($node->coerce($data), $context)
                 : $node->parseValue($data, $context),
-            default => Value::INVALID,
+            array_key_exists($node::class, $this->handlers) => $this->handlers[$node::class]->parse($node, $data, $context, $this),
+            // Codegen metadata has no runtime effect.
+            $node instanceof MetadataNode => $this->executeParse($node->node, $data, $context),
+            // See executeSerialize(): an unclaimed node class is a broken AST, not invalid input.
+            default => throw new SchemaException('Unexpected node: '.$node::class),
         };
     }
 }

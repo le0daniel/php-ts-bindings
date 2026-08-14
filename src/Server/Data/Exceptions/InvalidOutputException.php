@@ -1,12 +1,17 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Data\Exceptions;
 
-use Exception;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
 use Le0daniel\PhpTsBindings\Executor\Data\Issues;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 
-final class InvalidOutputException extends Exception
+/**
+ * @internal
+ */
+final class InvalidOutputException extends SchemaException
 {
     public Issues $issues {
         get => $this->failure->issues;
@@ -14,6 +19,6 @@ final class InvalidOutputException extends Exception
 
     public function __construct(private readonly Failure $failure)
     {
-        parent::__construct($failure->message, 500, $failure);
+        parent::__construct($failure->describe(), 500);
     }
 }

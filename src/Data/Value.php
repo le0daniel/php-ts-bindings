@@ -1,12 +1,17 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Data;
+
+use NoDiscard;
 
 enum Value
 {
     case INVALID;
     case UNDEFINED;
 
+    #[NoDiscard]
     public static function toNull(mixed $value): mixed
     {
         return $value instanceof Value ? null : $value;

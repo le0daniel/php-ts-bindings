@@ -1,29 +1,34 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Data;
 
-final class Issues
+final readonly class Issues
 {
     public const string ROOT_PATH = '__root';
 
     /**
-     * @param array<string, Issue[]> $issuesMap
+     * Paths are written as strings and read back as array keys, so a path of digits - 'items.0' is
+     * nested and stays a string, but a bare '0' is not - comes back as an int. See Context::$issues.
+     *
+     * @param  array<array-key, list<Issue>>  $issuesMap
      */
     public function __construct(
         public readonly array $issuesMap = [],
-    )
-    {
+    ) {
     }
 
     /**
-     * @param array<string, string|string[]> $issuesMap
-     * @return self
+     * @param  array<string, string|string[]>  $issuesMap
      */
     public static function fromMessages(array $issuesMap): self
     {
         return new self(
             array_map(
-                fn(string|array $issues) => Issue::fromMessageArray(is_array($issues) ? $issues : [$issues]),
+                fn (string|array $issues) => Issue::fromMessageArray(
+                    is_array($issues) ? array_values($issues) : [$issues],
+                ),
                 $issuesMap
             )
         );
@@ -31,20 +36,23 @@ final class Issues
 
     public function isEmpty(): bool
     {
-        return empty($this->issuesMap);
+        return count($this->issuesMap) === 0;
     }
 
     /** @return list<Issue> */
     public function at(?string $path): array
     {
         $path ??= self::ROOT_PATH;
+
         return $this->issuesMap[$path] ?? [];
     }
 
     /** @return list<Issue> */
     public function allFlat(): array
     {
-        return array_merge(...array_values($this->issuesMap));
+        return $this->issuesMap === []
+            ? []
+            : array_merge(...array_values($this->issuesMap));
     }
 
     /**
@@ -53,7 +61,7 @@ final class Issues
     public function serializeToFieldsArray(): array
     {
         return array_map(function ($issues) {
-            return array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues);
+            return array_map(fn (Issue $issue) => $issue->messageOrLocalizationKey, $issues);
         }, $this->issuesMap);
     }
 
@@ -62,9 +70,8 @@ final class Issues
      */
     public function serializeToDebugFields(): array
     {
-        /** @phpstan-ignore-next-line return.type */
-        return array_map(function ($issues) {
-            return array_map(fn(Issue $issue) => [
+        return array_map(function (array $issues): array {
+            return array_map(fn (Issue $issue): array => [
                 'message' => $issue->messageOrLocalizationKey,
                 'debugInfo' => $issue->debugInfo,
                 'exception' => $issue->exception ? [
@@ -83,9 +90,10 @@ final class Issues
     {
         $messages = [];
         foreach ($this->issuesMap as $path => $issues) {
-            $imploded = implode(',', array_map(fn(Issue $issue) => $issue->messageOrLocalizationKey, $issues));
+            $imploded = implode(',', array_map(fn (Issue $issue) => $issue->messageOrLocalizationKey, $issues));
             $messages[] = "At {$path}: {$imploded}";
         }
+
         return implode('. ', $messages);
     }
 }

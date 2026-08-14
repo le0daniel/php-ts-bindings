@@ -1,10 +1,10 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Feature\Mocks;
 
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
-use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
-use Le0daniel\PhpTsBindings\Validators\Email;
 
 #[Castable]
 final class CreateUserInput
@@ -16,6 +16,10 @@ final class CreateUserInput
      */
     public int $age;
 
-    #[Email]
+    /**
+     * A property is refined by its PHPStan type or not at all - there is no attribute channel.
+     *
+     * @var non-empty-string
+     */
     public string $email;
 }

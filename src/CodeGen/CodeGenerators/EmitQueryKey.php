@@ -1,59 +1,91 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Closure;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
+use Override;
 
+/**
+ * Not readonly: the generators it takes its names and its imports from are injected after
+ * construction, which is the only way they can be the same instances the generator runs.
+ */
 final class EmitQueryKey implements DependsOn, GeneratesOperationCode
 {
+    private EmitOperations $operations;
+
+    private EmitTypeUtils $utils;
+
+    #[Override]
     public function dependsOnGenerator(): array
     {
         return [
             EmitOperations::class,
+            EmitTypeUtils::class,
         ];
     }
 
-    public function __construct(private readonly ?Closure $nameGenerator = null)
+    #[Override]
+    public function setDependencies(array $dependencies): void
     {
+        $this->operations = Assertions::instanceOf(
+            EmitOperations::class,
+            $dependencies[EmitOperations::class] ?? null,
+        );
+        $this->utils = Assertions::instanceOf(
+            EmitTypeUtils::class,
+            $dependencies[EmitTypeUtils::class] ?? null,
+        );
     }
 
-    private function generateName(TypedOperation $operation): string
+    #[Override]
+    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptFile
     {
-        return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
-    }
-
-
-    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptCodeBlock
-    {
-        $definition = $operation->operation->definition;
+        $definition = $operation->definition;
         if ($definition->type !== OperationType::QUERY) {
             return null;
         }
 
-        $name = $this->generateName($operation);
+        // The input type EmitOperations exports is referenced rather than inlined, so this needs no
+        // import of its own: the alias it may be built from is already imported by the module that
+        // declares it.
+        $name = $this->operations->operationName($operation);
+        $inputTypeName = $this->operations->inputTypeName($operation);
 
-        return new TypescriptCodeBlock(
-            <<<TypeScript
+        // Query key needs to support both input and no input
+        if ($operation->hasInput) {
+            return new TypescriptFile(
+                <<<TypeScript
 /** @pure */
-export function {$name}QueryKey(input: {$operation->inputDefinition}) {
+export function {$name}QueryKey(input: {$inputTypeName}) {
     return queryKey('{$definition->namespace}', '{$definition->name}', input);
 }
 TypeScript
+                ,
+                imports: [
+                    $this->utils->importFromUtils(values: ['queryKey']),
+                ],
+            );
+        }
+
+        return new TypescriptFile(
+            <<<TypeScript
+/** @pure */
+export function {$name}QueryKey() {
+    return queryKey('{$definition->namespace}', '{$definition->name}');
+}
+TypeScript
             ,
-            [
-                new TypescriptImportStatement(
-                    from: Paths::libImport("utils"),
-                    imports: ['queryKey'],
-                ),
-            ]
+            imports: [
+                $this->utils->importFromUtils(values: ['queryKey']),
+            ],
         );
     }
 }

@@ -1,14 +1,12 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Feature\Operations;
 
-use Le0daniel\PhpTsBindings\Contracts\ClientAwareException;
+use Le0daniel\PhpTsBindings\Contracts\Attributes\ExposeAs;
 
-final class InvalidNameException extends \Exception implements ClientAwareException
+#[ExposeAs(name: 'invalid_name')]
+final class InvalidNameException extends \Exception
 {
-
-    public static function type(): string
-    {
-        return 'invalid_name';
-    }
 }

@@ -1,0 +1,62 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
+
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
+use Le0daniel\PhpTsBindings\Parser\Helpers\ParserState;
+use Le0daniel\PhpTsBindings\Parser\Lexer\TokenType;
+use Le0daniel\PhpTsBindings\Parser\TypeParser;
+
+trait InteractsWithGenerics
+{
+    /**
+     * @return list<NodeInterface>
+     *
+     * @throws InvalidSyntaxException
+     */
+    private function consumeGenerics(ParserState $state, TypeParser $parser, ?int $min = null, ?int $max = null): array
+    {
+        $isGenericBlock = $state->currentTokenIs(TokenType::LT);
+        $generics = [];
+
+        // No Generics
+        if (! $isGenericBlock) {
+            if (isset($min)) {
+                $state->produceSyntaxError("Expected at least {$min} generics, got 0.");
+            }
+
+            return [];
+        }
+
+        while ($state->canAdvance()) {
+            if ($state->currentTokenIs(TokenType::GT)) {
+                break;
+            }
+            $state->advance();
+            $generics[] = $parser->consume($state, TokenType::COMMA, TokenType::GT);
+        }
+
+        if (! $state->currentTokenIs(TokenType::GT)) {
+            $state->produceSyntaxError("Expected '>' to end generics");
+        }
+
+        if (count($generics) === 0) {
+            $state->produceSyntaxError('Expected at least one generic type, got none');
+        }
+
+        if (isset($min) && count($generics) < $min) {
+            $state->produceSyntaxError("Expected at least {$min} generic type(s), got ".count($generics));
+        }
+
+        if (isset($max) && count($generics) > $max) {
+            $state->produceSyntaxError("Expected at most {$max} generic type(s), got ".count($generics));
+        }
+
+        $state->advance();
+
+        return $generics;
+    }
+}

@@ -1,35 +1,37 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Nodes;
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
-use Le0daniel\PhpTsBindings\Data\Value;
-use Le0daniel\PhpTsBindings\Executor\Data\Context;
-use Le0daniel\PhpTsBindings\Executor\Data\Issue;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
+use Le0daniel\PhpTsBindings\Parser\Contracts\WrapsNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Utils\PHPExport;
-use Throwable;
+use Override;
 
-final readonly class CustomCastingNode implements NodeInterface
+final readonly class CustomCastingNode implements NodeInterface, WrapsNode
 {
     public function __construct(
         public StructNode|ListNode|RecordNode|ReferencedNode $node,
-        public string                                        $fullyQualifiedCastingClass,
-        public ObjectCastStrategy                            $strategy,
-    )
-    {
+        public string $fullyQualifiedCastingClass,
+        public ObjectCastStrategy $strategy,
+    ) {
     }
 
+    #[Override]
     public function __toString(): string
     {
         return "{$this->fullyQualifiedCastingClass}@{$this->strategy->name}({$this->node})";
     }
 
+    #[Override]
     public function exportPhpCode(): string
     {
         $className = PHPExport::absolute(self::class);
-        $fullyQualifiedCastingClass = PHPExport::absolute($this->fullyQualifiedCastingClass) . '::class';
+        $fullyQualifiedCastingClass = PHPExport::absolute($this->fullyQualifiedCastingClass).'::class';
         $strategy = PHPExport::exportEnumCase($this->strategy);
+
         return "new {$className}({$this->node->exportPhpCode()}, {$fullyQualifiedCastingClass}, {$strategy})";
     }
 }

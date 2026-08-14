@@ -1,96 +1,94 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Adapters\Laravel;
 
 use Illuminate\Contracts\Debug\ExceptionHandler;
-use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Http;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Illuminate\Routing\Route;
 use Illuminate\Support\Facades;
-use JsonSerializable;
+use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ClientFactory;
 use Le0daniel\PhpTsBindings\Adapters\Laravel\Contracts\ContextFactory;
-use Le0daniel\PhpTsBindings\Contracts\Client;
-use Le0daniel\PhpTsBindings\Executor\Data\Failure;
-use Le0daniel\PhpTsBindings\Server\Client\NullClient;
-use Le0daniel\PhpTsBindings\Server\Client\OperationSPAClient;
+use Le0daniel\PhpTsBindings\Contracts\RpcResult;
+use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
-use Le0daniel\PhpTsBindings\Server\Data\RpcSuccess;
 use Le0daniel\PhpTsBindings\Server\Server;
-use Le0daniel\PhpTsBindings\Utils\Arrays;
+use Le0daniel\PhpTsBindings\Utils\Dicts;
 use Throwable;
 
 readonly class LaravelHttpController
 {
     public const string QUERY_NAME = '__query_route';
+
     public const string COMMAND_NAME = '__command_route';
-    public const string CLIENT_ID_HEADER = 'X-Client-Id';
 
     public function __construct(
-        private Server           $server,
+        private Server $server,
         private ExceptionHandler $exceptionHandler,
-        private ?ContextFactory  $contextFactory,
-        private bool             $debug = false,
-    )
-    {
+        private ?ContextFactory $contextFactory,
+        private ClientFactory $clientFactory = new OperationClientFactory(),
+        private bool $debug = false,
+    ) {
     }
 
     public static function registerQueries(string $routePrefix = 'query'): Route
     {
-        return Facades\Route::get("{$routePrefix}/{fqn}", [self::class, 'handleHttpQueryRequest'])
+        return Facades\Route::get("{$routePrefix}/{key}", [self::class, 'handleHttpQueryRequest'])
             ->name(self::QUERY_NAME);
     }
 
     public static function registerCommands(string $routePrefix = 'command'): Route
     {
-        return Facades\Route::post("{$routePrefix}/{fqn}", [self::class, 'handleHttpCommandRequest'])
+        return Facades\Route::post("{$routePrefix}/{key}", [self::class, 'handleHttpCommandRequest'])
             ->name(self::COMMAND_NAME);
     }
 
     /**
      * @throws Throwable
      */
-    public function handleHttpQueryRequest(string $fqn, Http\Request $request): JsonResponse
+    public function handleHttpQueryRequest(string $key, Http\Request $request): JsonResponse
     {
-        $client = $this->createClient($request);
-
-        $result = $this->server->query(
-            $fqn,
-            $this->gatherInputFromRequest(OperationType::QUERY, $request),
-            $this->contextFactory?->createContextFromHttpRequest($request),
-            $client,
-        );
-
-        return $this->produceJsonResponse($result, $client);
+        return $this->server->query(
+            $key,
+            input: $this->gatherInputFromRequest(OperationType::QUERY, $request),
+            context: $this->contextFactory?->createContextFromHttpRequest($request),
+            client: $this->clientFactory->createClientFromHttpRequest($request),
+        )
+                |> $this->reportExceptions(...)
+                |> $this->produceJsonResponse(...);
     }
 
     /**
      * @throws Throwable
      */
-    public function handleHttpCommandRequest(string $fqn, Http\Request $request): JsonResponse
+    public function handleHttpCommandRequest(string $key, Http\Request $request): JsonResponse
     {
-        $client = $this->createClient($request);
-
-        $result = $this->server->command(
-            $fqn,
-            $this->gatherInputFromRequest(OperationType::COMMAND, $request),
-            $this->contextFactory?->createContextFromHttpRequest($request),
-            $client,
-        );
-
-        return $this->produceJsonResponse($result, $client);
+        return $this->server->command(
+            $key,
+            input: $this->gatherInputFromRequest(OperationType::COMMAND, $request),
+            context: $this->contextFactory?->createContextFromHttpRequest($request),
+            client: $this->clientFactory->createClientFromHttpRequest($request),
+        )
+                |> $this->reportExceptions(...)
+                |> $this->produceJsonResponse(...);
     }
 
-    private function createClient(Http\Request $request): Client
+    private function reportExceptions(RpcResult $result): RpcResult
     {
-        if ($request->header(self::CLIENT_ID_HEADER) === 'operations-spa') {
-            return new OperationSPAClient();
+        if ($result instanceof RpcError) {
+            // The whole chain, oldest first. On an ordinary error that is the one exception the
+            // application threw; when presenting it failed too, reporting only the cause would
+            // hide the failure that actually needs fixing.
+            foreach ($result->throwableChain() as $throwable) {
+                $this->exceptionHandler->report($throwable);
+            }
         }
 
-        return new NullClient();
+        return $result;
     }
 
     /**
@@ -99,7 +97,15 @@ readonly class LaravelHttpController
     private function gatherInputFromRequest(OperationType $type, Http\Request $request): ?array
     {
         $inputData = match ($type) {
-            OperationType::QUERY => array_map(static function (string $value): mixed {
+            // mixed, not string: ?filter[a]=1 hands back a nested array, and a string parameter
+            // raised a TypeError here - before Server::query() was reached, so it escaped the
+            // guarantee that every Throwable comes back as an RpcError. Anything that is not a
+            // string is passed through untouched for the schema to reject properly.
+            OperationType::QUERY => array_map(static function (mixed $value): mixed {
+                if (! is_string($value)) {
+                    return $value;
+                }
+
                 try {
                     return json_decode($value, flags: JSON_THROW_ON_ERROR);
                 } catch (Throwable) {
@@ -109,89 +115,83 @@ readonly class LaravelHttpController
             OperationType::COMMAND => $request->json()->all(),
         };
 
-        return empty($inputData) ? null : $inputData;
+        return count($inputData) === 0 ? null : $inputData;
     }
 
     /**
-     * @param array<string, mixed> $response
-     * @param Client $client
+     * getTraceAsString() rather than getTrace(): the latter carries the actual call arguments, and
+     * a pure enum among them makes json_encode() refuse the whole response - which turned debug
+     * mode into a 500 of its own. The string form is a full stack trace, always encodable, and does
+     * not put argument values on the wire.
+     *
      * @return array<string, mixed>
      */
-    private function appendClientDirectives(array $response, Client $client): array
+    private static function describeThrowable(Throwable $throwable): array
     {
-        if (!$client instanceof JsonSerializable) {
-            return $response;
-        }
-
-        $clientData = $client->jsonSerialize();
-        if ($clientData === null) {
-            return $response;
-        }
-
-        $response['__client'] = $clientData;
-        return $response;
+        return Dicts::filterNullValues([
+            'class' => $throwable::class,
+            'message' => $throwable->getMessage(),
+            'code' => $throwable->getCode(),
+            'file' => $throwable->getFile(),
+            'line' => $throwable->getLine(),
+            'trace' => $throwable->getTraceAsString(),
+            'issues' => $throwable instanceof InvalidOutputException ? $throwable->issues->serializeToDebugFields() : null,
+        ]);
     }
 
-    private function produceJsonResponse(RpcSuccess|RpcError $result, Client $client): JsonResponse
+    private function produceJsonResponse(RpcResult $result): JsonResponse
     {
-        if ($result instanceof RpcSuccess) {
-            $data = $this->appendClientDirectives([
-                'success' => true,
-                'data' => $result->data,
-            ], $client);
-
-            if (!empty($result->metadata)) {
-                $data['__metadata'] = $result->metadata;
-            }
-
-            if ($this->debug) {
-                $data['__info'] = [
-                    "handler" => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
-                    "middleware" => $result->resolveInfo->middleware,
-                    "fqn" => $result->resolveInfo->fullyQualifiedName,
-                    "type" => $result->resolveInfo->operationType->name,
-                ];
-            }
-
-            return new JsonResponse($data, 200);
+        $jsonResponse = $result->jsonSerialize();
+        if (! $this->debug) {
+            return new JsonResponse($jsonResponse, status: $result->statusCode, headers: self::headersFor($result));
         }
 
-        $this->exceptionHandler->report($result->cause);
-        $content = $this->appendClientDirectives([
-            'success' => false,
-            'code' => $result->type->value,
-            'details' => $result->details
-        ], $client);
-
-        if (!empty($result->metadata)) {
-            $content['__metadata'] = $result->metadata;
-        }
-
-        if ($this->debug) {
-            $exception = $result->cause;
-            $content['__debug'] = Arrays::filterNullValues([
-                'class' => $exception::class,
-                'message' => $exception->getMessage(),
-                'code' => $exception->getCode(),
-                'file' => $exception->getFile(),
-                'line' => $exception->getLine(),
-                'trace' => $exception->getTrace(),
-                'issues' => $exception instanceof InvalidOutputException ? $exception->issues->serializeToDebugFields() : null,
-            ]);
-
-            $content['__info'] = $result->resolveInfo ? [
-                "handler" => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
-                "middleware" => $result->resolveInfo->middleware,
-                "fqn" => $result->resolveInfo->fullyQualifiedName,
-                "type" => $result->resolveInfo->operationType->name,
-            ] : [
-                "message" => "No handler found for operation.",
+        // We append some general debug information
+        if ($result->resolveInfo) {
+            $jsonResponse['__resolveInfo'] = [
+                'handler' => "{$result->resolveInfo->className}@{$result->resolveInfo->methodName}",
+                'middleware' => $result->resolveInfo->middleware,
+                'fullyQualifiedName' => $result->resolveInfo->fullyQualifiedName,
+                'type' => $result->resolveInfo->operationType->name,
             ];
         }
 
+        // We append debug info for failed operations
+        if ($result instanceof RpcError) {
+            $jsonResponse['__debug'] = Dicts::filterNullValues([
+                ...self::describeThrowable($result->cause),
+                // Only ever set when handling one failure produced another, so filterNullValues
+                // keeps it out of the response on every ordinary error.
+                'previous' => count($result->previous) > 0
+                    ? array_map(self::describeThrowable(...), $result->previous)
+                    : null,
+            ]);
+        }
+
         return new JsonResponse(
-            $content,
-            $result->type->value
+            $jsonResponse,
+            status: $result->statusCode,
+            headers: self::headersFor($result),
         );
+    }
+
+    /**
+     * The standard header next to the envelope's own field: proxies and generic HTTP clients
+     * read the header, the generated client reads details.retryIn.
+     *
+     * @return array<string, string>
+     */
+    private static function headersFor(RpcResult $result): array
+    {
+        if (
+            $result instanceof RpcError
+            && $result->type === ErrorType::RATE_LIMITED
+            && is_array($result->details)
+            && is_int($result->details['retryIn'] ?? null)
+        ) {
+            return ['Retry-After' => (string) $result->details['retryIn']];
+        }
+
+        return [];
     }
 }

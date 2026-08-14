@@ -1,43 +1,65 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen;
 
+use Le0daniel\PhpTsBindings\CodeGen\CodeGenerators\EmitOperations;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesLibFiles;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
-use Le0daniel\PhpTsBindings\CodeGen\Data\DefinitionTarget;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
 use Le0daniel\PhpTsBindings\CodeGen\Exceptions\InvalidGeneratorDependencies;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypeScriptFile;
-use Le0daniel\PhpTsBindings\Contracts\ExceptionPresenter;
-use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
+use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
+use Le0daniel\PhpTsBindings\Data\IO;
+use Le0daniel\PhpTsBindings\Parser\Helpers\AstValidator;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
+use Le0daniel\PhpTsBindings\Server\Errors\ThrowAttributeResolver;
 use Le0daniel\PhpTsBindings\Server\Server;
-use Le0daniel\PhpTsBindings\Utils\Arrays;
-use RuntimeException;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Helpers\AliasRegistry;
+use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
+use ReflectionMethod;
 
 final readonly class TypescriptServerCodeGenerator
 {
     /**
+     * Every name that becomes a file on disk, whether a lib file a generator named or a module a
+     * namespace named, is held to this.
+     */
+    private const string VALID_MODULE_NAME = '/^[a-zA-Z0-9_\-]+$/';
+
+    /**
      * @param array<GeneratesLibFiles|GeneratesOperationCode> $generators
+     *
      * @throws InvalidGeneratorDependencies
      */
     public function __construct(
-        private array                         $generators,
-        private TypescriptDefinitionGenerator $definitionGenerator,
-    )
-    {
-        $this->verifyGeneratorDependencies();
+        private array               $generators,
+        private TypescriptGenerator $typescriptGenerator = new TypescriptGenerator(),
+    ) {
+        $this->resolveGeneratorDependencies();
     }
 
     /**
+     * Every declared dependency is verified before any instance is handed out: a generator asked to
+     * resolve a dependency that is not registered would fail on the missing instance instead of the
+     * message naming what to register.
+     *
      * @throws InvalidGeneratorDependencies
      */
-    private function verifyGeneratorDependencies(): void
+    private function resolveGeneratorDependencies(): void
     {
         $issues = [];
-        $generatorClassNames = array_map(fn(object $generator): string => $generator::class, $this->generators);
+
+        /** @var array<class-string<GeneratesLibFiles|GeneratesOperationCode>, GeneratesLibFiles|GeneratesOperationCode> $instances */
+        $instances = [];
+        foreach ($this->generators as $generator) {
+            $instances[$generator::class] = $generator;
+        }
 
         foreach ($this->generators as $generator) {
             if (!$generator instanceof DependsOn) {
@@ -45,52 +67,84 @@ final readonly class TypescriptServerCodeGenerator
             }
 
             foreach ($generator->dependsOnGenerator() as $className) {
-                if (!in_array($className, $generatorClassNames, true)) {
-                    $issues[] = "Generator " . $generator::class . " depends on {$className} which is not registered.";
+                if (!array_key_exists($className, $instances)) {
+                    $issues[] = 'Generator ' . $generator::class . " depends on {$className} which is not registered.";
                 }
             }
         }
 
-        if (!empty($issues)) {
+        if (count($issues) > 0) {
             throw new InvalidGeneratorDependencies($issues);
+        }
+
+        foreach ($this->generators as $generator) {
+            if (!$generator instanceof DependsOn) {
+                continue;
+            }
+
+            // Each generator sees what it declared and nothing else, so a dependency it never asked
+            // for cannot quietly become one it relies on.
+            array_flip($generator->dependsOnGenerator())
+                |> (static fn ($x) => array_intersect_key($instances, $x))
+                |> $generator->setDependencies(...);
         }
     }
 
     /**
-     * @param Server $server
-     * @param ServerMetadata $metadata
      * @param list<string> $ignore
-     * @return array<string, TypeScriptFile>
+     * @return array<string, TypescriptFile>
      */
     public function generate(Server $server, ServerMetadata $metadata, array $ignore = []): array
     {
+        // A globally configured middleware runs for every operation, so its #[Throws] declarations
+        // take part in no operation's vocabulary: a domain error there would leak one operation's
+        // names into all of them. The runtime silently ignores such a declaration and answers 500,
+        // which is exactly why it is refused loudly here, at build time.
+        foreach ($server->configuration->middleware as $middlewareClass) {
+            $issues = ThrowAttributeResolver::resolveReflection(
+                new ReflectionMethod($middlewareClass, 'handle'),
+                allowDomainErrors: false,
+            )['issues'];
+
+            if (count($issues) > 0) {
+                throw new CodeGenException(
+                    "Invalid #[Throws] declarations on globally configured middleware {$middlewareClass}: ".implode(' ', $issues),
+                );
+            }
+        }
+
         /**
          * Filter out some operations that are not needed.
+         *
          * @var array<int|string, Operation> $filteredDefinitions
          */
-        $filteredDefinitions = array_values(
-            array_filter($server->registry->all(), function (Operation $operation) use ($ignore): bool {
-                if (in_array($operation->definition->namespace, $ignore, true) || in_array($operation->definition->fullyQualifiedName(), $ignore, true)) {
-                    return false;
-                }
-                return true;
-            })
-        );
+        $filteredDefinitions = array_filter(
+            $server->registry->all(),
+            fn (Operation $operation): bool => !in_array($operation->definition->namespace, $ignore, true)
+                    && !in_array($operation->definition->fullyQualifiedName(), $ignore, true),
+        ) |> array_values(...);
 
-        $definitions = array_values(
-            array_map(function (Operation $operation) use ($server): TypedOperation {
-                $inputType = $this->definitionGenerator->toDefinition($operation->inputNode(), DefinitionTarget::INPUT);
-                $successOutputType = $this->definitionGenerator->toDefinition($operation->outputNode(), DefinitionTarget::OUTPUT);
-                $possibleErrorType = $this->generateAllErrorTypes($server, $operation->definition);
+        // Cross-operation and cross-direction alias conflicts are only caught when every pass hands
+        // its aliases into one shared registry, so the run always has one. It is also what the
+        // generated types file declares.
+        $registry = new AliasRegistry();
 
-                return new TypedOperation(
-                    $inputType,
-                    $successOutputType,
-                    $possibleErrorType,
-                    $operation,
-                );
-            }, $filteredDefinitions)
-        );
+        // Bound once: inputNode()/outputNode() run the parse closure on every call, so asking twice
+        // parses every schema in the run twice.
+        $definitions = array_map(function (Operation $operation) use ($registry): TypedOperation {
+            $inputNode = $operation->inputNode();
+            $outputNode = $operation->outputNode();
+
+            AstValidator::validate($inputNode);
+            AstValidator::validate($outputNode);
+
+            return new TypedOperation(
+                inputDef: $this->typescriptGenerator->toTypescript($inputNode, IO::INPUT, $registry),
+                outputDef: $this->typescriptGenerator->toTypescript($outputNode, IO::OUTPUT, $registry),
+                domainErrors: ErrorTypescript::domainTypesFor($operation->definition),
+                operation: $operation,
+            );
+        }, $filteredDefinitions);
 
         // Deterministically sort for consistency between systems
         usort($definitions, function (TypedOperation $a, TypedOperation $b): int {
@@ -100,45 +154,55 @@ final readonly class TypescriptServerCodeGenerator
             );
         });
 
+        // Asked of the generator that owns the naming rule, so a custom --naming that already
+        // distinguishes the two is not rejected for a clash it does not produce. After the sort,
+        // so which of a clashing pair is named first does not depend on discovery order.
+        foreach ($this->generators as $codeGenerator) {
+            if ($codeGenerator instanceof EmitOperations) {
+                $codeGenerator->assertNamesAreUnique($definitions);
+            }
+        }
+
         return [
-            ...$this->generateLibFiles($definitions, $metadata),
+            ...$this->generateLibFiles($definitions, $metadata, $registry),
             ...$this->generateOperationDefinitions($definitions, $metadata),
         ];
     }
 
-    private function generateAllErrorTypes(Server $server, Definition $operation): string
-    {
-        $possibleTypes = Arrays::filterNullValues(array_map(function (ExceptionPresenter $presenter) use ($operation): null|string {
-            $code = $presenter::errorType();
-            $details = $presenter->toTypeScriptDefinition($operation);
-            return $details === null ? null : "{code: {$code->value}, details: {$details}}";
-        }, [...$server->exceptionPresenters, $server->defaultPresenter]));
-
-        return implode('|', $possibleTypes);
-    }
-
     /**
      * @param list<TypedOperation> $definitions
-     * @param ServerMetadata $metadata
-     * @return array<string, TypeScriptFile>
+     * @param AliasRegistry $registry The run's shared registry, holding every alias any pass produced.
+     * @return array<string, TypescriptFile>
      */
-    private function generateLibFiles(array $definitions, ServerMetadata $metadata): array
+    private function generateLibFiles(array $definitions, ServerMetadata $metadata, AliasRegistry $registry): array
     {
         return array_reduce(
             $this->generators,
-            function (array $carry, $codeGenerator) use ($definitions, $metadata): array {
+            /**
+             * @param array<string, TypescriptFile> $carry
+             * @return array<string, TypescriptFile>
+             */
+            function (array $carry, $codeGenerator) use ($definitions, $metadata, $registry): array {
                 if (!$codeGenerator instanceof GeneratesLibFiles) {
                     return $carry;
                 }
 
-                foreach ($codeGenerator->emitFiles($definitions, $metadata) as $fileName => $fileContent) {
-                    if (preg_match('/^[a-zA-Z0-9_\-]+$/', $fileName) !== 1) {
-                        throw new RuntimeException("Invalid file name '{$fileName}' for lib file. File names must only contain a-z, A-Z, 0-9, - and _.");
+                foreach ($codeGenerator->emitFiles($definitions, $metadata, $registry) as $fileName => $fileContent) {
+                    if (preg_match(self::VALID_MODULE_NAME, $fileName) !== 1) {
+                        throw new CodeGenException("Invalid file name '{$fileName}' for lib file. File names must only contain a-z, A-Z, 0-9, - and _.");
                     }
 
-                    $carry["lib/{$fileName}.ts"] ??= new TypeScriptFile();
-                    $carry["lib/{$fileName}.ts"]->merge(TypeScriptFile::from($fileContent));
+                    // Several generators may contribute to one lib file, so they accumulate rather
+                    // than overwrite.
+                    //
+                    // An emitter names a lib file the way a module at the output root reaches it,
+                    // because it cannot know where its own output lands. Here it is known: this one
+                    // goes into lib/, one directory deeper, where a sibling is reached directly.
+                    $fileKey = "lib/{$fileName}.ts";
+                    $carry[$fileKey] = ($carry[$fileKey] ?? new TypescriptFile())
+                        ->append($fileContent->withModulesResolvedBy(Paths::fromInsideLib(...)));
                 }
+
                 return $carry;
             },
             []
@@ -147,16 +211,31 @@ final readonly class TypescriptServerCodeGenerator
 
     /**
      * @param list<TypedOperation> $definitions
-     * @param ServerMetadata $metadata
-     * @return array<string, TypeScriptFile>
+     * @return array<string, TypescriptFile>
      */
     private function generateOperationDefinitions(array $definitions, ServerMetadata $metadata): array
     {
-        /** @var array<string, TypeScriptFile> $operationFiles */
+        /** @var array<string, TypescriptFile> $operationFiles */
         $operationFiles = [];
         foreach ($definitions as $operationData) {
             $namespace = $operationData->definition->namespace;
-            $file = $operationFiles["{$namespace}.ts"] ??= new TypeScriptFile();
+
+            // Lib file names are validated; this one comes straight from #[Query(namespace: ...)]
+            // and is written verbatim. A `/` or `..` in it is path traversal in a build tool, and
+            // a quote breaks the namespace literal union EmitTypeUtils emits.
+            if (preg_match(self::VALID_MODULE_NAME, $namespace) !== 1) {
+                throw new CodeGenException(
+                    "Invalid namespace '{$namespace}' on "
+                    . "{$operationData->definition->fullyQualifiedClassName}::{$operationData->definition->methodName}. "
+                    . 'A namespace becomes a module file name and must only contain a-z, A-Z, 0-9, - and _.'
+                );
+            }
+
+            $fileKey = "{$namespace}.ts";
+
+            // The file is immutable, so each block produces a new one and the last is kept. It also
+            // owns the blank lines between blocks, which is why nothing is appended as a separator.
+            $file = $operationFiles[$fileKey] ?? new TypescriptFile();
 
             foreach ($this->generators as $codeGenerator) {
                 if (!$codeGenerator instanceof GeneratesOperationCode) {
@@ -164,11 +243,11 @@ final readonly class TypescriptServerCodeGenerator
                 }
 
                 if ($code = $codeGenerator->generateOperationCode($operationData, $metadata)) {
-                    $file->append($code);
+                    $file = $file->append($code);
                 }
             }
 
-            $file->append(PHP_EOL . PHP_EOL);
+            $operationFiles[$fileKey] = $file;
         }
 
         return $operationFiles;

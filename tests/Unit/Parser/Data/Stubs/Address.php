@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Unit\Parser\Data\Stubs;
 
@@ -8,5 +10,4 @@ namespace Tests\Unit\Parser\Data\Stubs;
  */
 final class Address
 {
-
 }

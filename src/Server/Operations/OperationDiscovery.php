@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Server\Operations;
 
@@ -6,38 +8,38 @@ use Closure;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
-use Le0daniel\PhpTsBindings\Contracts\Discoverer;
+use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\ConfigurableMiddleware;
+use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
+use Le0daniel\PhpTsBindings\Server\Data\MiddlewareDefinition;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
-use ReflectionAttribute;
 use ReflectionClass;
 use ReflectionMethod;
-use RuntimeException;
+use ReflectionNamedType;
 
-final class OperationDiscovery implements Discoverer
+final class OperationDiscovery
 {
     private const string DEFAULT_NAMESPACE = 'global';
 
     /** @var array<string, Definition> */
-    private(set) array $operations = [];
+    public private(set) array $operations = [];
 
     /**
-     * @param Closure(ReflectionClass<object>, ReflectionMethod, Query|Command): bool|null $filterFn
+     * @param  Closure(ReflectionClass<object>, ReflectionMethod, Query|Command): bool|null  $filterFn
      */
-    public function __construct(private readonly Closure|null $filterFn = null)
+    public function __construct(private readonly ?Closure $filterFn = null)
     {
     }
 
     /**
-     * Used for extensibility.
-     * Return false to filter the item out and have your own custom rules
+     * The extension point is the $filterFn closure, not a subclass - this class is final. Return
+     * false from it to keep an operation out of the registry.
      *
-     * @param ReflectionClass<object> $class
-     * @param ReflectionMethod $method
-     * @param Query|Command $attribute
-     * @return bool
+     * @param  ReflectionClass<object>  $class
      */
-    protected function filter(ReflectionClass $class, ReflectionMethod $method, Query|Command $attribute): bool
+    private function filter(ReflectionClass $class, ReflectionMethod $method, Query|Command $attribute): bool
     {
         if ($this->filterFn) {
             return ($this->filterFn)($class, $method, $attribute);
@@ -47,11 +49,11 @@ final class OperationDiscovery implements Discoverer
     }
 
     /** @param ReflectionClass<object> $class */
-    final public function discover(ReflectionClass $class): void
+    public function discover(ReflectionClass $class): void
     {
         foreach ($class->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
             $attributes = $method->getAttributes();
-            if (empty($attributes)) {
+            if (count($attributes) === 0) {
                 continue;
             }
 
@@ -60,7 +62,7 @@ final class OperationDiscovery implements Discoverer
                     /** @var Query|Command $instance */
                     $instance = $attribute->newInstance();
 
-                    if (!$this->filter($class, $method, $instance)) {
+                    if (! $this->filter($class, $method, $instance)) {
                         continue;
                     }
 
@@ -68,7 +70,7 @@ final class OperationDiscovery implements Discoverer
                     $fullKey = "{$definition->type->name}@{$definition->fullyQualifiedName()}";
 
                     if (array_key_exists($fullKey, $this->operations)) {
-                        throw new RuntimeException("Name collision for: {$definition->fullyQualifiedName()} defined in {$definition->fullyQualifiedClassName} -> {$definition->methodName}.");
+                        throw new SchemaException("Name collision for: {$definition->fullyQualifiedName()} defined in {$definition->fullyQualifiedClassName} -> {$definition->methodName}.");
                     }
 
                     $this->operations[$fullKey] = $definition;
@@ -78,10 +80,64 @@ final class OperationDiscovery implements Discoverer
     }
 
     /**
-     * @param Query|Command $attribute
-     * @param ReflectionClass<object> $class
-     * @param ReflectionMethod $method
-     * @return Definition
+     * A handler is called positionally with exactly ($input, $context, $client) and may declare a
+     * *prefix* of those - nothing inspects the signature at call time. Declaring
+     * `(array $input, Client $client)` therefore receives the context in the client slot and dies
+     * with a TypeError that says nothing about the real mistake, so the shape is checked once,
+     * here, where the method is already being reflected.
+     *
+     * The first parameter also defines the entire published input contract, so getting it wrong
+     * publishes a type the client can never satisfy rather than failing.
+     *
+     * @param  ReflectionClass<object>  $class
+     */
+    private static function assertHandlerSignature(ReflectionClass $class, ReflectionMethod $method): void
+    {
+        $signature = "{$class->getName()}::{$method->name}";
+        $parameters = $method->getParameters();
+
+        if (count($parameters) < 1) {
+            throw new SchemaException(
+                "Operation {$signature} must declare at least one parameter: the first one is the "
+                .'input, and its type is the contract the client must satisfy.'
+            );
+        }
+
+        if (count($parameters) > 3) {
+            throw new SchemaException(
+                "Operation {$signature} declares ".count($parameters).' parameters. A handler is '
+                .'called with ($input, $context, $client) and may declare a prefix of those.'
+            );
+        }
+
+        // The client is the third argument. A Client in second position is the common slip and is
+        // worth naming, because the value it would actually receive is the context.
+        $secondParameterType = ($parameters[1] ?? null)?->getType();
+        if ($secondParameterType instanceof ReflectionNamedType && is_a($secondParameterType->getName(), Client::class, true)) {
+            throw new SchemaException(
+                "Operation {$signature} declares {$secondParameterType->getName()} as its second "
+                .'parameter, but the second argument is the context. Declare the client third: '
+                .'($input, $context, Client $client).'
+            );
+        }
+
+        $thirdParameterType = ($parameters[2] ?? null)?->getType();
+        if ($thirdParameterType instanceof ReflectionNamedType) {
+            $declared = $thirdParameterType->getName();
+
+            // is_a() this way round asks whether a Client satisfies what was declared, so Client
+            // itself and any interface it implements are accepted.
+            if ($declared !== 'mixed' && ! is_a(Client::class, $declared, true)) {
+                throw new SchemaException(
+                    "Operation {$signature} declares {$declared} as its third parameter, which is "
+                    .'the client. It has to accept '.Client::class.'.'
+                );
+            }
+        }
+    }
+
+    /**
+     * @param  ReflectionClass<object>  $class
      */
     private function toDefinition(Query|Command $attribute, ReflectionClass $class, ReflectionMethod $method): Definition
     {
@@ -90,22 +146,29 @@ final class OperationDiscovery implements Discoverer
             Command::class => OperationType::COMMAND,
         };
 
-        $parameters = $method->getParameters();
-        if (count($parameters) < 1) {
-            throw new RuntimeException("Method {$method->name} must have at least one parameter.");
-        }
+        self::assertHandlerSignature($class, $method);
 
-        $attributes = [
-            // Collect all middlewares, on the class and the method itself.
-            ... $class->getAttributes(Middleware::class),
-            ... $method->getAttributes(Middleware::class),
+        // Collect all middlewares, on the class and the method itself. Order is load bearing: it
+        // is the order ContextualPipeline nests them in, so class-level middleware wraps
+        // method-level middleware.
+        $middlewareAttributes = [
+            ...$class->getAttributes(Middleware::class),
+            ...$method->getAttributes(Middleware::class),
         ];
 
-        $middlewares = empty($attributes) ? [] : array_reduce($attributes, function (array $carry, ReflectionAttribute $attribute) {
-            $instance = $attribute->newInstance();
-            array_push($carry, ...$instance->middleware);
-            return $carry;
-        }, []);
+        /** @var list<MiddlewareDefinition> $middlewares */
+        $middlewares = [];
+        foreach ($middlewareAttributes as $middlewareAttribute) {
+            $middleware = $middlewareAttribute->newInstance();
+
+            if ($middleware->config !== [] && ! is_a($middleware->middleware, ConfigurableMiddleware::class, true)) {
+                throw InvalidMiddlewareException::notConfigurable($middleware->middleware);
+            }
+
+            self::assertValidConfig($middleware->middleware, $middleware->config);
+
+            $middlewares[] = new MiddlewareDefinition($middleware->middleware, $middleware->config);
+        }
 
         return new Definition(
             $type,
@@ -115,5 +178,21 @@ final class OperationDiscovery implements Discoverer
             $attribute->namespaceAsString() ?? self::DEFAULT_NAMESPACE,
             $middlewares,
         );
+    }
+
+    /**
+     * The attribute's @param promises array<string, scalar>, but discovery reads arbitrary code
+     * that may never have run through PHPStan - so the promise is verified here, where
+     * declarations enter the system. The parameter type admits what can actually arrive.
+     *
+     * @param  array<array-key, mixed>  $config
+     */
+    private static function assertValidConfig(string $className, array $config): void
+    {
+        foreach ($config as $key => $value) {
+            if (! is_string($key) || ! is_scalar($value)) {
+                throw InvalidMiddlewareException::invalidConfig($className, (string) $key);
+            }
+        }
     }
 }

@@ -1,25 +1,28 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Utils;
 
 use UnitEnum;
 
-final class Strings
+final readonly class Strings
 {
     /**
-     * @param class-string $className
-     * @return string
+     * The last segment of a backslash separated name. Not restricted to class-string: it is also
+     * used on namespaces and on names parsed out of `use` statements, which are unverified.
      */
     public static function classBaseName(string $className): string
     {
         $parts = explode('\\', $className);
+
         return end($parts);
     }
 
     public static function toString(UnitEnum|string|\Stringable $value): string
     {
         if ($value instanceof UnitEnum) {
-            return match(true) {
+            return match (true) {
                 $value instanceof \BackedEnum => (string) $value->value,
                 default => $value->name,
             };

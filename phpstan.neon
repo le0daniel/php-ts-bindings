@@ -1,25 +1,17 @@
 includes:
     - extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
 
 parameters:
+    strictRules:
+        booleansInConditions: false
     paths:
         - src/
 
-    # ToDo: Enable this in the future
-    reportPossiblyNonexistentGeneralArrayOffset: false
-    checkMissingCallableSignature: false
-    checkBenevolentUnionTypes: true
-    reportPossiblyNonexistentConstantArrayOffset: true
-
     # Level 10 is the highest level
-    level: 6
+    level: 8
 
-#    typeAliases:
-#        Email: 'non-empty-string'
-
-#    ignoreErrors:
-#        - '#class-string<operations.default_server>#'
-
-#
-#    excludePaths:
-#        - ./src/Adapters/*
+    reportPossiblyNonexistentGeneralArrayOffset: false
+    reportPossiblyNonexistentConstantArrayOffset: true
+    checkMissingCallableSignature: true
+    checkBenevolentUnionTypes: true

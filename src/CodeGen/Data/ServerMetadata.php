@@ -1,30 +1,39 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\Data;
 
-use InvalidArgumentException;
-use Le0daniel\PhpTsBindings\Server\Data\Operation;
-use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\CodeGen\Exceptions\CodeGenException;
+use Le0daniel\PhpTsBindings\Server\Data\ServerConfiguration;
+use NoDiscard;
 
 final readonly class ServerMetadata
 {
+    /**
+     * @param  ServerConfiguration  $configuration  Which categories the generated Failure is a union
+     *                                              of depends on how this server maps exceptions, so
+     *                                              the generators that emit it need to see it. The
+     *                                              run fills it in from the Server; the default is
+     *                                              the unconfigured catalogue, which is what a
+     *                                              generator invoked on its own would produce anyway.
+     */
     public function __construct(
         public string $queryUrl,
         public string $commandUrl,
-    )
-    {
-        if (!str_contains($this->queryUrl, '{fqn}')) {
-            throw new InvalidArgumentException('Query URL must contain {fqn} placeholder');
+        public ServerConfiguration $configuration,
+    ) {
+        if (! str_contains($this->queryUrl, '{key}')) {
+            throw new CodeGenException('Query URL must contain {key} placeholder');
         }
-        if (!str_contains($this->commandUrl, '{fqn}')) {
-            throw new InvalidArgumentException('Command URL must contain {fqn} placeholder');
+        if (! str_contains($this->commandUrl, '{key}')) {
+            throw new CodeGenException('Command URL must contain {key} placeholder');
         }
     }
 
-    public function getFullyQualifiedUrl(Operation $operation): string
+    #[NoDiscard]
+    public function withConfiguration(ServerConfiguration $configuration): self
     {
-        return $operation->definition->type === OperationType::QUERY
-            ? str_replace('{fqn}', $operation->key, $this->queryUrl)
-            : str_replace('{fqn}', $operation->key, $this->commandUrl);
+        return new self($this->queryUrl, $this->commandUrl, $configuration);
     }
 }

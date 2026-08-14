@@ -1,71 +1,82 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\CodeGen\CodeGenerators;
 
-use Closure;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\DependsOn;
 use Le0daniel\PhpTsBindings\CodeGen\Contracts\GeneratesOperationCode;
 use Le0daniel\PhpTsBindings\CodeGen\Data\ServerMetadata;
 use Le0daniel\PhpTsBindings\CodeGen\Data\TypedOperation;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptCodeBlock;
-use Le0daniel\PhpTsBindings\CodeGen\Helpers\TypescriptImportStatement;
-use Le0daniel\PhpTsBindings\CodeGen\Utils\Paths;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptFile;
+use Le0daniel\PhpTsBindings\Typescript\Code\TypescriptImport;
+use Le0daniel\PhpTsBindings\Utils\Assertions;
+use Override;
 
-final readonly class EmitTanstackQuery implements GeneratesOperationCode, DependsOn
+/**
+ * Not readonly: the generators it hangs everything off are injected after construction, which is the
+ * only way they can be the same instances the generator runs.
+ */
+final class EmitTanstackQuery implements DependsOn, GeneratesOperationCode
 {
+    private EmitOperations $operations;
+
+    private EmitTypeUtils $utils;
+
+    #[Override]
     public function dependsOnGenerator(): array
     {
         return [
             EmitOperations::class,
+            EmitTypeUtils::class,
         ];
     }
 
-    public function __construct(private ?Closure $nameGenerator = null)
+    #[Override]
+    public function setDependencies(array $dependencies): void
     {
+        $this->operations = Assertions::instanceOf(
+            EmitOperations::class,
+            $dependencies[EmitOperations::class] ?? null,
+        );
+        $this->utils = Assertions::instanceOf(
+            EmitTypeUtils::class,
+            $dependencies[EmitTypeUtils::class] ?? null,
+        );
     }
 
-    private function generateName(TypedOperation $operation): string
+    #[Override]
+    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptFile
     {
-        return $this->nameGenerator ? ($this->nameGenerator)($operation) : $operation->operation->definition->name;
-    }
-
-    public function generateOperationCode(TypedOperation $operation, ServerMetadata $metadata): ?TypescriptCodeBlock
-    {
-        $definition = $operation->operation->definition;
+        $definition = $operation->definition;
         if ($definition->type !== OperationType::QUERY) {
             return null;
         }
 
-        $name = $this->generateName($operation);
-        $operationBaseTypeName = ucfirst($name);
-        $resultTypeName = $operationBaseTypeName . "Result";
-        $resultInputTypeName = $operationBaseTypeName . "Input";
-        $queryName = "use" . $operationBaseTypeName . "Query";
-        $queryOptionsName = lcfirst($operationBaseTypeName) . "QueryOptions";
-        $optionsTypeName = $operationBaseTypeName . "Options";
+        // Everything the emitted hook calls or annotates itself with is declared by EmitOperations
+        // in the same module, so the names come from there.
+        $name = $this->operations->operationName($operation);
+        $operationBaseTypeName = $this->operations->baseTypeName($operation);
+        $resultTypeName = $this->operations->resultTypeName($operation);
+        $resultInputTypeName = $this->operations->inputTypeName($operation);
+
+        $queryName = 'use'.$operationBaseTypeName.'Query';
+        $queryOptionsName = lcfirst($operationBaseTypeName).'QueryOptions';
+        $optionsTypeName = $operationBaseTypeName.'Options';
 
         $imports = [
-            new TypescriptImportStatement(
-                from: "@tanstack/react-query",
-                imports: ['useQuery', 'UseQueryOptions', 'queryOptions'],
+            new TypescriptImport(
+                '@tanstack/react-query',
+                values: ['useQuery', 'queryOptions'],
+                types: ['UseQueryOptions'],
             ),
-            new TypescriptImportStatement(
-                from: Paths::libImport("utils"),
-                imports: ['queryKey'],
-            ),
-            new TypescriptImportStatement(
-                from: Paths::libImport("bindings"),
-                imports: ['throwOnFailure'],
-            ),
+            $this->utils->importFromUtils(values: ['queryKey', 'throwOnFailure']),
         ];
 
-
-
-        if ($operation->inputDefinition === 'null') {
-            return new TypescriptCodeBlock(
+        if (! $operation->hasInput) {
+            return new TypescriptFile(
                 <<<TypeScript
-
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
 export function {$queryOptionsName}(options?: {$optionsTypeName}) {
@@ -83,12 +94,13 @@ export function {$queryOptionsName}(options?: {$optionsTypeName}) {
 export function {$queryName}(queryOptions?: Partial<{$optionsTypeName}>) {
     return useQuery({$queryOptionsName}(queryOptions));
 }
-TypeScript, $imports);
+TypeScript,
+                $imports
+            );
         }
 
-        return new TypescriptCodeBlock(
+        return new TypescriptFile(
             <<<TypeScript
-
 type {$optionsTypeName} = Omit<UseQueryOptions<{$resultTypeName}>, 'queryKey' | 'queryFn'>;
 
 export function {$queryOptionsName}(input: {$resultInputTypeName}, options?: {$optionsTypeName}) {
@@ -106,6 +118,8 @@ export function {$queryOptionsName}(input: {$resultInputTypeName}, options?: {$o
 export function {$queryName}(input: {$resultInputTypeName}, queryOptions?: Partial<{$optionsTypeName}>) {
     return useQuery({$queryOptionsName}(input, queryOptions));
 }
-TypeScript, $imports);
+TypeScript,
+            $imports
+        );
     }
 }

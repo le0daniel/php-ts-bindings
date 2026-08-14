@@ -1,4 +1,6 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Tests\Feature\Mocks;
 
@@ -12,13 +14,11 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Castable;
 final readonly class CreateObjectInput
 {
     /**
-     * @param string $name
-     * @param SquareOptions|CircleOptions $options
+     * @param  SquareOptions|CircleOptions  $options
      */
     public function __construct(
         public string $name,
         public array $options
-    )
-    {
+    ) {
     }
 }

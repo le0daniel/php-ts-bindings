@@ -1,9 +1,11 @@
-<?php declare(strict_types=1);
+<?php
+
+declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Executor\Contracts;
 
-use Le0daniel\PhpTsBindings\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Executor\Data\Context;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 
 /**
  * @template-covariant T of NodeInterface
