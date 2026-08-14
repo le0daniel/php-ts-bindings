@@ -25,7 +25,7 @@ final readonly class ThrowAttributeResolver
     ): array {
         $reflections = [
             new ReflectionMethod($definition->fullyQualifiedClassName, $definition->methodName),
-            ... array_map(static fn ($className) => new ReflectionMethod($className, 'handle'), $definition->middleware),
+            ... array_map(static fn ($className) => new ReflectionMethod($className, 'handle'), $definition->middlewareClassNames()),
         ];
 
         $names = [];

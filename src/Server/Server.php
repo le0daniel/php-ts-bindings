@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Le0daniel\PhpTsBindings\Server;
 
 use Le0daniel\PhpTsBindings\Contracts\Client;
+use Le0daniel\PhpTsBindings\Contracts\ConfigurableMiddleware;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
 use Le0daniel\PhpTsBindings\Contracts\OperationRegistry;
 use Le0daniel\PhpTsBindings\Contracts\ServerAdapter;
 use Le0daniel\PhpTsBindings\Executor\Data\Failure;
@@ -14,8 +16,10 @@ use Le0daniel\PhpTsBindings\Executor\SchemaExecutor;
 use Le0daniel\PhpTsBindings\Server\Adapters\NewInstanceAdapter;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidInputException;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\OperationNotFoundException;
+use Le0daniel\PhpTsBindings\Server\Data\MiddlewareDefinition;
 use Le0daniel\PhpTsBindings\Server\Data\Operation;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\ResolveInfo;
@@ -82,18 +86,13 @@ final readonly class Server
 
     private function execute(Operation $operation, mixed $input, mixed $context, Client $client): RpcError|RpcSuccess
     {
-        $middlewareClassNames = [
-            ...$this->configuration->middleware,
-            ...$operation->definition->middleware,
-        ];
-
         $resolveInfo = new ResolveInfo(
             $operation->definition->namespace,
             $operation->definition->name,
             $operation->definition->type,
             $operation->definition->fullyQualifiedClassName,
             $operation->definition->methodName,
-            $middlewareClassNames,
+            [...$this->configuration->middleware, ...$operation->definition->middlewareClassNames()],
         );
 
         // Resolving happens before the pipeline exists, so it needs its own guard to keep
@@ -101,7 +100,11 @@ final readonly class Server
         // middleware must surface as an RpcError, not as an uncaught exception. Nothing was
         // executing yet, so there is no scope whose declarations could apply.
         try {
-            $middlewares = array_map(fn ($className) => $this->adapter->createMiddleware($className), $middlewareClassNames);
+            // Global middleware carries no config, so it skips the configuration path entirely.
+            $middlewares = [
+                ...array_map($this->adapter->createMiddleware(...), $this->configuration->middleware),
+                ...array_map($this->createMiddleware(...), $operation->definition->middleware),
+            ];
             $controllerClass = $this->adapter->createController($operation->definition->fullyQualifiedClassName);
         } catch (Throwable $throwable) {
             return $this->present($throwable, $resolveInfo);
@@ -167,6 +170,29 @@ final readonly class Server
                 return new RpcSuccess($serializedResult->value, $client, $resolveInfo);
             },
         )->execute($input, $context, $resolveInfo, $client);
+    }
+
+    /**
+     * Discovery already proved the declared class implements ConfigurableMiddleware when config
+     * is present. The check here is about the instance, because the adapter owns instantiation
+     * and may hand out a decorator or container substitute for that class-string.
+     *
+     * configure() runs on a private clone, so even a configure() that mutates $this can never
+     * leak one operation's config into a container-shared instance.
+     */
+    private function createMiddleware(MiddlewareDefinition $definition): MiddlewareContract
+    {
+        $middleware = $this->adapter->createMiddleware($definition->middleware);
+
+        if ($definition->config === []) {
+            return $middleware;
+        }
+
+        if (! $middleware instanceof ConfigurableMiddleware) {
+            throw InvalidMiddlewareException::notConfigurable($middleware::class);
+        }
+
+        return (clone $middleware)->configure($definition->config);
     }
 
     /**

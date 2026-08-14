@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\MiddlewareDefinition;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Tests\Mocks\Errors\ErrorOperations;
 use Tests\Mocks\Errors\RenamingMiddleware;
@@ -21,7 +22,7 @@ function typescriptDefinition(string $methodName = 'declaresThrows', array $midd
         'test',
         'errors',
         // @phpstan-ignore-next-line -- tests intentionally pass unresolvable class names.
-        $middleware,
+        array_map(static fn (string $className): MiddlewareDefinition => new MiddlewareDefinition($className), $middleware),
     );
 }
 

@@ -16,7 +16,7 @@ to all of them. The short version lives in the [README](../README.md); this is t
 |---|---|---|
 | `#[Query(namespace, name)]` | method | A read operation, served over GET. |
 | `#[Command(namespace, name)]` | method | A write operation, served over POST. |
-| `#[Middleware(class)]` | class, method, repeatable | Middleware to run around this operation. |
+| `#[Middleware(class, config?)]` | class, method, repeatable | Middleware to run around this operation, optionally with `array<string, scalar>` config. |
 | `#[Throws(ExceptionClass, type: ?ErrorType, name: ?string)]` | method, repeatable | Declares an exception this method may throw — a named domain error, or an explicit category mapping. |
 | `#[ExposeAs(type: ErrorType, name: ?string)]` | exception class | The exception's own category and name, for every scope that declares it. |
 | `#[Optional]` | property, parameter | The field may be absent from input. |
@@ -151,6 +151,47 @@ exception can surface under a different name per scope — the union carries eve
 Middleware can also attach metadata to whichever result it is holding, with `withMetadata()` /
 `appendMetadata()`. It travels to the client under `__metadata` on both branches — see
 [the envelope](typescript-client.md#the-envelope).
+
+### Configuring middleware per operation
+
+A middleware that implements `ConfigurableMiddleware` can take per-operation config from the
+attribute:
+
+```php
+use Le0daniel\PhpTsBindings\Contracts\ConfigurableMiddleware;
+
+/**
+ * @implements ConfigurableMiddleware<mixed>
+ */
+final readonly class RateLimitMiddleware implements ConfigurableMiddleware
+{
+    public function __construct(public int $limit = 60) {}
+
+    public function configure(array $config): static
+    {
+        return clone($this, ['limit' => (int) ($config['limit'] ?? $this->limit)]);
+    }
+
+    // handle() as usual ...
+}
+```
+
+```php
+#[Command('users')]
+#[Middleware(RateLimitMiddleware::class, config: ['limit' => 10])]
+public function create(array $input): array { /* ... */ }
+```
+
+Config is limited to `array<string, scalar>` on purpose: it is exported into the operations cache
+as plain PHP code, so it must be data, not behavior. Discovery rejects any other shape, and rejects
+config on a middleware that does not implement the contract.
+
+**`configure()` runs on a private clone and returns the configured instance.** The server clones
+whatever the adapter handed out before calling `configure()`, so even a container-shared instance
+can never be polluted: mutable classes may assign to `$this` and return it, `readonly` classes
+return `clone($this, [...])`. The configurable check happens per instance at runtime too, so an
+adapter substituting a non-configurable instance for a configured declaration surfaces as a named
+`RpcError` rather than an undefined-method error.
 
 ## ServerConfiguration
 

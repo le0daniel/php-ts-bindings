@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
+use Le0daniel\PhpTsBindings\Server\Data\MiddlewareDefinition;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Errors\ThrowAttributeResolver;
 use Tests\Mocks\Errors\RecordMissingException;
@@ -39,7 +40,7 @@ function domainErrorNamesFor(string $methodName, array $middleware = []): array
         'test',
         'errors',
         // @phpstan-ignore-next-line -- tests intentionally pass classes that only carry a handle method.
-        $middleware,
+        array_map(static fn (string $className): MiddlewareDefinition => new MiddlewareDefinition($className), $middleware),
     ));
 }
 

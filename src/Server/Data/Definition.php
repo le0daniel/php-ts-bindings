@@ -13,7 +13,7 @@ final readonly class Definition implements ExportableToPhpCode
 {
     /**
      * @param  class-string<object>  $fullyQualifiedClassName
-     * @param  list<class-string<MiddlewareContract<mixed>>>  $middleware
+     * @param  list<MiddlewareDefinition>  $middleware
      */
     public function __construct(
         public OperationType $type,
@@ -28,6 +28,14 @@ final readonly class Definition implements ExportableToPhpCode
     public function fullyQualifiedName(): string
     {
         return "{$this->namespace}.{$this->name}";
+    }
+
+    /**
+     * @return list<class-string<MiddlewareContract<mixed>>>
+     */
+    public function middlewareClassNames(): array
+    {
+        return array_map(static fn (MiddlewareDefinition $middleware): string => $middleware->middleware, $this->middleware);
     }
 
     #[Override]

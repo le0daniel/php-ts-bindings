@@ -9,9 +9,11 @@ use Le0daniel\PhpTsBindings\Contracts\Attributes\Command;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Middleware;
 use Le0daniel\PhpTsBindings\Contracts\Attributes\Query;
 use Le0daniel\PhpTsBindings\Contracts\Client;
-use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
+use Le0daniel\PhpTsBindings\Contracts\ConfigurableMiddleware;
 use Le0daniel\PhpTsBindings\Executor\Exceptions\SchemaException;
 use Le0daniel\PhpTsBindings\Server\Data\Definition;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
+use Le0daniel\PhpTsBindings\Server\Data\MiddlewareDefinition;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use ReflectionClass;
 use ReflectionMethod;
@@ -154,10 +156,18 @@ final class OperationDiscovery
             ...$method->getAttributes(Middleware::class),
         ];
 
-        /** @var list<class-string<MiddlewareContract<mixed>>> $middlewares */
+        /** @var list<MiddlewareDefinition> $middlewares */
         $middlewares = [];
         foreach ($middlewareAttributes as $middlewareAttribute) {
-            $middlewares[] = $middlewareAttribute->newInstance()->middleware;
+            $middleware = $middlewareAttribute->newInstance();
+
+            if ($middleware->config !== [] && ! is_a($middleware->middleware, ConfigurableMiddleware::class, true)) {
+                throw InvalidMiddlewareException::notConfigurable($middleware->middleware);
+            }
+
+            self::assertValidConfig($middleware->middleware, $middleware->config);
+
+            $middlewares[] = new MiddlewareDefinition($middleware->middleware, $middleware->config);
         }
 
         return new Definition(
@@ -168,5 +178,21 @@ final class OperationDiscovery
             $attribute->namespaceAsString() ?? self::DEFAULT_NAMESPACE,
             $middlewares,
         );
+    }
+
+    /**
+     * The attribute's @param promises array<string, scalar>, but discovery reads arbitrary code
+     * that may never have run through PHPStan - so the promise is verified here, where
+     * declarations enter the system. The parameter type admits what can actually arrive.
+     *
+     * @param  array<array-key, mixed>  $config
+     */
+    private static function assertValidConfig(string $className, array $config): void
+    {
+        foreach ($config as $key => $value) {
+            if (! is_string($key) || ! is_scalar($value)) {
+                throw InvalidMiddlewareException::invalidConfig($className, (string) $key);
+            }
+        }
     }
 }

@@ -12,10 +12,13 @@ use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
  * #[Throws] is repeated: they apply outermost first, and every middleware declared on the class
  * runs outside every middleware declared on the method.
  *
+ * Config requires the middleware to implement ConfigurableMiddleware and is limited to
+ * array<string, scalar> - it is exported into the operations cache as plain PHP code.
+ *
  * ```php
  * #[Command('users')]
  * #[Middleware(AuthMiddleware::class)]
- * #[Middleware(NameCheckingMiddleware::class)]
+ * #[Middleware(RateLimitMiddleware::class, config: ['limit' => 10])]
  * public function create(array $input): array { }
  * ```
  */
@@ -24,9 +27,11 @@ final readonly class Middleware
 {
     /**
      * @param  class-string<MiddlewareContract<mixed>>  $middleware
+     * @param  array<string, scalar>  $config
      */
     public function __construct(
         public string $middleware,
+        public array $config = [],
     ) {
     }
 }

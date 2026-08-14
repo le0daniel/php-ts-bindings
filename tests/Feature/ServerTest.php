@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use Le0daniel\PhpTsBindings\CodeGen\Utils\ErrorTypescript;
+use Le0daniel\PhpTsBindings\Contracts\MiddlewareContract;
+use Le0daniel\PhpTsBindings\Contracts\ServerAdapter;
 use Le0daniel\PhpTsBindings\Server\Client\NullClient;
 use Le0daniel\PhpTsBindings\Server\Data\ErrorType;
+use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidMiddlewareException;
 use Le0daniel\PhpTsBindings\Server\Data\Exceptions\InvalidOutputException;
 use Le0daniel\PhpTsBindings\Server\Data\OperationType;
 use Le0daniel\PhpTsBindings\Server\Data\RpcError;
@@ -15,7 +18,10 @@ use Le0daniel\PhpTsBindings\Server\Operations\CachedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Operations\EagerlyLoadedOperationRegistry;
 use Le0daniel\PhpTsBindings\Server\Server;
 use Tests\Feature\Mocks\GloballyThrowingMiddleware;
+use Tests\Feature\Mocks\MutatingPrefixMiddleware;
 use Tests\Feature\Mocks\NotAMiddleware;
+use Tests\Feature\Operations\NameCheckingMiddleware;
+use Tests\Feature\Operations\PrefixNameMiddleware;
 
 function executeOperation(string $name, mixed $input): RpcSuccess|RpcError
 {
@@ -212,4 +218,100 @@ test('a record whose keys run 0..n reaches the client as a JSON object', functio
         ->and($body)->toContain('"tags":["a","b"]')
         ->and($body)->toContain('"empty":{}')
         ->and($body)->not->toContain('"empty":[');
+});
+
+test('a configured middleware receives its config, identically cached and uncached', function () {
+    $result = executeOperation('configured.greet', ['name' => 'Ada']);
+
+    expect($result)->toBeInstanceOf(RpcSuccess::class)
+        ->and($result->data)->toEqual((object) ['message' => 'Hello Dr. Ada']);
+});
+
+test('the same middleware without config runs with its constructor defaults', function () {
+    $result = executeOperation('configured.greetPlain', ['name' => 'Ada']);
+
+    expect($result)->toBeInstanceOf(RpcSuccess::class)
+        ->and($result->data)->toEqual((object) ['message' => 'Hello Ada']);
+});
+
+test('configure returns a clone, so a container-shared middleware instance stays pristine', function () {
+    $shared = new PrefixNameMiddleware();
+    $server = new Server(
+        EagerlyLoadedOperationRegistry::eagerlyDiscover(__DIR__.'/Operations', keyGenerator: new PlainlyExposedKeyGenerator()),
+        adapter: new readonly class ($shared) implements ServerAdapter {
+            public function __construct(private PrefixNameMiddleware $shared)
+            {
+            }
+
+            public function createMiddleware(string $className): MiddlewareContract
+            {
+                return $this->shared;
+            }
+
+            public function createController(string $className): object
+            {
+                return new $className();
+            }
+        },
+    );
+
+    $result = $server->command('configured.greet', ['name' => 'Ada'], null, new NullClient());
+
+    expect($result)->toBeInstanceOf(RpcSuccess::class)
+        ->and($result->data)->toEqual((object) ['message' => 'Hello Dr. Ada'])
+        ->and($shared->prefix)->toBe('');
+});
+
+test('a mutating configure() cannot pollute a container-shared instance - the server clones first', function () {
+    $shared = new MutatingPrefixMiddleware();
+    $server = new Server(
+        EagerlyLoadedOperationRegistry::eagerlyDiscover(__DIR__.'/Operations', keyGenerator: new PlainlyExposedKeyGenerator()),
+        adapter: new readonly class ($shared) implements ServerAdapter {
+            public function __construct(private MutatingPrefixMiddleware $shared)
+            {
+            }
+
+            public function createMiddleware(string $className): MiddlewareContract
+            {
+                return $this->shared;
+            }
+
+            public function createController(string $className): object
+            {
+                return new $className();
+            }
+        },
+    );
+
+    $result = $server->command('configured.greet', ['name' => 'Ada'], null, new NullClient());
+
+    expect($result)->toBeInstanceOf(RpcSuccess::class)
+        ->and($result->data)->toEqual((object) ['message' => 'Hello Dr. Ada'])
+        ->and($shared->prefix)->toBe('');
+});
+
+test('config with an adapter-substituted instance that is not configurable yields an RpcError', function () {
+    // Discovery approved the declared class, but the adapter owns instantiation and may hand out
+    // a substitute or decorator - the instance is what has to be configurable.
+    $server = new Server(
+        EagerlyLoadedOperationRegistry::eagerlyDiscover(__DIR__.'/Operations', keyGenerator: new PlainlyExposedKeyGenerator()),
+        adapter: new readonly class () implements ServerAdapter {
+            public function createMiddleware(string $className): MiddlewareContract
+            {
+                return new NameCheckingMiddleware();
+            }
+
+            public function createController(string $className): object
+            {
+                return new $className();
+            }
+        },
+    );
+
+    $result = $server->command('configured.greet', ['name' => 'Ada'], null, new NullClient());
+
+    expect($result)->toBeInstanceOf(RpcError::class)
+        ->and($result->type)->toBe(ErrorType::INTERNAL_ERROR)
+        ->and($result->cause)->toBeInstanceOf(InvalidMiddlewareException::class)
+        ->and($result->cause->getMessage())->toContain(NameCheckingMiddleware::class);
 });

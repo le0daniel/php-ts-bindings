@@ -42,7 +42,7 @@ final class ListCommand extends Command
                 implode(', ', $queryRoute->methods()),
                 $operation->definition->fullyQualifiedClassName.'@'.$operation->definition->methodName,
                 implode(', ', $queryRoute->gatherMiddleware()),
-                implode(', ', $operation->definition->middleware),
+                implode(', ', $operation->definition->middlewareClassNames()),
             ],
             OperationType::COMMAND => [
                 $operation->definition->fullyQualifiedName(),
@@ -50,7 +50,7 @@ final class ListCommand extends Command
                 implode(', ', $commandRoute->methods()),
                 $operation->definition->fullyQualifiedClassName.'@'.$operation->definition->methodName,
                 implode(', ', $commandRoute->gatherMiddleware()),
-                implode(', ', $operation->definition->middleware),
+                implode(', ', $operation->definition->middlewareClassNames()),
             ],
         }, $server->registry->all()));
 
