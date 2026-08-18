@@ -635,6 +635,25 @@ test('Test date time literals', function () {
     compareToOptimizedAst($node);
 });
 
+/**
+ * The interface is accepted as a type, but nothing can be instantiated from it:
+ * DateTimeInterface::createFromInterface() does not exist, so hydrating it used to throw and
+ * degrade into an internal error - a 500 for a value the client got right. It resolves to the
+ * immutable implementation instead, which is what the PHPStan extension already claims it is.
+ */
+test('a bare DateTimeInterface hydrates into a DateTimeImmutable', function () {
+    $node = new TypeParser()->parse('\\'.\DateTimeInterface::class);
+
+    expect($node)->toBeInstanceOf(DateTimeNode::class)
+        ->and($node->dateTimeClass)->toBe(\DateTimeImmutable::class);
+
+    compareToOptimizedAst($node);
+
+    $result = executeParse('\\'.\DateTimeInterface::class, '2026-08-18T11:00:32.778Z');
+    expect($result)->toBeSuccess()
+        ->and($result->value)->toBeInstanceOf(\DateTimeImmutable::class);
+});
+
 test('Test date time with a namespace', function () {
     $parser = new TypeParser();
 

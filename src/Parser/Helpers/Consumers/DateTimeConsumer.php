@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Le0daniel\PhpTsBindings\Parser\Helpers\Consumers;
 
+use DateTimeImmutable;
 use DateTimeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Contracts\TypeConsumer;
@@ -34,6 +35,12 @@ final readonly class DateTimeConsumer implements TypeConsumer
         $className = $state->context->toFullyQualifiedClassName($state->current()->value);
         $state->advance();
 
-        return new DateTimeNode($className);
+        // The interface itself is a valid type to declare but nothing can be hydrated from it:
+        // DateTimeInterface::createFromInterface() does not exist. It stands for the immutable
+        // implementation, which is what the PHPStan extension resolves it to as well. Every
+        // concrete class is kept as written, so `DateTime` stays mutable.
+        return new DateTimeNode(
+            $className === DateTimeInterface::class ? DateTimeImmutable::class : $className,
+        );
     }
 }
