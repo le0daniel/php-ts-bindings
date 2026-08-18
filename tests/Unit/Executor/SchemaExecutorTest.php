@@ -139,7 +139,7 @@ test('serialize success', function (string $type, mixed $value, mixed $expected)
     ['string[]|null', null, null],
 
     ['\DateTime|null', null, null],
-    ['\DateTime|null', DateTimeImmutable::createFromFormat('Y-m-d H:i:s', '2025-09-10 12:09:01'), '2025-09-10T12:09:01+00:00'],
+    ['\DateTime|null', DateTimeImmutable::createFromFormat('Y-m-d H:i:s', '2025-09-10 12:09:01'), '2025-09-10T12:09:01.000+00:00'],
 
     // Accept stringable values for output serialization
     ['string', new class () implements Stringable {
@@ -447,7 +447,8 @@ test('DateTimeString parses a string into a DateTimeImmutable', function (string
         ->and($result->value)->toBeInstanceOf(DateTimeImmutable::class)
         ->and($result->value->format('Y-m-d H:i:s.u P'))->toBe($expected);
 })->with([
-    'default ATOM format' => ['DateTimeString', '2025-09-10T12:09:01+00:00', '2025-09-10 12:09:01.000000 +00:00'],
+    // The shape that used to be the only accepted one. Kept as a backwards compatibility guard.
+    'atom, the former default' => ['DateTimeString', '2025-09-10T12:09:01+00:00', '2025-09-10 12:09:01.000000 +00:00'],
 
     // Fields the format does not parse are zeroed out rather than inherited from the
     // current clock, so the result is deterministic.
@@ -481,15 +482,154 @@ test('DateTimeString rejects input that does not match the format exactly', func
     'an already hydrated date' => ["DateTimeString<'Y-m-d'>", new DateTimeImmutable('2025-01-01')],
 ]);
 
-test('the ATOM default does not accept a Z suffix', function (string $type, string $value) {
-    // ATOM's P specifier renders UTC as +00:00, so a Z suffix no longer round trips.
-    // Clients sending Date.toISOString() output need DateTimeString<'Y-m-d\TH:i:sp'>.
+/**
+ * Without a written format the type is ISO-8601, not one spelling of it. `Date.toISOString()` is
+ * what actually crosses the wire from a browser, so it is what has to arrive intact.
+ */
+test('the default DateTime accepts every ISO-8601 shape a client sends', function (string $type, string $value, string $expected) {
+    $result = executeParse($type, $value);
+
+    expect($result)->toBeSuccess()
+        ->and($result->value)->toBeInstanceOf(DateTimeImmutable::class)
+        ->and($result->value->format('Y-m-d H:i:s.u P'))->toBe($expected);
+})->with([
+    // The whole point of the change.
+    'js toISOString' => ['DateTimeString', '2026-08-18T11:00:32.778Z', '2026-08-18 11:00:32.778000 +00:00'],
+    'js toISOString on the bare class' => ['\DateTimeImmutable', '2026-08-18T11:00:32.778Z', '2026-08-18 11:00:32.778000 +00:00'],
+    'zeroed milliseconds' => ['DateTimeString', '2026-08-18T11:00:32.000Z', '2026-08-18 11:00:32.000000 +00:00'],
+
+    // Milliseconds with a real offset, and with the +00:00 spelling of UTC that is what
+    // serializeValue() writes back.
+    'milliseconds with an offset' => ['DateTimeString', '2026-08-18T11:00:32.778+02:00', '2026-08-18 11:00:32.778000 +02:00'],
+    'milliseconds with an explicit +00:00' => ['DateTimeString', '2026-08-18T11:00:32.778+00:00', '2026-08-18 11:00:32.778000 +00:00'],
+
+    'no fraction with a Z' => ['DateTimeString', '2026-08-18T11:00:32Z', '2026-08-18 11:00:32.000000 +00:00'],
+    'no fraction with an offset' => ['DateTimeString', '2026-08-18T11:00:32+02:00', '2026-08-18 11:00:32.000000 +02:00'],
+    'a negative offset' => ['DateTimeString', '2026-08-18T11:00:32-05:00', '2026-08-18 11:00:32.000000 -05:00'],
+
+    // Backwards compatible: ATOM used to be the only accepted shape and is still accepted.
+    'atom stays accepted' => ['DateTimeString', '2025-09-10T12:09:01+00:00', '2025-09-10 12:09:01.000000 +00:00'],
+    'atom on the bare class' => ['\DateTimeImmutable', '2025-09-10T12:09:01+00:00', '2025-09-10 12:09:01.000000 +00:00'],
+
+    'a leap day' => ['DateTimeString', '2024-02-29T00:00:00Z', '2024-02-29 00:00:00.000000 +00:00'],
+]);
+
+/**
+ * More accepted spellings is not the same as a looser check: every candidate is still held to the
+ * same re-format round trip, so everything that was nonsense before is still nonsense.
+ */
+test('the default DateTime still rejects everything that is not ISO-8601', function (mixed $value) {
+    expect(executeParse('DateTimeString', $value))->toBeFailure('validation.invalid_type');
+})->with([
+    'a two digit fraction' => ['2026-08-18T11:00:32.77Z'],
+
+    // Six digit microseconds are deliberately out of the accepted set. Clients that send them
+    // write DateTimeString<'Y-m-d\TH:i:s.up'>.
+    'microseconds' => ['2026-08-18T11:00:32.778123Z'],
+
+    'a fraction with no zone' => ['2026-08-18T11:00:32.778'],
+    'no zone at all' => ['2026-08-18T11:00:32'],
+    'a lowercase z' => ['2026-08-18T11:00:32z'],
+    'an offset without the colon' => ['2026-08-18T11:00:32.778+0200'],
+    'a space instead of the T' => ['2026-08-18 11:00:32Z'],
+    'a date with no time' => ['2026-08-18'],
+
+    'a month and day out of range' => ['2026-13-45T11:00:32Z'],
+    'an hour out of range' => ['2026-08-18T25:00:32Z'],
+    'a day that does not exist that year' => ['2026-02-29T00:00:00Z'],
+    'a rolling over day' => ['2026-02-30T00:00:00Z'],
+    'single digit month and day' => ['2026-8-18T11:00:32Z'],
+
+    'trailing whitespace' => ['2026-08-18T11:00:32.778Z '],
+    'leading whitespace' => [' 2026-08-18T11:00:32Z'],
+    'a doubled zone' => ['2026-08-18T11:00:32.778ZZ'],
+    'an empty fraction' => ['2026-08-18T11:00:32.Z'],
+
+    'not a date' => ['not-a-date'],
+    'empty string' => [''],
+    'an int' => [123],
+    'null' => [null],
+    'an already hydrated date' => [new DateTimeImmutable('2026-08-18')],
+]);
+
+/**
+ * Lenient in, one shape out. Whatever spelling arrives, exactly one leaves, so the generated
+ * TypeScript `string` has a single meaning and anything written here parses back in.
+ */
+test('the default DateTime canonicalises any accepted shape to RFC3339_EXTENDED', function (string $input, string $expected) {
+    $parsed = executeParse('DateTimeString', $input);
+    expect($parsed)->toBeSuccess();
+
+    $serialized = executeSerialize('DateTimeString', $parsed->value);
+    expect($serialized)->toBeSuccess()->and($serialized->value)->toBe($expected);
+})->with([
+    'atom' => ['2026-08-18T11:00:32+00:00', '2026-08-18T11:00:32.000+00:00'],
+    'a Z' => ['2026-08-18T11:00:32Z', '2026-08-18T11:00:32.000+00:00'],
+    'the js shape' => ['2026-08-18T11:00:32.778Z', '2026-08-18T11:00:32.778+00:00'],
+    'already canonical' => ['2026-08-18T11:00:32.778+00:00', '2026-08-18T11:00:32.778+00:00'],
+
+    // The offset survives; it is not normalised to UTC on the way through.
+    'an offset' => ['2026-08-18T11:00:32.778+02:00', '2026-08-18T11:00:32.778+02:00'],
+]);
+
+test('a mutable DateTime takes the same ISO-8601 default', function (string $value) {
+    $result = executeParse('\DateTime', $value);
+
+    expect($result)->toBeSuccess()
+        ->and($result->value)->toBeInstanceOf(\DateTime::class)
+        ->and($result->value)->not->toBeInstanceOf(DateTimeImmutable::class)
+        ->and($result->value->format('Y-m-d H:i:s.u P'))->toBe('2026-08-18 11:00:32.778000 +00:00');
+})->with([
+    'js toISOString' => ['2026-08-18T11:00:32.778Z'],
+    'the canonical output shape' => ['2026-08-18T11:00:32.778+00:00'],
+]);
+
+/**
+ * Writing the format down is a contract, and a contract is not widened behind its author's back.
+ * This is the whole reason the default is a null sentinel rather than an overloaded ATOM.
+ */
+test('a written format stays exact, including one that spells out ATOM', function (string $type, string $value) {
     expect(executeParse($type, $value))->toBeFailure('validation.invalid_type');
 })->with([
-    'utility type' => ['DateTimeString', '2025-09-10T12:09:01Z'],
-    'class name' => ['\DateTimeImmutable', '2025-09-10T12:09:01Z'],
-    'with milliseconds' => ['DateTimeString', '2025-09-10T12:09:01.000Z'],
+    'explicit ATOM refuses a Z' => ["DateTimeString<'Y-m-d\\TH:i:sP'>", '2026-08-18T11:00:32Z'],
+    'explicit ATOM refuses milliseconds' => ["DateTimeString<'Y-m-d\\TH:i:sP'>", '2026-08-18T11:00:32.778Z'],
+    'a millisecond format refuses a bare second' => ["DateTimeString<'Y-m-d\\TH:i:s.vp'>", '2026-08-18T11:00:32Z'],
+    'a date only format refuses a full timestamp' => ["DateTimeString<'Y-m-d'>", '2026-08-18T11:00:32.778Z'],
 ]);
+
+test('a written format still accepts exactly what it spells out', function (string $type, string $value) {
+    expect(executeParse($type, $value))->toBeSuccess();
+})->with([
+    'explicit ATOM takes ATOM' => ["DateTimeString<'Y-m-d\\TH:i:sP'>", '2026-08-18T11:00:32+00:00'],
+    'a millisecond format takes the js shape' => ["DateTimeString<'Y-m-d\\TH:i:s.vp'>", '2026-08-18T11:00:32.778Z'],
+    'a microsecond format takes six digits' => ["DateTimeString<'Y-m-d\\TH:i:s.up'>", '2026-08-18T11:00:32.778123Z'],
+]);
+
+test('a written millisecond format round trips the js shape untouched', function () {
+    $type = "DateTimeString<'Y-m-d\\TH:i:s.vp'>";
+    $parsed = executeParse($type, '2026-08-18T11:00:32.778Z');
+    expect($parsed)->toBeSuccess();
+
+    expect(executeSerialize($type, $parsed->value)->value)->toBe('2026-08-18T11:00:32.778Z');
+});
+
+/**
+ * The default's message names ISO-8601 and shows examples rather than listing PHP format strings at
+ * a JavaScript developer. Examples in an error message rot silently, so they are asserted to be
+ * things the node actually accepts.
+ */
+test('the default DateTime error message only names shapes it accepts', function () {
+    $failure = executeParse('DateTimeString', 'nope');
+    expect($failure)->toBeFailure('validation.invalid_type');
+
+    $message = $failure->issues->allFlat()[0]->debugInfo['message'];
+    preg_match_all("/'([^']+)'/", (string) $message, $matches);
+
+    expect($matches[1])->not->toBeEmpty();
+    foreach ($matches[1] as $example) {
+        expect(executeParse('DateTimeString', $example))->toBeSuccess();
+    }
+});
 
 test('DateTimeString serializes a date back to its format', function (string $type, mixed $value, string $expected) {
     $result = executeSerialize($type, $value);
@@ -498,7 +638,7 @@ test('DateTimeString serializes a date back to its format', function (string $ty
 })->with([
     'immutable' => ["DateTimeString<'Y-m-d'>", new DateTimeImmutable('2025-01-01 10:11:12'), '2025-01-01'],
     'mutable' => ["DateTimeString<'Y-m-d'>", new \DateTime('2025-01-01 10:11:12'), '2025-01-01'],
-    'default ATOM format' => ['DateTimeString', new DateTimeImmutable('2025-09-10 12:09:01'), '2025-09-10T12:09:01+00:00'],
+    'default RFC3339_EXTENDED format' => ['DateTimeString', new DateTimeImmutable('2025-09-10 12:09:01'), '2025-09-10T12:09:01.000+00:00'],
     'custom format' => ["DateTimeString<'d.m.Y H:i'>", new DateTimeImmutable('2025-02-01 08:30:00'), '01.02.2025 08:30'],
 ]);
 
@@ -518,7 +658,9 @@ test('DateTimeString round trips through parse and serialize', function (string 
     expect(executeSerialize($type, $parsed->value))->toBeSuccess()
         ->and(executeSerialize($type, $parsed->value)->value)->toBe($value);
 })->with([
-    ['DateTimeString', '2025-09-10T12:09:01+00:00'],
+    // The default only round trips its own output shape; every other accepted shape canonicalises
+    // instead, which the canonicalisation test covers.
+    ['DateTimeString', '2025-09-10T12:09:01.000+00:00'],
     ["DateTimeString<'Y-m-d'>", '2025-01-01'],
     ["DateTimeString<'d.m.Y H:i'>", '01.02.2025 08:30'],
     ["DateTimeString<'Y-m-d\\TH:i:sp'>", '2025-09-10T12:09:01Z'],

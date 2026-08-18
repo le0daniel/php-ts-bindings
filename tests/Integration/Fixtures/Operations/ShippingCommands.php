@@ -42,7 +42,7 @@ final class ShippingCommands
 
     /**
      * An undiscriminated union of castable classes with disjoint properties, next to a mutable
-     * DateTime output (ATOM) and a DateTimeString with a non-default format.
+     * DateTime output (the ISO-8601 default) and a DateTimeString with a written format.
      *
      * @param  array{destination: PickupPoint|HomeDelivery, window: DateTimeString<'d.m.Y H:i'>}  $input
      * @return array{destination: PickupPoint|HomeDelivery, eta: DateTime, window: DateTimeString<'d.m.Y H:i'>}

@@ -236,7 +236,8 @@ resolved by the bundled PHPStan extension too, so static analysis agrees with th
 | `Omit<T, 'a'\|'b'>` | struct without those properties | `{…}` |
 | `BrandedString<'name'>` | `string` | `Name`, declared as `(string & Brand<"name">)` |
 | `BrandedInt<'name'>` | `int` | `Name`, declared as `(number & Brand<"name">)` |
-| `DateTimeString<'format'>` | `DateTimeImmutable` | `string` |
+| `DateTimeString` | `DateTimeImmutable` | `string` — ISO-8601 |
+| `DateTimeString<'format'>` | `DateTimeImmutable` | `string` — exactly that format |
 
 `BrandedString` / `BrandedInt` are the shorthand for brand *and* name in one, because a docblock
 cannot carry attributes. The same tag used twice collects one alias; the same tag resolving to two
@@ -245,12 +246,12 @@ different definitions fails the run.
 ## DateTimeString
 
 `DateTimeString` is a date that travels as a string and arrives as a `DateTimeImmutable`. The
-optional generic is the [PHP date format](https://www.php.net/manual/en/datetime.format.php); it
-defaults to `DateTimeInterface::ATOM`.
+optional generic is the [PHP date format](https://www.php.net/manual/en/datetime.format.php).
+**Without it the type is ISO-8601**, not one particular spelling of it.
 
 ```php
 /**
- * @param DateTimeString $createdAt          // 2025-09-10T12:09:01+00:00
+ * @param DateTimeString $createdAt          // 2026-08-18T11:00:32.778Z
  * @param DateTimeString<'Y-m-d'> $birthday  // 2025-01-01
  */
 public function __construct(
@@ -259,15 +260,35 @@ public function __construct(
 ) {}
 ```
 
-Both are `string` in TypeScript. On input the string is parsed with the format, on output the
-`DateTimeInterface` is formatted back with it.
+Both are `string` in TypeScript. On input the string is parsed, on output the `DateTimeInterface` is
+formatted back.
+
+### The ISO-8601 default
+
+Four shapes are accepted on input — a `Z` or a real offset, with or without milliseconds:
+
+```
+2026-08-18T11:00:32.778Z        // Date.toISOString(), the shape a browser sends
+2026-08-18T11:00:32.778+02:00
+2026-08-18T11:00:32Z
+2026-08-18T11:00:32+00:00       // DateTimeInterface::ATOM
+```
+
+Output is always `DateTimeInterface::RFC3339_EXTENDED` — `2026-08-18T11:00:32.778+00:00`. Whatever
+spelling arrives, exactly one leaves, so the generated TypeScript `string` has a single meaning and
+`new Date(value)` reads it on the JavaScript side either way.
+
+This applies to `DateTimeImmutable`, `DateTime` and any other `DateTimeInterface` written directly
+as a type, which is what makes `Date.toISOString()` work without configuring anything.
 
 **Prefer single quotes for the format.** Date formats escape literal characters with a backslash,
 and the parser applies PHP's own string semantics: single quotes leave `\T` alone, while double
 quotes resolve the full escape set. `"H:i\t"` is a tab, `'H:i\t'` is an escaped `t`.
 
-**Parsing is strict.** The value has to match the format exactly — the parsed date is formatted
-again and compared to the input. Fields the format does not cover are zeroed rather than taken
+**Parsing is strict, in both modes.** The value has to match a format exactly — the parsed date is
+formatted again and compared to the input. The default is a *set of exact formats*, never a fuzzy
+parse: a two digit fraction, a missing zone, a lowercase `z`, `+0200` without the colon or a space
+instead of the `T` are all rejected. Fields a format does not cover are zeroed rather than taken
 from the current clock, so `DateTimeString<'Y-m-d'>` gives you midnight, not "today at 14:32".
 
 ```
@@ -278,15 +299,21 @@ DateTimeString<'Y-m-d'>
   '2025-01-01T10:00:00'  // rejected, trailing data
 ```
 
-This also applies to `DateTimeImmutable`, `DateTime` and any other `DateTimeInterface` written
-directly as a type.
+Two consequences of the default worth knowing.
 
-One consequence worth knowing: ATOM renders UTC as `+00:00`, so the `Z` suffix that
-`Date.toISOString()` produces is *not* accepted by the default. Use the lowercase `p` specifier,
-which renders UTC as `Z`:
+**Six digit microseconds are out of the set.** `2026-08-18T11:00:32.778123Z` is rejected, and
+precision beyond milliseconds is truncated on output. Write the format to keep it:
 
 ```php
-/** @param DateTimeString<'Y-m-d\TH:i:sp'> $when */   // accepts 2025-09-10T12:09:01Z
+/** @param DateTimeString<'Y-m-d\TH:i:s.up'> $when */   // 2026-08-18T11:00:32.778123Z, both ways
+```
+
+**Writing a format opts out of the lenient set** — that is how you get a strict contract back. The
+lowercase `p` specifier renders UTC as `Z` where uppercase `P` renders it as `+00:00`, so:
+
+```php
+/** @param DateTimeString<'Y-m-d\TH:i:sP'> $when */    // ATOM only: no Z, no milliseconds
+/** @param DateTimeString<'Y-m-d\TH:i:s.vp'> $when */  // 2026-08-18T11:00:32.778Z, both ways
 ```
 
 ## Value objects

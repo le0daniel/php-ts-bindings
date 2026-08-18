@@ -12,7 +12,7 @@ test('getOrder serializes the full nested order exactly', function () {
     expect(IntegrationHarness::queryJson('orders.getOrder', '{"orderNumber":"ORD-1001"}'))->toBe(json_encode([
         'success' => true,
         'data' => [
-            'createdAt' => '2024-05-01T12:00:00+00:00',
+            'createdAt' => '2024-05-01T12:00:00.000+00:00',
             'currency' => 'chf',
             'items' => [
                 ['lineTotal' => ['amount' => 1000, 'currency' => 'chf'], 'quantity' => 2, 'sku' => 'ABC-123'],

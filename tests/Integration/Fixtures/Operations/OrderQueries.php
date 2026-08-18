@@ -23,7 +23,7 @@ use Tests\Integration\Fixtures\Types\Sku;
 final class OrderQueries
 {
     /**
-     * Deep nesting: castable output classes, an ATOM DateTimeImmutable, a value-object enum, a
+     * Deep nesting: castable output classes, a default DateTimeImmutable, a value-object enum, a
      * unit enum and a non-empty list, all in one response.
      *
      * @param  array{orderNumber: non-empty-string}  $input

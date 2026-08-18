@@ -450,6 +450,11 @@ above. An enum travels as its **case names**, never its backing values — `"OPE
 unless the class implements `StringValueObject`; [the decisions](#the-decisions) has the reasoning
 for both.
 
+A bare `DateTimeImmutable` is ISO-8601 in, `RFC3339_EXTENDED` out: it accepts what
+`Date.toISOString()` produces and writes back `2026-08-18T11:00:32.778+00:00`. Write a format —
+`DateTimeString<'Y-m-d'>` — for an exact contract instead; see
+[DateTimeString](docs/types.md#datetimestring).
+
 Local and imported types work too: `@phpstan-type` and `@phpstan-import-type` are resolved against
 the declaring class, as are `use` statements and generics.
 

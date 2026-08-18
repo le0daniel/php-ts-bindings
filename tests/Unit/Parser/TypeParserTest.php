@@ -944,15 +944,39 @@ test('a questionmark union accepts null', function () {
     compareToOptimizedAst($node);
 });
 
-test('DateTimeString without a format defaults to ATOM', function () {
+test('DateTimeString without a format carries no format', function () {
     $parser = new TypeParser();
     $node = $parser->parse('DateTimeString');
 
+    // null is the ISO-8601 mode: a set of exact shapes in, RFC3339_EXTENDED out. A format is only
+    // ever stored here when someone wrote one.
     expect($node)->toBeInstanceOf(DateTimeNode::class)
         ->and($node->dateTimeClass)->toBe(\DateTimeImmutable::class)
-        ->and($node->format)->toBe(\DateTimeInterface::ATOM);
+        ->and($node->format)->toBeNull();
 
     compareToOptimizedAst($node);
+});
+
+/**
+ * The invariant in NodeInterface: anything that changes runtime behaviour is part of
+ * exportPhpCode(). No format and an explicit ATOM parse differently now, so they must not collapse
+ * into one interned registry entry - the optimizer hashes exactly this string.
+ */
+test('a written ATOM is a different node than no format at all', function () {
+    $parser = new TypeParser();
+
+    $default = $parser->parse('DateTimeString');
+    $explicit = $parser->parse("DateTimeString<'Y-m-d\\TH:i:sP'>");
+
+    expect($default->format)->toBeNull()
+        ->and($explicit->format)->toBe(\DateTimeInterface::ATOM)
+        ->and($default->exportPhpCode())->not->toBe($explicit->exportPhpCode())
+        ->and($default->exportPhpCode())->not->toContain('Y-m-d')
+        ->and($explicit->exportPhpCode())->toContain('Y-m-d')
+        ->and((string) $default)->not->toBe((string) $explicit);
+
+    compareToOptimizedAst($default);
+    compareToOptimizedAst($explicit);
 });
 
 test('DateTimeString without a format is indistinguishable from DateTimeImmutable', function () {

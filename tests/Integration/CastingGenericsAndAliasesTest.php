@@ -21,17 +21,17 @@ test('a virtual set-only property is required on the input side', function () {
 
 test('a union of castables resolves the first arm by its properties', function () {
     expect(IntegrationHarness::commandJson('shipping.scheduleDelivery', '{"destination":{"locationCode":"ZH-01"},"window":"01.07.2024 08:00"}'))
-        ->toBe('{"success":true,"data":{"destination":{"locationCode":"ZH-01"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
+        ->toBe('{"success":true,"data":{"destination":{"locationCode":"ZH-01"},"eta":"2024-07-01T08:00:00.000+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
 });
 
 test('a union of castables resolves the second arm by its properties', function () {
     expect(IntegrationHarness::commandJson('shipping.scheduleDelivery', '{"destination":{"street":"Seeweg 2","zip":"8001"},"window":"01.07.2024 08:00"}'))
-        ->toBe('{"success":true,"data":{"destination":{"street":"Seeweg 2","zip":"8001"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
+        ->toBe('{"success":true,"data":{"destination":{"street":"Seeweg 2","zip":"8001"},"eta":"2024-07-01T08:00:00.000+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
 });
 
 test('first-match probing wins on a shape satisfying both arms and drops unknown keys', function () {
     expect(IntegrationHarness::commandJson('shipping.scheduleDelivery', '{"destination":{"locationCode":"x","street":"y","zip":"z"},"window":"01.07.2024 08:00"}'))
-        ->toBe('{"success":true,"data":{"destination":{"locationCode":"x"},"eta":"2024-07-01T08:00:00+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
+        ->toBe('{"success":true,"data":{"destination":{"locationCode":"x"},"eta":"2024-07-01T08:00:00.000+00:00","window":"01.07.2024 08:00"},"__metadata":{"key":"wow"}}');
 });
 
 test('a shape matching neither castable arm reports every arm plus the union', function () {
