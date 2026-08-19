@@ -33,11 +33,17 @@ final readonly class UtilsConsumer implements TypeConsumer
 {
     use InteractsWithGenerics;
 
+    /**
+     * Reserved words in docblocks: the consumer runs before UserDefinedObjectConsumer, so these
+     * names win over a same-named imported class. See TypeParser::defaultConsumers().
+     */
+    private const array UTILITY_NAMES = ['Pick', 'Omit', 'BrandedString', 'BrandedInt', 'DateTimeString', 'Named', 'Branded'];
+
     #[Override]
     public function canConsume(ParserState $state): bool
     {
         return $state->currentTokenIs(TokenType::IDENTIFIER)
-            && in_array($state->current()->value, ['Pick', 'Omit', 'BrandedString', 'BrandedInt', 'DateTimeString'], true);
+            && in_array($state->current()->value, self::UTILITY_NAMES, true);
     }
 
     #[Override]
@@ -77,6 +83,14 @@ final readonly class UtilsConsumer implements TypeConsumer
                 NamedType::same(ucfirst($brand)),
                 $brand,
             );
+        }
+
+        if ($type === 'Named') {
+            return $this->named($state, $parser);
+        }
+
+        if ($type === 'Branded') {
+            return $this->branded($state, $parser);
         }
 
         [$nodeToPickFrom, $pick] = $this->consumeGenerics($state, $parser, 2, 2);
@@ -132,6 +146,75 @@ final readonly class UtilsConsumer implements TypeConsumer
         }
 
         return $node->value;
+    }
+
+    /**
+     * `Named<'Name', T>` is the docblock form of `#[Named('Name')]`: attributes cannot reach into
+     * a docblock, so the alias is attached at the use site instead.
+     *
+     * @throws InvalidSyntaxException
+     */
+    private function named(ParserState $state, TypeParser $parser): MetadataNode
+    {
+        [$literalNode, $innerNode] = $this->consumeGenerics($state, $parser, 2, 2);
+        $name = $this->literalStringValue($state, $literalNode, 'named type');
+
+        if (! Syntax::isValidIdentifier($name)) {
+            throw InvalidStringLiteralException::notAValidTypescriptIdentifier($name, "Named<'{$name}', ...>");
+        }
+
+        [$node, $existingName, $existingBrand] = $this->unwrapMetadata($innerNode);
+
+        if ($existingName !== null) {
+            $state->produceSyntaxError(
+                "The inner type of Named<'{$name}', ...> already carries the alias '{$existingName->outputName}'."
+            );
+        }
+
+        return new MetadataNode($node, NamedType::same($name), $existingBrand);
+    }
+
+    /**
+     * `Branded<'brand', T>` is `BrandedString<'brand'>` generalized to any inner type: brand plus
+     * implicit alias in one. An inner `Named<...>` supplies the alias instead of the implicit one,
+     * so `Branded<'accountId', Named<'AccountId', string>>` reads exactly as written.
+     *
+     * @throws InvalidSyntaxException
+     */
+    private function branded(ParserState $state, TypeParser $parser): MetadataNode
+    {
+        [$literalNode, $innerNode] = $this->consumeGenerics($state, $parser, 2, 2);
+        $brand = $this->literalStringValue($state, $literalNode, 'branded type');
+
+        if (! Syntax::isValidIdentifier($brand)) {
+            throw InvalidStringLiteralException::notAValidTypescriptIdentifier($brand, "Branded<'{$brand}', ...>");
+        }
+
+        [$node, $existingName, $existingBrand] = $this->unwrapMetadata($innerNode);
+
+        if ($existingBrand !== null) {
+            $state->produceSyntaxError(
+                "The inner type of Branded<'{$brand}', ...> already carries the brand '{$existingBrand}'."
+            );
+        }
+
+        // ucfirst cannot invalidate the implicit alias: the identifier's first character class
+        // ([A-Za-z_$]) is closed under it.
+        return new MetadataNode($node, $existingName ?? NamedType::same(ucfirst($brand)), $brand);
+    }
+
+    /**
+     * Flattens an inner MetadataNode so the utilities always produce a single wrapper: metadata
+     * stays one flat node per position (MetadataNode::validate() rejects nesting), and each slot
+     * is written exactly once — the callers reject a second name or brand.
+     *
+     * @return array{NodeInterface, NamedType|null, string|null}
+     */
+    private function unwrapMetadata(NodeInterface $node): array
+    {
+        return $node instanceof MetadataNode
+            ? [$node->node, $node->name, $node->brand]
+            : [$node, null, null];
     }
 
     /**

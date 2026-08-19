@@ -88,6 +88,8 @@ function corpus(): array
     Pick<array{id: string, name: string, age: int}, "name"|"age">
     BrandedInt<'wow'>
     BrandedString<"accountId">
+    Named<"AccountId", string>
+    Branded<'accountId', Named<"AccountId", string>>
     1|-2|true|false|'string'
     7|'18'|true
     array{"key something else": OtherType, ...}

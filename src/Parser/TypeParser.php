@@ -80,8 +80,13 @@ final readonly class TypeParser
             new ValueObjectConsumer(),
             new EnumConsumer(),
             new DateTimeConsumer(),
-            new UserDefinedObjectConsumer(),
+
+            // Utility names are reserved words in docblocks and must beat the class resolution of
+            // UserDefinedObjectConsumer: exactly the files using the #[Named] attribute import a
+            // class called Named, which would otherwise claim the `Named<...>` utility. A real
+            // class named like a utility stays reachable fully qualified.
             new UtilsConsumer(),
+            new UserDefinedObjectConsumer(),
         ];
     }
 

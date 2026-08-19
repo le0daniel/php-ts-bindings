@@ -202,6 +202,8 @@ test('a brand on a record key is dropped and declares no alias', function (strin
 })->with([
     'branded string key' => ["array<BrandedString<'k'>, int>", 'Record<string,number>'],
     'branded int key' => ["array<BrandedInt<'k'>, string>", 'Record<string,string>'],
+    'branded utility key' => ["array<Branded<'k', string>, int>", 'Record<string,number>'],
+    'named utility key' => ["array<Named<'K', string>, int>", 'Record<string,number>'],
 ]);
 
 test('the BrandedString and BrandedInt utilities keep their implicit alias', function (
@@ -222,6 +224,34 @@ test('the BrandedString and BrandedInt utilities keep their implicit alias', fun
         ['Token' => '(string & Brand<"token">)'],
     ],
 ]);
+
+test('the Named and Branded utilities collect their alias', function (
+    string $type,
+    string $expectedType,
+    array $expectedAliases,
+) {
+    $result = typescriptOf($type);
+
+    expect($result->type)->toBe($expectedType)
+        ->and($result->registry->toArray())->toBe($expectedAliases);
+})->with([
+    'Named over string' => ["Named<'AccountId', string>", 'AccountId', ['AccountId' => 'string']],
+    'Branded over string' => ["Branded<'accountId', string>", 'AccountId', ['AccountId' => '(string & Brand<"accountId">)']],
+    'Branded over Named' => ["Branded<'accountId', Named<'Account', string>>", 'Account', ['Account' => '(string & Brand<"accountId">)']],
+    'Named over a struct' => ["Named<'Coords', array{lat: float, lng: float}>", 'Coords', ['Coords' => '{lat:number;lng:number;}']],
+    'Named over a constrained string' => ["Named<'X', non-empty-string>", 'X', ['X' => 'string']],
+    'Named in a union' => ["Named<'X', string>|null", '(X|null)', ['X' => 'string']],
+]);
+
+test('Branded over string emits identically to BrandedString', function () {
+    expect(typescriptOf("Branded<'accountId', string>"))
+        ->toEqual(typescriptOf("BrandedString<'accountId'>"));
+});
+
+test('throws when a Branded utility redefines an existing alias differently', function () {
+    expect(fn () => typescriptOf("array{a: BrandedString<'token'>, b: Branded<'token', int>}"))
+        ->toThrow(UnsupportedTypeException::class, 'Token');
+});
 
 test('returns branded types sorted by alias', function () {
     $result = typescriptOf("array{z: BrandedString<'zulu'>, a: BrandedString<'alpha'>, m: BrandedString<'mike'>}");

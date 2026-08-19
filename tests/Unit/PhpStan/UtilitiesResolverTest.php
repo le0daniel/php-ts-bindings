@@ -16,6 +16,7 @@ class UtilitiesResolverTest extends TypeInferenceTestCase
     {
         // path to a file with actual asserts of expected types:
         yield from self::gatherAssertTypes(__DIR__.'/data/types.php');
+        yield from self::gatherAssertTypes(__DIR__.'/data/named-branded.php');
     }
 
     #[DataProvider('dataFileAsserts')]

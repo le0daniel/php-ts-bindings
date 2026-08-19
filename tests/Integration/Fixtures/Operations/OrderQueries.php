@@ -205,4 +205,16 @@ final class OrderQueries
     {
         return ['customerId' => 512, 'orderId' => 'ORD-1001'];
     }
+
+    /**
+     * The written out utility forms: Branded generalizes BrandedString to any inner type, an
+     * inner Named supplies the alias, and Named alone exports a shape once by name.
+     *
+     * @return array{ref: Branded<'orderRef', Named<'OrderRef', non-empty-string>>, depot: Named<'Depot', array{lat: float, lng: float}>}
+     */
+    #[Query('orders')]
+    public function depotRef(null $input): array
+    {
+        return ['ref' => 'REF-1001', 'depot' => ['lat' => 47.37, 'lng' => 8.54]];
+    }
 }

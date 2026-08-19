@@ -92,4 +92,24 @@ final class ShapeOperations
     {
         return ['accepted' => true, 'id' => $input['payload']['id']];
     }
+
+    /**
+     * The docblock metadata utilities: Named exports an alias, Branded intersects a Brand and
+     * declares the implicit alias, and an inner Named renames the outer Branded.
+     *
+     * @return array{
+     *     token: Branded<'sessionToken', non-empty-string>,
+     *     ref: Branded<'shapeRef', Named<'ShapeRef', string>>,
+     *     origin: Named<'Origin', array{lat: float, lng: float}>,
+     * }
+     */
+    #[Query('shapes')]
+    public function metadataUtilities(null $input): array
+    {
+        return [
+            'token' => 'tok-1',
+            'ref' => 'REF-9',
+            'origin' => ['lat' => 0.0, 'lng' => 0.0],
+        ];
+    }
 }

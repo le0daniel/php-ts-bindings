@@ -2,7 +2,9 @@
 
 namespace Tests\Unit\Parser;
 
+use Le0daniel\PhpTsBindings\Contracts\Attributes\Named as NamedAttribute;
 use Le0daniel\PhpTsBindings\Data\IO;
+use Le0daniel\PhpTsBindings\Parser\Contracts\NodeInterface;
 use Le0daniel\PhpTsBindings\Parser\Data\Exceptions\InvalidSyntaxException;
 use Le0daniel\PhpTsBindings\Parser\Data\GlobalTypeAliases;
 use Le0daniel\PhpTsBindings\Parser\Helpers\Constraints\IntRange;
@@ -15,6 +17,7 @@ use Le0daniel\PhpTsBindings\Parser\Helpers\ParsingScope;
 use Le0daniel\PhpTsBindings\Parser\Nodes\ConstraintNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\CustomCastingNode;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\LiteralType;
+use Le0daniel\PhpTsBindings\Parser\Nodes\Data\NamedType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\ObjectCastStrategy;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\PropertyType;
 use Le0daniel\PhpTsBindings\Parser\Nodes\Data\StructPhpType;
@@ -38,6 +41,7 @@ use Le0daniel\PhpTsBindings\Typescript\Exceptions\UnsupportedTypeException;
 use Le0daniel\PhpTsBindings\Typescript\TypescriptGenerator;
 use Le0daniel\PhpTsBindings\Utils\Nodes;
 use Tests\Feature\Mocks\Paginated;
+use Tests\Mocks\Named\Customer;
 use Tests\Mocks\ResultEnum;
 use Tests\Mocks\ValueObjects\Email;
 use Tests\Unit\Parser\Data\Stubs\Address;
@@ -931,6 +935,8 @@ test('rejects a branded utility tag that is not a valid TypeScript identifier', 
 })->with([
     'BrandedString' => ["BrandedString<'not valid'>"],
     'BrandedInt' => ["BrandedInt<'not valid'>"],
+    'Named' => ["Named<'not valid', string>"],
+    'Branded' => ["Branded<'not valid', string>"],
 ]);
 
 test('codegen metadata is transparent in the string form and the exported php code', function () {
@@ -950,6 +956,171 @@ test('codegen metadata is transparent in the string form and the exported php co
         ->and((string) $int)->toBe('int')
         ->and($int->exportPhpCode())->not->toContain('wow');
 });
+
+test('parse the Named utility correctly', function (string $type) {
+    $parser = new TypeParser();
+    $node = $parser->parse($type);
+    compareToOptimizedAst($node);
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->node)->toBeInstanceOf(StringNode::class)
+        ->and($node->name)->toEqual(NamedType::same('AccountId'))
+        ->and($node->brand)->toBeNull();
+
+    foreach ([IO::INPUT, IO::OUTPUT] as $io) {
+        $named = typescriptFor($node, $io);
+        expect($named->type)->toBe('AccountId')
+            ->and($named->registry->toArray())->toBe(['AccountId' => 'string']);
+    }
+})->with([
+    'single quotes' => ["Named<'AccountId', string>"],
+    'double quotes' => ['Named<"AccountId", string>'],
+]);
+
+test('parse the Branded utility correctly', function () {
+    $parser = new TypeParser();
+    $node = $parser->parse("Branded<'accountId', string>");
+    compareToOptimizedAst($node);
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->node)->toBeInstanceOf(StringNode::class)
+        ->and($node->name)->toEqual(NamedType::same('AccountId'))
+        ->and($node->brand)->toBe('accountId');
+
+    foreach ([IO::INPUT, IO::OUTPUT] as $io) {
+        $branded = typescriptFor($node, $io);
+        expect($branded->type)->toBe('AccountId')
+            ->and($branded->registry->toArray())->toBe(['AccountId' => '(string & Brand<"accountId">)']);
+    }
+});
+
+test('Branded over string is the written out form of BrandedString', function () {
+    $parser = new TypeParser();
+    $branded = $parser->parse("Branded<'wow', string>");
+    $shorthand = $parser->parse("BrandedString<'wow'>");
+
+    expect($branded)->toEqual($shorthand)
+        ->and($branded->exportPhpCode())->toBe($shorthand->exportPhpCode());
+
+    foreach ([IO::INPUT, IO::OUTPUT] as $io) {
+        $brandedTs = typescriptFor($branded, $io);
+        $shorthandTs = typescriptFor($shorthand, $io);
+        expect($brandedTs->type)->toBe($shorthandTs->type)
+            ->and($brandedTs->registry->toArray())->toBe($shorthandTs->registry->toArray());
+    }
+});
+
+test('the implicit Branded alias keeps a non alphabetic first character verbatim', function () {
+    $node = new TypeParser()->parse("Branded<'_x', string>");
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->brand)->toBe('_x')
+        ->and($node->name?->outputName)->toBe('_x');
+});
+
+test('Named preserves constraints on the inner type', function () {
+    $node = new TypeParser()->parse("Named<'X', non-empty-string>");
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->node)->toBeInstanceOf(ConstraintNode::class);
+
+    expect(executeParse("array{v: Named<'X', non-empty-string>}", ['v' => '']))->toBeFailure()
+        ->and(executeParse("array{v: Named<'X', non-empty-string>}", ['v' => 'a']))->toBeSuccess();
+});
+
+test('a Named utility inside a union stays a plain union member', function () {
+    $node = new TypeParser()->parse("Named<'X', string>|null");
+    compareToOptimizedAst($node);
+
+    expect($node)->toBeInstanceOf(UnionNode::class);
+    expect(array_filter($node->nodes, static fn (NodeInterface $member): bool => $member instanceof MetadataNode))
+        ->toHaveCount(1);
+});
+
+test('Named and Branded require exactly two generic arguments', function (string $type, string $message) {
+    expect(fn () => new TypeParser()->parse($type))
+        ->toThrow(InvalidSyntaxException::class, $message);
+})->with([
+    'Named with one argument' => ["Named<'X'>", 'Expected at least 2 generic type(s), got 1'],
+    'Named without generics' => ['Named', 'Expected at least 2 generics, got 0.'],
+    'Named with three arguments' => ["Named<'X', string, int>", 'Expected at most 2 generic type(s), got 3'],
+    'Branded with one argument' => ["Branded<'x'>", 'Expected at least 2 generic type(s), got 1'],
+]);
+
+test('Named and Branded require a literal string tag', function (string $type, string $message) {
+    expect(fn () => new TypeParser()->parse($type))
+        ->toThrow(InvalidSyntaxException::class, $message);
+})->with([
+    'Named' => ['Named<string, int>', 'Expected literal string value for named type'],
+    'Branded' => ['Branded<int, string>', 'Expected literal string value for branded type'],
+]);
+
+test('Branded over Named flattens to a single metadata node', function () {
+    $node = new TypeParser()->parse("Branded<'accountId', Named<'AccountId', string>>");
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->node)->toBeInstanceOf(StringNode::class)
+        ->and($node->name)->toEqual(NamedType::same('AccountId'))
+        ->and($node->brand)->toBe('accountId');
+
+    validateAst($node);
+});
+
+test('Branded keeps the name of a class level #[Named] and only adds the brand', function () {
+    $node = new TypeParser()->parse("Branded<'contact', ".Customer::class.'>');
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->node)->not->toBeInstanceOf(MetadataNode::class)
+        ->and($node->name?->outputName)->toBe('Customer')
+        ->and($node->brand)->toBe('contact');
+
+    validateAst($node);
+});
+
+test('Named keeps the brand of a class level #[Brand]', function () {
+    $node = new TypeParser()->parse("Named<'EmailAddress', ".Email::class.'>');
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->node)->not->toBeInstanceOf(MetadataNode::class)
+        ->and($node->name)->toEqual(NamedType::same('EmailAddress'))
+        ->and($node->brand)->toBe('email');
+
+    validateAst($node);
+});
+
+test('renaming an already named type is rejected', function (string $type) {
+    expect(fn () => new TypeParser()->parse($type))
+        ->toThrow(InvalidSyntaxException::class, 'already carries the alias');
+})->with([
+    'explicit inner Named' => ["Named<'X', Named<'Y', string>>"],
+    'implicit alias of Branded' => ["Named<'AccountId', Branded<'accountId', string>>"],
+    'implicit alias of BrandedString' => ["Named<'X', BrandedString<'tok'>>"],
+    'class level #[Named]' => ["Named<'X', ".Customer::class.'>'],
+]);
+
+test('a utility name wins over a same named imported class', function (string $type) {
+    // Exactly the files using the #[Named] attribute import a class called Named; the docblock
+    // utility must still be the one that answers.
+    $scope = new ParsingScope(usedNamespaceMap: [
+        'Named' => NamedAttribute::class,
+        'Branded' => Customer::class,
+    ]);
+    $node = new TypeParser()->parse($type, $scope);
+
+    expect($node)->toBeInstanceOf(MetadataNode::class)
+        ->and($node->node)->toBeInstanceOf(StringNode::class);
+})->with([
+    'Named' => ['Named<"X", string>'],
+    'Branded' => ['Branded<"x", string>'],
+]);
+
+test('rebranding an already branded type is rejected', function (string $type) {
+    expect(fn () => new TypeParser()->parse($type))
+        ->toThrow(InvalidSyntaxException::class, 'already carries the brand');
+})->with([
+    'explicit inner Branded' => ["Branded<'a', Branded<'b', string>>"],
+    'class level #[Brand]' => ["Branded<'x', ".Email::class.'>'],
+]);
 
 test('a questionmark union accepts null', function () {
     /** @var UnionNode $node */

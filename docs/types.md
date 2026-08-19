@@ -234,14 +234,29 @@ resolved by the bundled PHPStan extension too, so static analysis agrees with th
 | --- | --- | --- |
 | `Pick<T, 'a'\|'b'>` | struct with only those properties | `{a: …; b: …;}` |
 | `Omit<T, 'a'\|'b'>` | struct without those properties | `{…}` |
+| `Named<'Name', T>` | `T` | `Name`, declared as `T` |
+| `Branded<'name', T>` | `T` | `Name`, declared as `(T & Brand<"name">)` |
 | `BrandedString<'name'>` | `string` | `Name`, declared as `(string & Brand<"name">)` |
 | `BrandedInt<'name'>` | `int` | `Name`, declared as `(number & Brand<"name">)` |
 | `DateTimeString` | `DateTimeImmutable` | `string` — ISO-8601 |
 | `DateTimeString<'format'>` | `DateTimeImmutable` | `string` — exactly that format |
 
-`BrandedString` / `BrandedInt` are the shorthand for brand *and* name in one, because a docblock
-cannot carry attributes. The same tag used twice collects one alias; the same tag resolving to two
-different definitions fails the run.
+`Named` and `Branded` are the docblock forms of [`#[Named]`](#named-types) and
+[`#[Brand]`](#branded-types), because a docblock cannot carry attributes. `Branded<'x', string>`
+is exactly `BrandedString<'x'>` written out; `Branded` over any type also declares the implicit
+`ucfirst` alias, unless an inner `Named` supplies one — the canonical nesting order is
+`Branded<'brand', Named<'Name', T>>`. Metadata is set exactly once: renaming an already named
+type or re-branding an already branded one fails the parse, whether the inner metadata comes from
+a nested utility or from `#[Named]`/`#[Brand]` on the inner class. That is also why `Named`
+*outside* a bare `Branded` throws — the implicit alias already occupies the name.
+
+The same tag used twice collects one alias; the same tag resolving to two different definitions
+fails the run.
+
+> [!NOTE]
+> Utility names are reserved words in docblocks: they win over a same-named imported class —
+> notably `Named`, which every file using the `#[Named]` attribute imports. A real class that
+> shares a utility name stays reachable written fully qualified.
 
 ## DateTimeString
 
@@ -519,10 +534,13 @@ final readonly class UserId implements IntValueObject { /* ... */ }
 export type UserId = (number & Brand<"userId">);
 ```
 
+In a docblock, where attributes cannot reach, write [`Branded<'name', T>`](#utility-types) instead.
+
 ## Named types
 
 `#[Named]` exports a class, interface, enum or value object as a named type alias: instead of
 inlining the structure at every use site, the generator declares it once and references it by name.
+In a docblock, where attributes cannot reach, write [`Named<'Name', T>`](#utility-types) instead.
 
 ```php
 #[Named]                             // alias defaults to the class base name: App\Data\Order => Order

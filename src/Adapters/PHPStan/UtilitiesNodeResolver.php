@@ -62,9 +62,30 @@ final class UtilitiesNodeResolver implements TypeNodeResolverAwareExtension, Typ
         return match ($typeName->name) {
             'DateTimeString' => $this->resolveDateTimeString($typeNode, $nameScope),
             'BrandedString', 'BrandedInt' => $this->resolveBrandedTypes($typeName->name, $typeNode, $nameScope),
+            'Named', 'Branded' => $this->resolveNamedAndBrandedWrappers($typeNode, $nameScope),
             'Pick', 'Omit' => $this->resolvePickAndOmitUtil($typeName->name, $typeNode, $nameScope),
             default => null,
         };
+    }
+
+    /**
+     * Named and Branded carry pure codegen metadata, so both resolve to their second argument.
+     * Resolving through the TypeNodeResolver re-enters this extension, which is what makes
+     * nesting like Branded<"accountId", Named<"AccountId", string>> work.
+     */
+    private function resolveNamedAndBrandedWrappers(GenericTypeNode $typeNode, NameScope $nameScope): ?Type
+    {
+        $arguments = $typeNode->genericTypes;
+        if (count($arguments) !== 2) {
+            return null;
+        }
+
+        $literalType = $this->typeNodeResolver->resolve($arguments[0], $nameScope);
+        if (count($literalType->getConstantStrings()) !== 1) {
+            return null;
+        }
+
+        return $this->typeNodeResolver->resolve($arguments[1], $nameScope);
     }
 
     /**

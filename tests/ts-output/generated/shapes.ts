@@ -2,7 +2,7 @@
 
 import type {OperationOptions} from './lib/OperationClient';
 import {executeOperation} from './lib/bindings';
-import type {Availability, Brand, Money, Product, Sku} from './lib/types';
+import type {Availability, Brand, Money, Origin, Product, SessionToken, ShapeRef, Sku} from './lib/types';
 import {queryKey, throwOnFailure} from './lib/utils';
 import type {UseQueryOptions} from '@tanstack/react-query';
 import {queryOptions, useQuery} from '@tanstack/react-query';
@@ -47,6 +47,48 @@ export function useDefaultsQuery(queryOptions?: Partial<DefaultsOptions>) {
 /** @pure */
 export function defaultsQueryKey() {
     return queryKey('shapes', 'defaults');
+}
+
+export type MetadataUtilitiesResult = {origin:Origin;ref:ShapeRef;token:SessionToken;};
+export type MetadataUtilitiesInput = null;
+export type MetadataUtilitiesDomainErrors = never;
+
+/**
+ * Type: QUERY
+ * Name: shapes.metadataUtilities 
+ *
+ * @php Tests\Unit\CodeGen\Mocks\TsOutput\ShapeOperations::metadataUtilities
+ */
+export async function metadataUtilities(options?: OperationOptions) {
+    return await executeOperation<MetadataUtilitiesInput, MetadataUtilitiesResult, MetadataUtilitiesDomainErrors>(
+        'query', 
+        'shapes.metadataUtilities', 
+        null, 
+        options
+    )
+}
+
+type MetadataUtilitiesOptions = Omit<UseQueryOptions<MetadataUtilitiesResult>, 'queryKey' | 'queryFn'>;
+
+export function metadataUtilitiesQueryOptions(options?: MetadataUtilitiesOptions) {
+    return queryOptions({
+        queryKey: queryKey('shapes', 'metadataUtilities'),
+        queryFn: async ({signal}): Promise<MetadataUtilitiesResult> => {
+            const result = await metadataUtilities({signal});
+            throwOnFailure(result);
+            return result.data;
+        },
+        ... options,
+    });
+}
+
+export function useMetadataUtilitiesQuery(queryOptions?: Partial<MetadataUtilitiesOptions>) {
+    return useQuery(metadataUtilitiesQueryOptions(queryOptions));
+}
+
+/** @pure */
+export function metadataUtilitiesQueryKey() {
+    return queryKey('shapes', 'metadataUtilities');
 }
 
 export type RoundtripResult = {filters:Record<string,Array<string>>;page?:number;term:string;};

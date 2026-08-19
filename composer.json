@@ -25,7 +25,7 @@
   },
   "suggest": {
     "laravel/framework": "Enables the first-party Laravel adapter: config, routes, and the operations:* artisan commands.",
-    "phpstan/phpstan": "Include vendor/le0daniel/php-ts-bindings/extension.neon so Pick, Omit, BrandedString, BrandedInt and DateTimeString resolve.",
+    "phpstan/phpstan": "Include vendor/le0daniel/php-ts-bindings/extension.neon so Pick, Omit, Named, Branded, BrandedString, BrandedInt and DateTimeString resolve.",
     "psr/container": "Required only by PsrContainerAdapter. Install it to resolve handlers and middleware through a PSR-11 container; the default NewInstanceAdapter needs nothing."
   },
   "autoload": {

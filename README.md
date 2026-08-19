@@ -75,8 +75,8 @@ composer require le0daniel/php-ts-bindings
 ```
 
 Then register the PHPStan extension, so static analysis understands the same utility types the
-generator does — without it `Pick`, `Omit`, `BrandedString`, `BrandedInt` and `DateTimeString` do
-not resolve:
+generator does — without it `Pick`, `Omit`, `Named`, `Branded`, `BrandedString`, `BrandedInt` and
+`DateTimeString` do not resolve:
 
 ```neon
 # phpstan.neon

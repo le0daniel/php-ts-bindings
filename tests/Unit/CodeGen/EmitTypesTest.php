@@ -246,3 +246,14 @@ test('the BrandedString utility type keeps its implicit alias', function () {
         ->toContain('export type Token = (string & Brand<"token">)')
         ->not->toContain('export type Email');
 });
+
+test('the Named and Branded utility types export their alias', function () {
+    $types = emitTypesFor(
+        'array{account: Branded<\'accountId\', string>}',
+        'array{pos: Named<\'Coords\', array{lat: float, lng: float}>}',
+    );
+
+    expect($types)
+        ->toContain('export type AccountId = (string & Brand<"accountId">)')
+        ->toContain('export type Coords = {lat:number;lng:number;}');
+});

@@ -45,6 +45,11 @@ test('sessionRefs returns branded types as plain string and int', function () {
         ->toBe('{"success":true,"data":{"customerId":512,"orderId":"ORD-1001"}}');
 });
 
+test('depotRef serializes the Named and Branded utilities as their plain inner types', function () {
+    expect(IntegrationHarness::queryJson('orders.depotRef'))
+        ->toBe('{"success":true,"data":{"depot":{"lat":47.37,"lng":8.54},"ref":"REF-1001"}}');
+});
+
 test('invoiceFileName returns a bare scalar as the envelope data', function () {
     expect(IntegrationHarness::queryJson('orders.invoiceFileName', '{"orderNumber":"ORD-1001"}'))
         ->toBe('{"success":true,"data":"invoice-ORD-1001.pdf"}');
